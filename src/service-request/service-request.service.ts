@@ -4,12 +4,14 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
+import { ServiceResponseService } from "src/service-response/service-response.service";
 
 @Injectable()
 export class ServiceRequestService {
   constructor(
     @InjectModel("serviceRequest")
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
+    private serviceResponseService: ServiceResponseService,
     private helperService: HelperService
   ) {}
 
@@ -52,6 +54,24 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, token: UserToken) {
     try {
+      let data = await this.serviceRequestModel
+        .findOne({ _id: id })
+        .populate({
+          path: "item",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        })
+        .lean();
+      let response = await this.serviceResponseService.getServiceResponseDetail(
+        data._id
+      );
+      let user = await this.helperService.getProfileById([data.requestedBy]);
+      data["serviceResponse"] = response;
+      data["requestedBy"] = user;
+      return { data: data };
     } catch (err) {
       throw err;
     }

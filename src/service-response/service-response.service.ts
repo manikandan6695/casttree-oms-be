@@ -14,10 +14,8 @@ import { IServiceResponseModel } from "./schema/service-response.schema";
 export class ServiceResponseService {
   constructor(
     @InjectModel("serviceResponse")
-    private readonly serviceResponseModel: Model<IServiceResponseModel>,
-    private shared_service: SharedService,
-    private serviceRequestService: ServiceRequestService,
-    private helperService: HelperService
+    private readonly serviceResponseModel: Model<IServiceResponseModel>
+    // private serviceRequestService: ServiceRequestService
   ) {}
 
   async saveServiceResponse(body: ServiceResponseDTO, token: UserToken) {
@@ -35,12 +33,21 @@ export class ServiceResponseService {
       } else {
         await this.serviceResponseModel.create(fv);
       }
-      if (body.feedbackStatus == EServiceResponse.submitted) {
-        await this.serviceRequestService.updateServiceRequest(body.requestId, {
-          requestStatus: EServiceRequestStatus.completed,
-        });
-      }
+      // if (body.feedbackStatus == EServiceResponse.submitted) {
+      //   await this.serviceRequestService.updateServiceRequest(body.requestId, {
+      //     requestStatus: EServiceRequestStatus.completed,
+      //   });
+      // }
       return { message: "Saved Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getServiceResponseDetail(id: any) {
+    try {
+      let data = await this.serviceResponseModel.findOne({ requestId: id });
+      return data;
     } catch (err) {
       throw err;
     }

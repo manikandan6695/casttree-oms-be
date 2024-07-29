@@ -20,5 +20,6 @@ import { ServiceResponseFormatService } from "./service-response-format.service"
   ],
   controllers: [ServiceResponseFormatController],
   providers: [ServiceResponseFormatService],
+  exports: [ServiceResponseFormatService],
 })
 export class ServiceResponseFormatModule {}
