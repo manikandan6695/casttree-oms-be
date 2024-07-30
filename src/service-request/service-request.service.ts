@@ -22,11 +22,13 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
+      console.log("requested", token.id, requestStatus);
+
       let filter = { requestedToUser: token.id, requestStatus: requestStatus };
       let data = await this.serviceRequestModel
-        .find(filter)
+        .find()
         .populate({
-          path: "item",
+          path: "itemId",
           populate: [
             {
               path: "platformItemId",
@@ -36,10 +38,11 @@ export class ServiceRequestService {
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit);
+      let count = await this.serviceRequestModel.countDocuments();
       let requestedByIds = data.map((e) => e.requestedBy);
-      let user = await this.helperService.getProfileById(requestedByIds);
+      // let user = await this.helperService.getProfileById(requestedByIds);
 
-      return data;
+      return { data: data, count: count };
     } catch (err) {
       throw err;
     }
@@ -57,7 +60,7 @@ export class ServiceRequestService {
       let data = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
-          path: "item",
+          path: "itemId",
           populate: [
             {
               path: "platformItemId",
@@ -68,9 +71,9 @@ export class ServiceRequestService {
       let response = await this.serviceResponseService.getServiceResponseDetail(
         data._id
       );
-      let user = await this.helperService.getProfileById([data.requestedBy]);
+      // let user = await this.helperService.getProfileById([data.requestedBy]);
       data["serviceResponse"] = response;
-      data["requestedBy"] = user;
+      // data["requestedBy"] = user;
       return { data: data };
     } catch (err) {
       throw err;

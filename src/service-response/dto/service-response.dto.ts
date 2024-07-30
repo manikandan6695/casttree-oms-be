@@ -1,12 +1,14 @@
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
 } from "class-validator";
+import { EServiceResponse } from "../enum/service-response.enum";
 
 export class AdditionalDetailDTO {
   @IsOptional()
@@ -40,8 +42,8 @@ export class ServiceResponseDTO {
   overAllRatings: number;
 
   @IsNotEmpty()
-  @IsString()
-  feedbackStatus: string;
+  @IsEnum(EServiceResponse)
+  feedbackStatus: EServiceResponse;
 
   @IsOptional()
   additionalDetail: AdditionalDetailDTO;

@@ -8,17 +8,18 @@ import { ServiceResponseController } from "./service-response.controller";
 import { ServiceResponseService } from "./service-response.service";
 import { serviceResponseSchema } from "./schema/service-response.schema";
 import { ServiceRequestModule } from "src/service-request/service-request.module";
+import { serviceRequestSchema } from "src/service-request/schema/serviceRequest.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "serviceResponse", schema: serviceResponseSchema },
+      { name: "serviceRequest", schema: serviceRequestSchema },
     ]),
     SharedModule,
     AuthModule,
     HttpModule,
     HelperModule,
-    // forwardRef(() => ServiceRequestModule),
   ],
   controllers: [ServiceResponseController],
   providers: [ServiceResponseService],

@@ -45,8 +45,8 @@ export class CommentsService {
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit);
-
-      return data;
+      let count = await this.commentModel.countDocuments();
+      return { data: data, count: count };
     } catch (err) {
       throw err;
     }
