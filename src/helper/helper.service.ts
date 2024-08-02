@@ -28,7 +28,7 @@ export class HelperService {
       // ${this.configService.get("CASTTREE_BASE_URL")}
       let data = await this.http_service
         .post(
-          `${this.configService.get("CASTTREE_BASE_URL")}/casttree/profile/get-profile-list`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
           { userIds: userId },
           {
             headers: {
