@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 @Injectable()
@@ -9,11 +9,35 @@ export class HelperService {
     private configService: ConfigService
   ) {}
 
-  async getProfileById(userId: string[]) {
+  getRequiredHeaders(@Req() req) {
+    const reqHeaders = {
+      Authorization: "",
+    };
+
+    if (req.headers) {
+      reqHeaders.Authorization = req.headers["authorization"] ?? "";
+    }
+
+    return reqHeaders;
+  }
+
+  async getProfileById(userId: string[], @Req() req) {
     try {
+      // console.log("user id is", userId, req["headers"]["authorization"]);
+      const headers = this.getRequiredHeaders(req);
+      // ${this.configService.get("CASTTREE_BASE_URL")}
       let data = await this.http_service
-        .post(`${this.configService.get("CASTTREE_BASE_URL")}/profile`, userId)
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/casttree/profile/get-profile-list`,
+          { userIds: userId },
+          {
+            headers: {
+              Authorization: `${req["headers"]["authorization"]}`,
+            },
+          }
+        )
         .toPromise();
+      // console.log("data is", data.data);
 
       return data.data;
     } catch (err) {

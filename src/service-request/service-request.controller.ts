@@ -4,6 +4,7 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
@@ -24,6 +25,7 @@ export class ServiceRequestController {
   @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceRequests(
+    @Req() req,
     @Query("requestStatus") requestStatus: string,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number,
@@ -35,7 +37,8 @@ export class ServiceRequestController {
         requestStatus,
         token,
         skip,
-        limit
+        limit,
+        req
       );
       return res.json(data);
     } catch (err) {
@@ -49,6 +52,7 @@ export class ServiceRequestController {
   @UseGuards(JwtAuthGuard)
   @Get(":id")
   async getServiceRequest(
+    @Req() req: Request,
     @Param("id") id: string,
     @GetToken() token: UserToken,
     @Res() res: Response
@@ -56,7 +60,8 @@ export class ServiceRequestController {
     try {
       let data = await this.serviceRequestService.getServiceRequest(
         id,
-        token
+        token,
+        req
       );
       return res.json(data);
     } catch (err) {
