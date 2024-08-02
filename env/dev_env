@@ -1,6 +1,6 @@
 NODE_ENV = "development"
 SERVER_PORT = 3100
-API_PREFIX = "casttree"
+API_PREFIX = "casttree-oms"
 CORS_ORIGIN = "*"
 
 DB_URL = "mongodb+srv://dbAdmin:umP6QgRUxgPkK7kd@tecxprt.qbxr7.mongodb.net/tecxprt"
