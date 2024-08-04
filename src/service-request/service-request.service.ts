@@ -43,8 +43,9 @@ export class ServiceRequestService {
       user["profileData"].reduce((a, c) => {
         a[c._id] = c;
       });
-      // console.log("user is", user);
-
+      data.map((e) => {
+        return (e["requestedBy"] = user[e.requestedBy]);
+      });
       return { data: data, count: count };
     } catch (err) {
       throw err;
@@ -82,9 +83,12 @@ export class ServiceRequestService {
         a[c.userId] = c;
         return a;
       }, {});
-      console.log("user is", user);
+      // console.log("user is", user);
       data["serviceResponse"] = response;
-      data["requestedBy"] = user;
+      // data.map((e1) => {
+      //   return (e1["requestedBy"] = user[e1._id]);
+      // });
+      data["requestedBy"] = user[data.requestedBy];
       return { data: data };
     } catch (err) {
       throw err;
