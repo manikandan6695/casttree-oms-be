@@ -8,6 +8,8 @@ import {
   UseGuards,
   Query,
   ParseIntPipe,
+  Delete,
+  Param,
 } from "@nestjs/common";
 import { Response } from "express";
 import { UserToken } from "src/auth/dto/usertoken.dto";
@@ -27,13 +29,13 @@ export class CommentsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async addComment(
+  async saveComment(
     @Res() res: Response,
     @Body(new ValidationPipe({ whitelist: true })) body: CommentsDTO,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.commentsService.addComment(body, token);
+      let data = await this.commentsService.saveComment(body, token);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
@@ -60,6 +62,25 @@ export class CommentsController {
         skip,
         limit
       );
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(":id")
+  async removeComment(
+    @Param("id") id: string,
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.commentsService.removeComment(id, token);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
