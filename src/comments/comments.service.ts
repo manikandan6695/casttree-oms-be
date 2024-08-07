@@ -13,18 +13,22 @@ export class CommentsService {
     private readonly commentModel: Model<ICommentModel>
   ) {}
 
-  async addComment(body: CommentsDTO, token: UserToken) {
+  async saveComment(body: CommentsDTO, token: UserToken) {
     try {
       let fv = {
-        sourceId: body.sourceId,
-        sourceType: body.sourceType,
         commentDescription: body.commentDescription,
-        createdBy: token.id,
         updatedBy: token.id,
       };
-      let createdComment = await this.commentModel.create(fv);
+      if (body.id) {
+        await this.commentModel.updateOne({ _id: body.id }, { $set: fv });
+      } else {
+        fv["sourceId"] = body.sourceId;
+        fv["sourceType"] = body.sourceType;
+        fv["createdBy"] = token.id;
+        await this.commentModel.create(fv);
+      }
 
-      return createdComment;
+      return { message: "Saved Successfully" };
     } catch (err) {
       throw err;
     }
@@ -47,6 +51,15 @@ export class CommentsService {
         .limit(limit);
       let count = await this.commentModel.countDocuments();
       return { data: data, count: count };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async removeComment(id: string, token: UserToken) {
+    try {
+      await this.commentModel.deleteOne({ _id: id });
+      return { message: "Deleted Successfully" };
     } catch (err) {
       throw err;
     }
