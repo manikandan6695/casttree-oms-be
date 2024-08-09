@@ -7,6 +7,7 @@ import {
   Req,
   Res,
   UseGuards,
+  ValidationPipe,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
@@ -14,6 +15,7 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
 import { Response } from "express";
 import { ServiceRequestService } from "./service-request.service";
+import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 
 @Controller("service-request")
 export class ServiceRequestController {
@@ -22,23 +24,25 @@ export class ServiceRequestController {
     private sservice: SharedService
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceRequests(
     @Req() req,
-    @Query("requestStatus") requestStatus: string,
+    @Query(ValidationPipe) query: FilterServiceRequestDTO,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number,
     @GetToken() token: UserToken,
     @Res() res: Response
   ) {
     try {
+      console.log("inside service request");
+
       let data = await this.serviceRequestService.getServiceRequests(
-        requestStatus,
+        query,
         token,
+        req,
         skip,
-        limit,
-        req
+        limit
       );
       return res.json(data);
     } catch (err) {

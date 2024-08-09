@@ -5,6 +5,7 @@ import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
+import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 
 @Injectable()
 export class ServiceRequestService {
@@ -16,14 +17,25 @@ export class ServiceRequestService {
   ) {}
 
   async getServiceRequests(
-    requestStatus: string,
+    query: FilterServiceRequestDTO,
     token: UserToken,
+    @Req() req,
     skip: number,
-    limit: number,
-    @Req() req
+    limit: number
   ) {
     try {
-      let filter = { requestedToUser: token.id, requestStatus: requestStatus };
+      console.log("query is", query);
+
+      let filter = {};
+      if (query.requestStatus) {
+        filter["requestStatus"] = query.requestStatus;
+      }
+      if (query.requestedToUser) {
+        filter["requestedToUser"] = query.requestedToUser;
+      }
+      if (query.nominationIds.length) {
+        filter["additionalData.nominationId"] = { $in: query.nominationIds };
+      }
       let data = await this.serviceRequestModel
         .find()
         .populate({
