@@ -25,7 +25,7 @@ export class ServiceRequestService {
     try {
       let filter = { requestedToUser: token.id, requestStatus: requestStatus };
       let data = await this.serviceRequestModel
-        .find()
+        .find(filter)
         .populate({
           path: "itemId",
           populate: [
