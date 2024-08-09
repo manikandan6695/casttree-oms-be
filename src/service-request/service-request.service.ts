@@ -23,7 +23,11 @@ export class ServiceRequestService {
     @Req() req
   ) {
     try {
-      let filter = { requestedToUser: token.id, requestStatus: requestStatus };
+      let filter = { requestStatus: requestStatus };
+      console.log("filter is", filter, typeof token.id, {
+        requestedToUser: token.id,
+      });
+
       let data = await this.serviceRequestModel
         .find(filter)
         .populate({
@@ -38,14 +42,24 @@ export class ServiceRequestService {
         .skip(skip)
         .limit(limit);
       let count = await this.serviceRequestModel.countDocuments();
+      console.log("data is", data);
+
       let requestedByIds = data.map((e) => e.requestedBy);
-      let user = await this.helperService.getProfileById(requestedByIds, req);
-      user["profileData"].reduce((a, c) => {
-        a[c._id] = c;
-      });
-      data.map((e) => {
-        return (e["requestedBy"] = user[e.requestedBy]);
-      });
+      console.log("requestedByIds", requestedByIds);
+
+      if (requestedByIds.length) {
+        let user = await this.helperService.getProfileById(requestedByIds, req);
+
+        user["profileData"].reduce((a, c) => {
+          a[c._id] = c;
+        });
+        console.log("user is", user);
+
+        data.map((e) => {
+          return (e["requestedBy"] = user[e.requestedBy]);
+        });
+      }
+
       return { data: data, count: count };
     } catch (err) {
       throw err;
