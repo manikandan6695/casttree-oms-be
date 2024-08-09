@@ -5,7 +5,7 @@ import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
-
+const { ObjectId } = require("mongodb");
 @Injectable()
 export class ServiceRequestService {
   constructor(
@@ -23,9 +23,14 @@ export class ServiceRequestService {
     @Req() req
   ) {
     try {
-      let filter = { requestedToUser: token.id, requestStatus: requestStatus };
+      let filter = {
+        requestStatus: requestStatus,
+        requestedToUser: new ObjectId(token.id),
+      };
+      console.log("filter is", filter, typeof token.id);
+
       let data = await this.serviceRequestModel
-        .find()
+        .find(filter)
         .populate({
           path: "itemId",
           populate: [
@@ -38,14 +43,24 @@ export class ServiceRequestService {
         .skip(skip)
         .limit(limit);
       let count = await this.serviceRequestModel.countDocuments();
+
       let requestedByIds = data.map((e) => e.requestedBy);
-      let user = await this.helperService.getProfileById(requestedByIds, req);
-      user["profileData"].reduce((a, c) => {
-        a[c._id] = c;
-      });
-      data.map((e) => {
-        return (e["requestedBy"] = user[e.requestedBy]);
-      });
+
+      if (requestedByIds.length) {
+        let profileDetails = await this.helperService.getProfileById(
+          requestedByIds,
+          req
+        );
+        let user = profileDetails["profileData"].reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+
+        data.map((e) => {
+          return (e["requestedBy"] = user[e.requestedBy]);
+        });
+      }
+
       return { data: data, count: count };
     } catch (err) {
       throw err;
@@ -79,16 +94,19 @@ export class ServiceRequestService {
         [data.requestedBy],
         req
       );
-      let user = profileDetails["profileData"].reduce((a, c) => {
-        a[c.userId] = c;
-        return a;
-      }, {});
-      // console.log("user is", user);
-      data["serviceResponse"] = response;
-      // data.map((e1) => {
-      //   return (e1["requestedBy"] = user[e1._id]);
-      // });
-      data["requestedBy"] = user[data.requestedBy];
+      if (data.requestedBy) {
+        let user = profileDetails["profileData"].reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        // console.log("user is", user);
+        data["serviceResponse"] = response;
+        // data.map((e1) => {
+        //   return (e1["requestedBy"] = user[e1._id]);
+        // });
+        data["requestedBy"] = user[data.requestedBy];
+      }
+
       return { data: data };
     } catch (err) {
       throw err;
