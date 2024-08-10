@@ -12,7 +12,7 @@ export interface IServiceRequestModel extends mongoose.Document {
   requestedToOrg: any;
   requestedToUser: any;
   projectId: any;
-  additionalData: IAdditionalDataModel;
+  additionalDetail: IAdditionalDataModel;
   media: IMedia[];
   customQuestions: any;
   addons: any;
@@ -51,7 +51,7 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     projectId: {
       type: mongoose.Schema.Types.Mixed,
     },
-    additionalData: additionalDataSchema,
+    additionalDetail: additionalDataSchema,
     media: [MediaSchema],
     customQuestions: [
       {
