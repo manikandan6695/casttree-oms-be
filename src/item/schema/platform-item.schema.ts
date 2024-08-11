@@ -4,10 +4,17 @@ export interface IMedia {
   media_id?: any;
   visibility?: string;
 }
+
+export interface IItemNoteModel {
+  title: string;
+  icon: string;
+  description: string;
+}
 export interface IAdditionalDetailModel {
   reponseMode: string;
   maxFollowup: number;
   maxCustomQuestions: number;
+  itemNote: IItemNoteModel;
 }
 
 export interface IItemCommissionMarkupCurrencyModel {
@@ -31,6 +38,17 @@ export interface IPlatformItemModel extends mongoose.Document {
   created_by: string;
   updated_by: string;
 }
+export const itemNoteSchema = new mongoose.Schema<any>({
+  title: {
+    type: String,
+  },
+  icon: {
+    type: String,
+  },
+  description: {
+    type: String,
+  },
+});
 export const additionalDetailSchema = new mongoose.Schema<any>({
   reponseMode: {
     type: String,
@@ -41,6 +59,7 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
   maxCustomQuestions: {
     type: Number,
   },
+  itemNote: itemNoteSchema,
 });
 
 export const MediaSchema = new mongoose.Schema({

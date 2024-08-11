@@ -18,7 +18,10 @@ export class FilterServiceRequestDTO {
   requestedToUser: string;
 
   @IsOptional()
+  @IsMongoId()
+  requestedToOrg: string;
+
+  @IsOptional()
   @IsArray()
-  @IsString({ each: true })
   nominationIds?: string[];
 }
