@@ -56,6 +56,7 @@ export const serviceResponseSchema = new mongoose.Schema<any>(
     ],
     visibilityStatus: {
       type: String,
+      default: "Locked",
     },
     additionalDetail: additionalDetailSchema,
     status: {

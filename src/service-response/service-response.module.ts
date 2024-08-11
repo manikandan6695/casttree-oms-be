@@ -19,6 +19,7 @@ import { serviceRequestSchema } from "src/service-request/schema/serviceRequest.
     SharedModule,
     AuthModule,
     HttpModule,
+    forwardRef(() => ServiceRequestModule),
     HelperModule,
   ],
   controllers: [ServiceResponseController],

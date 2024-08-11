@@ -12,6 +12,7 @@ import { ServiceRequestModule } from "./service-request/service-request.module";
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
 import { CommentsModule } from "./comments/comments.module";
+import { AppController } from "./app.controller";
 
 @Module({
   imports: [
@@ -54,8 +55,3 @@ import { CommentsModule } from "./comments/comments.module";
   ],
 })
 export class AppModule {}
-
-// SharedModule,
-// ItemModule,
-// ServiceItemModule,
-// HelperModule,

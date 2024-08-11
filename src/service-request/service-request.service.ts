@@ -1,5 +1,5 @@
 import { UserToken } from "./../auth/dto/usertoken.dto";
-import { Injectable, Req } from "@nestjs/common";
+import { forwardRef, Injectable, Req, Inject } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
@@ -13,6 +13,7 @@ export class ServiceRequestService {
   constructor(
     @InjectModel("serviceRequest")
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
+    @Inject(forwardRef(() => ServiceResponseService))
     private serviceResponseService: ServiceResponseService,
     private helperService: HelperService
   ) {}
@@ -37,12 +38,6 @@ export class ServiceRequestService {
       if (query.requestedToOrg) {
         filter["requestedToOrg"] = new ObjectId(query.requestedToOrg);
       }
-      if (query.nominationIds && query.nominationIds.length) {
-        filter["additionalDetail.nominationId"] = {
-          $in: query.nominationIds.map((e) => new ObjectId(e)),
-        };
-      }
-      console.log("filter is", filter, query);
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -57,7 +52,6 @@ export class ServiceRequestService {
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit);
-      console.log("data is", data);
 
       let count = await this.serviceRequestModel.countDocuments();
 
@@ -91,8 +85,10 @@ export class ServiceRequestService {
       throw err;
     }
   }
-  async getServiceRequest(id: string, token: UserToken, @Req() req) {
+  async getServiceRequest(id: string, @Req() req) {
     try {
+      console.log("id is", id);
+
       let data = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
@@ -116,11 +112,7 @@ export class ServiceRequestService {
           a[c.userId] = c;
           return a;
         }, {});
-        // console.log("user is", user);
         data["serviceResponse"] = response;
-        // data.map((e1) => {
-        //   return (e1["requestedBy"] = user[e1._id]);
-        // });
         data["requestedBy"] = user[data.requestedBy];
       }
 

@@ -16,12 +16,14 @@ import { ServiceRequestService } from "./service-request.service";
     ]),
     SharedModule,
     AuthModule,
+    forwardRef(() => ServiceResponseModule),
     HttpModule,
     HelperModule,
-    forwardRef(() => ServiceResponseModule),
   ],
   controllers: [ServiceRequestController],
   providers: [ServiceRequestService],
   exports: [ServiceRequestService],
 })
-export class ServiceRequestModule {}
+export class ServiceRequestModule {
+  static forRoot: any;
+}

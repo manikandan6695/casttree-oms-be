@@ -24,7 +24,7 @@ export class ServiceRequestController {
     private sservice: SharedService
   ) {}
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceRequests(
     @Req() req,
@@ -35,8 +35,6 @@ export class ServiceRequestController {
     @Res() res: Response
   ) {
     try {
-      console.log("inside service request");
-
       let data = await this.serviceRequestService.getServiceRequests(
         query,
         token,
@@ -62,11 +60,7 @@ export class ServiceRequestController {
     @Res() res: Response
   ) {
     try {
-      let data = await this.serviceRequestService.getServiceRequest(
-        id,
-        token,
-        req
-      );
+      let data = await this.serviceRequestService.getServiceRequest(id, req);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
