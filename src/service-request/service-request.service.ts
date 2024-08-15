@@ -26,18 +26,10 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
-      let filter = {};
-
-      if (query.requestStatus) {
-        filter["requestStatus"] = query.requestStatus;
-      }
-      if (query.requestedToUser) {
-        filter["requestedToUser"] = new ObjectId(query.requestedToUser);
-      }
-
-      if (query.requestedToOrg) {
-        filter["requestedToOrg"] = new ObjectId(query.requestedToOrg);
-      }
+      let filter = {
+        requestStatus: query.requestStatus,
+        requestedToUser: new ObjectId(token.id),
+      };
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -49,11 +41,21 @@ export class ServiceRequestService {
             },
           ],
         })
+        .lean()
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit);
 
       let count = await this.serviceRequestModel.countDocuments();
+      let response;
+      for (let i = 0; i < data.length; i++) {
+        let curr_data = data[i];
+        response = await this.serviceResponseService.getServiceResponseDetail(
+          curr_data._id
+        );
+
+        curr_data["response"] = response;
+      }
 
       let requestedByIds = data.map((e) => e.requestedBy);
 
