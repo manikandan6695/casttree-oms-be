@@ -11,7 +11,7 @@ export interface IServiceResponseModel extends mongoose.Document {
   overAllRatings: number;
   feedbackStatus: string;
   feedbackStatusHistory: string[];
-  visibilityStatus: string;
+ 
   additionalDetail: any;
   status: string;
   createdBy: any;
@@ -54,10 +54,6 @@ export const serviceResponseSchema = new mongoose.Schema<any>(
         type: String,
       },
     ],
-    visibilityStatus: {
-      type: String,
-      default: "Locked",
-    },
     additionalDetail: additionalDetailSchema,
     status: {
       type: String,
