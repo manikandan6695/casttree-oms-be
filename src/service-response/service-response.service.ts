@@ -53,16 +53,16 @@ export class ServiceResponseService {
             body.requestId,
             req
           );
-        await this.shared_service.trackAndEmitEvent(
-          UPDATE_NOMINATION_STATUS,
-          serviceRequestDetails,
-          true,
-          {
-            userId: token.id,
-            resourceUri: null,
-            action: null,
-          }
-        );
+        // await this.shared_service.trackAndEmitEvent(
+        //   UPDATE_NOMINATION_STATUS,
+        //   serviceRequestDetails,
+        //   true,
+        //   {
+        //     userId: token.id,
+        //     resourceUri: null,
+        //     action: null,
+        //   }
+        // );
         return { message: "Updated Successfully" };
       }
       let responseId = body.responseId ? body.responseId : response._id;
