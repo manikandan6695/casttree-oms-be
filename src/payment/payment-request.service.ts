@@ -75,6 +75,8 @@ export class PaymentRequestService {
         let fv = {
           ...body,
           source_id: invoiceData._id,
+          currency: currency._id,
+          currency_code: currency.currency_code,
           source_type: EDocumentTypeName.invoice,
           payment_order_id: order_detail?.order_id,
           transaction_type: "OUT",
