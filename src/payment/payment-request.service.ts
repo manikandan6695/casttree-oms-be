@@ -122,7 +122,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(providerId, @Req() req) {
     try {
-      console.log("razorpay request", req, req.body);
+      console.log("razorpay request", JSON.stringify(req.body));
 
       return { response: req.body };
     } catch (err) {
