@@ -46,4 +46,25 @@ export class HelperService {
       throw err;
     }
   }
+
+  async updateNominationStatus(body) {
+    try {
+      let data = await this.http_service
+        .patch(
+          `${this.configService.get("CASTTREE_BASE_URL")}/nominations`,
+          body,
+          {
+            headers: {
+              Authorization: `${body.token}`,
+            },
+          }
+        )
+        .toPromise();
+      // console.log("data is", data.data);
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

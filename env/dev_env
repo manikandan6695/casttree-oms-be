@@ -38,8 +38,8 @@ ENCRYPT_KEY = "Tecxprt-Enterprises"
 MSG91_END_POINT = "https://control.msg91.com/api/v5/flow/"
 
 # Razorpay 
-RAZORPAY_API_KEY = "rzp_test_7IliuH9p5xRipC"
-RAZORPAY_SECRET_KEY = "uIse0QyFVPKd0ua3ADFgT3Xc"
+RAZORPAY_API_KEY = "rzp_test_n3mWjwFQzH7YDM"
+RAZORPAY_SECRET_KEY = "ipNWATmDo20pFsUhajVV4Ell"
 PAYMENT_TYPE = "razorpay"
 
 # PEERTUBE

@@ -162,4 +162,12 @@ export class ServiceRequestService {
       throw err;
     }
   }
+
+  async getServiceRequestDetail(id : string){
+    try {
+      
+    } catch (err) {
+      throw err;
+    }
+  }
 }

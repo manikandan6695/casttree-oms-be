@@ -9,8 +9,10 @@ import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
-import { EPaymentStatus } from "./enum/payment.enum";
+import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { ServiceRequestService } from "src/service-request/service-request.service";
+import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
 
 @Injectable()
 export class PaymentRequestService {
@@ -19,6 +21,7 @@ export class PaymentRequestService {
     private readonly paymentModel: Model<IPaymentModel>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
+    private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService
   ) {}
@@ -102,7 +105,7 @@ export class PaymentRequestService {
       await this.paymentModel.updateOne(
         { _id: body.id },
         {
-          $set: { document_status: body.document_status, updated_by: token.id },
+          $set: { document_status: body.document_status },
         }
       );
       return { message: "Updated Successfully" };
@@ -120,11 +123,61 @@ export class PaymentRequestService {
     }
   }
 
-  async paymentWebhook(providerId, @Req() req) {
+  async paymentWebhook( @Req() req) {
     try {
       console.log("razorpay request", JSON.stringify(req.body));
+      let invoiceId = req.body?.payload?.payment?.entity?.notes[0].invoiceId;
+      let status = req.body?.payload?.payment?.entity?.status;
+      let payment = await this.paymentModel.findOne({
+        source_id: invoiceId,
+        source_type: EDocumentTypeName.invoice,
+      });
+      let invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
+      let serviceRequest = await this.serviceRequestService.getServiceRequest(
+        invoice.source_id,
+        null
+      );
+      let ids = {
+        invoiceId: invoiceId,
+        serviceRequestId: serviceRequest.data["_id"],
+        paymentId: payment._id,
+      };
+      await this.updatePaymentStatus(status, ids);
+      return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
 
-      return { response: req.body };
+  async updatePaymentStatus(status, ids) {
+    try {
+      if (status == ERazorpayPaymentStatus.captured) {
+        await this.invoiceService.updateInvoice(
+          ids.invoiceId,
+          EDocumentStatus.completed
+        );
+        await this.updatePaymentRequest(
+          { id: ids.paymentId },
+          EDocumentStatus.completed
+        );
+        await this.serviceRequestService.updateServiceRequest(
+          ids.serviceRequestId,
+          { visibilityStatus: EVisibilityStatus.unlocked }
+        );
+      }
+
+      // if (status == ERazorpayPaymentStatus.failed) {
+      //   await this.invoiceService.updateInvoice(
+      //     ids.invoiceId,
+      //     EDocumentStatus.failed
+      //   );
+      //   await this.updatePaymentRequest(
+      //     { id: ids.paymentId },
+      //     EDocumentStatus.failed
+      //   );
+      // }
+
+      return { message: "Updated Successfully" };
     } catch (err) {
       throw err;
     }

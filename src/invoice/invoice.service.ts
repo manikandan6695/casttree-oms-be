@@ -76,4 +76,16 @@ export class InvoiceService {
       throw err;
     }
   }
+
+  async getInvoiceDetail(id: string) {
+    try {
+      let invoice = await this.salesDocumentModel.findOne({
+        _id: id,
+      });
+
+      return invoice;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
