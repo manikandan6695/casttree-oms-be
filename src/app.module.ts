@@ -12,6 +12,8 @@ import { ServiceRequestModule } from "./service-request/service-request.module";
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
 import { CommentsModule } from "./comments/comments.module";
+import { InvoiceModule } from "./invoice/invoice.module";
+import { PaymentRequestModule } from "./payment/payment-request.module";
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { CommentsModule } from "./comments/comments.module";
     ServiceResponseModule,
     ServiceResponseFormatModule,
     CommentsModule,
+    PaymentRequestModule,
+    InvoiceModule,
   ],
   controllers: [],
   providers: [
@@ -54,8 +58,3 @@ import { CommentsModule } from "./comments/comments.module";
   ],
 })
 export class AppModule {}
-
-// SharedModule,
-// ItemModule,
-// ServiceItemModule,
-// HelperModule,

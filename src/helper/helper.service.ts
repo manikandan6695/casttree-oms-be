@@ -23,8 +23,10 @@ export class HelperService {
 
   async getProfileById(userId: string[], @Req() req) {
     try {
+      console.log("req is", req);
+
       // console.log("user id is", userId, req["headers"]["authorization"]);
-      const headers = this.getRequiredHeaders(req);
+      // const headers = this.getRequiredHeaders(req);
       // ${this.configService.get("CASTTREE_BASE_URL")}
       let data = await this.http_service
         .post(

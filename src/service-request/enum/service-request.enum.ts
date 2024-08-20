@@ -13,3 +13,14 @@ export enum ESourceType {
 }
 
 export const ESSourceType = [ESourceType.serviceRequest];
+
+
+export enum EVisibilityStatus {
+  unlocked = "Unlocked",
+  locked = "Locked",
+}
+
+export const ESVisibilityStatus = [
+  EVisibilityStatus.unlocked,
+  EVisibilityStatus.locked,
+];
