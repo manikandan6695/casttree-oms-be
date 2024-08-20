@@ -45,19 +45,11 @@ export class PaymentRequestService {
       }
       let invoiceData = existingInvoice ? existingInvoice : invoice;
 
-      let existingPayment = await this.paymentModel.find({
-        $and: [
-          { source_id: invoiceData._id },
-          { source_type: EDocumentTypeName.invoice },
-          {
-            $or: [
-              { document_status: EPaymentStatus.pending },
-              { document_status: EPaymentStatus.initiated },
-            ],
-          },
-        ],
+      let existingPayment = await this.paymentModel.findOne({
+        source_id: invoiceData._id,
+        source_type: EDocumentTypeName.invoice,
       });
-      if (!existingPayment.length) {
+      if (!existingPayment) {
         let currency = await this.currency_service.getSingleCurrency(
           "6091525bf2d365fa107635e2"
         );
@@ -98,7 +90,7 @@ export class PaymentRequestService {
         let data = await this.paymentModel.create(fv);
         return data;
       } else {
-        return existingPayment[0];
+        return existingPayment;
       }
     } catch (err) {
       throw err;
@@ -123,6 +115,14 @@ export class PaymentRequestService {
     try {
       let payment = await this.paymentModel.findOne({ _id: id });
       return { payment };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async paymentWebhook(providerId) {
+    try {
+      return { response: true };
     } catch (err) {
       throw err;
     }
