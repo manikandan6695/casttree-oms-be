@@ -6,6 +6,7 @@ import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
+import { EVisibilityStatus } from "./enum/service-request.enum";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -119,6 +120,44 @@ export class ServiceRequestService {
       }
 
       return { data: data };
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getServiceResponse(id: string, token?: UserToken) {
+    try {
+      let data = await this.serviceRequestModel
+        .findOne({ _id: id })
+        .populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        })
+        .lean();
+      let response = null;
+      if (data.visibilityStatus == EVisibilityStatus.unlocked) {
+        response = await this.serviceResponseService.getServiceResponseDetail(
+          data._id
+        );
+      }
+
+      // let profileDetails = await this.helperService.getProfileById(
+      //   [data.requestedBy],
+      //   req
+      // );
+      // if (data.requestedBy) {
+      //   let user = profileDetails["profileData"].reduce((a, c) => {
+      //     a[c.userId] = c;
+      //     return a;
+      //   }, {});
+      //   data["serviceResponse"] = response;
+      //   data["requestedBy"] = user[data.requestedBy];
+      // }
+
+      return { response };
     } catch (err) {
       throw err;
     }

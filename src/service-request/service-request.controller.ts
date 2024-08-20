@@ -70,4 +70,23 @@ export class ServiceRequestController {
       return res.status(code).json(response);
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id/response")
+  async getServiceResponse(
+    @Param("id") id: string,
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.serviceRequestService.getServiceResponse(id, token);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
 }
