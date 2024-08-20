@@ -1,10 +1,9 @@
 export enum EDocumentStatus {
-  draft = "Draft",
-  sent = "Sent",
+  pending = "Pending",
+  completed = "Completed",
 }
-export enum EType {
-  save = "Save as draft",
-  save_send = "Save and send",
-}
-export const ESDocumentStatus = [EDocumentStatus.draft, EDocumentStatus.sent];
-export const ESType = [EType.save, EType.save_send];
+
+export const ESDocumentStatus = [
+  EDocumentStatus.pending,
+  EDocumentStatus.completed,
+];

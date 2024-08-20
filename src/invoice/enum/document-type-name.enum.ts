@@ -21,19 +21,18 @@ export enum EDocumentTypeName {
   vendor_credits = "Vendor Credits",
   refund = "Refund",
   sale_return = "SaleReturn",
-  return_receipt = "ReturnReceipt"
+  return_receipt = "ReturnReceipt",
 }
 
 export enum ESourceType {
-  cart = "Cart",
-  inquiry = "Inquiry",
+  serviceRequest = "serviceRequest",
 }
 
 export enum EDocument {
   sales_document = "salesDocument",
 }
 export const ESDocument = [EDocument.sales_document];
-export const ESSourceType = [ESourceType.cart, ESourceType.inquiry];
+export const ESSourceType = [ESourceType.serviceRequest];
 export const ESDocumentTypeName = [
   EDocumentTypeName.inquiry,
   EDocumentTypeName.estimation,
@@ -56,5 +55,5 @@ export const ESDocumentTypeName = [
   EDocumentTypeName.vendor_credits,
   EDocumentTypeName.refund,
   EDocumentTypeName.sale_return,
-  EDocumentTypeName.return_receipt
+  EDocumentTypeName.return_receipt,
 ];

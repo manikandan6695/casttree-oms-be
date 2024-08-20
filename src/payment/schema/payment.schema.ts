@@ -1,4 +1,5 @@
 import * as mongoose from "mongoose";
+import { EPaymentStatus } from "../enum/payment.enum";
 
 export interface IPaymentModel extends mongoose.Document {
   user_id: any;
@@ -66,10 +67,7 @@ export const PaymentSchema = new mongoose.Schema(
     },
     document_status: {
       type: String,
-    },
-    type: {
-      type: String,
-      example: "Customer Advance,Invoice Payment",
+      default : EPaymentStatus.pending
     },
     payment_doc_id: {
       type: Number,

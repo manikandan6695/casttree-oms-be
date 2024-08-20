@@ -48,7 +48,9 @@ export class PaymentService {
     currency: ICurrencyModel,
     amount: number,
     reference_no: string,
-    @Req() req
+    @Req() req,
+    notes?: any,
+    
   ) {
     try {
       let order_id: string;
@@ -63,6 +65,7 @@ export class PaymentService {
           var options = {
             amount: amount * currency.base_conversion_factor,
             receipt: reference_no,
+            notes,
           };
           let order_detail: any = await new Promise((res, rej) => {
             pg_instance.orders.create(options, function (err, order) {

@@ -8,6 +8,9 @@ import { IPaymentModel } from "./schema/payment.schema";
 import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
+import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
+import { EPaymentStatus } from "./enum/payment.enum";
+import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 
 @Injectable()
 export class PaymentRequestService {
@@ -22,49 +25,79 @@ export class PaymentRequestService {
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
     try {
-      let invoice = await this.invoiceService.createInvoice(
-        {
-          source_id: body.invoiceDetail.sourceId,
-          source_type: body.invoiceDetail.sourceType,
-          sub_total: body.amount,
-          document_status: "Pending",
-          grand_total: body.amount,
-        },
-        token
+      let existingInvoice = await this.invoiceService.getInvoiceBySource(
+        body.invoiceDetail.sourceId,
+        body.invoiceDetail.sourceType
       );
-      let currency = await this.currency_service.getSingleCurrency(
-        "6091525bf2d365fa107635e2"
-      );
-      let order_detail = await this.paymentService.createPGOrder(
-        body.userId.toString(),
-        currency,
-        body.amount,
-        body.invoiceDetail.sourceId.toString(),
-        req
-      );
-      let fv = {
-        ...body,
-        source_id: invoice._id,
-        source_type: "Invoice",
-        payment_order_id: order_detail?.order_id,
-        transaction_type: "OUT",
-        created_by: token.id,
-        user_id: token.id,
-      };
 
-      let payment_sequence = await this.sharedService.getNextNumber(
-        "payment",
-        "PMT",
-        5,
-        null
-      );
-      let payment_number = payment_sequence.toString();
-      let payment_document_number = payment_number.padStart(5, "0");
-      fv["doc_id_gen_type"] = "Auto";
-      fv["payment_document_number"] = payment_document_number;
-      fv["document_number"] = payment_document_number;
-      let data = await this.paymentModel.create(fv);
-      return data;
+      let invoice;
+      if (!existingInvoice) {
+        invoice = await this.invoiceService.createInvoice(
+          {
+            source_id: body.invoiceDetail.sourceId,
+            source_type: body.invoiceDetail.sourceType,
+            sub_total: body.amount,
+            document_status: EDocumentStatus.pending,
+            grand_total: body.amount,
+          },
+          token
+        );
+      }
+      let invoiceData = existingInvoice ? existingInvoice : invoice;
+
+      let existingPayment = await this.paymentModel.find({
+        $and: [
+          { source_id: invoiceData._id },
+          { source_type: EDocumentTypeName.invoice },
+          {
+            $or: [
+              { document_status: EPaymentStatus.pending },
+              { document_status: EPaymentStatus.initiated },
+            ],
+          },
+        ],
+      });
+      if (!existingPayment.length) {
+        let currency = await this.currency_service.getSingleCurrency(
+          "6091525bf2d365fa107635e2"
+        );
+        let order_detail = await this.paymentService.createPGOrder(
+          body.userId.toString(),
+          currency,
+          body.amount,
+          body.invoiceDetail.sourceId.toString(),
+          req,
+          {
+            invoiceId: invoiceData._id,
+            invoiceNumber: invoiceData.document_number,
+          }
+        );
+        let fv = {
+          ...body,
+          source_id: invoiceData._id,
+          source_type: EDocumentTypeName.invoice,
+          payment_order_id: order_detail?.order_id,
+          transaction_type: "OUT",
+          created_by: token.id,
+          user_id: token.id,
+        };
+
+        let payment_sequence = await this.sharedService.getNextNumber(
+          "payment",
+          "PMT",
+          5,
+          null
+        );
+        let payment_number = payment_sequence.toString();
+        let payment_document_number = payment_number.padStart(5, "0");
+        fv["doc_id_gen_type"] = "Auto";
+        fv["payment_document_number"] = payment_document_number;
+        fv["document_number"] = payment_document_number;
+        let data = await this.paymentModel.create(fv);
+        return data;
+      } else {
+        return existingPayment[0];
+      }
     } catch (err) {
       throw err;
     }
@@ -79,6 +112,15 @@ export class PaymentRequestService {
         }
       );
       return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getPaymentDetail(id: string) {
+    try {
+      let payment = await this.paymentModel.findOne({ _id: id });
+      return { payment };
     } catch (err) {
       throw err;
     }

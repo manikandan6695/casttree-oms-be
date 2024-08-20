@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   Req,
   Res,
@@ -36,6 +38,21 @@ export class PaymentRequestController {
         token,
         req
       );
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(":id")
+  async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {
+    try {
+      let data = await this.paymentRequestService.getPaymentDetail(id);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(

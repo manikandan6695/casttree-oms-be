@@ -26,4 +26,4 @@ export const ESDocumentNumberType = [
   EDocumentNumberType.manual,
 ];
 
-export const ESInoviceType = [EInvoiceType.pos, EInvoiceType.tecxprt];
+
