@@ -62,4 +62,21 @@ export class PaymentRequestController {
       return res.status(code).json(response);
     }
   }
+
+  @Post("webhook/provider/:providerId")
+  async paymentWebhook(
+    @Param("providerId") providerId: string,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.paymentRequestService.paymentWebhook(providerId);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
 }
