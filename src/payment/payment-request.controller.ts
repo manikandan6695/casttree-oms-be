@@ -65,11 +65,15 @@ export class PaymentRequestController {
 
   @Post("webhook/provider/:providerId")
   async paymentWebhook(
+    @Req() req,
     @Param("providerId") providerId: string,
     @Res() res: Response
   ) {
     try {
-      let data = await this.paymentRequestService.paymentWebhook(providerId);
+      let data = await this.paymentRequestService.paymentWebhook(
+        providerId,
+        req
+      );
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
