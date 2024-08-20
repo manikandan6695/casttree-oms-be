@@ -19,6 +19,6 @@ import { SalesDocumentSchema } from "./schema/sales-document.schema";
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, ItemDocumentService],
-  exports : [InvoiceService, ItemDocumentService,],
+  exports: [InvoiceService, ItemDocumentService],
 })
 export class InvoiceModule {}

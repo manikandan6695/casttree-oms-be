@@ -2,7 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
+import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { EDocumentNumberType } from "./enum/transaction-type.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
 
@@ -12,7 +14,8 @@ export class InvoiceService {
     @InjectModel("salesDocument")
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     private configService: ConfigService,
-    private sharedService: SharedService
+    private sharedService: SharedService,
+    private itemDocumentService: ItemDocumentService
   ) {}
 
   async createInvoice(body, token) {
@@ -34,6 +37,15 @@ export class InvoiceService {
       fv["document_number"] = invoice;
 
       let data = await this.salesDocumentModel.create(fv);
+      await this.itemDocumentService.createItemDocuments([
+        {
+          source_id: data._id,
+          source_type: EDocumentTypeName.invoice,
+          item_id: data.source_id,
+          amount: data.sub_total,
+          quantity: data.item_count,
+        },
+      ]);
       return data;
     } catch (err) {
       throw err;
