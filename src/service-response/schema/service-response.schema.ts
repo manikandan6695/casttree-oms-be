@@ -11,7 +11,6 @@ export interface IServiceResponseModel extends mongoose.Document {
   overAllRatings: number;
   feedbackStatus: string;
   feedbackStatusHistory: string[];
- 
   additionalDetail: any;
   status: string;
   createdBy: any;

@@ -15,6 +15,7 @@ export interface IServiceRequestModel extends mongoose.Document {
   additionalDetail: IAdditionalDataModel;
   media: IMedia[];
   customQuestions: any;
+  visibilityStatus?: string;
   addons: any;
   requestStatus: string;
   visibilityStatus: string;
@@ -68,6 +69,10 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
         type: mongoose.Schema.Types.Mixed,
       },
     ],
+    visibilityStatus: {
+      type: String,
+      default: "Locked",
+    },
     requestStatus: {
       type: String,
     },
