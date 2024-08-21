@@ -163,9 +163,20 @@ export class ServiceRequestService {
     }
   }
 
-  async getServiceRequestDetail(id : string){
+  async getServiceRequestDetail(id: string) {
     try {
-      
+      let data = await this.serviceRequestModel
+        .findOne({ _id: id })
+        .populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        })
+        .lean();
+      return { data: data };
     } catch (err) {
       throw err;
     }

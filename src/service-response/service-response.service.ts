@@ -35,48 +35,66 @@ export class ServiceResponseService {
     @Req() req
   ) {
     try {
-      let fv = {
+      const responseData = {
         ...body,
         createdBy: token.id,
         updatedBy: token.id,
       };
+
       let response;
       if (body.responseId) {
-        await this.serviceResponseModel.updateOne(
-          { _id: body.responseId },
-          { $set: { ...fv } }
-        );
+        await this.updateExistingResponse(body.responseId, responseData);
       } else {
-        response = await this.serviceResponseModel.create(fv);
+        response = await this.createNewResponse(responseData);
       }
-      if (body.feedbackStatus == EServiceResponse.submitted) {
-        await this.serviceRequestModel.updateOne(
-          { _id: body.requestId },
-          { $set: { requestStatus: EServiceRequestStatus.completed } }
+
+      if (body.feedbackStatus === EServiceResponse.submitted) {
+        await this.handleSubmittedFeedback(
+          body.requestId,
+          req,
+          body.additionalDetail.isPassed
         );
-        let serviceRequestDetails =
-          await this.serviceRequestService.getServiceRequest(
-            body.requestId,
-            req
-          );
-        if (serviceRequestDetails.data) {
-          const nominationStatusUpdateEventPayload: IUpdateNominationStatusByRequestEvent =
-            {
-              requestId: serviceRequestDetails.data._id,
-              isPassed: body.additionalDetail.isPassed,
-              token: req["headers"]["authorization"],
-            };
-          await this.eventEmitter.emitAsync(
-            UPDATE_NOMINATION_STATUS,
-            nominationStatusUpdateEventPayload
-          );
-        }
-        return { message: "Updated Successfully" };
       }
-      let responseId = body.responseId ? body.responseId : response._id;
+
+      const responseId = body.responseId || response._id;
       return { message: "Saved Successfully", responseId };
     } catch (err) {
       throw err;
+    }
+  }
+
+  async updateExistingResponse(responseId: string, data: any) {
+    await this.serviceResponseModel.updateOne(
+      { _id: responseId },
+      { $set: data }
+    );
+  }
+
+  async createNewResponse(data: any) {
+    return await this.serviceResponseModel.create(data);
+  }
+
+  async handleSubmittedFeedback(
+    requestId: string,
+    req: any,
+    isPassed: boolean
+  ) {
+    await this.serviceRequestModel.updateOne(
+      { _id: requestId },
+      { $set: { requestStatus: EServiceRequestStatus.completed } }
+    );
+
+    const serviceRequestDetails =
+      await this.serviceRequestService.getServiceRequest(requestId, req);
+
+    if (serviceRequestDetails.data) {
+      const eventPayload: IUpdateNominationStatusByRequestEvent = {
+        requestId: serviceRequestDetails.data._id,
+        isPassed,
+        token: req.headers.authorization,
+      };
+
+      await this.eventEmitter.emitAsync(UPDATE_NOMINATION_STATUS, eventPayload);
     }
   }
 

@@ -28,76 +28,84 @@ export class PaymentRequestService {
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
     try {
-      let existingInvoice = await this.invoiceService.getInvoiceBySource(
+      const existingInvoice = await this.invoiceService.getInvoiceBySource(
         body.invoiceDetail.sourceId,
         body.invoiceDetail.sourceType
       );
-
-      let invoice;
-      if (!existingInvoice) {
-        invoice = await this.invoiceService.createInvoice(
-          {
-            source_id: body.invoiceDetail.sourceId,
-            source_type: body.invoiceDetail.sourceType,
-            sub_total: body.amount,
-            document_status: EDocumentStatus.pending,
-            grand_total: body.amount,
-          },
-          token
-        );
-      }
-      let invoiceData = existingInvoice ? existingInvoice : invoice;
-
-      let existingPayment = await this.paymentModel.findOne({
+  
+      const invoiceData = existingInvoice || await this.createNewInvoice(body, token);
+  
+      const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
       });
-      if (!existingPayment) {
-        let currency = await this.currency_service.getSingleCurrency(
-          "6091525bf2d365fa107635e2"
-        );
-        let order_detail = await this.paymentService.createPGOrder(
-          body.userId.toString(),
-          currency,
-          body.amount,
-          body.invoiceDetail.sourceId.toString(),
-          req,
-          {
-            invoiceId: invoiceData._id,
-            invoiceNumber: invoiceData.document_number,
-          }
-        );
-        let fv = {
-          ...body,
-          source_id: invoiceData._id,
-          currency: currency._id,
-          currency_code: currency.currency_code,
-          source_type: EDocumentTypeName.invoice,
-          payment_order_id: order_detail?.order_id,
-          transaction_type: "OUT",
-          created_by: token.id,
-          user_id: token.id,
-        };
-
-        let payment_sequence = await this.sharedService.getNextNumber(
-          "payment",
-          "PMT",
-          5,
-          null
-        );
-        let payment_number = payment_sequence.toString();
-        let payment_document_number = payment_number.padStart(5, "0");
-        fv["doc_id_gen_type"] = "Auto";
-        fv["payment_document_number"] = payment_document_number;
-        fv["document_number"] = payment_document_number;
-        let data = await this.paymentModel.create(fv);
-        return data;
-      } else {
+  
+      if (existingPayment) {
         return existingPayment;
       }
+  
+      const currency = await this.currency_service.getSingleCurrency(
+        "6091525bf2d365fa107635e2"
+      );
+  
+      const orderDetail = await this.paymentService.createPGOrder(
+        body.userId.toString(),
+        currency,
+        body.amount,
+        body.invoiceDetail.sourceId.toString(),
+        req,
+        {
+          invoiceId: invoiceData._id,
+          invoiceNumber: invoiceData.document_number,
+        }
+      );
+  
+      const paymentData = await this.createPaymentRecord(body, token, invoiceData, currency, orderDetail);
+  
+      return paymentData;
     } catch (err) {
       throw err;
     }
+  }
+  
+  async createNewInvoice(body: paymentDTO, token: UserToken) {
+    return await this.invoiceService.createInvoice(
+      {
+        source_id: body.invoiceDetail.sourceId,
+        source_type: body.invoiceDetail.sourceType,
+        sub_total: body.amount,
+        document_status: EDocumentStatus.pending,
+        grand_total: body.amount,
+      },
+      token
+    );
+  }
+  
+  async createPaymentRecord(body: paymentDTO, token: UserToken, invoiceData, currency, orderDetail) {
+    const paymentSequence = await this.sharedService.getNextNumber(
+      "payment",
+      "PMT",
+      5,
+      null
+    );
+    const paymentNumber = paymentSequence.toString().padStart(5, "0");
+  
+    const paymentData = {
+      ...body,
+      source_id: invoiceData._id,
+      currency: currency._id,
+      currency_code: currency.currency_code,
+      source_type: EDocumentTypeName.invoice,
+      payment_order_id: orderDetail?.order_id,
+      transaction_type: "OUT",
+      created_by: token.id,
+      user_id: token.id,
+      doc_id_gen_type: "Auto",
+      payment_document_number: paymentNumber,
+      document_number: paymentNumber,
+    };
+  
+    return await this.paymentModel.create(paymentData);
   }
 
   async updatePaymentRequest(body, token) {
@@ -123,58 +131,54 @@ export class PaymentRequestService {
     }
   }
 
-  async paymentWebhook( @Req() req) {
+  async paymentWebhook(@Req() req) {
     try {
-      console.log("razorpay request", JSON.stringify(req.body));
-      let invoiceId = req.body?.payload?.payment?.entity?.notes[0].invoiceId;
-      let status = req.body?.payload?.payment?.entity?.status;
-      let payment = await this.paymentModel.findOne({
-        source_id: invoiceId,
-        source_type: EDocumentTypeName.invoice,
-      });
-      let invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
-      let serviceRequest = await this.serviceRequestService.getServiceRequest(
-        invoice.source_id,
-        null
-      );
-      let ids = {
-        invoiceId: invoiceId,
+      console.log("Razorpay request:", JSON.stringify(req.body));
+
+      const { invoiceId, status, payment, invoice, serviceRequest } =
+        await this.extractPaymentDetails(req.body);
+
+      const ids = {
+        invoiceId,
         serviceRequestId: serviceRequest.data["_id"],
         paymentId: payment._id,
       };
+
       await this.updatePaymentStatus(status, ids);
+
       return { message: "Updated Successfully" };
     } catch (err) {
       throw err;
     }
   }
 
+  async extractPaymentDetails(body) {
+    const invoiceId = body?.payload?.payment?.entity?.notes[0].invoiceId;
+    const status = body?.payload?.payment?.entity?.status;
+
+    const payment = await this.paymentModel.findOne({
+      source_id: invoiceId,
+      source_type: EDocumentTypeName.invoice,
+    });
+
+    const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
+
+    const serviceRequest = await this.serviceRequestService.getServiceRequest(
+      invoice.source_id,
+      null
+    );
+
+    return { invoiceId, status, payment, invoice, serviceRequest };
+  }
+
   async updatePaymentStatus(status, ids) {
     try {
-      if (status == ERazorpayPaymentStatus.captured) {
-        await this.invoiceService.updateInvoice(
-          ids.invoiceId,
-          EDocumentStatus.completed
-        );
-        await this.updatePaymentRequest(
-          { id: ids.paymentId },
-          EDocumentStatus.completed
-        );
-        await this.serviceRequestService.updateServiceRequest(
-          ids.serviceRequestId,
-          { visibilityStatus: EVisibilityStatus.unlocked }
-        );
+      if (status === ERazorpayPaymentStatus.captured) {
+        await this.completePayment(ids);
       }
 
-      // if (status == ERazorpayPaymentStatus.failed) {
-      //   await this.invoiceService.updateInvoice(
-      //     ids.invoiceId,
-      //     EDocumentStatus.failed
-      //   );
-      //   await this.updatePaymentRequest(
-      //     { id: ids.paymentId },
-      //     EDocumentStatus.failed
-      //   );
+      // if (status === ERazorpayPaymentStatus.failed) {
+      //   await this.failPayment(ids);
       // }
 
       return { message: "Updated Successfully" };
@@ -182,4 +186,27 @@ export class PaymentRequestService {
       throw err;
     }
   }
+
+  async completePayment(ids) {
+    await this.invoiceService.updateInvoice(
+      ids.invoiceId,
+      EDocumentStatus.completed
+    );
+    await this.updatePaymentRequest(
+      { id: ids.paymentId },
+      EDocumentStatus.completed
+    );
+    await this.serviceRequestService.updateServiceRequest(
+      ids.serviceRequestId,
+      {
+        visibilityStatus: EVisibilityStatus.unlocked,
+      }
+    );
+  }
+
+  // Uncomment and implement if handling other statuses like failed
+  // async failPayment(ids) {
+  //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
+  //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
+  // }
 }
