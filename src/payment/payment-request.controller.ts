@@ -71,7 +71,6 @@ export class PaymentRequestController {
   ) {
     try {
       let data = await this.paymentRequestService.paymentWebhook(
-        providerId,
         req
       );
       return res.json(data);
