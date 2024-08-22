@@ -156,6 +156,7 @@ export class PaymentRequestService {
         serviceRequestId: serviceRequest.data["_id"],
         paymentId: payment._id,
       };
+      console.log("ids is", ids, serviceRequest.data["_id"]);
 
       await this.updatePaymentStatus(status, ids);
 
@@ -166,17 +167,27 @@ export class PaymentRequestService {
   }
 
   async extractPaymentDetails(body) {
+    console.log(
+      "body is",
+      body,
+      body?.payload?.payment?.entity?.notes.invoiceId
+    );
+
     const invoiceId = new ObjectId(
-      body?.payload?.payment?.entity?.notes[0].invoiceId
+      body?.payload?.payment?.entity?.notes.invoiceId
     );
     const status = body?.payload?.payment?.entity?.status;
+    console.log("invoice id is", invoiceId);
+    console.log("status is", status);
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
+    console.log("payment is", payment);
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
+    console.log("invoice data", invoice, invoice.source_id);
 
     const serviceRequest =
       await this.serviceRequestService.getServiceRequestDetail(
