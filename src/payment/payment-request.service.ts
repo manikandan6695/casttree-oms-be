@@ -124,8 +124,9 @@ export class PaymentRequestService {
     return await this.paymentModel.create(paymentData);
   }
 
-  async updatePaymentRequest(body, token) {
+  async updatePaymentRequest(body) {
     try {
+
       await this.paymentModel.updateOne(
         { _id: body.id },
         {
@@ -149,7 +150,12 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("Razorpay request:", JSON.stringify(req.body), req);
+      console.log(
+        "Razorpay request:",
+        JSON.stringify(req.body),
+        req["headers"]["x-razorpay-signature"],
+        req["headers"]["x-razorpay-event-id"]
+      );
       /* NODE SDK: https://github.com/razorpay/razorpay-node */
 
       // validateWebhookSignature(
@@ -165,7 +171,7 @@ export class PaymentRequestService {
         serviceRequestId: serviceRequest.data["_id"],
         paymentId: payment._id,
       };
-      console.log("ids is", ids, serviceRequest.data["_id"]);
+      // console.log("ids is", ids, serviceRequest.data["_id"]);
 
       await this.updatePaymentStatus(status, ids);
 
@@ -176,27 +182,18 @@ export class PaymentRequestService {
   }
 
   async extractPaymentDetails(body) {
-    console.log(
-      "body is",
-      body,
-      body?.payload?.payment?.entity?.notes.invoiceId
-    );
 
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
     const status = body?.payload?.payment?.entity?.status;
-    console.log("invoice id is", invoiceId);
-    console.log("status is", status);
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-    console.log("payment is", payment);
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
-    console.log("invoice data", invoice, invoice.source_id);
 
     const serviceRequest =
       await this.serviceRequestService.getServiceRequestDetail(
@@ -227,10 +224,10 @@ export class PaymentRequestService {
       ids.invoiceId,
       EDocumentStatus.completed
     );
-    await this.updatePaymentRequest(
-      { id: ids.paymentId },
-      EDocumentStatus.completed
-    );
+    await this.updatePaymentRequest({
+      id: ids.paymentId,
+      document_status: EDocumentStatus.completed,
+    });
     await this.serviceRequestService.updateServiceRequest(
       ids.serviceRequestId,
       {
