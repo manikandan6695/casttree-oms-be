@@ -13,7 +13,7 @@ import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
-
+const { ObjectId } = require("mongodb");
 @Injectable()
 export class PaymentRequestService {
   constructor(
@@ -32,22 +32,23 @@ export class PaymentRequestService {
         body.invoiceDetail.sourceId,
         body.invoiceDetail.sourceType
       );
-  
-      const invoiceData = existingInvoice || await this.createNewInvoice(body, token);
-  
+
+      const invoiceData =
+        existingInvoice || (await this.createNewInvoice(body, token));
+
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
       });
-  
+
       if (existingPayment) {
         return existingPayment;
       }
-  
+
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
-  
+
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
@@ -59,15 +60,21 @@ export class PaymentRequestService {
           invoiceNumber: invoiceData.document_number,
         }
       );
-  
-      const paymentData = await this.createPaymentRecord(body, token, invoiceData, currency, orderDetail);
-  
+
+      const paymentData = await this.createPaymentRecord(
+        body,
+        token,
+        invoiceData,
+        currency,
+        orderDetail
+      );
+
       return paymentData;
     } catch (err) {
       throw err;
     }
   }
-  
+
   async createNewInvoice(body: paymentDTO, token: UserToken) {
     return await this.invoiceService.createInvoice(
       {
@@ -80,8 +87,14 @@ export class PaymentRequestService {
       token
     );
   }
-  
-  async createPaymentRecord(body: paymentDTO, token: UserToken, invoiceData, currency, orderDetail) {
+
+  async createPaymentRecord(
+    body: paymentDTO,
+    token: UserToken,
+    invoiceData,
+    currency,
+    orderDetail
+  ) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
       "PMT",
@@ -89,7 +102,7 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-  
+
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
@@ -104,7 +117,7 @@ export class PaymentRequestService {
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
     };
-  
+
     return await this.paymentModel.create(paymentData);
   }
 
@@ -153,7 +166,9 @@ export class PaymentRequestService {
   }
 
   async extractPaymentDetails(body) {
-    const invoiceId = body?.payload?.payment?.entity?.notes[0].invoiceId;
+    const invoiceId = new ObjectId(
+      body?.payload?.payment?.entity?.notes[0].invoiceId
+    );
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({

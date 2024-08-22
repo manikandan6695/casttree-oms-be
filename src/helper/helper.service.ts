@@ -23,7 +23,7 @@ export class HelperService {
 
   async getProfileById(userId: string[], @Req() req) {
     try {
-      console.log("req is", req);
+      // console.log("req is", req);
 
       // console.log("user id is", userId, req["headers"]["authorization"]);
       // const headers = this.getRequiredHeaders(req);
