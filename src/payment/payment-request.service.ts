@@ -14,6 +14,9 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
 const { ObjectId } = require("mongodb");
+// const {
+//   validateWebhookSignature,
+// } = require("razorpay/dist/utils/razorpay-utils");
 @Injectable()
 export class PaymentRequestService {
   constructor(
@@ -146,8 +149,14 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("Razorpay request:", JSON.stringify(req.body));
+      console.log("Razorpay request:", JSON.stringify(req.body), req);
+      /* NODE SDK: https://github.com/razorpay/razorpay-node */
 
+      // validateWebhookSignature(
+      //   JSON.stringify(req.body),
+      //   "casttree@2024",
+      //   webhookSecret
+      // );
       const { invoiceId, status, payment, invoice, serviceRequest } =
         await this.extractPaymentDetails(req.body);
 
