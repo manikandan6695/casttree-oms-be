@@ -178,10 +178,10 @@ export class PaymentRequestService {
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
 
-    const serviceRequest = await this.serviceRequestService.getServiceRequest(
-      invoice.source_id,
-      null
-    );
+    const serviceRequest =
+      await this.serviceRequestService.getServiceRequestDetail(
+        invoice.source_id
+      );
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
