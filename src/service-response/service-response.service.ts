@@ -86,8 +86,11 @@ export class ServiceResponseService {
 
     const serviceRequestDetails =
       await this.serviceRequestService.getServiceRequest(requestId, req);
+    // console.log("service request details", serviceRequestDetails);
 
     if (serviceRequestDetails.data) {
+      // console.log("inside emit event");
+
       const eventPayload: IUpdateNominationStatusByRequestEvent = {
         requestId: serviceRequestDetails.data._id,
         isPassed,
@@ -103,17 +106,17 @@ export class ServiceResponseService {
     payload: IUpdateNominationStatusByRequestEvent
   ) {
     try {
-      await this.shared_service.updateEventProcessingStatus(
-        payload?.commandSource,
-        ECommandProcessingStatus.InProgress
-      );
-      console.log("payload is", payload);
+      // await this.shared_service.updateEventProcessingStatus(
+      //   payload?.commandSource,
+      //   ECommandProcessingStatus.InProgress
+      // );
+      // console.log("payload is", payload);
       await this.helperService.updateNominationStatus(payload);
 
-      await this.shared_service.updateEventProcessingStatus(
-        payload?.commandSource,
-        ECommandProcessingStatus.Complete
-      );
+      // await this.shared_service.updateEventProcessingStatus(
+      //   payload?.commandSource,
+      //   ECommandProcessingStatus.Complete
+      // );
     } catch (err) {
       await this.shared_service.updateEventProcessingStatus(
         payload?.commandSource,

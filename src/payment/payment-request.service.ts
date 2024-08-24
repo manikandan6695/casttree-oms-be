@@ -13,6 +13,7 @@ import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
+import { ConfigService } from "@nestjs/config";
 const { ObjectId } = require("mongodb");
 // const {
 //   validateWebhookSignature,
@@ -26,7 +27,8 @@ export class PaymentRequestService {
     private paymentService: PaymentService,
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
-    private currency_service: CurrencyService
+    private currency_service: CurrencyService,
+    private configService: ConfigService
   ) {}
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
@@ -126,7 +128,6 @@ export class PaymentRequestService {
 
   async updatePaymentRequest(body) {
     try {
-
       await this.paymentModel.updateOne(
         { _id: body.id },
         {
@@ -147,7 +148,20 @@ export class PaymentRequestService {
       throw err;
     }
   }
+  // async validateWebhookSignature(body) {
+  //   try {
+  //     const key = this.configService.get("RAZORPAY_SECRET_KEY");
+  //     const message = body; // raw webhook request body
+  //     const received_signature = this.configService.get("RAZORPAY_SECRET_KEY");
 
+  //     const expected_signature = hmac("sha256", message, key);
+
+  //     if (expected_signature != received_signature) throw SecurityError;
+  //     end;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
   async paymentWebhook(@Req() req) {
     try {
       console.log(
@@ -161,8 +175,9 @@ export class PaymentRequestService {
       // validateWebhookSignature(
       //   JSON.stringify(req.body),
       //   "casttree@2024",
-      //   webhookSecret
+      //   this.configService.get("RAZORPAY_SECRET_KEY")
       // );
+      // await this.validateWebhookSignature(req.body);
       const { invoiceId, status, payment, invoice, serviceRequest } =
         await this.extractPaymentDetails(req.body);
 
@@ -182,7 +197,6 @@ export class PaymentRequestService {
   }
 
   async extractPaymentDetails(body) {
-
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
@@ -241,4 +255,7 @@ export class PaymentRequestService {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
   //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
   // }
+}
+function hmac(arg0: string, message: any, key: any) {
+  throw new Error("Function not implemented.");
 }
