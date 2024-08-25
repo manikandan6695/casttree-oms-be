@@ -1,6 +1,6 @@
 NODE_ENV = "production"
 SERVER_PORT = 3100
-API_PREFIX = "casttree"
+API_PREFIX = "casttree-oms"
 CORS_ORIGIN = "*"
 
 DB_URL = "mongodb+srv://casttreeadmin:Qj87RldxN94HFBzr@casttree-primary-prod.ascsaz2.mongodb.net/tecxprt"
@@ -69,6 +69,8 @@ PEERTUBE_PASSWORD = "lacecudacemosahu"
 
 THROTTLE_LIMIT= "10000"
 THROTTLE_TTL= "30"
+
+CASTTREE_BASE_URL = "https://prodapi.casttree.com/casttree"
 
 CORS_ALLOWED_ORIGIN = ["https://casttree.com", "https://www.casttree.com", "https://prodapi.casttree.com"]
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
