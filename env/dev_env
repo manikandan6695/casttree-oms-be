@@ -1,0 +1,59 @@
+NODE_ENV = "development"
+SERVER_PORT = 3100
+API_PREFIX = "casttree-oms"
+CORS_ORIGIN = "*"
+
+DB_URL = "mongodb+srv://dbAdmin:umP6QgRUxgPkK7kd@tecxprt.qbxr7.mongodb.net/tecxprt"
+
+#LOGGER
+LOGGER_LEVEL = "debug"
+LOGGER_CONSOLE = false
+LOGGER_FILE = true
+LOGGER_APP_LOG_PATH = "logs/app.log"
+LOGGER_ERR_LOG_PATH = "logs/error.log"
+
+#JWT
+JWT_SECRET = "SXUN#*DKJFDGF&#EF"
+JWT_EXPIRATION = "1d"
+
+#FILE UPLOADER
+UPLOADER_KEY = "S5B3NH43QPQLH7FXAA7C"
+UPLOADER_SECRET = "lD9+PakjOVMvelPF+LMADBtvbVn7/S8WWO9tFHwHGaE"
+UPLOADER_BUCKET_NAME = "tecxprt-media"
+UPLOADER_ORIGIN = "sgp1.digitaloceanspaces.com"
+UPLOADER_ACL = "public-read"
+
+MULTER_CONFIG = { "dest" : "./public/uploads/"}
+
+#Onboard Template
+OTP_TEMPLATE = "otp.ejs"
+OTP_SUBJECT = "OTP for your Ninja sign-in"
+OTP_DESCRIPTION = ""
+
+#ENCRYPT AND DECRYPT KEY
+ENCRYPT_KEY = "Tecxprt-Enterprises"
+
+#MSG91
+#OLD_MSG91_END_POINT = "https://api.msg91.com/api/v5/flow/"
+MSG91_END_POINT = "https://control.msg91.com/api/v5/flow/"
+
+# Razorpay 
+RAZORPAY_API_KEY = "rzp_test_n3mWjwFQzH7YDM"
+RAZORPAY_SECRET_KEY = "ipNWATmDo20pFsUhajVV4Ell"
+PAYMENT_TYPE = "razorpay"
+
+# PEERTUBE
+PEERTUBE_BASE_URL = "https://peertubedev.casttree.in"
+PEERTUBE_CLIENT_ID = "gwo55gik6mmoyovjddyakd954lzx6d6z"
+PEERTUBE_CLIENT_SECRET = "cFkyjalQgidH6jevUVEVVTjiOC2qZMQX"
+PEERTUBE_USERNAME = "root"
+PEERTUBE_PASSWORD = "casttree.com"
+
+THROTTLE_LIMIT= "10000"
+THROTTLE_TTL= "30"
+
+CASTTREE_BASE_URL = "https://esearchprod.casttree.com/casttree"
+
+CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:3000"]
+CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
+CORS_ALLOWED_METHODS = "PUT,GET,POST,DELETE,OPTIONS,PATCH"
