@@ -10,6 +10,8 @@ import { PaymentRequestController } from "./payment-request.controller";
 import { PaymentRequestService } from "./payment-request.service";
 import { PaymentSchema } from "./schema/payment.schema";
 
+import { HttpModule } from '@nestjs/axios';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: "payment", schema: PaymentSchema }]),
@@ -18,6 +20,7 @@ import { PaymentSchema } from "./schema/payment.schema";
     InvoiceModule,
     HelperModule,
     ServiceRequestModule,
+    HttpModule
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

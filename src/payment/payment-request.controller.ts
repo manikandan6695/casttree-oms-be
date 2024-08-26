@@ -52,8 +52,10 @@ export class PaymentRequestController {
   @Get(":id")
   async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {
     try {
-      let data = await this.paymentRequestService.getPaymentDetail(id);
-      return res.json(data);
+      let data : any = await this.paymentRequestService.getPaymentDetail(id);
+      console.log(data.patment.payment_order_id);
+      return res.json(data.payment.payment_order_id);
+   
     } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,
@@ -82,4 +84,6 @@ export class PaymentRequestController {
       return res.status(code).json(response);
     }
   }
+
+  
 }

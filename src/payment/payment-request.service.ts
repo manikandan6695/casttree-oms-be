@@ -13,6 +13,9 @@ import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
+import { firstValueFrom } from "rxjs";
+import { Cron } from '@nestjs/schedule';
+import { HttpService } from '@nestjs/axios/';
 const { ObjectId } = require("mongodb");
 // const {
 //   validateWebhookSignature,
@@ -236,9 +239,34 @@ export class PaymentRequestService {
     );
   }
 
+ 
+
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
   //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
   // }
+
+  @Cron('00 5 * * * *')
+     async handleCron() {
+     let paymentRequestData :any = this.getPaymentDetail("66cb5a55fd108b6e491595aa");
+     let orderId = await paymentRequestData.payment.payment_order_id;
+
+    try {
+
+      const response = await firstValueFrom(this.httpService.get('https://api.razorpay.com/v1/orders/'+orderId,{ headers: {
+          'Authorization': `Basic `+Buffer.from(`rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`).toString('base64'),
+      } }));
+
+      // Return the response data
+      console.log("current status  :  "+response.data.status) ;
+      this.updatePaymentRequest(response.data);
+     
+    } catch (error) {
+      // Handle errors
+      console.error('Error fetching data', error);
+      throw error;
+    }
+}
+
 }
