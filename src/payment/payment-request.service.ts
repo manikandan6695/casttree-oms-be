@@ -29,7 +29,8 @@ export class PaymentRequestService {
     private paymentService: PaymentService,
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
-    private currency_service: CurrencyService
+    private currency_service: CurrencyService,
+    private readonly httpService: HttpService
   ) {}
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
@@ -254,13 +255,13 @@ export class PaymentRequestService {
 
     try {
 
-      const response = await firstValueFrom(this.httpService.get('https://api.razorpay.com/v1/orders/'+orderId,{ headers: {
+      const PaymentStatusResponse :any = await firstValueFrom(this.httpService.get('https://api.razorpay.com/v1/orders/'+orderId,{ headers: {
           'Authorization': `Basic `+Buffer.from(`rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`).toString('base64'),
       } }));
 
       // Return the response data
-      console.log("current status  :  "+response.data.status) ;
-      this.updatePaymentRequest(response.data);
+      console.log("current status  :  "+PaymentStatusResponse.data.status) ;
+      this.updatePaymentRequest(PaymentStatusResponse.data);
      
     } catch (error) {
       // Handle errors
