@@ -10,7 +10,7 @@ export class ServiceItemService {
      
       ){}
       getData(language:string,skill:string){
-return this.serviceItemModel.find({skill: skill,"language.languageCode": language});
+      return this.serviceItemModel.find({skill: skill,"language.languageCode": language});
       }
 
 }

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { ILanguageModel, languageSchema } from "src/profile/schema/profile.schema";
 export interface serviceItem {
 //@Prop({unique : true})
-
+itemId: string;
     userId: string;
 
     skill: string;
@@ -15,6 +15,9 @@ export interface serviceItem {
 
 
 export const serviceItemSchema = new mongoose.Schema<any>({
+  itemId: {
+    type: String,
+  },
   userId: {
     type: String,
   },
