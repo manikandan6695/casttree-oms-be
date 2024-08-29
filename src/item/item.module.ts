@@ -10,6 +10,9 @@ import { ManufacturerSchema } from "./schema/manufacturer.schema";
 import { platformItemSchema } from "./schema/platform-item.schema";
 import { PriceListSchema } from "./schema/price-list.schema";
 import { VariantSchema } from "./schema/variant.schema";
+import { ServiceItemController } from "./service-item.controller";
+import { ServiceItemService } from "./service-item.service";
+import { serviceItemSchema } from "./schema/serviceIte.schema";
 
 @Module({
   imports: [
@@ -21,10 +24,14 @@ import { VariantSchema } from "./schema/variant.schema";
       { name: "inventory", schema: inventorySchema },
       { name: "priceList", schema: PriceListSchema },
       { name: "platformItem", schema: platformItemSchema },
+      {
+        name: "serviceItem",
+        schema: serviceItemSchema
+      }
     ]),
     AuthModule,
   ],
-  controllers: [ItemController],
-  providers: [ItemService],
+  controllers: [ItemController,ServiceItemController],
+  providers: [ItemService,ServiceItemService],
 })
 export class ItemModule {}

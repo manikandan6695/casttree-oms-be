@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 import { ILanguageModel, languageSchema } from "src/profile/schema/profile.schema";
 export interface serviceItem {
 //@Prop({unique : true})
-itemId: string;
+    itemId: string;
+
     userId: string;
 
     skill: string;
