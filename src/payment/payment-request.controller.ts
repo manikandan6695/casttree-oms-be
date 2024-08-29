@@ -48,13 +48,14 @@ export class PaymentRequestController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   @Get(":id")
   async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {
     try {
+      console.log("test");
       let data : any = await this.paymentRequestService.getPaymentDetail(id);
-      console.log(data.patment.payment_order_id);
-      return res.json(data.payment.payment_order_id);
+
+      return res.json(data.payment);
    
     } catch (err) {
       const { code, response } = await this.sservice.processError(
@@ -85,5 +86,11 @@ export class PaymentRequestController {
     }
   }
 
+  @Get("test/pavan")
+  async testhmac()
+{
+  console.log("pavan");
+  this.paymentRequestService.testhmac();
+}
   
 }

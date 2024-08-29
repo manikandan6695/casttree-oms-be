@@ -10,7 +10,8 @@ import { PaymentRequestController } from "./payment-request.controller";
 import { PaymentRequestService } from "./payment-request.service";
 import { PaymentSchema } from "./schema/payment.schema";
 
-import { HttpModule } from '@nestjs/axios';
+import { HttpModule } from '@nestjs/axios'
+
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { HttpModule } from '@nestjs/axios';
     InvoiceModule,
     HelperModule,
     ServiceRequestModule,
-    HttpModule
+    HttpModule,
+   
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

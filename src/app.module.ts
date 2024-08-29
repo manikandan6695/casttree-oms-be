@@ -14,6 +14,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { CommentsModule } from "./comments/comments.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
+import { ServiceItemModule } from "./service-item/service-item.module";
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     CommentsModule,
     PaymentRequestModule,
     InvoiceModule,
+    ServiceItemModule
   ],
   controllers: [],
   providers: [
