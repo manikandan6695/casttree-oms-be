@@ -1,5 +1,4 @@
 import { Controller, Get, ParseIntPipe, Query, Req, Res, UseGuards, ValidationPipe } from '@nestjs/common';
-
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { GetToken } from 'src/shared/decorator/getuser.decorator';
 import { UserToken } from 'src/auth/dto/usertoken.dto';
@@ -15,7 +14,7 @@ export class ItemController {
 
     @UseGuards(JwtAuthGuard)
     @Get('serviceItem')
-    async getServiceRequests(
+    async getServiceItems(
       @Req() req,
       @Query(ValidationPipe) query: FilterItemRequestDTO,
       @Query("skip", ParseIntPipe) skip: number,

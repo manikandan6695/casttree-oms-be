@@ -1,14 +1,16 @@
 import {
+IsArray,
 IsOptional,
+IsString,
 } from "class-validator";
 export class FilterItemRequestDTO {
     @IsOptional()
-
+    @IsString()
     skill?: string;
   
     @IsOptional()
- 
-    "language.languageCode"?: string;
+    @IsArray()
+    languageCode?: string;
   
    
   }

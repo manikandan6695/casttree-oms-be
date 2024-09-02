@@ -21,7 +21,7 @@ export class HelperService {
     return reqHeaders;
   }
 
-  async getProfileById(userId: string[], @Req() req) {
+  async getProfileById(userId: string[], @Req() req,type?: string,) {
     try {
       // console.log("req is", req);
 
@@ -31,7 +31,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId },
+          { userIds: userId ,type : type},
           {
             headers: {
               Authorization: `${req["headers"]["authorization"]}`,

@@ -15,7 +15,6 @@ import { CommentsModule } from "./comments/comments.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
 
-import { ProfileModule } from "./profile/profile.module";
 
 @Module({
   imports: [
@@ -50,7 +49,8 @@ import { ProfileModule } from "./profile/profile.module";
     CommentsModule,
     PaymentRequestModule,
     InvoiceModule,
-   ,ProfileModule
+    Profil
+   
   ],
   controllers: [],
   providers: [
