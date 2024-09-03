@@ -1,6 +1,6 @@
 import { Schema,Prop, SchemaFactory } from "@nestjs/mongoose";
 import mongoose from "mongoose";
-import { ILanguageModel, languageSchema } from "src/profile/schema/profile.schema";
+import { ILanguageModel, languageSchema } from "./language.schema";
 export interface serviceItem {
 //@Prop({unique : true})
     itemId: string;

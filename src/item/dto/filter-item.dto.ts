@@ -9,7 +9,6 @@ export class FilterItemRequestDTO {
     skill?: string;
   
     @IsOptional()
-    @IsArray()
     languageCode?: string;
   
    

@@ -1,4 +1,4 @@
-import { Controller, Get, ParseIntPipe, Query, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, ParseIntPipe, Post, Query, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ServiceItemService } from './service-item.service';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { FilterItemRequestDTO } from './dto/filter-item.dto';
@@ -12,7 +12,7 @@ export class ServiceItemController {
        
     }
     @UseGuards(JwtAuthGuard)
-    @Get('serviceItem')
+    @Get()
     async getServiceItems(
       @Req() req,
       @Query(ValidationPipe) query: FilterItemRequestDTO,

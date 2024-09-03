@@ -12,7 +12,7 @@ import { PriceListSchema } from "./schema/price-list.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
-import { serviceItemSchema } from "./schema/serviceIte.schema";
+import { serviceItemSchema } from "./schema/serviceItem.schema";
 
 @Module({
   imports: [
@@ -33,5 +33,6 @@ import { serviceItemSchema } from "./schema/serviceIte.schema";
   ],
   controllers: [ItemController,ServiceItemController],
   providers: [ItemService,ServiceItemService],
+  exports : [ItemService,ServiceItemService]
 })
 export class ItemModule {}

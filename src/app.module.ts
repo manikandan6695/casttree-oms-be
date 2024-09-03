@@ -48,9 +48,7 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     ServiceResponseFormatModule,
     CommentsModule,
     PaymentRequestModule,
-    InvoiceModule,
-    Profil
-   
+    InvoiceModule   
   ],
   controllers: [],
   providers: [
