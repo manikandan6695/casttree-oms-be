@@ -1,7 +1,7 @@
 import { Schema,Prop, SchemaFactory } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import { ILanguageModel, languageSchema } from "./language.schema";
-export interface serviceItem {
+export interface serviceitems {
 //@Prop({unique : true})
     itemId: string;
 
@@ -15,12 +15,16 @@ export interface serviceItem {
 }
 
 
-export const serviceItemSchema = new mongoose.Schema<any>({
+export const serviceitemsSchema = new mongoose.Schema<any>({
   itemId: {
-    type: String,
+  
+  
+        type: mongoose.Schema.Types.ObjectId,
+      ref:"item"
   },
   userId: {
-    type: String,
+        type: mongoose.Schema.Types.ObjectId,
+      ref:"user"
   },
   skill: {
     type: String,

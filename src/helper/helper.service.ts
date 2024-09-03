@@ -28,6 +28,7 @@ export class HelperService {
       // console.log("user id is", userId, req["headers"]["authorization"]);
       // const headers = this.getRequiredHeaders(req);
       // ${this.configService.get("CASTTREE_BASE_URL")}
+      console.log("userId is: "+userId);
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
@@ -39,7 +40,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
+       console.log("data is", data.data);
 
       return data.data;
     } catch (err) {

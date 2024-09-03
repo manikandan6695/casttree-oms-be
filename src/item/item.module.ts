@@ -12,7 +12,8 @@ import { PriceListSchema } from "./schema/price-list.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
-import { serviceItemSchema } from "./schema/serviceItem.schema";
+import { serviceitemsSchema } from "./schema/serviceItem.schema";
+import { HelperModule } from "src/helper/helper.module";
 
 @Module({
   imports: [
@@ -24,12 +25,10 @@ import { serviceItemSchema } from "./schema/serviceItem.schema";
       { name: "inventory", schema: inventorySchema },
       { name: "priceList", schema: PriceListSchema },
       { name: "platformItem", schema: platformItemSchema },
-      {
-        name: "serviceItem",
-        schema: serviceItemSchema
-      }
+      {name: "serviceitems", schema: serviceitemsSchema}
     ]),
     AuthModule,
+    HelperModule
   ],
   controllers: [ItemController,ServiceItemController],
   providers: [ItemService,ServiceItemService],
