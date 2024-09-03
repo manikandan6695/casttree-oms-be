@@ -21,7 +21,7 @@ export class ServiceItemService {
     limit: number
   ) {
     try {
-      console.log(query);
+     
       let filter = {};
       if (query.skill) {
         filter["skill"] = query.skill
@@ -29,7 +29,7 @@ export class ServiceItemService {
      if (query.languageCode) {
         filter["language.languageCode"] = query.languageCode
       }
-      console.log(filter);
+
       let data: any = await this.serviceItemModel
         .find(filter)
        .populate({
@@ -45,26 +45,24 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         ;
-        console.log(data);
       let count = await this.serviceItemModel.countDocuments();
 
       let userIds = data.map((e) => e.userId);
-       if (userIds.length) {
-       let profileDetails = await this.helperService.getProfileById(
-        data.userId,
-         req,
-        null,
-       );
-       console.log("Profile details: "+profileDetails);
-       let user = profileDetails["profileData"].reduce((a, c) => {
-      a[c.userId] = c;
-         return a;
-       }, {});
-       data.map((e) => {
-        return (e["profileData"] = user[data.userId]);
-       });}
-      console.log(data);
-      return { data: data };
+
+  for (let i = 0; i< userIds.length;i++ ){
+   let userID = [userIds[i]]
+ let profileInfo = await this.helperService.getProfileById(
+  userID,
+       req,
+      null,
+     );
+
+     data[i]["profileData"] = profileInfo;
+
+  }
+
+
+     return data;
     } catch (err) {
       throw err;
     }

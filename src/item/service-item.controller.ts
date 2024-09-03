@@ -19,7 +19,7 @@ export class ServiceItemController {
       @Query("skip", ParseIntPipe) skip: number,
       @Query("limit", ParseIntPipe) limit: number,
       @GetToken() token: UserToken,
-      @Res() res: Response
+   
     ) {
       try {
         let data = await this.serviceItemService.getServiceItems(

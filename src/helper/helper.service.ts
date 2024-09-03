@@ -23,16 +23,13 @@ export class HelperService {
 
   async getProfileById(userId: string[], @Req() req,type?: string,) {
     try {
-      // console.log("req is", req);
 
-      // console.log("user id is", userId, req["headers"]["authorization"]);
-      // const headers = this.getRequiredHeaders(req);
-      // ${this.configService.get("CASTTREE_BASE_URL")}
-      console.log("userId is: "+userId);
+     // req["headers"]["authorization"] = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NDQ0ZWI4MDc2Mjk4ZGFkYmNlMWU0MyIsInVzZXJOYW1lIjoiQXN3aW4gRGhhbmFuamFpIiwicGhvbmVOdW1iZXIiOiI4MDE1NTg0NjI0IiwiY2l0eSI6IjYwOTE1MjU2ZmE3NDczNWM2YzRmZTlhMyIsInN0YXRlIjoiNjA5MTUyNTJmOGQ5ZWExZDgyNzczMzIyIiwicHJvZmlsZUlkIjoiNjY2NzI3NDIzYmMwZjEyNzVkNzk2OGM1IiwiaWF0IjoxNzI1Mjc2OTk1LCJleHAiOjE3MjUzNjMzOTV9.kr3vifRzJ43oUyK7EFaf3LFTD1cShxYzELf9m7NIadA";
+   
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId ,type : type},
+          { userIds: userId },
           {
             headers: {
               Authorization: `${req["headers"]["authorization"]}`,
@@ -40,9 +37,9 @@ export class HelperService {
           }
         )
         .toPromise();
-       console.log("data is", data.data);
+        console.log("data is", data.data.profileData);
 
-      return data.data;
+      return data.data.profileData;
     } catch (err) {
       throw err;
     }
@@ -61,7 +58,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
+       
 
       return data.data;
     } catch (err) {

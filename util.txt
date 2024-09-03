@@ -1,0 +1,19 @@
+
+     /*  if (userIds.length > 0) {
+       let profileDetails = await this.helperService.getProfileById(
+        userIds,
+         req,
+        null,
+       );
+       
+       let user = profileDetails["profileData"].reduce((a, c) => {
+      a[c.userId] = c;
+         return a;
+       }, {});
+
+       data.map((e) => {
+        return (e["profileData"] = user[data.userId]);
+       });
+      
+      }
+*/
