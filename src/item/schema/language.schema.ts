@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 export interface ILanguageModel {
     languageName: string;
     languageId: string;
-    ability: string[];
+    languageCode:string;
+   
   }
   export const languageSchema = new mongoose.Schema<any>({
     languageName: {
@@ -10,11 +11,11 @@ export interface ILanguageModel {
     },
     languageId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "language",
+      ref:"language"
+     
     },
-    ability: [
-      {
-        type: String,
-      },
-    ],
+    languageCode:{
+      type: String,
+    }
+    
   });
