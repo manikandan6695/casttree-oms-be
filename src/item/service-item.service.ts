@@ -29,7 +29,7 @@ export class ServiceItemService {
       }
       console.log(filter);
       let data: any = await this.serviceItemModel
-        .findOne({skill: 'Acting'})
+        .find(filter)
        .populate({
           path: "itemId",
           populate: [
@@ -43,7 +43,7 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         ;
-console.log(data);
+      console.log(data);
       let count = await this.serviceItemModel.countDocuments();
 
       let userIds = data.map((e) => e.userId);
