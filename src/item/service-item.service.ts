@@ -51,14 +51,16 @@ export class ServiceItemService {
         req,
         null
       );
-     // console.log(profileInfo);
 
+      let user = profileInfo.reduce((a, c) => {
+        a[c.userId] = c;
+        return a;
+      }, {});
 
+      data.map((e) => {
+        return (e["profileData"] = user[e.userId]);
+      });
 
-      for (let i = 0; i < userIds.length; i++) {
-      
-        data[i]["profileData"] = profileInfo[i];
-      }
 
       return {data:data,count:count};
     } catch (err) {
