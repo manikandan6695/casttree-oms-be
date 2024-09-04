@@ -36,7 +36,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      console.log("data is", data.data.profileData);
+      //console.log("data is", data.data.profileData);
 
       return data.data.profileData;
     } catch (err) {

@@ -46,18 +46,21 @@ export class ServiceItemService {
 
       let userIds = data.map((e) => e.userId);
 
-      for (let i = 0; i < userIds.length; i++) {
-        let userID = [userIds[i]];
-        let profileInfo = await this.helperService.getProfileById(
-          userID,
-          req,
-          null
-        );
+      let profileInfo = await this.helperService.getProfileById(
+        userIds,
+        req,
+        null
+      );
+     // console.log(profileInfo);
 
-        data[i]["profileData"] = profileInfo;
+
+
+      for (let i = 0; i < userIds.length; i++) {
+      
+        data[i]["profileData"] = profileInfo[i];
       }
 
-      return data;
+      return {data:data,count:count};
     } catch (err) {
       throw err;
     }
@@ -83,7 +86,7 @@ export class ServiceItemService {
         req,
         null
       );
-      data["profileData"] = profileInfo;
+      data.profileData = profileInfo;
 
       return data;
     } catch (err) {
