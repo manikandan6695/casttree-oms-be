@@ -49,7 +49,7 @@ export class ServiceItemService {
       let profileInfo = await this.helperService.getProfileById(
         userIds,
         req,
-        null
+       "Expert"
       );
 
       let user = profileInfo.reduce((a, c) => {
@@ -80,16 +80,14 @@ export class ServiceItemService {
             },
           ],
         });
-
-
-
       let profileInfo = await this.helperService.getProfileById(
         [data.userId],
         req,
-        null
+        "Expert"
       );
-
-      data = { ...data, profileData: profileInfo };
+     
+      data = {data,profileData: profileInfo };
+    
 
       return data;
     } catch (err) {

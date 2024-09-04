@@ -28,7 +28,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId },
+          { userIds: userId ,type:type},
           {
             headers: {
               Authorization: `${req["headers"]["authorization"]}`,
