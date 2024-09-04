@@ -88,7 +88,8 @@ export class ServiceItemService {
         req,
         null
       );
-      data.profileData = profileInfo;
+
+      data = { ...data, profileData: profileInfo };
 
       return data;
     } catch (err) {
