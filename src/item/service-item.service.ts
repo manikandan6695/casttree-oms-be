@@ -49,9 +49,8 @@ export class ServiceItemService {
       let profileInfo = await this.helperService.getProfileById(
         userIds,
         req,
-       "Expert"
+        "Expert"
       );
-
       let user = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
@@ -62,7 +61,8 @@ export class ServiceItemService {
       });
 
 
-      return {data:data,count:count};
+
+      return { data: data, count: count };
     } catch (err) {
       throw err;
     }
@@ -79,15 +79,14 @@ export class ServiceItemService {
               path: "platformItemId",
             },
           ],
-        });
+        }).lean();
       let profileInfo = await this.helperService.getProfileById(
         [data.userId],
         req,
         "Expert"
       );
-     
-      data = {data,profileData: profileInfo };
-    
+      console.log(profileInfo);
+      data.profileData = profileInfo;
 
       return data;
     } catch (err) {
