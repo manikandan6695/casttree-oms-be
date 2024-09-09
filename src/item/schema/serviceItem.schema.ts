@@ -11,7 +11,9 @@ export interface serviceitems {
 
     language: ILanguageModel[];
 
-    status: string;
+     status: string;
+    
+    itemSold:number;
 }
 
 
@@ -34,6 +36,10 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   
   status: {
     type: String,
+  },
+
+  itemSold: {
+    type: Number,
   },
   
 });
