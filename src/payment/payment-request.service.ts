@@ -33,8 +33,13 @@ export class PaymentRequestService {
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
     try {
+      const serviceRequest =
+        await this.serviceRequestService.createServiceRequest(
+          body.serviceRequest,
+          token
+        );
       const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        body.invoiceDetail.sourceId,
+        serviceRequest.request.id,
         body.invoiceDetail.sourceType
       );
 

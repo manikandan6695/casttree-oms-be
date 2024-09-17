@@ -1,7 +1,11 @@
 import * as mongoose from "mongoose";
 import { IItemModel, MediaSchema } from "src/item/schema/item.schema";
 import { IMedia } from "src/item/schema/platform-item.schema";
-import { EVisibilityStatus } from "../enum/service-request.enum";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import {
+  EServiceRequestStatus,
+  EVisibilityStatus,
+} from "../enum/service-request.enum";
 export interface IAdditionalDataModel {
   nominationId: string;
 }
@@ -71,12 +75,14 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     },
     requestStatus: {
       type: String,
+      default: EServiceRequestStatus.pending,
     },
     serviceDueDate: {
       type: Date,
     },
     status: {
       type: String,
+      default: EStatus.Active,
     },
     createdBy: {
       type: mongoose.Schema.Types.Mixed,

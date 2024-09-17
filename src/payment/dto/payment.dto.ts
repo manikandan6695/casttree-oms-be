@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsEnum,
   IsMongoId,
   IsNotEmpty,
@@ -6,6 +7,7 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
+import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
 import { ESourceType } from "../enum/payment.enum";
 
 export class InvoiceDTO {
@@ -18,6 +20,7 @@ export class InvoiceDTO {
   @IsEnum(ESourceType)
   sourceType: ESourceType;
 }
+
 export class paymentDTO {
   @IsNotEmpty()
   @IsNumber()
@@ -26,6 +29,9 @@ export class paymentDTO {
   @IsOptional()
   @IsString()
   currency: string;
+
+  @IsOptional()
+  serviceRequest: AddServiceRequestDTO;
 
   @IsOptional()
   @IsString()

@@ -7,6 +7,7 @@ import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import { EVisibilityStatus } from "./enum/service-request.enum";
+import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -76,6 +77,33 @@ export class ServiceRequestService {
       }
 
       return { data: data, count: count };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
+    try {
+      let fv = {
+        requestedBy: token.id,
+        requestedToOrg: body.requestedToOrg,
+        requestedToUser: body.requestedToUser,
+        itemId: body.itemId,
+        // requestedByOrg: token.requestedByOrg,
+        projectId: body.projectId,
+        customQuestions: body.customQuestions,
+      };
+      if (body.requestId)
+        await this.serviceRequestModel.updateOne(
+          { _id: body.requestId },
+          { $set: fv }
+        );
+      else await this.serviceRequestModel.create(fv);
+
+      let request = await this.serviceRequestModel.findOne({
+        _id: body.requestId,
+      });
+      return { message: "Saved successfully", request };
     } catch (err) {
       throw err;
     }
