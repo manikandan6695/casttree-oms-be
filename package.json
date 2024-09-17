@@ -27,7 +27,7 @@
     "@aws-sdk/protocol-http": "^3.370.0",
     "@aws-sdk/signature-v4": "^3.370.0",
     "@google-cloud/storage": "^7.11.0",
-    "@nestjs/axios": "^3.0.2",
+    "@nestjs/axios": "^3.0.3",
     "@nestjs/bull": "^10.1.1",
     "@nestjs/common": "^10.3.8",
     "@nestjs/config": "^3.2.2",

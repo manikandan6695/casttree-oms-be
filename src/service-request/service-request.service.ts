@@ -7,6 +7,7 @@ import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import { EVisibilityStatus } from "./enum/service-request.enum";
+import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -66,18 +67,47 @@ export class ServiceRequestService {
           req,
           null
         );
-        let user = profileDetails["profileData"].reduce((a, c) => {
+        let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
 
-        
         data.map((e) => {
           return (e["requestedBy"] = user[e.requestedBy]);
         });
       }
 
       return { data: data, count: count };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
+    try {
+      let fv = {
+        requestedBy: new ObjectId(token.id),
+        requestedToOrg: new ObjectId(body.requestedToOrg),
+        requestedToUser: new ObjectId(body.requestedToUser),
+        itemId: new ObjectId(body.itemId),
+        requestedByOrg: new ObjectId(body.requestedByOrg),
+        projectId: body.projectId,
+        customQuestions: body.customQuestions,
+      };
+      let requestData;
+      if (body.requestId)
+        await this.serviceRequestModel.updateOne(
+          { _id: body.requestId },
+          { $set: fv }
+        );
+      else requestData = await this.serviceRequestModel.create(fv);
+      let id = body.requestId ? body.requestId : requestData.id;
+      // console.log("id is", requestData.id, requestData);
+
+      let request = await this.serviceRequestModel.findOne({
+        _id: id,
+      });
+      return { message: "Saved successfully", request };
     } catch (err) {
       throw err;
     }
