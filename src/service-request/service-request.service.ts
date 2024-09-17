@@ -66,7 +66,7 @@ export class ServiceRequestService {
           requestedByIds,
           req
         );
-        let user = profileDetails["profileData"].reduce((a, c) => {
+        let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
@@ -89,7 +89,7 @@ export class ServiceRequestService {
         requestedToOrg: body.requestedToOrg,
         requestedToUser: body.requestedToUser,
         itemId: body.itemId,
-        // requestedByOrg: token.requestedByOrg,
+        requestedByOrg: body.requestedByOrg,
         projectId: body.projectId,
         customQuestions: body.customQuestions,
       };

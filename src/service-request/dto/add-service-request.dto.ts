@@ -40,6 +40,10 @@ export class AddServiceRequestDTO {
   requestedToUser: string;
 
   @IsOptional()
+  @IsMongoId()
+  requestedByOrg: string;
+
+  @IsOptional()
   projectId: ProjectDTO;
 
   @IsOptional()

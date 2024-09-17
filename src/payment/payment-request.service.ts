@@ -9,7 +9,11 @@ import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
-import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
+import {
+  EPaymentStatus,
+  ERazorpayPaymentStatus,
+  ESourceType,
+} from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
@@ -39,8 +43,8 @@ export class PaymentRequestService {
           token
         );
       const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        serviceRequest.request.id,
-        body.invoiceDetail.sourceType
+        body.invoiceDetail.sourceId || serviceRequest.request.id,
+        body.invoiceDetail.sourceType || ESourceType.serviceRequest
       );
 
       const invoiceData =
