@@ -46,6 +46,8 @@ export class HelperService {
 
   async updateNominationStatus(body) {
     try {
+      // console.log("body is", body);
+
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/nominations`,

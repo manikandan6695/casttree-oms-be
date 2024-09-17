@@ -14,11 +14,14 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
 import { firstValueFrom } from "rxjs";
-import { Cron } from '@nestjs/schedule';
-import { HttpService } from '@nestjs/axios/';
+import { Cron } from "@nestjs/schedule";
+import { HttpService } from "@nestjs/axios/";
+import { ConfigService } from "@nestjs/config";
 const { ObjectId } = require("mongodb");
-const SimpleHMACAuth = require('simple-hmac-auth');
-const {validateWebhookSignature} = require('razorpay/dist/utils/razorpay-utils')
+const SimpleHMACAuth = require("simple-hmac-auth");
+const {
+  validateWebhookSignature,
+} = require("razorpay/dist/utils/razorpay-utils");
 // const {
 //   validateWebhookSignature,
 // } = require("razorpay/dist/utils/razorpay-utils");
@@ -32,7 +35,7 @@ export class PaymentRequestService {
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
-    private readonly httpService: HttpService
+    private configService: ConfigService
   ) {}
 
   async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
@@ -132,7 +135,6 @@ export class PaymentRequestService {
 
   async updatePaymentRequest(body) {
     try {
-
       await this.paymentModel.updateOne(
         { _id: body.id },
         {
@@ -150,46 +152,57 @@ export class PaymentRequestService {
       let payment = await this.paymentModel.findOne({ _id: id });
       console.log(payment);
       return { payment };
+    } catch (err) {
+      throw err;
+    }
+  }
+  // async validateWebhookSignature(body) {
+  //   try {
+  //     const key = this.configService.get("RAZORPAY_SECRET_KEY");
+  //     const message = body; // raw webhook request body
+  //     const received_signature = this.configService.get("RAZORPAY_SECRET_KEY");
 
+  //     const expected_signature = hmac("sha256", message, key);
+
+  //     if (expected_signature != received_signature) throw SecurityError;
+  //     end;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
+  async paymentWebhook(@Req() req) {
+    try {
+      // console.log(
+      //   "Razorpay request:",
+      //   JSON.stringify(req.body),
+      //   req["headers"]["x-razorpay-signature"],
+      //  // req["headers"]["x-razorpay-event-id"]
+      // );
+
+      // console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
+      // var crypto = require("crypto");
+      // var mbody = req.body.toString();
+      // var expectedSignature = crypto.createHmac('sha256', "casttree@123").update(mbody).digest('hex');
+      // console.log("generated: "+expectedSignature);
+      // if(req["headers"]["x-razorpay-signature"] === expectedSignature){
+      const { invoiceId, status, payment, invoice, serviceRequest } =
+        await this.extractPaymentDetails(req.body);
+
+      const ids = {
+        invoiceId,
+        serviceRequestId: serviceRequest.data["_id"],
+        paymentId: payment._id,
+      };
+      // console.log("ids is", ids, serviceRequest.data["_id"]);
+      await this.updatePaymentStatus(status, ids);
+      return { message: "Updated Successfully" };
+      //  }
     } catch (err) {
       throw err;
     }
   }
 
-  async paymentWebhook(@Req() req) {
-    try {
-      console.log(
-        "Razorpay request:",
-        JSON.stringify(req.body),
-        req["headers"]["x-razorpay-signature"],
-       // req["headers"]["x-razorpay-event-id"]
-      );
-
-  console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
-  var crypto = require("crypto");
-  var mbody = req.body.toString();
-  var expectedSignature = crypto.createHmac('sha256', "casttree@123").update(mbody).digest('hex');
-  console.log("generated: "+expectedSignature);
-  if(req["headers"]["x-razorpay-signature"] === expectedSignature){
-  const { invoiceId, status, payment, invoice, serviceRequest } =
-  await this.extractPaymentDetails(req.body);
-
-const ids = {
-  invoiceId,
-  serviceRequestId: serviceRequest.data["_id"],
-  paymentId: payment._id,
-};
-// console.log("ids is", ids, serviceRequest.data["_id"]);
-await this.updatePaymentStatus(status, ids);
-return { message: "Updated Successfully" };
-   }
-} catch (err) {
-      throw err;
-    }
-  }
-
   async extractPaymentDetails(body) {
-
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
@@ -243,45 +256,54 @@ return { message: "Updated Successfully" };
     );
   }
 
- 
-
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
   //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
   // }
 
-  @Cron('00 5 * * * *')
-     async handleCron() {
-     let paymentRequestData :any = this.getPaymentDetail("66cb5a55fd108b6e491595aa");
-     let orderId = await paymentRequestData.payment.payment_order_id;
+  // @Cron("00 5 * * * *")
+  // async handleCron() {
+  //   let paymentRequestData: any = this.getPaymentDetail(
+  //     "66cb5a55fd108b6e491595aa"
+  //   );
+  //   let orderId = await paymentRequestData.payment.payment_order_id;
 
-    try {
+  //   try {
+  //     const PaymentStatusResponse: any = await firstValueFrom(
+  //       this.httpService.get("https://api.razorpay.com/v1/orders/" + orderId, {
+  //         headers: {
+  //           Authorization:
+  //             `Basic ` +
+  //             Buffer.from(
+  //               `rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`
+  //             ).toString("base64"),
+  //         },
+  //       })
+  //     );
 
-      const PaymentStatusResponse :any = await firstValueFrom(this.httpService.get('https://api.razorpay.com/v1/orders/'+orderId,{ headers: {
-          'Authorization': `Basic `+Buffer.from(`rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`).toString('base64'),
-      } }));
+  //     // Return the response data
+  //     console.log("current status  :  " + PaymentStatusResponse.data.status);
+  //     this.updatePaymentRequest(PaymentStatusResponse.data);
+  //   } catch (error) {
+  //     // Handle errors
+  //     console.error("Error fetching data", error);
+  //     throw error;
+  //   }
+  // }
 
-      // Return the response data
-      console.log("current status  :  "+PaymentStatusResponse.data.status) ;
-      this.updatePaymentRequest(PaymentStatusResponse.data);
-     
-    } catch (error) {
-      // Handle errors
-      console.error('Error fetching data', error);
-      throw error;
-    }
-}
-
-testhmac(){
- /* var crypto = require('crypto');
-var hmac = crypto.createHmac('sha256', 'casttree@2024');
-var expected_signature = hmac.update(JSON.stringify({name:"pavan"}));*/
-var crypto = require('crypto');
-const hash = crypto.createHmac('sha1','casttree@2024')
-.update(JSON.stringify({name:"pavan"}))
-.digest('hex');
-console.log(hash);
-}
-
+  //   testhmac() {
+  //     /* var crypto = require('crypto');
+  // var hmac = crypto.createHmac('sha256', 'casttree@2024');
+  // var expected_signature = hmac.update(JSON.stringify({name:"pavan"}));*/
+  //     var crypto = require("crypto");
+  //     const hash = crypto
+  //       .createHmac("sha1", "casttree@2024")
+  //       .update(JSON.stringify({ name: "pavan" }))
+  //       .digest("hex");
+  //     console.log(hash);
+  //   }
+  // }
+  // function hmac(arg0: string, message: any, key: any) {
+  //   throw new Error("Function not implemented.");
 }

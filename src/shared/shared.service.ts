@@ -4,7 +4,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { CustomLogger } from "src/logger/customlogger.service";
 import { AppException } from "./app-exception";
-import { CountryService } from "./country/country.service";
 import { CurrencyService } from "./currency/currency.service";
 import {
   ECommandProcessingStatus,
@@ -12,7 +11,6 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
-import { TimezoneService } from "./timezone/timezone.service";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
@@ -29,21 +27,10 @@ export class SharedService {
     private readonly commandSourceModel: Model<ICommandSourceModel>,
     private config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
-    private currency_service: CurrencyService,
-    private timezone_service: TimezoneService,
-    private country_service: CountryService
+    private currency_service: CurrencyService
   ) {}
 
-  async getDefaultValues() {
-    try {
-      let default_currency = await this.currency_service.getDefaultCurrency();
-      let default_country_id = await this.country_service.getDefaultCountry();
-      let default_time_zone = await this.timezone_service.getDefaultTimeZone();
-      return { default_currency, default_country_id, default_time_zone };
-    } catch (err) {
-      throw err;
-    }
-  }
+ 
 
   fetchName(nameArr, lang) {
     try {
