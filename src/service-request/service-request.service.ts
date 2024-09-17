@@ -63,13 +63,15 @@ export class ServiceRequestService {
       if (requestedByIds.length) {
         let profileDetails = await this.helperService.getProfileById(
           requestedByIds,
-          req
+          req,
+          null
         );
         let user = profileDetails["profileData"].reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
 
+        
         data.map((e) => {
           return (e["requestedBy"] = user[e.requestedBy]);
         });
@@ -108,7 +110,8 @@ export class ServiceRequestService {
       );
       let profileDetails = await this.helperService.getProfileById(
         [data.requestedBy],
-        req
+        req,
+        null
       );
       if (data.requestedBy) {
         let user = profileDetails["profileData"].reduce((a, c) => {
