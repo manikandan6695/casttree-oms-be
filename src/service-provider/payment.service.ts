@@ -57,9 +57,10 @@ export class PaymentService {
       let pg_detail = await this.getPGInstance();
       let pg_instance = pg_detail.pg_instance;
       let pg_type: string = pg_detail.pg_type;
-      let profile = await this.helperService.getProfileById([user_id], req);
+      let profile = await this.helperService.getProfileById([user_id], req,null);
+// console.log("profile is",profile);
 
-      let pg_meta = { name: profile.profileData[0].userName };
+      let pg_meta = { name: profile.userName };
       switch (pg_type) {
         case EPaymentProvider.razorpay:
           var options = {

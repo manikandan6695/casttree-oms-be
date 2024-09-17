@@ -64,7 +64,8 @@ export class ServiceRequestService {
       if (requestedByIds.length) {
         let profileDetails = await this.helperService.getProfileById(
           requestedByIds,
-          req
+          req,
+          null
         );
         let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
@@ -85,23 +86,26 @@ export class ServiceRequestService {
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
       let fv = {
-        requestedBy: token.id,
-        requestedToOrg: body.requestedToOrg,
-        requestedToUser: body.requestedToUser,
-        itemId: body.itemId,
-        requestedByOrg: body.requestedByOrg,
+        requestedBy: new ObjectId(token.id),
+        requestedToOrg: new ObjectId(body.requestedToOrg),
+        requestedToUser: new ObjectId(body.requestedToUser),
+        itemId: new ObjectId(body.itemId),
+        requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
       };
+      let requestData;
       if (body.requestId)
         await this.serviceRequestModel.updateOne(
           { _id: body.requestId },
           { $set: fv }
         );
-      else await this.serviceRequestModel.create(fv);
+      else requestData = await this.serviceRequestModel.create(fv);
+      let id = body.requestId ? body.requestId : requestData.id;
+      // console.log("id is", requestData.id, requestData);
 
       let request = await this.serviceRequestModel.findOne({
-        _id: body.requestId,
+        _id: id,
       });
       return { message: "Saved successfully", request };
     } catch (err) {
@@ -136,7 +140,8 @@ export class ServiceRequestService {
       );
       let profileDetails = await this.helperService.getProfileById(
         [data.requestedBy],
-        req
+        req,
+        null
       );
       if (data.requestedBy) {
         let user = profileDetails["profileData"].reduce((a, c) => {

@@ -7,7 +7,7 @@ export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -21,17 +21,14 @@ export class HelperService {
     return reqHeaders;
   }
 
-  async getProfileById(userId: string[], @Req() req) {
+  async getProfileById(userId: string[], @Req() req, type?: string) {
     try {
-      // console.log("req is", req);
 
-      // console.log("user id is", userId, req["headers"]["authorization"]);
-      // const headers = this.getRequiredHeaders(req);
-      // ${this.configService.get("CASTTREE_BASE_URL")}
+
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId },
+          { userIds: userId ,type:type},
           {
             headers: {
               Authorization: `${req["headers"]["authorization"]}`,
@@ -39,9 +36,9 @@ export class HelperService {
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
+      //console.log("data is", data.data.profileData);
 
-      return data.data;
+      return data.data.profileData;
     } catch (err) {
       throw err;
     }
@@ -62,7 +59,6 @@ export class HelperService {
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
 
       return data.data;
     } catch (err) {

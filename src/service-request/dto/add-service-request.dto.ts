@@ -23,8 +23,16 @@ export class ProjectDTO {
   description: string;
 
   @IsOptional()
+  @IsMongoId()
+  mediaId: string;
+
+  @IsOptional()
   @IsString()
   mediaUrl: string;
+
+  @IsOptional()
+  @IsString()
+  fileName: string;
 
   @IsOptional()
   @IsArray()

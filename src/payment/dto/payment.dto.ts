@@ -11,11 +11,11 @@ import { AddServiceRequestDTO } from "src/service-request/dto/add-service-reques
 import { ESourceType } from "../enum/payment.enum";
 
 export class InvoiceDTO {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   sourceId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @IsEnum(ESourceType)
   sourceType: ESourceType;
@@ -41,6 +41,6 @@ export class paymentDTO {
   @IsMongoId()
   userId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   invoiceDetail: InvoiceDTO;
 }
