@@ -86,7 +86,7 @@ export class ServiceItemService {
         "Expert"
       );
       console.log(profileInfo);
-      data.profileData = profileInfo;
+      data.profileData = profileInfo[0];
 
       return data;
     } catch (err) {
