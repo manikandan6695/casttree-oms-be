@@ -21,7 +21,7 @@ export class HelperService {
     return reqHeaders;
   }
 
-  async getProfileById(userId: string[], @Req() req, type?: string) {
+  async getProfileById(userId: string[], accessToken: string , type?: string) {
     try {
 
 
@@ -31,7 +31,7 @@ export class HelperService {
           { userIds: userId ,type:type},
           {
             headers: {
-              Authorization: `${req["headers"]["authorization"]}`,
+              Authorization: accessToken,
             },
           }
         )
