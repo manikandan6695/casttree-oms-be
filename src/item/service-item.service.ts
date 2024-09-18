@@ -21,12 +21,22 @@ export class ServiceItemService {
   ) {
     try {
       let filter = {};
+      let skills = [];
+      let languages = [];
+
+      if (query.languageCode.length) {
+        languages = query.languageCode.split(",");
+        filter = { "language.languageCode": { $in: languages } };
+   
+
+      }
       if (query.skill) {
-        filter["skill"] = query.skill;
+        skills = query.skill.split(",");
+        filter = { ...filter,"skill": { $in: skills } };
+   
+
       }
-      if (query.languageCode) {
-        filter["language.languageCode"] = query.languageCode;
-      }
+      
 
       let data: any = await this.serviceItemModel
         .find(filter)
