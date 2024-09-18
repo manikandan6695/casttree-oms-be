@@ -99,7 +99,7 @@ export class PaymentRequestService {
         orderDetail
       );
       // paymentData["serviceRequest"] = serviceRequest;
-      return paymentData;
+      return { paymentData, serviceRequest };
     } catch (err) {
       throw err;
     }
