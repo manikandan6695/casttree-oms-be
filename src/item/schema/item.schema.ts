@@ -70,6 +70,7 @@ export interface IItemModel extends mongoose.Document {
   E_material_code?: string;
   status?: any;
   data_create_mode: string;
+  comparePrice:number
 }
 
 export interface IStockDetails {
@@ -317,6 +318,7 @@ export const ItemSchema = new mongoose.Schema<any>(
       ref: "user",
     },
     E_material_code: { type: String },
+    comparePrice:{type:Number}
   },
   {
     collection: "item",
