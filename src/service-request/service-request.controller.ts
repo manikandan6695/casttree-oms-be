@@ -38,7 +38,7 @@ export class ServiceRequestController {
       let data = await this.serviceRequestService.getServiceRequests(
         query,
         token,
-        req,
+        req["headers"]["authorization"],
         skip,
         limit
       );
@@ -60,7 +60,10 @@ export class ServiceRequestController {
     @Res() res: Response
   ) {
     try {
-      let data = await this.serviceRequestService.getServiceRequest(id, req);
+      let data = await this.serviceRequestService.getServiceRequest(
+        id,
+        req["headers"]["authorization"]
+      );
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(

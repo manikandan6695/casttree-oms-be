@@ -36,7 +36,7 @@ export class ServiceResponseController {
       let data = await this.serviceResponseService.saveServiceResponse(
         body,
         token,
-        req
+        req["headers"]["authorization"]
       );
       return res.json(data);
     } catch (err) {
