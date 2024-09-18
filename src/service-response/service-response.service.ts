@@ -32,7 +32,7 @@ export class ServiceResponseService {
   async saveServiceResponse(
     body: ServiceResponseDTO,
     token: UserToken,
-    @Req() req
+    accessToken: string
   ) {
     try {
       const responseData = {
@@ -51,7 +51,7 @@ export class ServiceResponseService {
       if (body.feedbackStatus === EServiceResponse.submitted) {
         await this.handleSubmittedFeedback(
           body.requestId,
-          req,
+          accessToken,
           body.additionalDetail.isPassed
         );
       }
@@ -76,7 +76,7 @@ export class ServiceResponseService {
 
   async handleSubmittedFeedback(
     requestId: string,
-    req: any,
+    accessToken: string,
     isPassed: boolean
   ) {
     await this.serviceRequestModel.updateOne(
@@ -85,7 +85,10 @@ export class ServiceResponseService {
     );
 
     const serviceRequestDetails =
-      await this.serviceRequestService.getServiceRequest(requestId, req);
+      await this.serviceRequestService.getServiceRequest(
+        requestId,
+        accessToken
+      );
     // console.log("service request details", serviceRequestDetails);
 
     if (serviceRequestDetails.data) {
@@ -94,7 +97,7 @@ export class ServiceResponseService {
       const eventPayload: IUpdateNominationStatusByRequestEvent = {
         requestId: serviceRequestDetails.data._id,
         isPassed,
-        token: req.headers.authorization,
+        token: accessToken,
       };
 
       await this.eventEmitter.emitAsync(UPDATE_NOMINATION_STATUS, eventPayload);

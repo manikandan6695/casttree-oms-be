@@ -22,7 +22,7 @@ export class ServiceRequestService {
   async getServiceRequests(
     query: FilterServiceRequestDTO,
     token: UserToken,
-    @Req() req,
+    accessToken: string,
     skip: number,
     limit: number
   ) {
@@ -63,7 +63,7 @@ export class ServiceRequestService {
       if (requestedByIds.length) {
         let profileDetails = await this.helperService.getProfileById(
           requestedByIds,
-          req,
+          accessToken,
           null
         );
         let user = profileDetails["profileData"].reduce((a, c) => {
@@ -71,7 +71,6 @@ export class ServiceRequestService {
           return a;
         }, {});
 
-        
         data.map((e) => {
           return (e["requestedBy"] = user[e.requestedBy]);
         });
@@ -90,7 +89,7 @@ export class ServiceRequestService {
       throw err;
     }
   }
-  async getServiceRequest(id: string, @Req() req) {
+  async getServiceRequest(id: string, accessToken: string) {
     try {
       console.log("id is", id);
 
@@ -110,7 +109,7 @@ export class ServiceRequestService {
       );
       let profileDetails = await this.helperService.getProfileById(
         [data.requestedBy],
-        req,
+        accessToken,
         null
       );
       if (data.requestedBy) {
