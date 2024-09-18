@@ -144,7 +144,7 @@ export class ServiceRequestService {
         null
       );
       if (data.requestedBy) {
-        let user = profileDetails["profileData"].reduce((a, c) => {
+        let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
