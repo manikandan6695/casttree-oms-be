@@ -9,5 +9,20 @@ import { ServiceItemService } from './service-item.service';
 
 @Controller('item')
 export class ItemController {
-    
+    constructor(private itemService: ItemService) { }
+    @UseGuards(JwtAuthGuard)
+    @Get('platformItem')
+    async getPlatformItem(@GetToken() token: UserToken, @Query("skip", ParseIntPipe) skip: number,
+        @Query("limit", ParseIntPipe) limit: number,) {
+        try {
+            let data = await this.itemService.getPlatformItem(
+                token,
+                skip,
+                limit
+            );
+            return data;
+        } catch (err) {
+            return err;
+        }
+    }
 }
