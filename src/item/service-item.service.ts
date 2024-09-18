@@ -11,7 +11,7 @@ export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
     private helperService: HelperService
-  ) { }
+  ) {}
   async getServiceItems(
     query: FilterItemRequestDTO,
     token: UserToken,
@@ -21,22 +21,20 @@ export class ServiceItemService {
   ) {
     try {
       let filter = {};
-      let skills = [];
-      let languages = [];
-
-      if (query.languageCode.length) {
-        languages = query.languageCode.split(",");
-        filter = { "language.languageCode": { $in: languages } };
-   
-
+      if (query.languageCode) {
+        if (typeof query.languageCode === "string") {
+          filter = { "language.languageCode": query.languageCode };
+        } else {
+          filter = { "language.languageCode": { $in: query.languageCode } };
+        }
       }
       if (query.skill) {
-        skills = query.skill.split(",");
-        filter = { ...filter,"skill": { $in: skills } };
-   
-
+        if (typeof query.skill === "string") {
+          filter = { ...filter, skill: query.skill };
+        } else {
+          filter = { ...filter, skill: { $in: query.skill } };
+        }
       }
-      
 
       let data: any = await this.serviceItemModel
         .find(filter)
@@ -48,14 +46,13 @@ export class ServiceItemService {
             },
           ],
         })
-        .lean()
         .sort({ _id: -1 })
         .skip(skip)
-        .limit(limit);
-      let count = await this.serviceItemModel.countDocuments();
-
+        .limit(limit)
+        .lean();
+      let countData = await this.serviceItemModel.countDocuments(filter);
+      let count = countData;
       let userIds = data.map((e) => e.userId);
-
       let profileInfo = await this.helperService.getProfileById(
         userIds,
         req,
@@ -65,13 +62,9 @@ export class ServiceItemService {
         a[c.userId] = c;
         return a;
       }, {});
-
       data.map((e) => {
         return (e["profileData"] = user[e.userId]);
       });
-
-
-
       return { data: data, count: count };
     } catch (err) {
       throw err;
@@ -89,13 +82,13 @@ export class ServiceItemService {
               path: "platformItemId",
             },
           ],
-        }).lean();
+        })
+        .lean();
       let profileInfo = await this.helperService.getProfileById(
         [data.userId],
         req,
         "Expert"
       );
-      console.log(profileInfo);
       data.profileData = profileInfo[0];
 
       return data;
