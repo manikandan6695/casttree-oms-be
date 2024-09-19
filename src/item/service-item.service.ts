@@ -19,18 +19,18 @@ export class ServiceItemService {
   ) {
     try {
       const filter = {};
-      if (query.languageCode) {
-        if (typeof query.languageCode === "string") {
-          filter["language.languageCode"] = query.languageCode;
+      if (query.languageId) {
+        if (typeof query.languageId === "string") {
+          filter["language.languageId"] = query.languageId;
         } else {
-          filter["language.languageCode"] = { $in: query.languageCode };
+          filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      if (query.skill) {
-        if (typeof query.skill === "string") {
-          filter["skill"] = query.skill;
+      if (query.skillId) {
+        if (typeof query.skillId === "string") {
+          filter["skill.skillId"] = query.skillId;
         } else {
-          filter["skill"] = { $in: query.skill };
+          filter["skill.skillId"] = { $in: query.skillId };
         }
       }
       let serviceItemData = await this.serviceItemModel

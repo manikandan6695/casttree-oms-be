@@ -19,3 +19,23 @@ export interface ILanguageModel {
     }
     
   });
+
+export interface IskillModel {
+
+    skillId: string;
+    skillName:string;
+   
+  }
+  export const skillSchema = new mongoose.Schema<any>({
+
+    skillId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref:"skills"
+     
+    },
+    skillName: {
+      type: String,
+    },
+
+    
+  });
