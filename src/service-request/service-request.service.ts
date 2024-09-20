@@ -6,7 +6,10 @@ import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
-import { EVisibilityStatus } from "./enum/service-request.enum";
+import {
+  EServiceRequestMode,
+  EVisibilityStatus,
+} from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
 const { ObjectId } = require("mongodb");
@@ -30,8 +33,12 @@ export class ServiceRequestService {
     try {
       let filter = {
         requestStatus: query.requestStatus,
-        requestedToUser: new ObjectId(token.id),
       };
+      if (query.mode == EServiceRequestMode.assign) {
+        filter["requestedToUser"] = new ObjectId(token.id);
+      } else {
+        filter["requestedBy"] = new ObjectId(token.id);
+      }
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -60,6 +67,7 @@ export class ServiceRequestService {
       }
 
       let requestedByIds = data.map((e) => e.requestedBy);
+      let requestedToUserIds = data.map((e) => e.requestedToUser);
 
       if (requestedByIds.length) {
         let profileDetails = await this.helperService.getProfileById(
@@ -77,6 +85,21 @@ export class ServiceRequestService {
         });
       }
 
+      if (requestedToUserIds.length) {
+        let profileDetails = await this.helperService.getProfileById(
+          requestedToUserIds,
+          req,
+          null
+        );
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+
+        data.map((e) => {
+          return (e["requestedToUser"] = user[e.requestedToUser]);
+        });
+      }
       return { data: data, count: count };
     } catch (err) {
       throw err;
