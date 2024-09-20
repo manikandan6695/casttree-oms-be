@@ -3,6 +3,16 @@ export enum EServiceRequestStatus {
   completed = "Completed",
 }
 
+export enum EServiceRequestMode {
+  assign = "assignToMe",
+  created = "createdByMe",
+}
+
+export const ESServiceRequestMode = [
+  EServiceRequestMode.assign,
+  EServiceRequestMode.created,
+];
+
 export const ESServiceRequest = [
   EServiceRequestStatus.pending,
   EServiceRequestStatus.completed,
@@ -13,7 +23,6 @@ export enum ESourceType {
 }
 
 export const ESSourceType = [ESourceType.serviceRequest];
-
 
 export enum EVisibilityStatus {
   unlocked = "Unlocked",

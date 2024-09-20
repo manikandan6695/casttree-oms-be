@@ -6,7 +6,10 @@ import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
-import { EVisibilityStatus } from "./enum/service-request.enum";
+import {
+  EServiceRequestMode,
+  EVisibilityStatus,
+} from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
 const { ObjectId } = require("mongodb");
@@ -24,14 +27,21 @@ export class ServiceRequestService {
     query: FilterServiceRequestDTO,
     token: UserToken,
     accessToken: string,
+    organizationId: string,
     skip: number,
     limit: number
   ) {
     try {
       let filter = {
         requestStatus: query.requestStatus,
-        requestedToUser: new ObjectId(token.id),
       };
+      if (query.mode == EServiceRequestMode.assign) {
+        filter["requestedToUser"] = new ObjectId(token.id);
+        filter["requestedToOrg"] = new ObjectId(organizationId);
+      } else {
+        filter["requestedBy"] = new ObjectId(token.id);
+        filter["requestedByOrg"] = new ObjectId(organizationId);
+      }
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -74,6 +84,24 @@ export class ServiceRequestService {
 
         data.map((e) => {
           return (e["requestedBy"] = user[e.requestedBy]);
+        });
+      }
+
+      let requestedToUserIds = data.map((e) => e.requestedToUser);
+
+      if (requestedToUserIds.length) {
+        let profileDetails = await this.helperService.getProfileById(
+          requestedToUserIds,
+          accessToken,
+          null
+        );
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+
+        data.map((e) => {
+          return (e["requestedToUser"] = user[e.requestedToUser]);
         });
       }
 
@@ -139,7 +167,7 @@ export class ServiceRequestService {
         data._id
       );
       let profileDetails = await this.helperService.getProfileById(
-        [data.requestedBy],
+        [data.requestedBy, data.requestedToUser],
         accessToken,
         null
       );
@@ -150,6 +178,14 @@ export class ServiceRequestService {
         }, {});
         data["serviceResponse"] = response;
         data["requestedBy"] = user[data.requestedBy];
+      }
+
+      if (data.requestedToUser) {
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        data["requestedToUser"] = user[data.requestedToUser];
       }
 
       return { data: data };
