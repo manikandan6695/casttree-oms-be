@@ -16,7 +16,10 @@ import {
 } from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
+import {
+  EServiceRequestStatus,
+  EVisibilityStatus,
+} from "src/service-request/enum/service-request.enum";
 import { firstValueFrom } from "rxjs";
 import { Cron } from "@nestjs/schedule";
 import { HttpService } from "@nestjs/axios/";
@@ -49,7 +52,7 @@ export class PaymentRequestService {
           body.serviceRequest,
           token
         );
-      // console.log("service request is", serviceRequest.request._id);
+      console.log("service request is", serviceRequest.request._id);
 
       const existingInvoice = await this.invoiceService.getInvoiceBySource(
         body?.invoiceDetail?.sourceId?.toString() ||
@@ -270,6 +273,7 @@ export class PaymentRequestService {
       ids.serviceRequestId,
       {
         visibilityStatus: EVisibilityStatus.unlocked,
+        requestStatus: EServiceRequestStatus.pending,
       }
     );
   }
