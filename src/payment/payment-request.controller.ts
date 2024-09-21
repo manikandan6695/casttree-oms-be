@@ -36,7 +36,7 @@ export class PaymentRequestController {
       let data = await this.paymentRequestService.initiatePayment(
         body,
         token,
-        req
+        req["headers"]["authorization"]
       );
       return res.json(data);
     } catch (err) {
