@@ -3,19 +3,15 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Post,
   Query,
   Req,
-  Res,
   UseGuards,
-  UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import { ServiceItemService } from "./service-item.service";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
-import { GetToken } from "src/shared/decorator/getuser.decorator";
-import { UserToken } from "src/auth/dto/usertoken.dto";
+
 
 @Controller("service-item")
 export class ServiceItemController {
@@ -26,14 +22,12 @@ export class ServiceItemController {
     @Req() req,
     @Query(ValidationPipe) query: FilterItemRequestDTO,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number,
-    @GetToken() token: UserToken
+    @Query("limit", ParseIntPipe) limit: number
   ) {
     try {
       let data = await this.serviceItemService.getServiceItems(
-        query,
-        token,
-        req,
+        query, 
+        req["headers"]["authorization"],
         skip,
         limit
       );
@@ -47,16 +41,12 @@ export class ServiceItemController {
   @Get(":id")
   async getServiceItemDetails(
     @Req() req,
-    @Param("id") id: string,
-
-    @GetToken() token: UserToken
+    @Param("id") _id: string
   ) {
     try {
-      console.log(id);
       let data = await this.serviceItemService.getServiceItemDetails(
-        token,
-        id,
-        req
+        _id,
+        req["headers"]["authorization"],
       );
       return data;
     } catch (err) {

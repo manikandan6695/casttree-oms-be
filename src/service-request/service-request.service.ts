@@ -26,7 +26,8 @@ export class ServiceRequestService {
   async getServiceRequests(
     query: FilterServiceRequestDTO,
     token: UserToken,
-    @Req() req,
+    accessToken: string,
+    organizationId: string,
     skip: number,
     limit: number
   ) {
@@ -36,8 +37,10 @@ export class ServiceRequestService {
       };
       if (query.mode == EServiceRequestMode.assign) {
         filter["requestedToUser"] = new ObjectId(token.id);
+        filter["requestedToOrg"] = new ObjectId(organizationId);
       } else {
         filter["requestedBy"] = new ObjectId(token.id);
+        filter["requestedByOrg"] = new ObjectId(organizationId);
       }
 
       let data = await this.serviceRequestModel
@@ -67,12 +70,11 @@ export class ServiceRequestService {
       }
 
       let requestedByIds = data.map((e) => e.requestedBy);
-      let requestedToUserIds = data.map((e) => e.requestedToUser);
 
       if (requestedByIds.length) {
         let profileDetails = await this.helperService.getProfileById(
           requestedByIds,
-          req,
+          accessToken,
           null
         );
         let user = profileDetails.reduce((a, c) => {
@@ -85,10 +87,12 @@ export class ServiceRequestService {
         });
       }
 
+      let requestedToUserIds: string[] = data.map((e) => e.requestedToUser);
+
       if (requestedToUserIds.length) {
         let profileDetails = await this.helperService.getProfileById(
           requestedToUserIds,
-          req,
+          accessToken,
           null
         );
         let user = profileDetails.reduce((a, c) => {
@@ -143,7 +147,7 @@ export class ServiceRequestService {
       throw err;
     }
   }
-  async getServiceRequest(id: string, @Req() req) {
+  async getServiceRequest(id: string, accessToken: string) {
     try {
       console.log("id is", id);
 
@@ -162,8 +166,8 @@ export class ServiceRequestService {
         data._id
       );
       let profileDetails = await this.helperService.getProfileById(
-        [data.requestedBy],
-        req,
+        [data.requestedBy, data.requestedToUser],
+        accessToken,
         null
       );
       if (data.requestedBy) {
@@ -173,6 +177,14 @@ export class ServiceRequestService {
         }, {});
         data["serviceResponse"] = response;
         data["requestedBy"] = user[data.requestedBy];
+      }
+
+      if (data.requestedToUser) {
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        data["requestedToUser"] = user[data.requestedToUser];
       }
 
       return { data: data };
