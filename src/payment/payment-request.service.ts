@@ -45,7 +45,11 @@ export class PaymentRequestService {
     private configService: ConfigService
   ) {}
 
-  async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
+  async initiatePayment(
+    body: paymentDTO,
+    token: UserToken,
+    accessToken: string
+  ) {
     try {
       const serviceRequest =
         await this.serviceRequestService.createServiceRequest(
@@ -87,7 +91,7 @@ export class PaymentRequestService {
         currency,
         body.amount,
         body.invoiceDetail.sourceId.toString(),
-        req,
+        accessToken,
         {
           invoiceId: invoiceData._id,
           invoiceNumber: invoiceData.document_number,
@@ -272,7 +276,7 @@ export class PaymentRequestService {
     await this.serviceRequestService.updateServiceRequest(
       ids.serviceRequestId,
       {
-        visibilityStatus: EVisibilityStatus.unlocked,
+        // visibilityStatus: EVisibilityStatus.unlocked,
         requestStatus: EServiceRequestStatus.pending,
       }
     );

@@ -48,17 +48,20 @@ export class PaymentService {
     currency: ICurrencyModel,
     amount: number,
     reference_no: string,
-    @Req() req,
-    notes?: any,
-    
+    accessToken: string,
+    notes?: any
   ) {
     try {
       let order_id: string;
       let pg_detail = await this.getPGInstance();
       let pg_instance = pg_detail.pg_instance;
       let pg_type: string = pg_detail.pg_type;
-      let profile = await this.helperService.getProfileById([user_id], req,null);
-// console.log("profile is",profile);
+      let profile = await this.helperService.getProfileById(
+        [user_id],
+        accessToken,
+        null
+      );
+      // console.log("profile is",profile);
 
       let pg_meta = { name: profile.userName };
       switch (pg_type) {
