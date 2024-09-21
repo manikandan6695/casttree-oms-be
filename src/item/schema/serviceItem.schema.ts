@@ -1,45 +1,41 @@
-import { Schema,Prop, SchemaFactory } from "@nestjs/mongoose";
+import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
 import mongoose from "mongoose";
-import { ILanguageModel, IskillModel, languageSchema, skillSchema } from "./language.schema";
+import {
+  ILanguageModel,
+  IskillModel,
+  languageSchema,
+  skillSchema,
+} from "./language.schema";
 export interface serviceitems {
-//@Prop({unique : true})
-    itemId: string;
-
-    userId: string;
-
-    skill: IskillModel;
-
-    language: ILanguageModel[];
-
-    status: string;
-    
-    itemSold:number;
+  itemId: string;
+  userId: string;
+  skill: IskillModel;
+  language: ILanguageModel[];
+  status: string;
+  respondTime: string;
+  itemSold: number;
 }
-
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
   itemId: {
-  
-  
-        type: mongoose.Schema.Types.ObjectId,
-      ref:"item"
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "item",
   },
   userId: {
-        type: mongoose.Schema.Types.ObjectId,
-      ref:"user"
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user",
   },
   skill: {
     type: skillSchema,
   },
-  
+  respondTime: {
+    type: String,
+  },
   language: [languageSchema],
-  
   status: {
     type: String,
   },
-
   itemSold: {
     type: Number,
   },
-  
 });
