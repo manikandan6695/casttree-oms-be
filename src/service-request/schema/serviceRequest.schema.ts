@@ -75,7 +75,7 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     },
     requestStatus: {
       type: String,
-      default: EServiceRequestStatus.pending,
+      default: EServiceRequestStatus.initiated,
     },
     serviceDueDate: {
       type: Date,
