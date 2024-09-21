@@ -1,4 +1,5 @@
 export enum EServiceRequestStatus {
+  initiated = "Initiated",
   pending = "Pending",
   completed = "Completed",
 }
@@ -8,14 +9,15 @@ export enum EServiceRequestMode {
   created = "createdByMe",
 }
 
+export const ESServiceRequest = [
+  EServiceRequestStatus.initiated,
+  EServiceRequestStatus.pending,
+  EServiceRequestStatus.completed,
+];
+
 export const ESServiceRequestMode = [
   EServiceRequestMode.assign,
   EServiceRequestMode.created,
-];
-
-export const ESServiceRequest = [
-  EServiceRequestStatus.pending,
-  EServiceRequestStatus.completed,
 ];
 
 export enum ESourceType {

@@ -87,7 +87,7 @@ export class ServiceRequestService {
         });
       }
 
-      let requestedToUserIds = data.map((e) => e.requestedToUser);
+      let requestedToUserIds: string[] = data.map((e) => e.requestedToUser);
 
       if (requestedToUserIds.length) {
         let profileDetails = await this.helperService.getProfileById(
@@ -104,7 +104,6 @@ export class ServiceRequestService {
           return (e["requestedToUser"] = user[e.requestedToUser]);
         });
       }
-
       return { data: data, count: count };
     } catch (err) {
       throw err;
