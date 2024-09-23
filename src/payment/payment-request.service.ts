@@ -9,10 +9,17 @@ import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
-import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
+import {
+  EPaymentStatus,
+  ERazorpayPaymentStatus,
+  ESourceType,
+} from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
+import {
+  EServiceRequestStatus,
+  EVisibilityStatus,
+} from "src/service-request/enum/service-request.enum";
 import { firstValueFrom } from "rxjs";
 import { Cron } from "@nestjs/schedule";
 import { HttpService } from "@nestjs/axios/";
@@ -38,13 +45,31 @@ export class PaymentRequestService {
     private configService: ConfigService
   ) {}
 
-  async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
+  async initiatePayment(
+    body: paymentDTO,
+    token: UserToken,
+    accessToken: string
+  ) {
     try {
-      const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        body.invoiceDetail.sourceId,
-        body.invoiceDetail.sourceType
-      );
+      const serviceRequest =
+        await this.serviceRequestService.createServiceRequest(
+          body.serviceRequest,
+          token
+        );
+      console.log("service request is", serviceRequest.request._id);
 
+      const existingInvoice = await this.invoiceService.getInvoiceBySource(
+        body?.invoiceDetail?.sourceId?.toString() ||
+          serviceRequest.request._id.toString(),
+        body?.invoiceDetail?.sourceType || ESourceType.serviceRequest
+      );
+      body["invoiceDetail"] = {
+        sourceId:
+          body?.invoiceDetail?.sourceId?.toString() ||
+          serviceRequest.request._id.toString(),
+        sourceType:
+          body?.invoiceDetail?.sourceType || ESourceType.serviceRequest,
+      };
       const invoiceData =
         existingInvoice || (await this.createNewInvoice(body, token));
 
@@ -66,7 +91,7 @@ export class PaymentRequestService {
         currency,
         body.amount,
         body.invoiceDetail.sourceId.toString(),
-        req,
+        accessToken,
         {
           invoiceId: invoiceData._id,
           invoiceNumber: invoiceData.document_number,
@@ -80,8 +105,8 @@ export class PaymentRequestService {
         currency,
         orderDetail
       );
-
-      return paymentData;
+      // paymentData["serviceRequest"] = serviceRequest;
+      return { paymentData, serviceRequest };
     } catch (err) {
       throw err;
     }
@@ -251,7 +276,8 @@ export class PaymentRequestService {
     await this.serviceRequestService.updateServiceRequest(
       ids.serviceRequestId,
       {
-        visibilityStatus: EVisibilityStatus.unlocked,
+        // visibilityStatus: EVisibilityStatus.unlocked,
+        requestStatus: EServiceRequestStatus.pending,
       }
     );
   }

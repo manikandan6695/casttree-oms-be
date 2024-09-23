@@ -6,7 +6,11 @@ import { HelperService } from "src/helper/helper.service";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
-import { EVisibilityStatus } from "./enum/service-request.enum";
+import {
+  EServiceRequestMode,
+  EVisibilityStatus,
+} from "./enum/service-request.enum";
+import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -23,14 +27,21 @@ export class ServiceRequestService {
     query: FilterServiceRequestDTO,
     token: UserToken,
     accessToken: string,
+    organizationId: string,
     skip: number,
     limit: number
   ) {
     try {
       let filter = {
         requestStatus: query.requestStatus,
-        requestedToUser: new ObjectId(token.id),
       };
+      if (query.mode == EServiceRequestMode.assign) {
+        filter["requestedToUser"] = new ObjectId(token.id);
+        filter["requestedToOrg"] = new ObjectId(organizationId);
+      } else {
+        filter["requestedBy"] = new ObjectId(token.id);
+        filter["requestedByOrg"] = new ObjectId(organizationId);
+      }
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -66,7 +77,7 @@ export class ServiceRequestService {
           accessToken,
           null
         );
-        let user = profileDetails["profileData"].reduce((a, c) => {
+        let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
@@ -76,7 +87,54 @@ export class ServiceRequestService {
         });
       }
 
+      let requestedToUserIds: string[] = data.map((e) => e.requestedToUser);
+
+      if (requestedToUserIds.length) {
+        let profileDetails = await this.helperService.getProfileById(
+          requestedToUserIds,
+          accessToken,
+          null
+        );
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+
+        data.map((e) => {
+          return (e["requestedToUser"] = user[e.requestedToUser]);
+        });
+      }
       return { data: data, count: count };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
+    try {
+      let fv = {
+        requestedBy: new ObjectId(token.id),
+        requestedToOrg: new ObjectId(body.requestedToOrg),
+        requestedToUser: new ObjectId(body.requestedToUser),
+        itemId: new ObjectId(body.itemId),
+        requestedByOrg: new ObjectId(body.requestedByOrg),
+        projectId: body.projectId,
+        customQuestions: body.customQuestions,
+      };
+      let requestData;
+      if (body.requestId)
+        await this.serviceRequestModel.updateOne(
+          { _id: body.requestId },
+          { $set: fv }
+        );
+      else requestData = await this.serviceRequestModel.create(fv);
+      let id = body.requestId ? body.requestId : requestData.id;
+      // console.log("id is", requestData.id, requestData);
+
+      let request = await this.serviceRequestModel.findOne({
+        _id: id,
+      });
+      return { message: "Saved successfully", request };
     } catch (err) {
       throw err;
     }
@@ -108,17 +166,25 @@ export class ServiceRequestService {
         data._id
       );
       let profileDetails = await this.helperService.getProfileById(
-        [data.requestedBy],
+        [data.requestedBy, data.requestedToUser],
         accessToken,
         null
       );
       if (data.requestedBy) {
-        let user = profileDetails["profileData"].reduce((a, c) => {
+        let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
         }, {});
         data["serviceResponse"] = response;
         data["requestedBy"] = user[data.requestedBy];
+      }
+
+      if (data.requestedToUser) {
+        let user = profileDetails.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        data["requestedToUser"] = user[data.requestedToUser];
       }
 
       return { data: data };

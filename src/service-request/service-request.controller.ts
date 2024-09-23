@@ -39,6 +39,7 @@ export class ServiceRequestController {
         query,
         token,
         req["headers"]["authorization"],
+        req["headers"]["x-organization-id"],
         skip,
         limit
       );
