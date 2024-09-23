@@ -17,6 +17,8 @@ export interface IServiceRequestModel extends mongoose.Document {
   requestedToOrg: any;
   requestedToUser: any;
   projectId: any;
+  sourceId: any;
+  sourceType: string;
   additionalDetail: IAdditionalDataModel;
   media: IMedia[];
   customQuestions: any;
@@ -41,6 +43,12 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     itemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "item",
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    sourceType: {
+      type: String,
     },
     requestedBy: {
       type: mongoose.Schema.Types.Mixed,

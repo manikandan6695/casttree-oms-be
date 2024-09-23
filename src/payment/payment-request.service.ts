@@ -51,27 +51,24 @@ export class PaymentRequestService {
     accessToken: string
   ) {
     try {
+      const existingInvoice = await this.invoiceService.getInvoiceBySource(
+        body?.invoiceDetail?.sourceId?.toString(),
+        body?.invoiceDetail?.sourceType
+      );
+
+      const invoiceData =
+        existingInvoice || (await this.createNewInvoice(body, token));
+      body["serviceRequest"] = {
+        ...body.serviceRequest,
+        sourceId: invoiceData._id,
+        sourceType: EDocumentTypeName.invoice,
+      };
       const serviceRequest =
         await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
       console.log("service request is", serviceRequest.request._id);
-
-      const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        body?.invoiceDetail?.sourceId?.toString() ||
-          serviceRequest.request._id.toString(),
-        body?.invoiceDetail?.sourceType || ESourceType.serviceRequest
-      );
-      body["invoiceDetail"] = {
-        sourceId:
-          body?.invoiceDetail?.sourceId?.toString() ||
-          serviceRequest.request._id.toString(),
-        sourceType:
-          body?.invoiceDetail?.sourceType || ESourceType.serviceRequest,
-      };
-      const invoiceData =
-        existingInvoice || (await this.createNewInvoice(body, token));
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,

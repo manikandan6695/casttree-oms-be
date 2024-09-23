@@ -122,6 +122,10 @@ export class ServiceRequestService {
         projectId: body.projectId,
         customQuestions: body.customQuestions,
       };
+      if (body.sourceId) {
+        fv["sourceId"] = body.sourceId;
+        fv["sourceType"] = body.sourceType;
+      }
       let requestData;
       if (body.requestId)
         await this.serviceRequestModel.updateOne(
@@ -150,7 +154,7 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      console.log("id is", id);
+      // console.log("id is", id);
 
       let data = await this.serviceRequestModel
         .findOne({ _id: id })
@@ -162,6 +166,7 @@ export class ServiceRequestService {
             },
           ],
         })
+        .populate("sourceId", "grand_total")
         .lean();
       let response = await this.serviceResponseService.getServiceResponseDetail(
         data._id
