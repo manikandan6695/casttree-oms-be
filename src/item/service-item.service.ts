@@ -10,7 +10,7 @@ export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
     private helperService: HelperService
-  ) { }
+  ) {}
   async getServiceItems(
     query: FilterItemRequestDTO,
     accessToken: string,
@@ -59,9 +59,9 @@ export class ServiceItemService {
         return a;
       }, {});
 
-
       for (let i = 0; i < serviceItemData.length; i++) {
-        serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]]
+        serviceItemData[i]["profileData"] =
+          userProfileInfo[serviceItemData[i]["userId"]];
       }
 
       return { data: serviceItemData, count: countData };
@@ -70,7 +70,7 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(_id: string, accessToken: string,) {
+  async getServiceItemDetails(_id: string, accessToken: string) {
     try {
       const data = await this.serviceItemModel
         .findOne({ _id: _id })

@@ -42,6 +42,7 @@ export class ServiceRequestService {
         filter["requestedBy"] = new ObjectId(token.id);
         filter["requestedByOrg"] = new ObjectId(organizationId);
       }
+      console.log("filter is", filter);
 
       let data = await this.serviceRequestModel
         .find(filter)
