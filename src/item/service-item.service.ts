@@ -4,12 +4,20 @@ import { Model } from "mongoose";
 import { serviceitems } from "./schema/serviceItem.schema";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
+import { ServiceRequestService } from "src/service-request/service-request.service";
+import { RatingsService } from "src/ratings/ratings.service";
+
+
 
 @Injectable()
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
-    private helperService: HelperService
+    private readonly serviceRequestService: ServiceRequestService,
+    private helperService: HelperService,
+    private ratingService:RatingsService
+   
+    
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
@@ -58,7 +66,7 @@ export class ServiceItemService {
         a[c.userId] = c;
         return a;
       }, {});
-
+     
 
       for (let i = 0; i < serviceItemData.length; i++) {
         serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]]
@@ -88,7 +96,14 @@ export class ServiceItemService {
         accessToken,
         "Expert"
       );
+      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId);
+      console.log(totalFeedbacks);
+     const reviewData = await this.ratingService.getReviewSummary("serviceitems",data.userId,accessToken);
+      console.log(reviewData);
+
       data["profileData"] = profileInfo[0];
+      data["reviewData"] = reviewData;
+      data["itemSold"] = totalFeedbacks.count;
       return data;
     } catch (err) {
       throw err;

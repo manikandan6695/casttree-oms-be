@@ -249,4 +249,20 @@ export class ServiceRequestService {
       throw err;
     }
   }
+
+
+  async getCompletedServiceRequest(id:string){
+    console.log(id);
+    try {
+      let data = await this.serviceRequestModel
+        .find({ requestedToUser : id ,requestStatus: "Completed"})
+        
+        .lean();
+        const countData = await this.serviceRequestModel.countDocuments({ requestedToUser : id ,requestStatus: "Completed"});
+        console.log(data);
+      return { count: countData };
+    } catch (err) {
+      throw err;
+    }
+  }
 }

@@ -39,7 +39,7 @@ export interface Ratingsaggregated {
 export const ratingSchema = new mongoose.Schema<any>({
   sourceId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "user",
+    ref: "serviceitems",
   },
   sourceType: {
     type: String,

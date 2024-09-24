@@ -19,6 +19,7 @@ import { HelperModule } from 'src/helper/helper.module';
   ]), AuthModule,
     HelperModule],
   controllers: [RatingsController],
-  providers: [RatingsService]
+  providers: [RatingsService],
+  exports:[RatingsService],
 })
 export class RatingsModule { }

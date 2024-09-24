@@ -54,7 +54,7 @@ export class RatingsService {
             let allReviews: any = await this.ratingModel.find({
                 sourceId: sourceId, sourceType: sourceType
             }).sort({ _id: -1 }).limit(10)
-               .lean();
+                .lean();
             let aggregated: any = await this.aggregatedratingModel.findOne({
                 sourceId: sourceId, sourceType: sourceType
             }).lean();
@@ -70,6 +70,9 @@ export class RatingsService {
                 accessToken,
                 null
             );
+            const count = await this.ratingModel.countDocuments({
+                sourceId: sourceId, sourceType: sourceType
+            });
             var userProfileInfo = allProfileInfo.reduce((a, c) => {
                 a[c.userId] = c;
                 return a;
@@ -83,34 +86,40 @@ export class RatingsService {
                 "aggregated": aggregated,
                 "reviews": allReviews,
             };
-            return { data: final_response };
+            return { data: final_response,count:count };
         } catch (err) {
             throw err;
         }
 
     }
 
-    async getAllReviews(sourceType: string, sourceId: string, skip: number, limit: number,  accessToken) {
+    async getAllReviews(sourceType: string, sourceId: string, skip: number, limit: number, accessToken) {
         try {
             const allReviews: any = await this.ratingModel.find({
                 sourceId: sourceId, sourceType: sourceType
             }).sort({ _id: -1 }).skip(skip)
                 .limit(limit).lean();
-                const reviewerUserIds = allReviews.map((e) => e.reviewedBy);
-                const allProfileInfo = await this.helperService.getProfileById(
-                    reviewerUserIds,
-                    accessToken,
-                    null
-                );
-                var userProfileInfo = allProfileInfo.reduce((a, c) => {
-                    a[c.userId] = c;
-                    return a;
-                }, {});
-    
-                for (let i = 0; i < allReviews.length; i++) {
-                    allReviews[i]["profileData"] = userProfileInfo[allReviews[i]["reviewedBy"]]
-                }
-            return allReviews;
+            const reviewerUserIds = allReviews.map((e) => e.reviewedBy);
+            const allProfileInfo = await this.helperService.getProfileById(
+                reviewerUserIds,
+                accessToken,
+                null
+            );
+
+            const count = await this.ratingModel.countDocuments({
+                sourceId: sourceId, sourceType: sourceType
+            });
+
+
+            var userProfileInfo = allProfileInfo.reduce((a, c) => {
+                a[c.userId] = c;
+                return a;
+            }, {});
+
+            for (let i = 0; i < allReviews.length; i++) {
+                allReviews[i]["profileData"] = userProfileInfo[allReviews[i]["reviewedBy"]]
+            }
+            return { data: allReviews, count: count };
         } catch (err) {
             throw err;
         }

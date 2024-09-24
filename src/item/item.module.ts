@@ -14,6 +14,10 @@ import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
 import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { HelperModule } from "src/helper/helper.module";
+import { ServiceRequestModule } from "src/service-request/service-request.module";
+import { RatingsModule } from "src/ratings/ratings.module";
+
+
 
 @Module({
   imports: [
@@ -28,7 +32,9 @@ import { HelperModule } from "src/helper/helper.module";
       {name: "serviceitems", schema: serviceitemsSchema}
     ]),
     AuthModule,
-    HelperModule
+    HelperModule,
+    ServiceRequestModule,
+    RatingsModule
   ],
   controllers: [ItemController,ServiceItemController],
   providers: [ItemService,ServiceItemService],
