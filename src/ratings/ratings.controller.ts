@@ -12,7 +12,7 @@ export class RatingsController {
     }
     @Post()
     createRating(@Body(new ValidationPipe({ whitelist: true })) createratingdto : createRatingsDto,@GetToken() token:UserToken){
-       console.log("userId from token is : "+ new ObjectId(token.id));
+ 
     return this.ratingsService.createRating(createratingdto);
     }
 
