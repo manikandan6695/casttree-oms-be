@@ -9,6 +9,7 @@ import { serviceRequestSchema } from "./schema/serviceRequest.schema";
 import { ServiceRequestController } from "./service-request.controller";
 import { ServiceRequestService } from "./service-request.service";
 
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -19,6 +20,7 @@ import { ServiceRequestService } from "./service-request.service";
     forwardRef(() => ServiceResponseModule),
     HttpModule,
     HelperModule,
+    
   ],
   controllers: [ServiceRequestController],
   providers: [ServiceRequestService],

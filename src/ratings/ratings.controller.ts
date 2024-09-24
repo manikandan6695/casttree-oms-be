@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req, UsePipes, ValidationPipe } from '@nestjs/common';
 import { createRatingsDto } from './dto/createRating.dto';
 import { RatingsService } from './ratings.service';
+import { UserToken } from 'src/auth/dto/usertoken.dto';
+import { ObjectId } from 'mongodb';
+import { GetToken } from 'src/shared/decorator/getuser.decorator';
 
 @Controller('ratings')
 export class RatingsController {
@@ -8,7 +11,8 @@ export class RatingsController {
        
     }
     @Post()
-    createRating(@Body(new ValidationPipe({ whitelist: true })) createratingdto : createRatingsDto, @Req() req){
+    createRating(@Body(new ValidationPipe({ whitelist: true })) createratingdto : createRatingsDto,@GetToken() token:UserToken){
+       console.log("userId from token is : "+ new ObjectId(token.id));
     return this.ratingsService.createRating(createratingdto);
     }
 

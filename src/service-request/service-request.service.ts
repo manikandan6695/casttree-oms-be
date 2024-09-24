@@ -12,6 +12,7 @@ import {
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 
+
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class ServiceRequestService {
@@ -112,6 +113,7 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
+      //let serviceLastDate = await  this.helperService.getServiceDueDate(new ObjectId(body.itemId),new ObjectId(body.requestedToUser));
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -120,6 +122,7 @@ export class ServiceRequestService {
         requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
+       // serviceDueDate : serviceLastDate.data
       };
       let requestData;
       if (body.requestId)
