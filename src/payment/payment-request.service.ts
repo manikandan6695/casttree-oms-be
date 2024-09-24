@@ -8,7 +8,10 @@ import { IPaymentModel } from "./schema/payment.schema";
 import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
-import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
+import {
+  EDocument,
+  EDocumentTypeName,
+} from "src/invoice/enum/document-type-name.enum";
 import {
   EPaymentStatus,
   ERazorpayPaymentStatus,
@@ -61,14 +64,16 @@ export class PaymentRequestService {
       body["serviceRequest"] = {
         ...body.serviceRequest,
         sourceId: invoiceData._id,
-        sourceType: EDocumentTypeName.invoice,
+        sourceType: EDocument.sales_document,
       };
+      // console.log("body is", body);
+
       const serviceRequest =
         await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
-      console.log("service request is", serviceRequest.request._id);
+      // console.log("service request is", serviceRequest.request._id);
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
@@ -76,7 +81,7 @@ export class PaymentRequestService {
       });
 
       if (existingPayment) {
-        return existingPayment;
+        return { paymentData: existingPayment, serviceRequest };
       }
 
       const currency = await this.currency_service.getSingleCurrency(
@@ -87,7 +92,7 @@ export class PaymentRequestService {
         body.userId.toString(),
         currency,
         body.amount,
-        body.invoiceDetail.sourceId.toString(),
+        serviceRequest.request._id.toString(),
         accessToken,
         {
           invoiceId: invoiceData._id,

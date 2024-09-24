@@ -113,6 +113,8 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
+      // console.log("service request body is", body);
+
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -133,8 +135,10 @@ export class ServiceRequestService {
           { $set: fv }
         );
       else requestData = await this.serviceRequestModel.create(fv);
-      let id = body.requestId ? body.requestId : requestData.id;
-      // console.log("id is", requestData.id, requestData);
+      // console.log("request id is", body.requestId);
+
+      let id = body.requestId ? new ObjectId(body.requestId) : requestData.id;
+      // console.log("id is", id);
 
       let request = await this.serviceRequestModel.findOne({
         _id: id,
@@ -166,7 +170,7 @@ export class ServiceRequestService {
             },
           ],
         })
-        .populate("sourceId", "grand_total")
+        .populate("sourceId", "_id grand_total")
         .lean();
       let response = await this.serviceResponseService.getServiceResponseDetail(
         data._id
