@@ -54,19 +54,18 @@ export class PaymentRequestService {
     accessToken: string
   ) {
     try {
-      const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        body?.invoiceDetail?.sourceId?.toString(),
-        body?.invoiceDetail?.sourceType
-      );
+      // const existingInvoice = await this.invoiceService.getInvoiceBySource(
+      //   body?.invoiceDetail?.sourceId?.toString(),
+      //   body?.invoiceDetail?.sourceType
+      // );
 
-      const invoiceData =
-        existingInvoice || (await this.createNewInvoice(body, token));
+      const invoiceData = await this.createNewInvoice(body, token);
       body["serviceRequest"] = {
         ...body.serviceRequest,
         sourceId: invoiceData._id,
         sourceType: EDocument.sales_document,
       };
-      // console.log("body is", body);
+      // console.log("body is", body.serviceRequest);
 
       const serviceRequest =
         await this.serviceRequestService.createServiceRequest(
@@ -117,8 +116,8 @@ export class PaymentRequestService {
   async createNewInvoice(body: paymentDTO, token: UserToken) {
     return await this.invoiceService.createInvoice(
       {
-        source_id: body.invoiceDetail.sourceId,
-        source_type: body.invoiceDetail.sourceType,
+        source_id: null,
+        source_type: null,
         sub_total: body.amount,
         document_status: EDocumentStatus.pending,
         grand_total: body.amount,
