@@ -14,7 +14,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { CommentsModule } from "./comments/comments.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
-import { RatingsModule } from './ratings/ratings.module';
+
 
 
 @Module({
@@ -49,8 +49,7 @@ import { RatingsModule } from './ratings/ratings.module';
     ServiceResponseFormatModule,
     CommentsModule,
     PaymentRequestModule,
-    InvoiceModule,
-    RatingsModule   
+    InvoiceModule 
   ],
   controllers: [],
   providers: [

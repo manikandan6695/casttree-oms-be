@@ -5,7 +5,7 @@ import { serviceitems } from "./schema/serviceItem.schema";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { RatingsService } from "src/ratings/ratings.service";
+
 
 
 
@@ -14,8 +14,8 @@ export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
     private readonly serviceRequestService: ServiceRequestService,
-    private helperService: HelperService,
-    private ratingService: RatingsService
+    private helperService: HelperService
+   
 
 
   ) { }
@@ -99,15 +99,9 @@ export class ServiceItemService {
       );
       const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId);
       console.log(totalFeedbacks);
-      const reviewData = await this.ratingService.getReviewSummary("serviceitems", data.userId, accessToken);
-      console.log(reviewData);
+     data["profileData"] = profileInfo[0];
+     data["itemSold"] = totalFeedbacks.count;
 
-      data["profileData"] = profileInfo[0];
-      data["reviewData"] = reviewData;
-      data["itemSold"] = totalFeedbacks.count;
-      let days = data.respondTime.split(" ")[0];
-      let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
-      data["serviceDueDate"] = serviceDueDate;
       return data;
     } catch (err) {
       throw err;
