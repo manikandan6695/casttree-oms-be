@@ -262,6 +262,7 @@ export class ServiceRequestService {
         .find({ requestedToUser : id ,requestedToOrg: orgId,requestStatus: EServiceRequestStatus.completed})
         
         .lean();
+        console.log();
         const countData = await this.serviceRequestModel.countDocuments({ requestedToUser : id ,requestStatus: EServiceRequestStatus.completed});
         console.log(data);
       return { count: countData };
