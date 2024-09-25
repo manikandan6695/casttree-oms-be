@@ -4,6 +4,7 @@ import { IMedia } from "src/item/schema/platform-item.schema";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import {
   EServiceRequestStatus,
+  ESSourceType,
   EVisibilityStatus,
 } from "../enum/service-request.enum";
 export interface IAdditionalDataModel {
@@ -17,6 +18,8 @@ export interface IServiceRequestModel extends mongoose.Document {
   requestedToOrg: any;
   requestedToUser: any;
   projectId: any;
+  sourceId: any;
+  sourceType: string;
   additionalDetail: IAdditionalDataModel;
   media: IMedia[];
   customQuestions: any;
@@ -42,6 +45,8 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "item",
     },
+    sourceId: { type: mongoose.Schema.Types.ObjectId, refPath: "sourceType" },
+    sourceType: { type: String, enum: ESSourceType },
     requestedBy: {
       type: mongoose.Schema.Types.Mixed,
     },
