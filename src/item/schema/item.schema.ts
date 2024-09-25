@@ -13,7 +13,7 @@ import {
 } from "./platform-item.schema";
 
 export interface IItemModel extends mongoose.Document {
-  organization_id: any; //or org model
+  orgId: any; //or org model
   item_type: EItemType;
   item_name: string;
   item_sku?: string;
@@ -213,7 +213,7 @@ export const MediaSchema = new mongoose.Schema({
 
 export const ItemSchema = new mongoose.Schema<any>(
   {
-    organization_id: {
+    orgId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "organization",
     },

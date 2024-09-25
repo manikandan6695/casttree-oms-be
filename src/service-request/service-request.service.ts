@@ -8,6 +8,7 @@ import { ServiceResponseService } from "src/service-response/service-response.se
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
   EServiceRequestMode,
+  EServiceRequestStatus,
   EVisibilityStatus,
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
@@ -254,14 +255,14 @@ export class ServiceRequestService {
   }
 
 
-  async getCompletedServiceRequest(id:string){
+  async getCompletedServiceRequest(id:string,orgId:any){
     console.log(id);
     try {
       let data = await this.serviceRequestModel
-        .find({ requestedToUser : id ,requestStatus: "Completed"})
+        .find({ requestedToUser : id ,requestedToOrg: orgId,requestStatus: EServiceRequestStatus.completed})
         
         .lean();
-        const countData = await this.serviceRequestModel.countDocuments({ requestedToUser : id ,requestStatus: "Completed"});
+        const countData = await this.serviceRequestModel.countDocuments({ requestedToUser : id ,requestStatus: EServiceRequestStatus.completed});
         console.log(data);
       return { count: countData };
     } catch (err) {

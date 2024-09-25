@@ -81,7 +81,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(_id: string, accessToken: string,) {
     try {
-      const data = await this.serviceItemModel
+     var data:any = await this.serviceItemModel
         .findOne({ _id: _id })
         .populate({
           path: "itemId",
@@ -97,7 +97,8 @@ export class ServiceItemService {
         accessToken,
         "Expert"
       );
-      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId);
+
+      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId,data.itemId.orgId._id );
       console.log(totalFeedbacks);
      data["profileData"] = profileInfo[0];
      data["itemSold"] = totalFeedbacks.count;
