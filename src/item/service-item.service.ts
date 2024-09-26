@@ -89,7 +89,7 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(_id: string, accessToken: string,) {
+  async getServiceItemDetails(_id: string, accessToken: string) {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: _id })

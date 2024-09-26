@@ -47,6 +47,7 @@ export class ServiceRequestService {
         filter["requestedBy"] = new ObjectId(token.id);
         filter["requestedByOrg"] = new ObjectId(organizationId);
       }
+      console.log("filter is", filter);
 
       let data = await this.serviceRequestModel
         .find(filter)
@@ -128,6 +129,10 @@ export class ServiceRequestService {
         customQuestions: body.customQuestions,
         serviceDueDate: serviceLastDate.serviceDueDate
       };
+      if (body.sourceId) {
+        fv["sourceId"] = body.sourceId;
+        fv["sourceType"] = body.sourceType;
+      }
       let requestData;
       if (body.requestId)
         await this.serviceRequestModel.updateOne(
@@ -135,8 +140,10 @@ export class ServiceRequestService {
           { $set: fv }
         );
       else requestData = await this.serviceRequestModel.create(fv);
-      let id = body.requestId ? body.requestId : requestData.id;
-      // console.log("id is", requestData.id, requestData);
+      // console.log("request id is", body.requestId);
+
+      let id = body.requestId ? new ObjectId(body.requestId) : requestData.id;
+      // console.log("id is", id);
 
       let request = await this.serviceRequestModel.findOne({
         _id: id,
@@ -156,7 +163,7 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      console.log("id is", id);
+      // console.log("id is", id);
 
       let data = await this.serviceRequestModel
         .findOne({ _id: id })
@@ -168,6 +175,7 @@ export class ServiceRequestService {
             },
           ],
         })
+        .populate("sourceId", "_id grand_total")
         .lean();
       let response = await this.serviceResponseService.getServiceResponseDetail(
         data._id

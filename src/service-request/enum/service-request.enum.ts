@@ -22,9 +22,13 @@ export const ESServiceRequestMode = [
 
 export enum ESourceType {
   serviceRequest = "ServiceRequest",
+  salesDocument = "salesDocument",
 }
 
-export const ESSourceType = [ESourceType.serviceRequest];
+export const ESSourceType = [
+  ESourceType.serviceRequest,
+  ESourceType.salesDocument,
+];
 
 export enum EVisibilityStatus {
   unlocked = "Unlocked",

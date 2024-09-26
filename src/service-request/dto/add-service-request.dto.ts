@@ -64,4 +64,11 @@ export class AddServiceRequestDTO {
   @IsOptional()
   @IsString()
   itemId: string;
+
+  @IsOptional()
+  sourceId: any;
+
+  @IsOptional()
+  @IsString()
+  sourceType: string;
 }
