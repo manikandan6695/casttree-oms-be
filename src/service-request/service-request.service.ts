@@ -26,7 +26,7 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -117,7 +117,7 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
-     let serviceLastDate = await  this.serviceItemService.serviceDueDate(new ObjectId(body.itemId),new ObjectId(body.requestedToUser));
+      let serviceLastDate = await this.serviceItemService.serviceDueDate(new ObjectId(body.itemId), new ObjectId(body.requestedToUser));
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -126,7 +126,7 @@ export class ServiceRequestService {
         requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
-        serviceDueDate : serviceLastDate.serviceDueDate
+        serviceDueDate: serviceLastDate.serviceDueDate
       };
       let requestData;
       if (body.requestId)
@@ -258,16 +258,10 @@ export class ServiceRequestService {
   }
 
 
-  async getCompletedServiceRequest(id:string,orgId:any){
-    console.log(id);
+  async getCompletedServiceRequest(id: string, orgId: any) {
+
     try {
-      let data = await this.serviceRequestModel
-        .find({ requestedToUser : id ,requestedToOrg: orgId,requestStatus: EServiceRequestStatus.completed})
-        
-        .lean();
-        console.log();
-        const countData = await this.serviceRequestModel.countDocuments({ requestedToUser : id ,requestStatus: EServiceRequestStatus.completed});
-        console.log(data);
+      let countData = await this.serviceRequestModel.countDocuments({ requestedToUser: id, requestedToOrg: orgId, requestStatus: EServiceRequestStatus.completed });
       return { count: countData };
     } catch (err) {
       throw err;
