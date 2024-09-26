@@ -128,7 +128,8 @@ export class ServiceItemService {
 
   async serviceDueDate(itemId: string, userId: string) {
     try {
-      let data: any = await this.serviceItemModel.find({ itemId: itemId, userId: userId }).lean();
+      let data: any = await this.serviceItemModel.findOne({ itemId: itemId, userId: userId }).lean();
+      console.log(data);
       let days = data.respondTime.split(" ")[0];
       let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
       data["serviceDueDate"] = serviceDueDate;
