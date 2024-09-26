@@ -98,8 +98,8 @@ export class ServiceItemService {
         "Expert"
       );
 
-      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId,data.itemId.orgId._id );
-      console.log(totalFeedbacks);
+    const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId,data.itemId.orgId._id );
+    console.log(totalFeedbacks);
      data["profileData"] = profileInfo[0];
      data["itemSold"] = totalFeedbacks.count;
 
@@ -109,6 +109,18 @@ export class ServiceItemService {
     }
   }
 
+
+  async serviceDueDate(itemId: string,userId:string ){
+try{
+  let data:any = await this.serviceItemModel.find({itemId: itemId , userId:userId}).lean();
+  let days = data.respondTime.split(" ")[0];
+  let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
+  data["serviceDueDate"] = serviceDueDate;
+  return data;
+}catch(err){
+  throw err;
+}
+  }
   
 
 

@@ -12,6 +12,7 @@ import {
   EVisibilityStatus,
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
+import { ServiceItemService } from "src/item/service-item.service";
 
 
 const { ObjectId } = require("mongodb");
@@ -22,7 +23,9 @@ export class ServiceRequestService {
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
     @Inject(forwardRef(() => ServiceResponseService))
     private serviceResponseService: ServiceResponseService,
-    private helperService: HelperService
+    private helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService
   ) {}
 
   async getServiceRequests(
@@ -114,7 +117,7 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
-      //let serviceLastDate = await  this.helperService.getServiceDueDate(new ObjectId(body.itemId),new ObjectId(body.requestedToUser));
+     let serviceLastDate = await  this.serviceItemService.serviceDueDate(new ObjectId(body.itemId),new ObjectId(body.requestedToUser));
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -123,7 +126,7 @@ export class ServiceRequestService {
         requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
-       // serviceDueDate : serviceLastDate.data
+        serviceDueDate : serviceLastDate.serviceDueDate
       };
       let requestData;
       if (body.requestId)
