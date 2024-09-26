@@ -4,13 +4,21 @@ import { Model } from "mongoose";
 import { serviceitems } from "./schema/serviceItem.schema";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
+import { ServiceRequestService } from "src/service-request/service-request.service";
+
+
+
 
 @Injectable()
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
+    private readonly serviceRequestService: ServiceRequestService,
     private helperService: HelperService
-  ) {}
+
+
+
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     accessToken: string,
@@ -18,6 +26,7 @@ export class ServiceItemService {
     limit: number
   ) {
     try {
+
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -49,19 +58,29 @@ export class ServiceItemService {
         .lean();
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
+     // const sourceIds = serviceItemData.map((e) => e._id.toString());
       const profileInfo = await this.helperService.getProfileById(
         userIds,
         accessToken,
         "Expert"
       );
+     /* const ratingInfo = await this.helperService.getRatings(
+        sourceIds,
+        "serviceitems"
+      );*/
+
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
       }, {});
+     /* const userRatingInfo = ratingInfo.reduce((a, c) => {
+        a[c.sourceId] = c;
+        return a;
+      }, {});*/
 
       for (let i = 0; i < serviceItemData.length; i++) {
-        serviceItemData[i]["profileData"] =
-          userProfileInfo[serviceItemData[i]["userId"]];
+        serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]];
+       // serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i]._id).toString()];
       }
 
       return { data: serviceItemData, count: countData };
@@ -72,7 +91,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(_id: string, accessToken: string) {
     try {
-      const data = await this.serviceItemModel
+      var data: any = await this.serviceItemModel
         .findOne({ _id: _id })
         .populate({
           path: "itemId",
@@ -88,10 +107,37 @@ export class ServiceItemService {
         accessToken,
         "Expert"
       );
+
+     /* const ratingInfo = await this.helperService.getRatings(
+        [data._id],
+        "serviceitems"
+      );*/
+
+      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
+
       data["profileData"] = profileInfo[0];
+      data["itemSold"] = totalFeedbacks.count;
+     // data["ratingsData"] = ratingInfo
+
       return data;
     } catch (err) {
       throw err;
     }
   }
+
+
+  async serviceDueDate(itemId: string, userId: string) {
+    try {
+      let data: any = await this.serviceItemModel.find({ itemId: itemId, userId: userId }).lean();
+      let days = data.respondTime.split(" ")[0];
+      let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
+      data["serviceDueDate"] = serviceDueDate;
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
+
 }

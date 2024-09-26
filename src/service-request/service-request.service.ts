@@ -8,9 +8,12 @@ import { ServiceResponseService } from "src/service-response/service-response.se
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
   EServiceRequestMode,
+  EServiceRequestStatus,
   EVisibilityStatus,
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
+import { ServiceItemService } from "src/item/service-item.service";
+
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -20,8 +23,10 @@ export class ServiceRequestService {
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
     @Inject(forwardRef(() => ServiceResponseService))
     private serviceResponseService: ServiceResponseService,
-    private helperService: HelperService
-  ) {}
+    private helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService
+  ) { }
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -113,8 +118,7 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
-      // console.log("service request body is", body);
-
+      let serviceLastDate = await this.serviceItemService.serviceDueDate(new ObjectId(body.itemId), new ObjectId(body.requestedToUser));
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -123,6 +127,7 @@ export class ServiceRequestService {
         requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
+        serviceDueDate: serviceLastDate.serviceDueDate
       };
       if (body.sourceId) {
         fv["sourceId"] = body.sourceId;
@@ -255,6 +260,17 @@ export class ServiceRequestService {
         })
         .lean();
       return { data: data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
+  async getCompletedServiceRequest(id: string, orgId: any) {
+
+    try {
+      let countData = await this.serviceRequestModel.countDocuments({ requestedToUser: id, requestedToOrg: orgId, requestStatus: EServiceRequestStatus.completed });
+      return { count: countData };
     } catch (err) {
       throw err;
     }
