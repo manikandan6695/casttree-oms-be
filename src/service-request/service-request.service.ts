@@ -246,10 +246,10 @@ export class ServiceRequestService {
     }
   }
 
-  async getServiceRequestDetail(id: string) {
+  async getServiceRequestDetail(sourceId: string) {
     try {
       let data = await this.serviceRequestModel
-        .findOne({ _id: id })
+        .findOne({ sourceId: sourceId })
         .populate({
           path: "itemId",
           populate: [
