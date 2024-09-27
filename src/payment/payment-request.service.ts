@@ -242,9 +242,7 @@ export class PaymentRequestService {
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
 
     const serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(
-        invoice.source_id
-      );
+      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
