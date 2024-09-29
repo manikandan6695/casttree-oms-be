@@ -48,13 +48,13 @@ export class ServiceResponseService {
         response = await this.createNewResponse(responseData);
       }
 
-      if (body.feedbackStatus === EServiceResponse.submitted) {
-        await this.handleSubmittedFeedback(
-          body.requestId,
-          accessToken,
-          body.additionalDetail.isPassed
-        );
-      }
+      // if (body.feedbackStatus === EServiceResponse.submitted) {
+      //   await this.handleSubmittedFeedback(
+      //     body.requestId,
+      //     accessToken,
+      //     body.additionalDetail.isPassed
+      //   );
+      // }
 
       const responseId = body.responseId || response._id;
       return { message: "Saved Successfully", responseId };
