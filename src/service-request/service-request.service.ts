@@ -8,9 +8,11 @@ import { ServiceResponseService } from "src/service-response/service-response.se
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
   EServiceRequestMode,
+  EServiceRequestStatus,
   EVisibilityStatus,
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
+import { ServiceItemService } from "src/item/service-item.service";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -20,7 +22,9 @@ export class ServiceRequestService {
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
     @Inject(forwardRef(() => ServiceResponseService))
     private serviceResponseService: ServiceResponseService,
-    private helperService: HelperService
+    private helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService
   ) {}
 
   async getServiceRequests(
@@ -32,117 +36,145 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
-      let filter = {
+      const filter = {
         requestStatus: query.requestStatus,
+        ...(query.mode === EServiceRequestMode.assign
+          ? {
+              requestedToUser: new ObjectId(token.id),
+              requestedToOrg: new ObjectId(organizationId),
+            }
+          : {
+              requestedBy: new ObjectId(token.id),
+              requestedByOrg: new ObjectId(organizationId),
+            }),
       };
-      if (query.mode == EServiceRequestMode.assign) {
-        filter["requestedToUser"] = new ObjectId(token.id);
-        filter["requestedToOrg"] = new ObjectId(organizationId);
-      } else {
-        filter["requestedBy"] = new ObjectId(token.id);
-        filter["requestedByOrg"] = new ObjectId(organizationId);
-      }
-      console.log("filter is", filter);
 
-      let data = await this.serviceRequestModel
+      console.log("Filter is", filter);
+
+      const data = await this.serviceRequestModel
         .find(filter)
         .populate({
           path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
+          populate: [{ path: "platformItemId" }],
         })
         .lean()
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit);
 
-      let count = await this.serviceRequestModel.countDocuments();
-      let response;
-      for (let i = 0; i < data.length; i++) {
-        let curr_data = data[i];
-        response = await this.serviceResponseService.getServiceResponseDetail(
-          curr_data._id
-        );
+      const count = await this.serviceRequestModel.countDocuments();
 
-        curr_data["response"] = response;
-      }
+      await Promise.all(
+        data.map(async (curr_data) => {
+          const response =
+            await this.serviceResponseService.getServiceResponseDetail(
+              curr_data._id
+            );
+          curr_data["response"] = response;
+        })
+      );
 
-      let requestedByIds = data.map((e) => e.requestedBy);
+      await this.attachUserProfiles(data, accessToken);
 
-      if (requestedByIds.length) {
-        let profileDetails = await this.helperService.getProfileById(
-          requestedByIds,
-          accessToken,
-          null
-        );
-        let user = profileDetails.reduce((a, c) => {
-          a[c.userId] = c;
-          return a;
-        }, {});
-
-        data.map((e) => {
-          return (e["requestedBy"] = user[e.requestedBy]);
-        });
-      }
-
-      let requestedToUserIds: string[] = data.map((e) => e.requestedToUser);
-
-      if (requestedToUserIds.length) {
-        let profileDetails = await this.helperService.getProfileById(
-          requestedToUserIds,
-          accessToken,
-          null
-        );
-        let user = profileDetails.reduce((a, c) => {
-          a[c.userId] = c;
-          return a;
-        }, {});
-
-        data.map((e) => {
-          return (e["requestedToUser"] = user[e.requestedToUser]);
-        });
-      }
-      return { data: data, count: count };
+      return { data, count };
     } catch (err) {
       throw err;
     }
   }
 
+  private async attachUserProfiles(data: any[], accessToken: string) {
+    const requestedByIds = data.map((e) => e.requestedBy).filter(Boolean);
+    const requestedToUserIds = data
+      .map((e) => e.requestedToUser)
+      .filter(Boolean);
+
+    if (requestedByIds.length) {
+      const requestedByProfiles = await this.fetchProfiles(
+        requestedByIds,
+        accessToken,
+        null
+      );
+      const requestedByMap = this.mapProfilesById(requestedByProfiles);
+      data.forEach((e) => (e["requestedBy"] = requestedByMap[e.requestedBy]));
+    }
+
+    // Fetch profiles for requestedToUser
+    if (requestedToUserIds.length) {
+      const requestedToUserProfiles = await this.fetchProfiles(
+        requestedToUserIds,
+        accessToken,
+        "Expert"
+      );
+      const requestedToUserMap = this.mapProfilesById(requestedToUserProfiles);
+      data.forEach(
+        (e) => (e["requestedToUser"] = requestedToUserMap[e.requestedToUser])
+      );
+    }
+  }
+
+  private async fetchProfiles(
+    ids: string[],
+    accessToken: string,
+    role: string | null
+  ) {
+    return await this.helperService.getProfileById(ids, accessToken, role);
+  }
+
+  private mapProfilesById(profiles: any[]) {
+    return profiles.reduce((acc, profile) => {
+      acc[profile.userId] = profile;
+      return acc;
+    }, {});
+  }
+
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
-      // console.log("service request body is", body);
+      const {
+        itemId,
+        requestedToUser,
+        requestedToOrg,
+        requestedByOrg,
+        projectId,
+        customQuestions,
+        sourceId,
+        sourceType,
+        requestId,
+      } = body;
 
-      let fv = {
+      // Get service due date
+      const serviceLastDate = await this.serviceItemService.serviceDueDate(
+        new ObjectId(itemId),
+        new ObjectId(requestedToUser)
+      );
+
+      const serviceRequestData = {
         requestedBy: new ObjectId(token.id),
-        requestedToOrg: new ObjectId(body.requestedToOrg),
-        requestedToUser: new ObjectId(body.requestedToUser),
-        itemId: new ObjectId(body.itemId),
-        requestedByOrg: new ObjectId(body.requestedByOrg),
-        projectId: body.projectId,
-        customQuestions: body.customQuestions,
+        requestedToOrg: new ObjectId(requestedToOrg),
+        requestedToUser: new ObjectId(requestedToUser),
+        itemId: new ObjectId(itemId),
+        requestedByOrg: new ObjectId(requestedByOrg),
+        projectId,
+        customQuestions,
+        serviceDueDate: serviceLastDate.serviceDueDate,
+        ...(sourceId && { sourceId, sourceType }),
       };
-      if (body.sourceId) {
-        fv["sourceId"] = body.sourceId;
-        fv["sourceType"] = body.sourceType;
-      }
+
       let requestData;
-      if (body.requestId)
+      if (requestId) {
         await this.serviceRequestModel.updateOne(
-          { _id: body.requestId },
-          { $set: fv }
+          { _id: requestId },
+          { $set: serviceRequestData }
         );
-      else requestData = await this.serviceRequestModel.create(fv);
-      // console.log("request id is", body.requestId);
+      } else {
+        requestData = await this.serviceRequestModel.create(serviceRequestData);
+      }
 
-      let id = body.requestId ? new ObjectId(body.requestId) : requestData.id;
-      // console.log("id is", id);
+      const requestObjectId = new ObjectId(requestId || requestData?.id);
 
-      let request = await this.serviceRequestModel.findOne({
-        _id: id,
+      const request = await this.serviceRequestModel.findOne({
+        _id: requestObjectId,
       });
+
       return { message: "Saved successfully", request };
     } catch (err) {
       throw err;
@@ -158,48 +190,55 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      // console.log("id is", id);
-
-      let data = await this.serviceRequestModel
+      const data = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
           path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
+          populate: [{ path: "platformItemId" }],
         })
         .populate("sourceId", "_id grand_total")
         .lean();
-      let response = await this.serviceResponseService.getServiceResponseDetail(
-        data._id
-      );
-      let profileDetails = await this.helperService.getProfileById(
-        [data.requestedBy, data.requestedToUser],
+
+      if (!data) throw new Error("Service request not found");
+
+      const response =
+        await this.serviceResponseService.getServiceResponseDetail(data._id);
+      data["serviceResponse"] = response;
+
+      await this.attachUserProfile(data, accessToken, "requestedBy", null);
+      await this.attachUserProfile(
+        data,
         accessToken,
-        null
+        "requestedToUser",
+        "Expert"
       );
-      if (data.requestedBy) {
-        let user = profileDetails.reduce((a, c) => {
-          a[c.userId] = c;
-          return a;
-        }, {});
-        data["serviceResponse"] = response;
-        data["requestedBy"] = user[data.requestedBy];
-      }
 
-      if (data.requestedToUser) {
-        let user = profileDetails.reduce((a, c) => {
-          a[c.userId] = c;
-          return a;
-        }, {});
-        data["requestedToUser"] = user[data.requestedToUser];
-      }
-
-      return { data: data };
+      return { data };
     } catch (err) {
       throw err;
+    }
+  }
+
+  // Helper function to attach user profile to a given field
+  private async attachUserProfile(
+    data: any,
+    accessToken: string,
+    field: string,
+    role: string | null
+  ) {
+    const userId = data[field];
+    if (userId) {
+      const profileDetails = await this.helperService.getProfileById(
+        [userId],
+        accessToken,
+        role
+      );
+      const userMap = profileDetails.reduce((acc, profile) => {
+        acc[profile.userId] = profile;
+        return acc;
+      }, {});
+
+      data[field] = userMap[userId];
     }
   }
   async getServiceResponse(id: string, token?: UserToken) {
@@ -257,6 +296,19 @@ export class ServiceRequestService {
       // console.log("service request data", data);
 
       return { data: data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getCompletedServiceRequest(id: string, orgId: any) {
+    try {
+      let countData = await this.serviceRequestModel.countDocuments({
+        requestedToUser: id,
+        requestedToOrg: orgId,
+        requestStatus: EServiceRequestStatus.completed,
+      });
+      return { count: countData };
     } catch (err) {
       throw err;
     }
