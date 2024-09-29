@@ -14,7 +14,6 @@ import {
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { ServiceItemService } from "src/item/service-item.service";
 
-
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class ServiceRequestService {
@@ -26,7 +25,7 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -99,7 +98,7 @@ export class ServiceRequestService {
         let profileDetails = await this.helperService.getProfileById(
           requestedToUserIds,
           accessToken,
-          null
+          "Expert"
         );
         let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
@@ -118,7 +117,10 @@ export class ServiceRequestService {
 
   async createServiceRequest(body: AddServiceRequestDTO, token: UserToken) {
     try {
-      let serviceLastDate = await this.serviceItemService.serviceDueDate(new ObjectId(body.itemId), new ObjectId(body.requestedToUser));
+      let serviceLastDate = await this.serviceItemService.serviceDueDate(
+        new ObjectId(body.itemId),
+        new ObjectId(body.requestedToUser)
+      );
       let fv = {
         requestedBy: new ObjectId(token.id),
         requestedToOrg: new ObjectId(body.requestedToOrg),
@@ -127,7 +129,7 @@ export class ServiceRequestService {
         requestedByOrg: new ObjectId(body.requestedByOrg),
         projectId: body.projectId,
         customQuestions: body.customQuestions,
-        serviceDueDate: serviceLastDate.serviceDueDate
+        serviceDueDate: serviceLastDate.serviceDueDate,
       };
       if (body.sourceId) {
         fv["sourceId"] = body.sourceId;
@@ -181,7 +183,7 @@ export class ServiceRequestService {
         data._id
       );
       let profileDetails = await this.helperService.getProfileById(
-        [data.requestedBy, data.requestedToUser],
+        [data.requestedBy],
         accessToken,
         null
       );
@@ -195,6 +197,11 @@ export class ServiceRequestService {
       }
 
       if (data.requestedToUser) {
+        let profileDetails = await this.helperService.getProfileById(
+          [data.requestedToUser],
+          accessToken,
+          "Expert"
+        );
         let user = profileDetails.reduce((a, c) => {
           a[c.userId] = c;
           return a;
@@ -267,11 +274,13 @@ export class ServiceRequestService {
     }
   }
 
-
   async getCompletedServiceRequest(id: string, orgId: any) {
-
     try {
-      let countData = await this.serviceRequestModel.countDocuments({ requestedToUser: id, requestedToOrg: orgId, requestStatus: EServiceRequestStatus.completed });
+      let countData = await this.serviceRequestModel.countDocuments({
+        requestedToUser: id,
+        requestedToOrg: orgId,
+        requestStatus: EServiceRequestStatus.completed,
+      });
       return { count: countData };
     } catch (err) {
       throw err;
