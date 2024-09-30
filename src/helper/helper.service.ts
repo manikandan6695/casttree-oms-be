@@ -44,6 +44,50 @@ export class HelperService {
     }
   }
 
+  async getRatings(sourceId: string[], sourceType: string,accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .post(
+          `http://localhost:3200/casttree-ratings/ratings/get-aggregate-list`,
+          { sourceIds: sourceId ,sourceType:sourceType},
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+      //console.log("data is", data.data.profileData);
+
+      return data.data.ratingData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getRatingsSummary(sourceId: string, sourceType: string, accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .post(
+          `http://localhost:3200/casttree-ratings/ratings/getRatingSummary`,
+          { sourceId: sourceId ,sourceType:sourceType},
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+      //console.log("data is", data.data.profileData);
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async updateNominationStatus(body) {
     try {
       // console.log("body is", body);

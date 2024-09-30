@@ -26,7 +26,6 @@ export class ServiceItemService {
     limit: number
   ) {
     try {
-
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -56,43 +55,43 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
+        console.log(serviceItemData);
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
-     // const sourceIds = serviceItemData.map((e) => e._id.toString());
+      const sourceIds = serviceItemData.map((e) => e._id.toString());
       const profileInfo = await this.helperService.getProfileById(
         userIds,
         accessToken,
         "Expert"
       );
-     /* const ratingInfo = await this.helperService.getRatings(
+      const ratingInfo = await this.helperService.getRatings(
         sourceIds,
-        "serviceitems"
-      );*/
-
+        "serviceitems",
+        accessToken
+      );
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
       }, {});
-     /* const userRatingInfo = ratingInfo.reduce((a, c) => {
+      const userRatingInfo = ratingInfo.reduce((a, c) => {
         a[c.sourceId] = c;
         return a;
-      }, {});*/
+      }, {});
 
       for (let i = 0; i < serviceItemData.length; i++) {
         serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]];
-       // serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i]._id).toString()];
+        serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i]._id).toString()];
       }
-
       return { data: serviceItemData, count: countData };
     } catch (err) {
       throw err;
     }
   }
 
-  async getServiceItemDetails(_id: string, accessToken: string) {
+  async getServiceItemDetails(id: string, accessToken: string) {
     try {
       var data: any = await this.serviceItemModel
-        .findOne({ _id: _id })
+        .findOne({ _id: id })
         .populate({
           path: "itemId",
           populate: [
@@ -102,23 +101,23 @@ export class ServiceItemService {
           ],
         })
         .lean();
+
       const profileInfo = await this.helperService.getProfileById(
         [data.userId],
         accessToken,
         "Expert"
       );
-
-     /* const ratingInfo = await this.helperService.getRatings(
-        [data._id],
-        "serviceitems"
-      );*/
-
+      console.log("id is: " + id);
+      const ratingInfo = await this.helperService.getRatingsSummary(
+        id,
+        "serviceitems",
+        accessToken
+        
+      );
       const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
-
       data["profileData"] = profileInfo[0];
-      data["itemSold"] = totalFeedbacks.count;
-     // data["ratingsData"] = ratingInfo
-
+      data["itemSold"] = totalFeedbacks.count ?? 0;
+      data["ratingsData"] = ratingInfo.data;
       return data;
     } catch (err) {
       throw err;
@@ -138,7 +137,4 @@ export class ServiceItemService {
       throw err;
     }
   }
-
-
-
 }

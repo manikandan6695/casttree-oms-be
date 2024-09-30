@@ -267,6 +267,8 @@ export class ServiceRequestService {
 
 
   async getCompletedServiceRequest(id: string, orgId: any) {
+    console.log("printing");
+    console.log(id,orgId);
 
     try {
       let countData = await this.serviceRequestModel.countDocuments({ requestedToUser: id, requestedToOrg: orgId, requestStatus: EServiceRequestStatus.completed });
