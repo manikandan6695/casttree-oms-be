@@ -7,7 +7,7 @@ export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService
-  ) { }
+  ) {}
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -21,14 +21,12 @@ export class HelperService {
     return reqHeaders;
   }
 
-  async getProfileById(userId: string[], accessToken: string , type?: string) {
+  async getProfileById(userId: string[], accessToken: string, type?: string) {
     try {
-
-
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId ,type:type},
+          { userIds: userId, type: type },
           {
             headers: {
               Authorization: accessToken,

@@ -229,6 +229,12 @@ export class PaymentRequestService {
   }
 
   async extractPaymentDetails(body) {
+    console.log(
+      "extrat payment invoice id",
+      body?.payload?.payment?.entity?.notes.invoiceId,
+      body?.payload?.payment?.entity?.notes
+    );
+
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
@@ -242,9 +248,8 @@ export class PaymentRequestService {
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
 
     const serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(
-        invoice.source_id
-      );
+      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+    console.log("service request payment", serviceRequest);
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
