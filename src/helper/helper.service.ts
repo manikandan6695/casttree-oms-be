@@ -34,7 +34,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      //console.log("data is", data.data.profileData);
+
 
       return data.data.profileData;
     } catch (err) {
@@ -47,7 +47,8 @@ export class HelperService {
 
       let data = await this.http_service
         .post(
-          `http://localhost:3200/casttree-ratings/ratings/get-aggregate-list`,
+      
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-aggregate-list`,
           { sourceIds: sourceId ,sourceType:sourceType},
           {
             headers: {
@@ -56,7 +57,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      //console.log("data is", data.data.profileData);
+
 
       return data.data.ratingData;
     } catch (err) {
@@ -68,9 +69,10 @@ export class HelperService {
     try {
 
       let data = await this.http_service
-        .post(
-          `http://localhost:3200/casttree-ratings/ratings/getRatingSummary`,
-          { sourceId: sourceId ,sourceType:sourceType},
+        .get(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/${sourceType}/${sourceId}/aggregate`,
+       
+         
           {
             headers: {
               Authorization: accessToken,
@@ -78,7 +80,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      //console.log("data is", data.data.profileData);
+     
 
       return data.data;
     } catch (err) {
@@ -88,7 +90,7 @@ export class HelperService {
 
   async updateNominationStatus(body) {
     try {
-      // console.log("body is", body);
+
 
       let data = await this.http_service
         .patch(

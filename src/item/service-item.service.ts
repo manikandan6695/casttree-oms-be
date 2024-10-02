@@ -5,6 +5,8 @@ import { serviceitems } from "./schema/serviceItem.schema";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
+import { Eserviceitems } from "./enum/rating_sourcetype_enum";
+import { EprofileType } from "./enum/profileType.enum";
 
 
 
@@ -55,18 +57,18 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
-        console.log(serviceItemData);
+      console.log(serviceItemData);
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e._id.toString());
       const profileInfo = await this.helperService.getProfileById(
         userIds,
         accessToken,
-        "Expert"
+        EprofileType.Expert
       );
       const ratingInfo = await this.helperService.getRatings(
         sourceIds,
-        "serviceitems",
+        Eserviceitems.serviceitems,
         accessToken
       );
       const userProfileInfo = profileInfo.reduce((a, c) => {
@@ -105,14 +107,14 @@ export class ServiceItemService {
       const profileInfo = await this.helperService.getProfileById(
         [data.userId],
         accessToken,
-        "Expert"
+        EprofileType.Expert
       );
       console.log("id is: " + id);
       const ratingInfo = await this.helperService.getRatingsSummary(
         id,
-        "serviceitems",
+        Eserviceitems.serviceitems,
         accessToken
-        
+
       );
       const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
       data["profileData"] = profileInfo[0];
