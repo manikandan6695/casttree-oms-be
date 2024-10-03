@@ -34,7 +34,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      //console.log("data is", data.data.profileData);
+
 
       return data.data.profileData;
     } catch (err) {
@@ -42,9 +42,55 @@ export class HelperService {
     }
   }
 
+  async getRatings(sourceId: string[], sourceType: string,accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .post(
+      
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-aggregate-list`,
+          { sourceIds: sourceId ,sourceType:sourceType},
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+
+
+      return data.data.ratingData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getRatingsSummary(sourceId: string, sourceType: string, accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/${sourceType}/${sourceId}/aggregate`,
+       
+         
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+     
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async updateNominationStatus(body) {
     try {
-      // console.log("body is", body);
+
 
       let data = await this.http_service
         .patch(
