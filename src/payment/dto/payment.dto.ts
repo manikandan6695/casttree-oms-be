@@ -25,10 +25,7 @@ export class paymentDTO {
   @IsNotEmpty()
   @IsNumber()
   amount: number;
-  
-  @IsNotEmpty()
-  @IsNumber()
-  actualPrice: number;
+
 
   @IsOptional()
   @IsString()

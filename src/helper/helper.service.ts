@@ -109,4 +109,25 @@ export class HelperService {
       throw err;
     }
   }
+
+  async createCouponUsage(body, accessToken: string ) {
+    try {
+      let data = await this.http_service
+        .post(
+          `http://localhost:3000/casttree/coupon/create-coupon-usage`,
+         body,
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+      return data.data.profileData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
 }

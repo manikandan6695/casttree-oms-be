@@ -27,6 +27,7 @@ import { firstValueFrom } from "rxjs";
 import { Cron } from "@nestjs/schedule";
 import { HttpService } from "@nestjs/axios/";
 import { ConfigService } from "@nestjs/config";
+import { HelperService } from "src/helper/helper.service";
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -45,7 +46,8 @@ export class PaymentRequestService {
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private helperService:HelperService
   ) {}
 
   async initiatePayment(
@@ -86,7 +88,18 @@ export class PaymentRequestService {
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
-
+     if(body.couponCode != null){
+     let couponBody = {
+      sourceId: serviceRequest.request._id,
+      sourceType: ESourceType.serviceRequest,
+      couponCode: body.couponCode,
+      billingAmount: body.amount,
+      discountAmount: body.discount
+     };
+     console.log("toke is: "+ accessToken);
+   
+      const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
+     }
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
@@ -120,7 +133,7 @@ export class PaymentRequestService {
         source_type: null,
         couponCode: body.couponCode,
         discount: body.discount,
-        actualPrice: body.actualPrice,
+    
         sub_total: body.amount,
         document_status: EDocumentStatus.pending,
         grand_total: body.amount,
