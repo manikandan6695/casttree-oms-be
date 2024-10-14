@@ -60,7 +60,9 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceId?.toString(),
       //   body?.invoiceDetail?.sourceType
       // );
-
+      if(body.couponCode != null){
+        body.amount = body.amount-body.discount;
+      }
       const invoiceData = await this.createNewInvoice(body, token);
       body["serviceRequest"] = {
         ...body.serviceRequest,
@@ -96,7 +98,7 @@ export class PaymentRequestService {
       billingAmount: body.amount,
       discountAmount: body.discount
      };
-     console.log("toke is: "+ accessToken);
+
    
       const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
      }
