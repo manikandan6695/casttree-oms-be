@@ -118,6 +118,9 @@ export class PaymentRequestService {
       {
         source_id: null,
         source_type: null,
+        couponCode: body.couponCode,
+        discount: body.discount,
+        actualPrice: body.actualPrice,
         sub_total: body.amount,
         document_status: EDocumentStatus.pending,
         grand_total: body.amount,

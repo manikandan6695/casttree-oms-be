@@ -22,6 +22,8 @@ export interface ISalesDocumentModel extends mongoose.Document {
   discount_type: string;
   discount_level: string;
   discount: number;
+  actualPrice: number;
+  couponCode: string;
   discount_amount: number;
   adjustments: number;
   grand_total: number;
@@ -152,6 +154,12 @@ export const SalesDocumentSchema = new mongoose.Schema(
     },
     discount: {
       type: Number,
+    },
+    actualPrice:{
+      type: Number
+    },
+    couponCode:{
+      type:String
     },
     discount_amount: {
       type: Number,
