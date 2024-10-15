@@ -26,9 +26,18 @@ export class paymentDTO {
   @IsNumber()
   amount: number;
 
+
   @IsOptional()
   @IsString()
   currency: string;
+
+  @IsOptional()
+  @IsString()
+  couponCode: string;
+
+  @IsOptional()
+  @IsNumber()
+  discount: number;
 
   @IsOptional()
   serviceRequest: AddServiceRequestDTO;

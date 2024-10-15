@@ -27,6 +27,7 @@ import { firstValueFrom } from "rxjs";
 import { Cron } from "@nestjs/schedule";
 import { HttpService } from "@nestjs/axios/";
 import { ConfigService } from "@nestjs/config";
+import { HelperService } from "src/helper/helper.service";
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -45,7 +46,8 @@ export class PaymentRequestService {
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private helperService:HelperService
   ) {}
 
   async initiatePayment(
@@ -62,6 +64,7 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       body["serviceRequest"] = {
         ...body.serviceRequest,
+       
         sourceId: invoiceData._id,
         sourceType: EDocument.sales_document,
       };
@@ -86,6 +89,23 @@ export class PaymentRequestService {
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
+     if(body.couponCode != null){
+     let couponBody = {
+      sourceId: serviceRequest.request._id,
+      sourceType: ESourceType.serviceRequest,
+      couponCode: body.couponCode,
+      billingAmount: body.amount,
+      discountAmount: body.discount
+     };
+
+   
+      const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
+     }
+    
+     if(body.couponCode != null){
+      body.amount = body.amount- body.discount;
+     }
+    
 
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
@@ -114,13 +134,19 @@ export class PaymentRequestService {
   }
 
   async createNewInvoice(body: paymentDTO, token: UserToken) {
+    let grand_total = body.amount;
+    if(body.couponCode != null){
+       grand_total = body.amount- body.discount;
+    }
+   
     return await this.invoiceService.createInvoice(
       {
         source_id: null,
         source_type: null,
+        discount_amount: body.discount,
         sub_total: body.amount,
         document_status: EDocumentStatus.pending,
-        grand_total: body.amount,
+        grand_total: grand_total,
       },
       token
     );
