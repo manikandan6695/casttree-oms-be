@@ -13,7 +13,7 @@ import {
 } from "./platform-item.schema";
 
 export interface IItemModel extends mongoose.Document {
-  organization_id: any; //or org model
+  orgId: any; //or org model
   item_type: EItemType;
   item_name: string;
   item_sku?: string;
@@ -70,7 +70,7 @@ export interface IItemModel extends mongoose.Document {
   E_material_code?: string;
   status?: any;
   data_create_mode: string;
-  comparePrice:number
+  comparePrice: number;
 }
 
 export interface IStockDetails {
@@ -213,7 +213,7 @@ export const MediaSchema = new mongoose.Schema({
 
 export const ItemSchema = new mongoose.Schema<any>(
   {
-    organization_id: {
+    orgId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "organization",
     },
@@ -318,7 +318,7 @@ export const ItemSchema = new mongoose.Schema<any>(
       ref: "user",
     },
     E_material_code: { type: String },
-    comparePrice:{type:Number}
+    comparePrice: { type: Number },
   },
   {
     collection: "item",

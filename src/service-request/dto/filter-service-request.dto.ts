@@ -3,23 +3,23 @@ import {
   IsArray,
   IsEnum,
   IsMongoId,
+  IsNotEmpty,
   IsOptional,
   IsString,
 } from "class-validator";
-import { EServiceRequestStatus } from "../enum/service-request.enum";
+import {
+  EServiceRequestMode,
+  EServiceRequestStatus,
+} from "../enum/service-request.enum";
 
 export class FilterServiceRequestDTO {
   @IsOptional()
   @IsEnum(EServiceRequestStatus)
   requestStatus?: string;
 
-  @IsOptional()
-  @IsMongoId()
-  requestedToUser: string;
-
-  @IsOptional()
-  @IsMongoId()
-  requestedToOrg: string;
+  @IsNotEmpty()
+  @IsEnum(EServiceRequestMode)
+  mode: EServiceRequestMode;
 
   @IsOptional()
   @IsArray()

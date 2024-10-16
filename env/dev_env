@@ -53,6 +53,7 @@ THROTTLE_LIMIT= "10000"
 THROTTLE_TTL= "30"
 
 CASTTREE_BASE_URL = "https://esearchprod.casttree.com/casttree"
+CASTTREE_RATINGS_BASE_URL = "https://esearchprod.casttree.com/casttree-ratings"
 
 CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:3000"]
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
