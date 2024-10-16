@@ -52,7 +52,7 @@ export class ServiceRequestService {
 
       console.log("Filter is", filter);
 
-      let sorting = { };
+      let sorting = {};
       if (query.mode === EServiceRequestMode.assign) {
         sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: 1 };
       }
@@ -199,7 +199,7 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      const data = await this.serviceRequestModel
+      let data :any  = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
           path: "itemId",
@@ -222,6 +222,9 @@ export class ServiceRequestService {
         "Expert"
       );
       const couponUsageData = await this.helperService.getCouponUsage(id, accessToken);
+      let languages = await this.serviceItemService.getLanguages(data.itemId._id);
+
+      data['languages'] = languages;
       data["couponUsageData"] = couponUsageData.data;
       return { data };
     } catch (err) {
