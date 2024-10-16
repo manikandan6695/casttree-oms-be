@@ -319,7 +319,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     },
     E_material_code: { type: String },
     comparePrice:{type:Number}
-    comparePrice:{type:Number}
+    
   },
   {
     collection: "item",
