@@ -11,6 +11,7 @@ import { EprofileType } from "./enum/profileType.enum";
 
 
 
+
 @Injectable()
 export class ServiceItemService {
   constructor(
@@ -134,6 +135,15 @@ export class ServiceItemService {
       let days = data.respondTime.split(" ")[0];
       let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
       data["serviceDueDate"] = serviceDueDate;
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getLanguages(itemId:string){
+    try {
+      let data= await this.serviceItemModel.findOne({ itemId: itemId},{language:1});
       return data;
     } catch (err) {
       throw err;
