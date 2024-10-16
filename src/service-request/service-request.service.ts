@@ -25,7 +25,7 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -36,20 +36,29 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
+
       const filter = {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
           ? {
-              requestedToUser: new ObjectId(token.id),
-              requestedToOrg: new ObjectId(organizationId),
-            }
+            requestedToUser: new ObjectId(token.id),
+            requestedToOrg: new ObjectId(organizationId),
+          }
           : {
-              requestedBy: new ObjectId(token.id),
-              requestedByOrg: new ObjectId(organizationId),
-            }),
+            requestedBy: new ObjectId(token.id),
+            requestedByOrg: new ObjectId(organizationId),
+          }),
       };
 
       console.log("Filter is", filter);
+
+      let sorting = {};
+      if (query.mode === EServiceRequestMode.assign) {
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: 1 } : { _id: -1 };
+      }
+      if (query.mode === EServiceRequestMode.created) {
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: -1 };
+      }
 
       const data = await this.serviceRequestModel
         .find(filter)
@@ -58,11 +67,11 @@ export class ServiceRequestService {
           populate: [{ path: "platformItemId" }],
         })
         .lean()
-        .sort({ _id: 1 })
+        .sort(sorting)
         .skip(skip)
         .limit(limit);
 
-      const count = await this.serviceRequestModel.countDocuments();
+      const count = await this.serviceRequestModel.countDocuments(filter);
 
       await Promise.all(
         data.map(async (curr_data) => {
@@ -190,13 +199,13 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      const data = await this.serviceRequestModel
+      let data :any  = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
           path: "itemId",
           populate: [{ path: "platformItemId" }],
         })
-        .populate("sourceId", "_id grand_total")
+        .populate("sourceId", "_id sub_total discount_amount grand_total")
         .lean();
 
       if (!data) throw new Error("Service request not found");
@@ -302,8 +311,7 @@ export class ServiceRequestService {
   }
 
   async getCompletedServiceRequest(id: string, orgId: any) {
-    console.log("printing");
-    console.log(id,orgId);
+
 
     try {
       let countData = await this.serviceRequestModel.countDocuments({
