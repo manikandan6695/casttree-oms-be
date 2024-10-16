@@ -221,11 +221,7 @@ export class ServiceRequestService {
         "requestedToUser",
         "Expert"
       );
-    //  const couponUsageData = await this.helperService.getCouponUsage(id, accessToken);
-   //   let languages = await this.serviceItemService.getLanguages(data.itemId._id);
 
-     // data['languages'] = languages;
-     // data["couponUsageData"] = couponUsageData.data;
       return { data };
     } catch (err) {
       throw err;
