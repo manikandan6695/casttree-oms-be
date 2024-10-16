@@ -205,7 +205,7 @@ export class ServiceRequestService {
           path: "itemId",
           populate: [{ path: "platformItemId" }],
         })
-        .populate("sourceId", "_id grand_total")
+        .populate("sourceId", "_id sub_total discount_amount grand_total")
         .lean();
 
       if (!data) throw new Error("Service request not found");
@@ -221,11 +221,11 @@ export class ServiceRequestService {
         "requestedToUser",
         "Expert"
       );
-      const couponUsageData = await this.helperService.getCouponUsage(id, accessToken);
-      let languages = await this.serviceItemService.getLanguages(data.itemId._id);
+    //  const couponUsageData = await this.helperService.getCouponUsage(id, accessToken);
+   //   let languages = await this.serviceItemService.getLanguages(data.itemId._id);
 
-      data['languages'] = languages;
-      data["couponUsageData"] = couponUsageData.data;
+     // data['languages'] = languages;
+     // data["couponUsageData"] = couponUsageData.data;
       return { data };
     } catch (err) {
       throw err;
