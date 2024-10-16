@@ -114,8 +114,8 @@ export class HelperService {
     try {
       let data = await this.http_service
         .post(
-        //  `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
-          `http://localhost:3000/casttree/coupon/create-coupon-usage`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
+         // `http://localhost:3000/casttree/coupon/create-coupon-usage`,
          body,
           {
             headers: {
@@ -135,9 +135,8 @@ export class HelperService {
     try {
       let data = await this.http_service
         .get(
-        //  `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
-          `http://localhost:3000/casttree/coupon/get-coupon-usage/${id}`,
-        
+        `${this.configService.get("CASTTREE_BASE_URL")}/coupon/get-coupon-usage/${id}`,
+        //  `http://localhost:3000/casttree/coupon/get-coupon-usage/${id}`,  
           {
             headers: {
               Authorization: accessToken,
