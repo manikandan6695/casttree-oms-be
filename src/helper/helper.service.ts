@@ -114,8 +114,8 @@ export class HelperService {
     try {
       let data = await this.http_service
         .post(
-          `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
-          //`http://localhost:3000/casttree/coupon/create-coupon-usage`,
+        //  `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
+          `http://localhost:3000/casttree/coupon/create-coupon-usage`,
          body,
           {
             headers: {
@@ -124,11 +124,33 @@ export class HelperService {
           }
         )
         .toPromise();
-      return data.data.profileData;
+      return data.data;
     } catch (err) {
       throw err;
     }
   }
+
+
+  async getCouponUsage(id:string, accessToken: string ) {
+    try {
+      let data = await this.http_service
+        .get(
+        //  `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
+          `http://localhost:3000/casttree/coupon/get-coupon-usage/${id}`,
+        
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
 
 
 }

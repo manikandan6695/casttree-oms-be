@@ -25,7 +25,7 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -40,13 +40,13 @@ export class ServiceRequestService {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
           ? {
-              requestedToUser: new ObjectId(token.id),
-              requestedToOrg: new ObjectId(organizationId),
-            }
+            requestedToUser: new ObjectId(token.id),
+            requestedToOrg: new ObjectId(organizationId),
+          }
           : {
-              requestedBy: new ObjectId(token.id),
-              requestedByOrg: new ObjectId(organizationId),
-            }),
+            requestedBy: new ObjectId(token.id),
+            requestedByOrg: new ObjectId(organizationId),
+          }),
       };
 
       console.log("Filter is", filter);
@@ -212,7 +212,8 @@ export class ServiceRequestService {
         "requestedToUser",
         "Expert"
       );
-
+      const couponUsageData = await this.helperService.getCouponUsage(id, accessToken);
+      data["couponUsageData"] = couponUsageData.data;
       return { data };
     } catch (err) {
       throw err;
@@ -302,8 +303,7 @@ export class ServiceRequestService {
   }
 
   async getCompletedServiceRequest(id: string, orgId: any) {
-    console.log("printing");
-    console.log(id,orgId);
+
 
     try {
       let countData = await this.serviceRequestModel.countDocuments({
