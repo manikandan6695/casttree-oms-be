@@ -36,6 +36,7 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
+
       const filter = {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
@@ -51,6 +52,14 @@ export class ServiceRequestService {
 
       console.log("Filter is", filter);
 
+      let sorting = { };
+      if (query.mode === EServiceRequestMode.assign) {
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: 1 };
+      }
+      if (query.mode === EServiceRequestMode.created) {
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: 1 } : { _id: -1 };
+      }
+
       const data = await this.serviceRequestModel
         .find(filter)
         .populate({
@@ -58,11 +67,11 @@ export class ServiceRequestService {
           populate: [{ path: "platformItemId" }],
         })
         .lean()
-        .sort({ _id: -1 })
+        .sort(sorting)
         .skip(skip)
         .limit(limit);
 
-      const count = await this.serviceRequestModel.countDocuments();
+      const count = await this.serviceRequestModel.countDocuments(filter);
 
       await Promise.all(
         data.map(async (curr_data) => {
