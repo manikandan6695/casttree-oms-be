@@ -54,10 +54,10 @@ export class ServiceRequestService {
 
       let sorting = {};
       if (query.mode === EServiceRequestMode.assign) {
-        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: 1 };
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: 1 } : { _id: -1 };
       }
       if (query.mode === EServiceRequestMode.created) {
-        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: 1 } : { _id: -1 };
+        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: -1 };
       }
 
       const data = await this.serviceRequestModel
