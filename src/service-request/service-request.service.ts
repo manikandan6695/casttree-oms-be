@@ -199,13 +199,14 @@ export class ServiceRequestService {
   }
   async getServiceRequest(id: string, accessToken: string) {
     try {
-      let data :any  = await this.serviceRequestModel
+      let data = await this.serviceRequestModel
         .findOne({ _id: id })
         .populate({
           path: "itemId",
           populate: [{ path: "platformItemId" }],
         })
         .populate("sourceId", "_id sub_total discount_amount grand_total")
+        .populate('languages', 'language')
         .lean();
 
       if (!data) throw new Error("Service request not found");
