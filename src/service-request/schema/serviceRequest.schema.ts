@@ -7,6 +7,7 @@ import {
   ESSourceType,
   EVisibilityStatus,
 } from "../enum/service-request.enum";
+
 export interface IAdditionalDataModel {
   nominationId: string;
 }
@@ -94,10 +95,23 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     },
     updatedBy: {
       type: mongoose.Schema.Types.Mixed,
-    },
+    }
+
   },
   {
     collection: "serviceRequest",
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  }
+  },
+
+
+
 );
+serviceRequestSchema.virtual("languages", {
+  ref: "serviceitems",
+  localField: "itemId",
+  foreignField: "itemId",
+  justOne: true
+});
+
+serviceRequestSchema.set("toJSON", { virtuals: true });
+
