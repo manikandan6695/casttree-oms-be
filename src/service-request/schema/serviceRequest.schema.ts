@@ -7,7 +7,7 @@ import {
   ESSourceType,
   EVisibilityStatus,
 } from "../enum/service-request.enum";
-import { serviceitemsSchema } from "src/item/schema/serviceItem.schema";
+
 export interface IAdditionalDataModel {
   nominationId: string;
 }
