@@ -110,6 +110,7 @@ serviceRequestSchema.virtual("languages", {
   ref: "serviceitems",
   localField: "itemId",
   foreignField: "itemId",
+  justOne: true
 });
 
 serviceRequestSchema.set("toJSON", { virtuals: true });
