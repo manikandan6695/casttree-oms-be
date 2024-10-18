@@ -39,3 +39,23 @@ export const ESVisibilityStatus = [
   EVisibilityStatus.unlocked,
   EVisibilityStatus.locked,
 ];
+
+export enum EProfileType {
+  Expert = "Expert",
+
+}
+
+export const ESProfileType = [
+  EProfileType.Expert,
+
+];
+
+export enum ERequestType {
+  requestedToUser = "ErequestedToUser",
+
+}
+
+export const ESRequestType = [
+  ERequestType.requestedToUser,
+
+];
