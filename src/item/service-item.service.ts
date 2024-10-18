@@ -5,7 +5,7 @@ import { serviceitems } from "./schema/serviceItem.schema";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { Eserviceitems } from "./enum/rating_sourcetype_enum";
+import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EprofileType } from "./enum/profileType.enum";
 
 
@@ -44,7 +44,7 @@ export class ServiceItemService {
           filter["skill.skillId"] = { $in: query.skillId };
         }
       }
-      let serviceItemData = await this.serviceItemModel
+      let serviceItemData :any = await this.serviceItemModel
         .find(filter)
         .populate({
           path: "itemId",
@@ -61,7 +61,8 @@ export class ServiceItemService {
       console.log(serviceItemData);
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
-      const sourceIds = serviceItemData.map((e) => e._id.toString());
+      const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
+      console.log(sourceIds);
       const profileInfo = await this.helperService.getProfileById(
         userIds,
         accessToken,
@@ -69,9 +70,10 @@ export class ServiceItemService {
       );
       const ratingInfo = await this.helperService.getRatings(
         sourceIds,
-        Eserviceitems.serviceitems,
+        Eitem.item,
         accessToken
       );
+      console.log(ratingInfo);
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
@@ -83,7 +85,7 @@ export class ServiceItemService {
 
       for (let i = 0; i < serviceItemData.length; i++) {
         serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]];
-        serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i]._id).toString()];
+        serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i].itemId._id).toString()] ?? null;
       }
       return { data: serviceItemData, count: countData };
     } catch (err) {
@@ -104,16 +106,16 @@ export class ServiceItemService {
           ],
         })
         .lean();
-
+console.log(data)
       const profileInfo = await this.helperService.getProfileById(
         [data.userId],
         accessToken,
         EprofileType.Expert
       );
-      console.log("id is: " + id);
+
       const ratingInfo = await this.helperService.getRatingsSummary(
-        id,
-        Eserviceitems.serviceitems,
+        data.itemId._id,
+        Eitem.item,
         accessToken
 
       );
