@@ -50,7 +50,7 @@ export class ServiceRequestService {
           }),
       };
 
-      console.log("Filter is", filter);
+     
 
       let sorting = {};
       if (query.mode === EServiceRequestMode.assign) {
@@ -303,7 +303,7 @@ export class ServiceRequestService {
           ],
         })
         .lean();
-      // console.log("service request data", data);
+
 
       return { data: data };
     } catch (err) {
