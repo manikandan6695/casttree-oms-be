@@ -51,7 +51,7 @@ export const ESProfileType = [
 ];
 
 export enum ERequestType {
-  requestedToUser = "ErequestedToUser",
+  requestedToUser = "requestedToUser",
 
 }
 
