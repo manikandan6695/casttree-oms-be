@@ -72,7 +72,7 @@ THROTTLE_TTL= "30"
 
 CASTTREE_BASE_URL = "https://prodapi.casttree.com/casttree"
 
-CASTTREE_RATINGS_BASE_URL = "https://prodapi.casttree.com/casttree-rating"
+CASTTREE_RATINGS_BASE_URL = "https://prodapi.casttree.com/casttree-ratings"
 
 CORS_ALLOWED_ORIGIN = ["https://casttree.com", "https://www.casttree.com", "https://prodapi.casttree.com"]
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
