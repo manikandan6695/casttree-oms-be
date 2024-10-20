@@ -8,13 +8,31 @@ import { IPaymentModel } from "./schema/payment.schema";
 import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { CurrencyService } from "src/shared/currency/currency.service";
-import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
-import { EPaymentStatus, ERazorpayPaymentStatus } from "./enum/payment.enum";
+import {
+  EDocument,
+  EDocumentTypeName,
+} from "src/invoice/enum/document-type-name.enum";
+import {
+  EPaymentStatus,
+  ERazorpayPaymentStatus,
+  ESourceType,
+} from "./enum/payment.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { EVisibilityStatus } from "src/service-request/enum/service-request.enum";
+import {
+  EServiceRequestStatus,
+  EVisibilityStatus,
+} from "src/service-request/enum/service-request.enum";
+import { firstValueFrom } from "rxjs";
+import { Cron } from "@nestjs/schedule";
+import { HttpService } from "@nestjs/axios/";
 import { ConfigService } from "@nestjs/config";
+import { HelperService } from "src/helper/helper.service";
 const { ObjectId } = require("mongodb");
+const SimpleHMACAuth = require("simple-hmac-auth");
+const {
+  validateWebhookSignature,
+} = require("razorpay/dist/utils/razorpay-utils");
 // const {
 //   validateWebhookSignature,
 // } = require("razorpay/dist/utils/razorpay-utils");
@@ -28,18 +46,36 @@ export class PaymentRequestService {
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private helperService:HelperService
   ) {}
 
-  async initiatePayment(body: paymentDTO, token: UserToken, @Req() req) {
+  async initiatePayment(
+    body: paymentDTO,
+    token: UserToken,
+    accessToken: string
+  ) {
     try {
-      const existingInvoice = await this.invoiceService.getInvoiceBySource(
-        body.invoiceDetail.sourceId,
-        body.invoiceDetail.sourceType
-      );
+      // const existingInvoice = await this.invoiceService.getInvoiceBySource(
+      //   body?.invoiceDetail?.sourceId?.toString(),
+      //   body?.invoiceDetail?.sourceType
+      // );
 
-      const invoiceData =
-        existingInvoice || (await this.createNewInvoice(body, token));
+      const invoiceData = await this.createNewInvoice(body, token);
+      body["serviceRequest"] = {
+        ...body.serviceRequest,
+       
+        sourceId: invoiceData._id,
+        sourceType: EDocument.sales_document,
+      };
+      // console.log("body is", body.serviceRequest);
+
+      const serviceRequest =
+        await this.serviceRequestService.createServiceRequest(
+          body.serviceRequest,
+          token
+        );
+      // console.log("service request is", serviceRequest.request._id);
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
@@ -47,19 +83,36 @@ export class PaymentRequestService {
       });
 
       if (existingPayment) {
-        return existingPayment;
+        return { paymentData: existingPayment, serviceRequest };
       }
 
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
+     if(body.couponCode != null){
+     let couponBody = {
+      sourceId: serviceRequest.request._id,
+      sourceType: ESourceType.serviceRequest,
+      couponCode: body.couponCode,
+      billingAmount: body.amount,
+      discountAmount: body.discount
+     };
+
+   
+      const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
+     }
+    
+     if(body.couponCode != null){
+      body.amount = body.amount- body.discount;
+     }
+    
 
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
         body.amount,
-        body.invoiceDetail.sourceId.toString(),
-        req,
+        serviceRequest.request._id.toString(),
+        accessToken,
         {
           invoiceId: invoiceData._id,
           invoiceNumber: invoiceData.document_number,
@@ -73,21 +126,27 @@ export class PaymentRequestService {
         currency,
         orderDetail
       );
-
-      return paymentData;
+      // paymentData["serviceRequest"] = serviceRequest;
+      return { paymentData, serviceRequest };
     } catch (err) {
       throw err;
     }
   }
 
   async createNewInvoice(body: paymentDTO, token: UserToken) {
+    let grand_total = body.amount;
+    if(body.couponCode != null){
+       grand_total = body.amount- body.discount;
+    }
+   
     return await this.invoiceService.createInvoice(
       {
-        source_id: body.invoiceDetail.sourceId,
-        source_type: body.invoiceDetail.sourceType,
+        source_id: null,
+        source_type: null,
+        discount_amount: body.discount,
         sub_total: body.amount,
         document_status: EDocumentStatus.pending,
-        grand_total: body.amount,
+        grand_total: grand_total,
       },
       token
     );
@@ -143,6 +202,7 @@ export class PaymentRequestService {
   async getPaymentDetail(id: string) {
     try {
       let payment = await this.paymentModel.findOne({ _id: id });
+      console.log(payment);
       return { payment };
     } catch (err) {
       throw err;
@@ -164,20 +224,19 @@ export class PaymentRequestService {
   // }
   async paymentWebhook(@Req() req) {
     try {
-      console.log(
-        "Razorpay request:",
-        JSON.stringify(req.body),
-        req["headers"]["x-razorpay-signature"],
-        req["headers"]["x-razorpay-event-id"]
-      );
-      /* NODE SDK: https://github.com/razorpay/razorpay-node */
-
-      // validateWebhookSignature(
+      // console.log(
+      //   "Razorpay request:",
       //   JSON.stringify(req.body),
-      //   "casttree@2024",
-      //   this.configService.get("RAZORPAY_SECRET_KEY")
+      //   req["headers"]["x-razorpay-signature"],
+      //  // req["headers"]["x-razorpay-event-id"]
       // );
-      // await this.validateWebhookSignature(req.body);
+
+      // console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
+      // var crypto = require("crypto");
+      // var mbody = req.body.toString();
+      // var expectedSignature = crypto.createHmac('sha256', "casttree@123").update(mbody).digest('hex');
+      // console.log("generated: "+expectedSignature);
+      // if(req["headers"]["x-razorpay-signature"] === expectedSignature){
       const { invoiceId, status, payment, invoice, serviceRequest } =
         await this.extractPaymentDetails(req.body);
 
@@ -187,16 +246,21 @@ export class PaymentRequestService {
         paymentId: payment._id,
       };
       // console.log("ids is", ids, serviceRequest.data["_id"]);
-
       await this.updatePaymentStatus(status, ids);
-
       return { message: "Updated Successfully" };
+      //  }
     } catch (err) {
       throw err;
     }
   }
 
   async extractPaymentDetails(body) {
+    console.log(
+      "extrat payment invoice id",
+      body?.payload?.payment?.entity?.notes.invoiceId,
+      body?.payload?.payment?.entity?.notes
+    );
+
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
@@ -210,9 +274,8 @@ export class PaymentRequestService {
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
 
     const serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(
-        invoice.source_id
-      );
+      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+    console.log("service request payment", serviceRequest);
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
@@ -245,7 +308,8 @@ export class PaymentRequestService {
     await this.serviceRequestService.updateServiceRequest(
       ids.serviceRequestId,
       {
-        visibilityStatus: EVisibilityStatus.unlocked,
+        // visibilityStatus: EVisibilityStatus.unlocked,
+        requestStatus: EServiceRequestStatus.pending,
       }
     );
   }
@@ -255,7 +319,49 @@ export class PaymentRequestService {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
   //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
   // }
-}
-function hmac(arg0: string, message: any, key: any) {
-  throw new Error("Function not implemented.");
+
+  // @Cron("00 5 * * * *")
+  // async handleCron() {
+  //   let paymentRequestData: any = this.getPaymentDetail(
+  //     "66cb5a55fd108b6e491595aa"
+  //   );
+  //   let orderId = await paymentRequestData.payment.payment_order_id;
+
+  //   try {
+  //     const PaymentStatusResponse: any = await firstValueFrom(
+  //       this.httpService.get("https://api.razorpay.com/v1/orders/" + orderId, {
+  //         headers: {
+  //           Authorization:
+  //             `Basic ` +
+  //             Buffer.from(
+  //               `rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`
+  //             ).toString("base64"),
+  //         },
+  //       })
+  //     );
+
+  //     // Return the response data
+  //     console.log("current status  :  " + PaymentStatusResponse.data.status);
+  //     this.updatePaymentRequest(PaymentStatusResponse.data);
+  //   } catch (error) {
+  //     // Handle errors
+  //     console.error("Error fetching data", error);
+  //     throw error;
+  //   }
+  // }
+
+  //   testhmac() {
+  //     /* var crypto = require('crypto');
+  // var hmac = crypto.createHmac('sha256', 'casttree@2024');
+  // var expected_signature = hmac.update(JSON.stringify({name:"pavan"}));*/
+  //     var crypto = require("crypto");
+  //     const hash = crypto
+  //       .createHmac("sha1", "casttree@2024")
+  //       .update(JSON.stringify({ name: "pavan" }))
+  //       .digest("hex");
+  //     console.log(hash);
+  //   }
+  // }
+  // function hmac(arg0: string, message: any, key: any) {
+  //   throw new Error("Function not implemented.");
 }

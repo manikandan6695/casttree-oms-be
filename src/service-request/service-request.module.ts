@@ -8,6 +8,8 @@ import { SharedModule } from "src/shared/shared.module";
 import { serviceRequestSchema } from "./schema/serviceRequest.schema";
 import { ServiceRequestController } from "./service-request.controller";
 import { ServiceRequestService } from "./service-request.service";
+import { ItemModule } from "src/item/item.module";
+
 
 @Module({
   imports: [
@@ -19,7 +21,8 @@ import { ServiceRequestService } from "./service-request.service";
     forwardRef(() => ServiceResponseModule),
     HttpModule,
     HelperModule,
-  ],
+    forwardRef(() => ItemModule)
+],
   controllers: [ServiceRequestController],
   providers: [ServiceRequestService],
   exports: [ServiceRequestService],

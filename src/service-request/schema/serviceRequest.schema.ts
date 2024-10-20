@@ -1,7 +1,13 @@
 import * as mongoose from "mongoose";
 import { IItemModel, MediaSchema } from "src/item/schema/item.schema";
 import { IMedia } from "src/item/schema/platform-item.schema";
-import { EVisibilityStatus } from "../enum/service-request.enum";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import {
+  EServiceRequestStatus,
+  ESSourceType,
+  EVisibilityStatus,
+} from "../enum/service-request.enum";
+
 export interface IAdditionalDataModel {
   nominationId: string;
 }
@@ -13,6 +19,8 @@ export interface IServiceRequestModel extends mongoose.Document {
   requestedToOrg: any;
   requestedToUser: any;
   projectId: any;
+  sourceId: any;
+  sourceType: string;
   additionalDetail: IAdditionalDataModel;
   media: IMedia[];
   customQuestions: any;
@@ -38,6 +46,8 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "item",
     },
+    sourceId: { type: mongoose.Schema.Types.ObjectId, refPath: "sourceType" },
+    sourceType: { type: String, enum: ESSourceType },
     requestedBy: {
       type: mongoose.Schema.Types.Mixed,
     },
@@ -71,22 +81,37 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     },
     requestStatus: {
       type: String,
+      default: EServiceRequestStatus.initiated,
     },
     serviceDueDate: {
       type: Date,
     },
     status: {
       type: String,
+      default: EStatus.Active,
     },
     createdBy: {
       type: mongoose.Schema.Types.Mixed,
     },
     updatedBy: {
       type: mongoose.Schema.Types.Mixed,
-    },
+    }
+
   },
   {
     collection: "serviceRequest",
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-  }
+  },
+
+
+
 );
+serviceRequestSchema.virtual("languages", {
+  ref: "serviceitems",
+  localField: "itemId",
+  foreignField: "itemId",
+  justOne: true
+});
+
+serviceRequestSchema.set("toJSON", { virtuals: true });
+

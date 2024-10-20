@@ -21,25 +21,66 @@ export class HelperService {
     return reqHeaders;
   }
 
-  async getProfileById(userId: string[], @Req() req) {
+  async getProfileById(userId: string[], accessToken: string, type?: string) {
     try {
-      // console.log("req is", req);
-
-      // console.log("user id is", userId, req["headers"]["authorization"]);
-      // const headers = this.getRequiredHeaders(req);
-      // ${this.configService.get("CASTTREE_BASE_URL")}
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-          { userIds: userId },
+          { userIds: userId, type: type },
           {
             headers: {
-              Authorization: `${req["headers"]["authorization"]}`,
+              Authorization: accessToken,
             },
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
+
+
+      return data.data.profileData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getRatings(sourceId: string[], sourceType: string,accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .post(
+      
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-aggregate-list`,
+          { sourceIds: sourceId ,sourceType:sourceType},
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+
+
+      return data.data.ratingData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getRatingsSummary(sourceId: string, sourceType: string, accessToken: string) {
+    try {
+
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/${sourceType}/${sourceId}/aggregate`,
+       
+         
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+     
 
       return data.data;
     } catch (err) {
@@ -49,7 +90,7 @@ export class HelperService {
 
   async updateNominationStatus(body) {
     try {
-      // console.log("body is", body);
+
 
       let data = await this.http_service
         .patch(
@@ -62,11 +103,35 @@ export class HelperService {
           }
         )
         .toPromise();
-      // console.log("data is", data.data);
 
       return data.data;
     } catch (err) {
       throw err;
     }
   }
+
+  async createCouponUsage(body, accessToken: string ) {
+    try {
+      let data = await this.http_service
+        .post(
+          //`${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
+         `http://localhost:3000/casttree/coupon/create-coupon-usage`,
+         body,
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
+  
+
+
 }
