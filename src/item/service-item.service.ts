@@ -44,6 +44,8 @@ export class ServiceItemService {
           filter["skill.skillId"] = { $in: query.skillId };
         }
       }
+
+      filter['type'] = query.type;
       let serviceItemData :any = await this.serviceItemModel
         .find(filter)
         .populate({

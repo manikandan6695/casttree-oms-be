@@ -1,4 +1,5 @@
 import * as mongoose from "mongoose";
+import { EworkshopMode } from "../enum/workshopMode.enum";
 export interface IMedia {
   type?: string;
   media_id?: any;
@@ -15,6 +16,11 @@ export interface IAdditionalDetailModel {
   maxFollowup: number;
   maxCustomQuestions: number;
   itemNote: IItemNoteModel;
+  meetingLink: string;
+  registrationExpiry: string;
+  defaultImage: IMedia[];
+  workShopDate: string;
+  mode: string;
 }
 
 export interface IItemCommissionMarkupCurrencyModel {
@@ -49,19 +55,6 @@ export const itemNoteSchema = new mongoose.Schema<any>({
     type: String,
   },
 });
-export const additionalDetailSchema = new mongoose.Schema<any>({
-  reponseMode: {
-    type: String,
-  },
-  maxFollowup: {
-    type: Number,
-  },
-  maxCustomQuestions: {
-    type: Number,
-  },
-  itemNote: itemNoteSchema,
-});
-
 export const MediaSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -77,6 +70,28 @@ export const MediaSchema = new mongoose.Schema({
     ref: "media",
   },
 });
+export const additionalDetailSchema = new mongoose.Schema<any>({
+  reponseMode: {
+    type: String,
+  },
+  maxFollowup: {
+    type: Number,
+  },
+  maxCustomQuestions: {
+    type: Number,
+  },
+  itemNote: itemNoteSchema,
+  meetingLink: { type: String },
+  registrationExpiry: { type: String },
+  defaultImage: [MediaSchema],
+  workShopDate: { type: String },
+  mode: {
+    type: String,
+    default: EworkshopMode.online
+  },
+});
+
+
 export const ItemCommissionMarkupCurrencySchema = new mongoose.Schema<any>({
   currency_id: { type: String },
   currency_name: { type: String },
