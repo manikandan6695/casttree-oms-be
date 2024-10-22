@@ -60,11 +60,9 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
-      console.log(serviceItemData);
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
-      console.log(sourceIds);
       const profileInfo = await this.helperService.getProfileById(
         userIds,
         accessToken,
@@ -75,7 +73,6 @@ export class ServiceItemService {
         Eitem.item,
         accessToken
       );
-      console.log(ratingInfo);
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
@@ -108,7 +105,7 @@ export class ServiceItemService {
           ],
         })
         .lean();
-console.log(data)
+
       const profileInfo = await this.helperService.getProfileById(
         [data.userId],
         accessToken,
@@ -135,7 +132,6 @@ console.log(data)
   async serviceDueDate(itemId: string, userId: string) {
     try {
       let data: any = await this.serviceItemModel.findOne({ itemId: itemId, userId: userId }).lean();
-      console.log(data);
       let days = data.respondTime.split(" ")[0];
       let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
       data["serviceDueDate"] = serviceDueDate;
@@ -145,9 +141,9 @@ console.log(data)
     }
   }
 
-  async getLanguages(itemId:string){
+  async getLanguages(itemId: string) {
     try {
-      let data= await this.serviceItemModel.findOne({ itemId: itemId},{language:1});
+      let data = await this.serviceItemModel.findOne({ itemId: itemId }, { language: 1 });
       return data;
     } catch (err) {
       throw err;

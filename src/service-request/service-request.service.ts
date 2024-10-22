@@ -7,6 +7,8 @@ import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
+  EProfileType,
+  ERequestType,
   EServiceRequestMode,
   EServiceRequestStatus,
   EVisibilityStatus,
@@ -50,7 +52,7 @@ export class ServiceRequestService {
           }),
       };
 
-      console.log("Filter is", filter);
+
 
       let sorting = {};
       if (query.mode === EServiceRequestMode.assign) {
@@ -112,7 +114,7 @@ export class ServiceRequestService {
       const requestedToUserProfiles = await this.fetchProfiles(
         requestedToUserIds,
         accessToken,
-        "Expert"
+        EProfileType.Expert
       );
       const requestedToUserMap = this.mapProfilesById(requestedToUserProfiles);
       data.forEach(
@@ -219,8 +221,8 @@ export class ServiceRequestService {
       await this.attachUserProfile(
         data,
         accessToken,
-        "requestedToUser",
-        "Expert"
+        ERequestType.requestedToUser,
+        EProfileType.Expert
       );
 
       return { data };
@@ -303,7 +305,7 @@ export class ServiceRequestService {
           ],
         })
         .lean();
-      // console.log("service request data", data);
+
 
       return { data: data };
     } catch (err) {
