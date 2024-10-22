@@ -47,8 +47,5 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
     default:EserviceItemType.feedback
 
   }
-  type:{
-    type:String,
-    default: EserviceItemType.Feedback
-  }
+
 });
