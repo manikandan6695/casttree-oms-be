@@ -21,6 +21,7 @@ export interface IAdditionalDetailModel {
   defaultImage: IMedia[];
   workShopDate: string;
   mode: string;
+  time:string;
 }
 
 export interface IItemCommissionMarkupCurrencyModel {
@@ -86,9 +87,11 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
   defaultImage: [MediaSchema],
   workShopDate: { type: String },
   mode: {
-    type: String,
-    default: EworkshopMode.online
+    type: String
+ 
   },
+  time:{type:String}
+
 });
 
 
