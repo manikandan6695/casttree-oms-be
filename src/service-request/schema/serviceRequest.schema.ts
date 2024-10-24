@@ -28,6 +28,7 @@ export interface IServiceRequestModel extends mongoose.Document {
   addons: any;
   requestStatus: string;
   serviceDueDate: Date;
+  type: string;
   status: string;
   createdBy: any;
   updatedBy: any;
@@ -85,6 +86,9 @@ export const serviceRequestSchema = new mongoose.Schema<any>(
     },
     serviceDueDate: {
       type: Date,
+    },
+    type:{
+      type:String
     },
     status: {
       type: String,

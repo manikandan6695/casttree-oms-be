@@ -7,6 +7,7 @@ import {
   skillSchema,
 } from "./language.schema";
 import { EserviceItemType } from "../enum/serviceItem.type.enum";
+
 export interface serviceitems {
   itemId: string;
   userId: string;
@@ -16,6 +17,7 @@ export interface serviceitems {
   respondTime: string;
   itemSold: number;
   type:string;
+
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
@@ -42,6 +44,8 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   },
   type:{
     type:String,
-    default: EserviceItemType.Feedback
+
+
   }
+
 });
