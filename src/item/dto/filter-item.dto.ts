@@ -6,7 +6,7 @@ import {
 import { EserviceItemType } from "../enum/serviceItem.type.enum";
 import { EworkshopMode } from "../enum/workshopMode.enum";
 export class FilterItemRequestDTO {
-  @IsNotEmpty()
+  @IsOptional()
 
   skillId: string | string[];
 
