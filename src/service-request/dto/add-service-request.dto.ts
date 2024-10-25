@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 
 export class customQuestionsDTO {
   @IsOptional()
@@ -71,4 +72,8 @@ export class AddServiceRequestDTO {
   @IsOptional()
   @IsString()
   sourceType: string;
+
+  @IsOptional()
+  @IsEnum(EserviceItemType)
+  type:EserviceItemType
 }

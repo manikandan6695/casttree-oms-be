@@ -150,6 +150,7 @@ export class ServiceRequestService {
         sourceId,
         sourceType,
         requestId,
+        type
       } = body;
 
       // Get service due date
@@ -167,6 +168,7 @@ export class ServiceRequestService {
         projectId,
         customQuestions,
         serviceDueDate: serviceLastDate.serviceDueDate,
+        type: type,
         ...(sourceId && { sourceId, sourceType }),
       };
 
