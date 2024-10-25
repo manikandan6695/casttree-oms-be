@@ -17,11 +17,14 @@ export interface IAdditionalDetailModel {
   maxCustomQuestions: number;
   itemNote: IItemNoteModel;
   meetingLink: string;
-  registrationExpiry: string;
+  registrationExpiry: Date;
   defaultImage: IMedia[];
-  workShopDate: string;
+  workShopStartDate:  Date;
   mode: string;
-  time:string;
+  workShopEndDate:  Date;
+  startTime:Date;
+  endTime:Date;
+
 }
 
 export interface IItemCommissionMarkupCurrencyModel {
@@ -83,14 +86,20 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
   },
   itemNote: itemNoteSchema,
   meetingLink: { type: String },
-  registrationExpiry: { type: String },
+  registrationExpiry: { type: Date },
   defaultImage: [MediaSchema],
-  workShopDate: { type: String },
+  workShopStartDate: { type: Date },
   mode: {
     type: String
- 
   },
-  time:{type:String}
+  workShopEndDate: { type: Date },
+  startTime: {
+    type: Date
+  },
+  endTime: {
+    type: Date
+  }
+
 
 });
 
