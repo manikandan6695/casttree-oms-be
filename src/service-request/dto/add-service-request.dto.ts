@@ -73,7 +73,7 @@ export class AddServiceRequestDTO {
   @IsString()
   sourceType: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(EserviceItemType)
   type:EserviceItemType
 }
