@@ -26,6 +26,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
+        //  `http://localhost:3000/casttree/profile/get-profile-list`,
           { userIds: userId, type: type },
           {
             headers: {
@@ -41,6 +42,25 @@ export class HelperService {
       throw err;
     }
   }
+
+  async getworkShopProfileById(userId: string[], type?: string) {
+    try {
+      let data = await this.http_service
+        .post(
+         `${this.configService.get("CASTTREE_BASE_URL")}/profile/workShop/get-profile-list`,
+         // `http://localhost:3000/casttree/profile/workShop/get-profile-list`,
+          { userIds: userId, type: type },
+          
+        )
+        .toPromise();
+
+
+      return data.data.profileData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
 
   async getRatings(sourceId: string[], sourceType: string,accessToken: string) {
     try {
@@ -114,8 +134,8 @@ export class HelperService {
     try {
       let data = await this.http_service
         .post(
-          //`${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
-         `http://localhost:3000/casttree/coupon/create-coupon-usage`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
+        // `http://localhost:3000/casttree/coupon/create-coupon-usage`,
          body,
           {
             headers: {
