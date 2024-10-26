@@ -189,14 +189,7 @@ export class ServiceItemService {
       filter['status'] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate({
-          path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
-        })
+        .populate( "itemId" ," itemName additionalDetail price comparePrice ")
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -226,14 +219,7 @@ export class ServiceItemService {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
-        .populate({
-          path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
-        })
+        .populate( "itemId" ," itemName additionalDetail price comparePrice ")
         .lean();
 
       const profileInfo = await this.helperService.getworkShopProfileById(
@@ -241,7 +227,6 @@ export class ServiceItemService {
 
         EprofileType.Expert
       );
-      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
       data["profileData"] = profileInfo[0];
       return data;
     } catch (err) {
