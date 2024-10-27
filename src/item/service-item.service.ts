@@ -105,7 +105,7 @@ export class ServiceItemService {
   }
 
   async getServiceItemDetails(id: string, accessToken: string) {
-    console.log(id+"-----"+accessToken);
+  
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
