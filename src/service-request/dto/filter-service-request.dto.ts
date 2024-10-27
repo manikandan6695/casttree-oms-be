@@ -11,6 +11,7 @@ import {
   EServiceRequestMode,
   EServiceRequestStatus,
 } from "../enum/service-request.enum";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 
 export class FilterServiceRequestDTO {
   @IsOptional()
@@ -24,4 +25,8 @@ export class FilterServiceRequestDTO {
   @IsOptional()
   @IsArray()
   nominationIds?: string[];
+
+  @IsOptional()
+  @IsEnum(EserviceItemType)
+  type:EserviceItemType;
 }
