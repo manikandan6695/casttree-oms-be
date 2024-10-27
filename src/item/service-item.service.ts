@@ -105,6 +105,7 @@ export class ServiceItemService {
   }
 
   async getServiceItemDetails(id: string, accessToken: string) {
+  
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
@@ -189,7 +190,7 @@ export class ServiceItemService {
       filter['status'] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate( "itemId" ," itemName additionalDetail price comparePrice ")
+        .populate( "itemId" ," itemName additionalDetail price comparePrice orgId currency")
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -219,7 +220,7 @@ export class ServiceItemService {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
-        .populate( "itemId" ," itemName additionalDetail price comparePrice ")
+        .populate( "itemId" ," itemName additionalDetail price comparePrice orgId currency")
         .lean();
 
       const profileInfo = await this.helperService.getworkShopProfileById(
