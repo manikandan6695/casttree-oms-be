@@ -15,6 +15,7 @@ import {
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { ServiceItemService } from "src/item/service-item.service";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -35,7 +36,8 @@ export class ServiceRequestService {
     accessToken: string,
     organizationId: string,
     skip: number,
-    limit: number
+    limit: number,
+   
   ) {
     try {
 
@@ -51,7 +53,9 @@ export class ServiceRequestService {
             requestedByOrg: new ObjectId(organizationId),
           }),
       };
-
+     if(query.type){
+      filter["type"]= query.type
+     }
 
 
       let sorting = {};
@@ -150,6 +154,7 @@ export class ServiceRequestService {
         sourceId,
         sourceType,
         requestId,
+        type
       } = body;
 
       // Get service due date
@@ -167,6 +172,7 @@ export class ServiceRequestService {
         projectId,
         customQuestions,
         serviceDueDate: serviceLastDate.serviceDueDate,
+        type: type,
         ...(sourceId && { sourceId, sourceType }),
       };
 
@@ -316,13 +322,15 @@ export class ServiceRequestService {
   async getCompletedServiceRequest(id: string, orgId: any) {
 
 
+    
+    
     try {
       let countData = await this.serviceRequestModel.countDocuments({
         requestedToUser: id,
         requestedToOrg: orgId,
         requestStatus: EServiceRequestStatus.completed,
       });
-      return { count: countData };
+       return { count: countData };
     } catch (err) {
       throw err;
     }

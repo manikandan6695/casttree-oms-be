@@ -37,6 +37,26 @@ export class ServiceItemController {
     }
   }
 
+  @Get("workShop")
+  async getWorkshopServiceItems(
+    @Req() req,
+    @Query(ValidationPipe) query: FilterItemRequestDTO,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number
+  ) {
+    try {
+      let data = await this.serviceItemService.getWorkshopServiceItems(
+        query, 
+     
+        skip,
+        limit
+      );
+      return data;
+    } catch (err) {
+      return err;
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(":id")
   async getServiceItemDetails(
@@ -47,6 +67,23 @@ export class ServiceItemController {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
         req["headers"]["authorization"],
+      );
+      return data;
+    } catch (err) {
+      return err;
+    }
+  }
+
+
+  @Get("workShop/:id")
+  async getworkShopServiceItemDetails(
+    @Req() req,
+    @Param("id") _id: string
+  ) {
+    try {
+      let data = await this.serviceItemService.getworkShopServiceItemDetails(
+        _id,
+        
       );
       return data;
     } catch (err) {
