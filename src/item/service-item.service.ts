@@ -46,6 +46,7 @@ export class ServiceItemService {
         filter['type'] = query.type;
       }
       filter['status'] = Estatus.Active;
+  
 
       /*if (query.type === EserviceItemType.workShop) {
         if (query.mode) {
@@ -71,7 +72,7 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
-
+   
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
@@ -190,7 +191,7 @@ export class ServiceItemService {
       filter['status'] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate( "itemId" ," itemName additionalDetail price comparePrice orgId currency")
+        .populate( "itemId" ," itemName itemDescription additionalDetail price comparePrice orgId currency")
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -220,7 +221,7 @@ export class ServiceItemService {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
-        .populate( "itemId" ," itemName additionalDetail price comparePrice orgId currency")
+        .populate( "itemId" ," itemName itemDescription additionalDetail price comparePrice orgId currency")
         .lean();
 
       const profileInfo = await this.helperService.getworkShopProfileById(
