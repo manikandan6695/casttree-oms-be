@@ -7,7 +7,7 @@ export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -21,12 +21,29 @@ export class HelperService {
     return reqHeaders;
   }
 
+  async getProfileByIdTl(userId: string[],  type?: string) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/profile/tl/get-profile-list`,
+         //   `http://localhost:3000/casttree/profile/tl/get-profile-list`,
+          { userIds: userId, type: type },
+          
+        )
+        .toPromise();
+
+
+      return data.data.profileData;
+    } catch (err) {
+      throw err;
+    }
+  }
   async getProfileById(userId: string[], accessToken: string, type?: string) {
     try {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/profile/get-profile-list`,
-        //  `http://localhost:3000/casttree/profile/get-profile-list`,
+          //  `http://localhost:3000/casttree/profile/get-profile-list`,
           { userIds: userId, type: type },
           {
             headers: {
@@ -47,10 +64,10 @@ export class HelperService {
     try {
       let data = await this.http_service
         .post(
-         `${this.configService.get("CASTTREE_BASE_URL")}/profile/workShop/get-profile-list`,
-         // `http://localhost:3000/casttree/profile/workShop/get-profile-list`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/profile/workShop/get-profile-list`,
+          //   `http://localhost:3000/casttree/profile/workShop/get-profile-list`,
           { userIds: userId, type: type },
-          
+
         )
         .toPromise();
 
@@ -62,19 +79,16 @@ export class HelperService {
   }
 
 
-  async getRatings(sourceId: string[], sourceType: string,accessToken: string) {
+  async getRatings(sourceId: string[], sourceType: string) {
     try {
 
       let data = await this.http_service
         .post(
-      
+
           `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-aggregate-list`,
-          { sourceIds: sourceId ,sourceType:sourceType},
-          {
-            headers: {
-              Authorization: accessToken,
-            },
-          }
+         // `http://localhost:3200/casttree-ratings/ratings/get-aggregate-list`,
+          { sourceIds: sourceId, sourceType: sourceType },
+         
         )
         .toPromise();
 
@@ -85,22 +99,18 @@ export class HelperService {
     }
   }
 
-  async getRatingsSummary(sourceId: string, sourceType: string, accessToken: string) {
+  async getRatingsSummary(sourceId: string, sourceType: string) {
     try {
 
       let data = await this.http_service
         .get(
           `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/${sourceType}/${sourceId}/aggregate`,
-       
-         
-          {
-            headers: {
-              Authorization: accessToken,
-            },
-          }
+            //  `http://localhost:3200/casttree-ratings/ratings/${sourceType}/${sourceId}/aggregate`,
+
+          
         )
         .toPromise();
-     
+
 
       return data.data;
     } catch (err) {
@@ -130,13 +140,13 @@ export class HelperService {
     }
   }
 
-  async createCouponUsage(body, accessToken: string ) {
+  async createCouponUsage(body, accessToken: string) {
     try {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/coupon/create-coupon-usage`,
-        // `http://localhost:3000/casttree/coupon/create-coupon-usage`,
-         body,
+          // `http://localhost:3000/casttree/coupon/create-coupon-usage`,
+          body,
           {
             headers: {
               Authorization: accessToken,
@@ -150,8 +160,48 @@ export class HelperService {
     }
   }
 
+  async sendMail(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `https://control.msg91.com/api/v5/email/send`,
+          body,
+          {
+            headers: {
+              authkey: this.configService.get("MSG91_AUTHKEY"),
+              accept: "application/json"
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
 
-  
+  async sendWhastappMessage(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/`,
+          body,
+          {
+            headers: {
+              authkey: this.configService.get("MSG91_AUTHKEY"),
+              accept: "application/json"
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
+
 
 
 }

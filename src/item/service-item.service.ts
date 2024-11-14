@@ -22,7 +22,7 @@ export class ServiceItemService {
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
-    accessToken: string,
+    //accessToken: string,
     skip: number,
     limit: number
   ) {
@@ -75,15 +75,15 @@ export class ServiceItemService {
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
-      const profileInfo = await this.helperService.getProfileById(
+      const profileInfo = await this.helperService.getProfileByIdTl(
         userIds,
-        accessToken,
+     
         EprofileType.Expert
       );
       const ratingInfo = await this.helperService.getRatings(
         sourceIds,
         Eitem.item,
-        accessToken
+       
       );
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
@@ -104,7 +104,7 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(id: string, accessToken: string) {
+  async getServiceItemDetails(id: string) {
   
     try {
       var data: any = await this.serviceItemModel
@@ -119,16 +119,16 @@ export class ServiceItemService {
         })
         .lean();
 
-      const profileInfo = await this.helperService.getProfileById(
+      const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
-        accessToken,
+    
         EprofileType.Expert
       );
 
       const ratingInfo = await this.helperService.getRatingsSummary(
         data.itemId._id,
         Eitem.item,
-        accessToken
+     
 
       );
       const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
