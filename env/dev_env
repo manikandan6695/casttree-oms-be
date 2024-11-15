@@ -16,6 +16,8 @@ LOGGER_ERR_LOG_PATH = "logs/error.log"
 JWT_SECRET = "SXUN#*DKJFDGF&#EF"
 JWT_EXPIRATION = "1d"
 
+MSG91_AUTHKEY = "422288Afyz42hC67262be5P1"
+
 #FILE UPLOADER
 UPLOADER_KEY = "S5B3NH43QPQLH7FXAA7C"
 UPLOADER_SECRET = "lD9+PakjOVMvelPF+LMADBtvbVn7/S8WWO9tFHwHGaE"
@@ -58,3 +60,4 @@ CASTTREE_RATINGS_BASE_URL = "https://esearchprod.casttree.com/casttree-ratings"
 CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:3000"]
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
 CORS_ALLOWED_METHODS = "PUT,GET,POST,DELETE,OPTIONS,PATCH"
+
