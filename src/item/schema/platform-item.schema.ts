@@ -2,6 +2,8 @@ import * as mongoose from "mongoose";
 import { EworkshopMode } from "../enum/workshopMode.enum";
 import { faqModel, faqSchema } from "./faq.schema";
 import { highlightsModel, highlightsSchema } from "./highlights.schema";
+import { targetUsersModel, targetUsersSchema } from "./targetUsers.schema";
+import { testimonialModel, testimonialSchema } from "./testinonial.schema";
 export interface IMedia {
   type?: string;
   media_id?: any;
@@ -28,6 +30,8 @@ export interface IAdditionalDetailModel {
   endTime:String;
   faq: faqModel[];
   highlights: highlightsModel[];
+  targetUsers: targetUsersModel[];
+  testimonials: testimonialModel[];
 
 }
 
@@ -104,7 +108,9 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
     type: String
   },
   faq:[faqSchema],
-  highlights:[highlightsSchema]
+  highlights:[highlightsSchema],
+  targetUsers: [targetUsersSchema],
+  testimonials: [testimonialSchema]
 
 
 });
