@@ -3,7 +3,7 @@ import { EworkshopMode } from "../enum/workshopMode.enum";
 import { faqModel, faqSchema } from "./faq.schema";
 import { highlightsModel, highlightsSchema } from "./highlights.schema";
 import { targetUsersModel, targetUsersSchema } from "./targetUsers.schema";
-import { testimonialModel, testimonialSchema } from "./testinonial.schema";
+import { testimonialModel, testimonialSchema } from "./testimonial.schema";
 import { videoDescriptionModel, videoDescriptionSchema } from "./videoDescription.schema";
 export interface IMedia {
   type?: string;
