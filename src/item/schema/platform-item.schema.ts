@@ -21,19 +21,7 @@ export interface IAdditionalDetailModel {
   maxFollowup: number;
   maxCustomQuestions: number;
   itemNote: IItemNoteModel;
-  meetingLink: string;
-  registrationExpiry: Date;
-  defaultImage: IMedia[];
-  workShopStartDate:  Date;
-  mode: string;
-  workShopEndDate:  Date;
-  startTime:String;
-  endTime:String;
-  faq: faqModel[];
-  highlights: highlightsModel[];
-  targetUsers: targetUsersModel[];
-  testimonials: testimonialModel[];
-  videDescription: videoDescriptionModel[]
+
 
 }
 
@@ -95,25 +83,7 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
     type: Number,
   },
   itemNote: itemNoteSchema,
-  meetingLink: { type: String },
-  registrationExpiry: { type: Date },
-  defaultImage: [MediaSchema],
-  workShopStartDate: { type: Date },
-  mode: {
-    type: String
-  },
-  workShopEndDate: { type: Date },
-  startTime: {
-    type: String
-  },
-  endTime: {
-    type: String
-  },
-  faq:[faqSchema],
-  highlights:[highlightsSchema],
-  targetUsers: [targetUsersSchema],
-  testimonials: [testimonialSchema],
-  videDescription:[videoDescriptionSchema]
+  
 });
 
 
