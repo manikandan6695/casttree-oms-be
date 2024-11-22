@@ -4,6 +4,7 @@ import { faqModel, faqSchema } from "./faq.schema";
 import { highlightsModel, highlightsSchema } from "./highlights.schema";
 import { targetUsersModel, targetUsersSchema } from "./targetUsers.schema";
 import { testimonialModel, testimonialSchema } from "./testinonial.schema";
+import { videoDescriptionModel, videoDescriptionSchema } from "./videoDescription.schema";
 export interface IMedia {
   type?: string;
   media_id?: any;
@@ -32,6 +33,7 @@ export interface IAdditionalDetailModel {
   highlights: highlightsModel[];
   targetUsers: targetUsersModel[];
   testimonials: testimonialModel[];
+  videDescription: videoDescriptionModel[]
 
 }
 
@@ -110,9 +112,8 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
   faq:[faqSchema],
   highlights:[highlightsSchema],
   targetUsers: [targetUsersSchema],
-  testimonials: [testimonialSchema]
-
-
+  testimonials: [testimonialSchema],
+  videDescription:[videoDescriptionSchema]
 });
 
 
