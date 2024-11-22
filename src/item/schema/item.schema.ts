@@ -11,6 +11,7 @@ import {
   IItemCommissionMarkupCurrencyModel,
   ItemCommissionMarkupCurrencySchema,
 } from "./platform-item.schema";
+import { itemAdditionalDetailModel, itemAdditionalDetailSchema } from "./itemAdditionalDetail.schema";
 
 export interface IItemModel extends mongoose.Document {
   orgId: any; //or org model
@@ -30,7 +31,7 @@ export interface IItemModel extends mongoose.Document {
   item_categories?: string[]; // or category model
   itemCategory?: string; // or category model
   itemSubCategory?: string;
-  additionalDetail: IAdditionalDetailModel;
+  additionalDetail: itemAdditionalDetailModel;
   itemCommissionMarkupType: string;
   itemCommissionMarkup: number;
   itemCommissionMarkupCurrency: IItemCommissionMarkupCurrencyModel;
@@ -255,7 +256,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     itemGroupId: {
       type: mongoose.Schema.Types.ObjectId,
     },
-    additionalDetail: additionalDetailSchema,
+    additionalDetail: itemAdditionalDetailSchema,
     itemCommissionMarkupType: {
       type: String,
     },

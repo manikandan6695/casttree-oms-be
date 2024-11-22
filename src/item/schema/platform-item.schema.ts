@@ -1,7 +1,5 @@
 import * as mongoose from "mongoose";
-import { EworkshopMode } from "../enum/workshopMode.enum";
-import { faqModel, faqSchema } from "./faq.schema";
-import { highlightsModel, highlightsSchema } from "./highlights.schema";
+
 export interface IMedia {
   type?: string;
   media_id?: any;
@@ -18,16 +16,7 @@ export interface IAdditionalDetailModel {
   maxFollowup: number;
   maxCustomQuestions: number;
   itemNote: IItemNoteModel;
-  meetingLink: string;
-  registrationExpiry: Date;
-  defaultImage: IMedia[];
-  workShopStartDate:  Date;
-  mode: string;
-  workShopEndDate:  Date;
-  startTime:String;
-  endTime:String;
-  faq: faqModel[];
-  highlights: highlightsModel[];
+
 
 }
 
@@ -89,24 +78,7 @@ export const additionalDetailSchema = new mongoose.Schema<any>({
     type: Number,
   },
   itemNote: itemNoteSchema,
-  meetingLink: { type: String },
-  registrationExpiry: { type: Date },
-  defaultImage: [MediaSchema],
-  workShopStartDate: { type: Date },
-  mode: {
-    type: String
-  },
-  workShopEndDate: { type: Date },
-  startTime: {
-    type: String
-  },
-  endTime: {
-    type: String
-  },
-  faq:[faqSchema],
-  highlights:[highlightsSchema]
-
-
+  
 });
 
 

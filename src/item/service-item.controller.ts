@@ -16,7 +16,7 @@ import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 @Controller("service-item")
 export class ServiceItemController {
   constructor(private serviceItemService: ServiceItemService) {}
-  @UseGuards(JwtAuthGuard)
+
   @Get()
   async getServiceItems(
     @Req() req,
@@ -27,7 +27,7 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItems(
         query, 
-        req["headers"]["authorization"],
+
         skip,
         limit
       );
@@ -57,7 +57,7 @@ export class ServiceItemController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+ 
   @Get(":id")
   async getServiceItemDetails(
     @Req() req,
@@ -66,8 +66,7 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
-        req["headers"]["authorization"],
-      );
+    );
       return data;
     } catch (err) {
       return err;
