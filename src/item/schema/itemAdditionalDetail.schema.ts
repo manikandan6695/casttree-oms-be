@@ -1,10 +1,7 @@
 
 import mongoose from "mongoose";
-import { faqModel, faqSchema } from "./faq.schema";
-import { highlightsModel, highlightsSchema } from "./highlights.schema";
-import { targetUsersModel, targetUsersSchema } from "./targetUsers.schema";
-import { testimonialModel, testimonialSchema } from "./testimonial.schema";
-import { videoDescriptionModel, videoDescriptionSchema } from "./videoDescription.schema";
+
+
 export interface IMedia {
     type?: string;
     media_id?: any;
@@ -25,6 +22,94 @@ export interface IMedia {
       ref: "media",
     },
   });
+  export interface faqModel {
+    question: string;
+    answer: string;
+
+
+}
+export const faqSchema = new mongoose.Schema<any>({
+    question: {
+        type: String,
+    },
+    answer: {
+        type: String,
+    },
+});
+export interface highlightsModel {
+    icon: string;
+    title: string;
+    body: string;
+
+}
+export const highlightsSchema = new mongoose.Schema<any>({
+    icon: {
+        type: String,
+    },
+    title: {
+        type: String,
+    },
+    body: {
+        type: String,
+    }
+
+});
+export interface targetUsersModel {
+    icon: string;
+    title: string;
+    body: string;
+
+}
+export const targetUsersSchema = new mongoose.Schema<any>({
+    icon: {
+        type: String,
+    },
+    title: {
+        type: String,
+    },
+    body: {
+        type: String,
+    }
+
+});
+
+export interface testimonialModel {
+    image: string;
+    name: string;
+    body: string;
+
+}
+export const testimonialSchema = new mongoose.Schema<any>({
+    image: {
+        type: String,
+    },
+    name: {
+        type: String,
+    },
+    body: {
+        type: String,
+    }
+
+});
+
+export interface videoDescriptionModel {
+    title: string;
+    body: string;
+    mediaUrl: string;
+
+
+}
+export const videoDescriptionSchema = new mongoose.Schema<any>({
+    title: {
+        type: String,
+    },
+    body: {
+        type: String,
+    },
+    mediaUrl: {
+        type: String,
+    },
+});
 export interface itemAdditionalDetailModel {
 
     meetingLink: string;
