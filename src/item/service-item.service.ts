@@ -9,6 +9,7 @@ import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
+import { query } from "express";
 
 @Injectable()
 export class ServiceItemService {
@@ -26,6 +27,7 @@ export class ServiceItemService {
     skip: number,
     limit: number
   ) {
+   
     try {
       const filter = {};
       if (query.languageId) {
@@ -48,14 +50,7 @@ export class ServiceItemService {
       filter['status'] = Estatus.Active;
   
 
-      /*if (query.type === EserviceItemType.workShop) {
-        if (query.mode) {
-          filter['itemId.additionalDetail.mode'] = query.mode;
-        }
-        if (query.displayName) {
-          filter['profileData.displayName'] = query.displayName;
-        }
-      }*/
+
 
 
       let serviceItemData: any = await this.serviceItemModel
@@ -136,6 +131,27 @@ export class ServiceItemService {
       data["profileData"] = profileInfo[0];
       data["itemSold"] = parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ?? 0;
       data["ratingsData"] = ratingInfo.data;
+        
+      let newQuery = {
+        skillId: data.skill.skillId,
+        type: EserviceItemType.feedback,
+      }
+      let moreExpertsData = await this.getServiceItems(newQuery,0,100);
+     
+      const updatedMoreExpertsData = [];
+      for(let i = 0 ; i< moreExpertsData.data.length ;i++){
+        if(moreExpertsData.data[i]._id.toString() != data._id.toString() ){
+         updatedMoreExpertsData.push({
+          _id: moreExpertsData.data[i]._id,
+          languages: moreExpertsData.data[i].language,
+          name: moreExpertsData.data[i].profileData.userName,
+          about:moreExpertsData.data[i].profileData.about,
+          tags: moreExpertsData.data[i].profileData.tags,
+          ratings: moreExpertsData.data[i].ratingData
+        })
+        }
+       }
+      data["similarExperts"] = updatedMoreExpertsData;
       return data;
     } catch (err) {
       throw err;
