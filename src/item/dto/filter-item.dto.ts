@@ -17,13 +17,6 @@ export class FilterItemRequestDTO {
   @IsEnum(EserviceItemType)
   type: EserviceItemType;
 
-  @IsOptional()
-  @IsEnum(EworkshopMode)
-  mode: EworkshopMode;
-
-  @IsOptional()
-  @IsString()
-  displayName: string;
 
 
 

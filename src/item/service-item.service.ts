@@ -9,6 +9,7 @@ import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
+import { query } from "express";
 
 @Injectable()
 export class ServiceItemService {
@@ -26,6 +27,7 @@ export class ServiceItemService {
     skip: number,
     limit: number
   ) {
+
     try {
       const filter = {};
       if (query.languageId) {
@@ -46,18 +48,6 @@ export class ServiceItemService {
         filter['type'] = query.type;
       }
       filter['status'] = Estatus.Active;
-  
-
-      /*if (query.type === EserviceItemType.workShop) {
-        if (query.mode) {
-          filter['itemId.additionalDetail.mode'] = query.mode;
-        }
-        if (query.displayName) {
-          filter['profileData.displayName'] = query.displayName;
-        }
-      }*/
-
-
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
         .populate({
@@ -72,19 +62,19 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
-   
+
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds,
-     
+
         EprofileType.Expert
       );
       const ratingInfo = await this.helperService.getRatings(
         sourceIds,
         Eitem.item,
-       
+
       );
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
@@ -106,7 +96,7 @@ export class ServiceItemService {
   }
 
   async getServiceItemDetails(id: string) {
-  
+
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
@@ -122,20 +112,43 @@ export class ServiceItemService {
 
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
-    
+
         EprofileType.Expert
       );
 
       const ratingInfo = await this.helperService.getRatingsSummary(
         data.itemId._id,
         Eitem.item,
-     
+
 
       );
       const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
       data["profileData"] = profileInfo[0];
       data["itemSold"] = parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ?? 0;
       data["ratingsData"] = ratingInfo.data;
+
+      let newQuery = {
+        skillId: data.skill.skillId,
+        type: EserviceItemType.feedback,
+      }
+      let moreExpertsData = await this.getServiceItems(newQuery, 0, 500);
+
+      const updatedMoreExpertsData = [];
+      for (let i = 0; i < moreExpertsData.data.length; i++) {
+        if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
+          updatedMoreExpertsData.push({
+            _id: moreExpertsData.data[i]._id,
+            languages: moreExpertsData.data[i].language,
+            name: moreExpertsData.data[i].profileData.userName,
+            media: moreExpertsData.data[i].profileData.media,
+            is_verified: moreExpertsData.data[i].profileData.is_verified,
+            about: moreExpertsData.data[i].profileData.about,
+            tags: moreExpertsData.data[i].profileData.tags,
+            ratings: moreExpertsData.data[i].ratingData
+          })
+        }
+      }
+      data["similarExperts"] = updatedMoreExpertsData;
       return data;
     } catch (err) {
       throw err;
@@ -191,7 +204,7 @@ export class ServiceItemService {
       filter['status'] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate( "itemId" ," itemName itemDescription additionalDetail price comparePrice orgId currency")
+        .populate("itemId", " itemName itemDescription additionalDetail price comparePrice orgId currency")
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -221,7 +234,7 @@ export class ServiceItemService {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
-        .populate( "itemId" ," itemName itemDescription additionalDetail price comparePrice orgId currency")
+        .populate("itemId", " itemName itemDescription additionalDetail price comparePrice orgId currency")
         .lean();
 
       const profileInfo = await this.helperService.getworkShopProfileById(
