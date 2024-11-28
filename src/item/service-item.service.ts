@@ -131,7 +131,7 @@ export class ServiceItemService {
         skillId: data.skill.skillId,
         type: EserviceItemType.feedback,
       }
-      let moreExpertsData = await this.getServiceItems(newQuery, 0, 100);
+      let moreExpertsData = await this.getServiceItems(newQuery, 0, 500);
 
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
@@ -140,6 +140,8 @@ export class ServiceItemService {
             _id: moreExpertsData.data[i]._id,
             languages: moreExpertsData.data[i].language,
             name: moreExpertsData.data[i].profileData.userName,
+            media: moreExpertsData.data[i].profileData.media,
+            is_verified: moreExpertsData.data[i].profileData.is_verified,
             about: moreExpertsData.data[i].profileData.about,
             tags: moreExpertsData.data[i].profileData.tags,
             ratings: moreExpertsData.data[i].ratingData
