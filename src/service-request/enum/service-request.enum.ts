@@ -59,3 +59,12 @@ export const ESRequestType = [
   ERequestType.requestedToUser,
 
 ];
+export enum EStatus {
+  Active = "Active",
+  Inactive = "Inactive",
+}
+
+export const ESStatus = [
+  EStatus.Active,
+  EStatus.Inactive,
+];
