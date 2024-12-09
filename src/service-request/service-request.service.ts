@@ -11,6 +11,7 @@ import {
   ERequestType,
   EServiceRequestMode,
   EServiceRequestStatus,
+  EStatus,
   EVisibilityStatus,
 } from "./enum/service-request.enum";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
@@ -65,6 +66,9 @@ export class ServiceRequestService {
       if (query.mode === EServiceRequestMode.created) {
         sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: -1 };
       }
+
+      filter["status"] = EStatus.Active;
+     
 
       const data = await this.serviceRequestModel
         .find(filter)

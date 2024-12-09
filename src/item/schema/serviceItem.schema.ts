@@ -8,6 +8,23 @@ import {
 } from "./language.schema";
 import { EserviceItemType } from "../enum/serviceItem.type.enum";
 
+
+export interface expertiseModel {
+  category_id: string;
+  name: string;
+}
+export const expertiseSchema = new mongoose.Schema<any>({
+  category_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "category",
+  },
+ 
+  name: {
+    type: String,
+  },
+})
+
+
 export interface serviceitems {
   itemId: string;
   userId: string;
@@ -17,6 +34,7 @@ export interface serviceitems {
   respondTime: string;
   itemSold: number;
   type:string;
+  expertise: expertiseModel;
 
 }
 
@@ -46,6 +64,7 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
     type:String,
 
 
-  }
+  },
+  expertise: [ expertiseSchema],
 
 });
