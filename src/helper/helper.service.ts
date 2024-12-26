@@ -200,6 +200,31 @@ export class HelperService {
     }
   }
 
+  async getCountryCodeByLatAndLong(latitude: string, longitude: string) {
+    try {
+      const response = await this.http_service
+        .get(
+          `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}&api_key=${process.env.GEOCODE_API_KEY}`
+        )
+        .toPromise();
+      return response.data["address"]["country_code"].toUpperCase();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCountryCodeByIpAddress(ipAddress: string) {
+    try {  
+      const response = await this.http_service
+        .get(
+          `https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_API_KEY}&ip=${ipAddress}`
+        )
+        .toPromise();
+      return response.data["country_code2"];
+    } catch (error) {
+      return error;
+    }
+  }
 
 
 

@@ -27,9 +27,9 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItems(
         query, 
-
         skip,
-        limit
+        limit,
+        req.headers["x-country-code"]
       );
       return data;
     } catch (err) {
@@ -66,6 +66,7 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
+        req.headers["x-country-code"]
     );
       return data;
     } catch (err) {
