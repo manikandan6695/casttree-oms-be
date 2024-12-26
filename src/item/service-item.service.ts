@@ -76,9 +76,9 @@ export class ServiceItemService {
         serviceItemData.forEach((e) => {
           let currData = priceListData[e.itemId._id.toString()];
           if (currData) {
-            e.itemId._id["price"] = currData["price"];
-            e.itemId._id["comparePrice"] = currData["comparePrice"];
-            e.itemId._id["currency"] = currData["currency"];
+            e.itemId["price"] = currData["price"];
+            e.itemId["comparePrice"] = currData["comparePrice"];
+            e.itemId["currency"] = currData["currency"];
           }
         });
       }
