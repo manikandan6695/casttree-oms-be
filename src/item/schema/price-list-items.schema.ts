@@ -1,20 +1,24 @@
 import * as mongoose from "mongoose";
 import { ICurrencyModel } from "src/shared/schema/currency.schema";
 
-export class PriceBrackets {
-    starting_quantity?: number;
-    ending_quantity?: number;
-    price: number;
-    currency: string | ICurrencyModel;
-  }
+// export class PriceBrackets {
+//   starting_quantity?: number;
+//   ending_quantity?: number;
+//   price: number;
+//   currency: string | ICurrencyModel;
+// }
 export interface IPriceListItemsModel extends mongoose.Document {
-  organization_id: string;
-  price_list_id: string;
+  organization_id?: string;
+  price_list_id?: string;
   item_id: string;
   pricing_scheme: string;
-  pricing_brackets: PriceBrackets[];
-  created_by: any;
-  updated_by: any;
+  price: number;
+  comparePrice: number;
+  // pricing_brackets: PriceBrackets[];
+  country_code: string;
+  currency: string | ICurrencyModel;
+  created_by?: any;
+  updated_by?: any;
 }
 export const PriceListItemsSchema = new mongoose.Schema<any>(
   {
@@ -31,9 +35,22 @@ export const PriceListItemsSchema = new mongoose.Schema<any>(
       ref: "item",
     },
     pricing_scheme: {
-      type: String
+      type: String,
     },
-    pricing_brackets: [{ type: mongoose.Schema.Types.Mixed }],
+    currency: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "currency",
+    },
+    // pricing_brackets: [{ type: mongoose.Schema.Types.Mixed }],
+    price: {
+      type: Number,
+    },
+    comparePrice: {
+      type: Number,
+    },
+    country_code: {
+      type: String,
+    },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",

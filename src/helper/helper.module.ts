@@ -5,6 +5,7 @@ import { AuthModule } from "src/auth/auth.module";
 import { HttpModule } from "@nestjs/axios";
 import { HelperController } from "./helper.controller";
 import { HelperService } from "./helper.service";
+import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware";
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { HelperService } from "./helper.service";
     HttpModule,
   ],
   controllers: [HelperController],
-  providers: [HelperService],
-  exports: [HelperService],
+  providers: [HelperService, GetUserOriginMiddleware],
+  exports: [HelperService, GetUserOriginMiddleware],
 })
 export class HelperModule {}

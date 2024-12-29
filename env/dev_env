@@ -61,3 +61,8 @@ CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:30
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent"
 CORS_ALLOWED_METHODS = "PUT,GET,POST,DELETE,OPTIONS,PATCH"
 
+#GEOCODE (1 REQUEST PER SECOND)
+GEOCODE_API_KEY = "676a747d832dc614447792sxz467972"
+
+#IP_API (1000 REQUEST PER DAY)
+IP_API_KEY = "088b257025d04a348648b59858ab5559"

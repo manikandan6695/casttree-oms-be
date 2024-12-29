@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { ItemModule } from "./item/item.module";
@@ -14,8 +14,8 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { CommentsModule } from "./comments/comments.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
-
-
+import { CacheModule } from "@nestjs/cache-manager";
+import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 
 @Module({
   imports: [
@@ -40,6 +40,9 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
       },
       inject: [ConfigService],
     }),
+    CacheModule.register({
+      isGlobal: true,
+    }),
     SharedModule,
     ItemModule,
     HelperModule,
@@ -49,7 +52,7 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     ServiceResponseFormatModule,
     CommentsModule,
     PaymentRequestModule,
-    InvoiceModule 
+    InvoiceModule,
   ],
   controllers: [],
   providers: [
@@ -59,4 +62,10 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(GetUserOriginMiddleware)
+      .forRoutes("/service-item");
+  }
+}
