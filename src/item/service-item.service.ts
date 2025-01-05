@@ -1,16 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
-import { serviceitems } from "./schema/serviceItem.schema";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { HelperService } from "src/helper/helper.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { Eitem } from "./enum/rating_sourcetype_enum";
+import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EprofileType } from "./enum/profileType.enum";
+import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
-import { query } from "express";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
+import { serviceitems } from "./schema/serviceItem.schema";
 
 @Injectable()
 export class ServiceItemService {
@@ -20,7 +19,7 @@ export class ServiceItemService {
     private priceListItemModel: Model<IPriceListItemsModel>,
     private readonly serviceRequestService: ServiceRequestService,
     private helperService: HelperService
-  ) {}
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -312,6 +311,84 @@ export class ServiceItemService {
         acc[`${cur.item_id.toString()}`] = cur;
         return acc;
       }, {});
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getCourseHomeScreenData() {
+    try {
+      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": "featured" }).lean();
+      let featureCarouselData = {
+        "ListData": []
+      };
+      featureCarouselData["headerName"] = "CASTTREE SPECIALS";
+      for (let i = 0; i < featuredData.length; i++) {
+        featureCarouselData["ListData"].push({
+          "thumbnail": featuredData[i].additionalDetails.thumbnail,
+          "ctaName": featuredData[i].additionalDetails.ctaName,
+          "navigationURL": featuredData[i].additionalDetails.navigationURL,
+        })
+      }
+      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": "SeriesForYou" }).lean();
+      let updatedSeriesForYouData = {
+        "ListData": []
+      };
+      updatedSeriesForYouData["headerName"] = "2ColThumbnailList";
+      for (let i = 0; i < seriesForYouData.length; i++) {
+        updatedSeriesForYouData["ListData"].push({
+          "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
+          "navigationURL": seriesForYouData[i].additionalDetails.navigationURL,
+        })
+      }
+      let sections = [];
+     /* sections.push({
+        "data": {
+          "headerName": "Continue where you left",
+          "listData": [
+            {
+              "thumbnail": "",
+              "title": "Make it Better - After Effects",
+              "ctaName": "Button",
+              "progressPercentage": 10,
+              "providerName": "",
+              "providerLogo": "",
+              "navigationURL": "process/{processId}/task/{taskId}",
+            }
+          ]
+        },
+        "componentType": "ActiveProcessList"
+
+      }),*/
+        sections.push({
+          "data": {
+            "headerName": "CASTTREE SPECIALS",
+            "listData": featureCarouselData["ListData"]
+          },
+          "horizontalScroll": true,
+          "componentType": "feature-carousel"
+        }),
+        sections.push({
+          "data": {
+            "headerName": "Series for you",
+            "listData": updatedSeriesForYouData["ListData"]
+          },
+          "horizontalScroll": false,
+          "componentType": "2ColThumbnailList"
+        });
+
+      let data = {};
+      data["sections"] = sections;
+
+      let finalResponse = {
+        "status":200,
+        "message": "success",
+        "data": data
+      }
+
+
+
+      return finalResponse;
     } catch (err) {
       throw err;
     }

@@ -6,11 +6,13 @@ import {
   Query,
   Req,
   UseGuards,
-  ValidationPipe,
+  ValidationPipe
 } from "@nestjs/common";
-import { ServiceItemService } from "./service-item.service";
+import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
+import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { ServiceItemService } from "./service-item.service";
 
 
 @Controller("service-item")
@@ -90,4 +92,21 @@ export class ServiceItemController {
       return err;
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("courses/home-screen-data")
+  async getCourseHomeScreenData(
+  @GetToken() token: UserToken
+  ) {
+    try {
+        let data = await this.serviceItemService.getCourseHomeScreenData();
+        return data;
+      
+    } catch (err) {
+      throw err
+    }
+  }
 }
+
+
+
