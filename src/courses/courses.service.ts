@@ -26,6 +26,9 @@ export class CoursesService {
             let currentTaskData: any = await this.tasksModel.findOne({ parentProcessId: processId, _id: taskId });
             let finalResponse = {};
             let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId})).toString();
+            finalResponse["taskId"] = currentTaskData._id;
+            finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
+            finalResponse["processId"] = currentTaskData.processId;
             finalResponse["taskType"] = currentTaskData.type;
             finalResponse["taskNumber"] = currentTaskData.taskNumber;
             finalResponse["taskTitle"] = currentTaskData.title;
@@ -33,6 +36,9 @@ export class CoursesService {
             finalResponse["totalTasks"] = totalTasks;
             let nextTaskData = await this.tasksModel.findOne({ _id: { $gt: taskId } });
             let nextTask = {
+                "taskId" :nextTaskData._id,
+                "parentProcessId" : nextTaskData.parentProcessId,
+                "processId" : nextTaskData.processId,
                 "nextTaskTitle": nextTaskData.title,
                 "nextTaskType": nextTaskData.type,
                 "isLocked": nextTaskData.isLocked,
