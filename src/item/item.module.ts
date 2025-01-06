@@ -1,6 +1,9 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
+import { CoursesModule } from "src/courses/courses.module";
+import { HelperModule } from "src/helper/helper.module";
+import { ServiceRequestModule } from "src/service-request/service-request.module";
 import { ItemController } from "./item.controller";
 import { ItemService } from "./item.service";
 import { AssociatedItemsSchema } from "./schema/associated-items.schema";
@@ -8,14 +11,12 @@ import { inventorySchema } from "./schema/inventory.schema";
 import { ItemSchema } from "./schema/item.schema";
 import { ManufacturerSchema } from "./schema/manufacturer.schema";
 import { platformItemSchema } from "./schema/platform-item.schema";
+import { PriceListItemsSchema } from "./schema/price-list-items.schema";
 import { PriceListSchema } from "./schema/price-list.schema";
+import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
-import { serviceitemsSchema } from "./schema/serviceItem.schema";
-import { HelperModule } from "src/helper/helper.module";
-import { ServiceRequestModule } from "src/service-request/service-request.module";
-import { PriceListItemsSchema } from "./schema/price-list-items.schema";
 
 @Module({
   imports: [
@@ -29,10 +30,12 @@ import { PriceListItemsSchema } from "./schema/price-list-items.schema";
       { name: "priceListItems", schema: PriceListItemsSchema },
       { name: "platformItem", schema: platformItemSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
+    
     ]),
     AuthModule,
     HelperModule,
     ServiceRequestModule,
+    CoursesModule,
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],

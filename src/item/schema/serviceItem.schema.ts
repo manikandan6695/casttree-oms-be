@@ -1,4 +1,3 @@
-import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import {
   ILanguageModel,
@@ -6,7 +5,6 @@ import {
   languageSchema,
   skillSchema,
 } from "./language.schema";
-import { EserviceItemType } from "../enum/serviceItem.type.enum";
 
 
 export interface expertiseModel {
@@ -18,11 +16,54 @@ export const expertiseSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "category",
   },
- 
+
   name: {
     type: String,
   },
 })
+
+export interface serviceItemAdditionalDetailModel {
+
+  processId: string;
+  thumbnail: string;
+  ctaName: string;
+  navigationURL: string;
+}
+export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
+
+  processId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "processes",
+  },
+  thumbnail: {
+    type: String
+  },
+  ctaName: {
+    type: String
+  },
+  navigationURL: {
+    type: String
+  },
+
+
+})
+
+export interface tagModel {
+  category_id: string;
+  name: string;
+}
+export const tagSchema = new mongoose.Schema<any>({
+  category_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "category",
+  },
+
+  name: {
+    type: String,
+  },
+
+})
+
 
 
 export interface serviceitems {
@@ -33,8 +74,10 @@ export interface serviceitems {
   status: string;
   respondTime: string;
   itemSold: number;
-  type:string;
+  type: string;
   expertise: expertiseModel;
+  tag: tagModel;
+  additionalDetails: serviceItemAdditionalDetailModel;
 
 }
 
@@ -60,11 +103,13 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   itemSold: {
     type: Number,
   },
-  type:{
-    type:String,
+  type: {
+    type: String,
 
 
   },
-  expertise: [ expertiseSchema],
+  expertise: [expertiseSchema],
+  tag: [tagSchema],
+  additionalDetails: serviceItemAdditionalDetailSchema
 
 });

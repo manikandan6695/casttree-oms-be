@@ -1,26 +1,26 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
-import { serviceitems } from "./schema/serviceItem.schema";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { CoursesService } from "src/courses/courses.service";
 import { HelperService } from "src/helper/helper.service";
-import { ServiceRequestService } from "src/service-request/service-request.service";
-import { Eitem } from "./enum/rating_sourcetype_enum";
+import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
+import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
-import { query } from "express";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
+import { serviceitems } from "./schema/serviceItem.schema";
 
 @Injectable()
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
-    @InjectModel("priceListItems")
-    private priceListItemModel: Model<IPriceListItemsModel>,
-    private readonly serviceRequestService: ServiceRequestService,
-    private helperService: HelperService
-  ) {}
+    @InjectModel("priceListItems") private priceListItemModel: Model<IPriceListItemsModel>,
+    private helperService: HelperService,
+    private courseService: CoursesService,
+    //private serviceRequestService : ServiceRequestService
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -136,15 +136,14 @@ export class ServiceItemService {
         data.itemId._id,
         Eitem.item
       );
-      const totalFeedbacks =
-        await this.serviceRequestService.getCompletedServiceRequest(
-          data.userId,
-          data.itemId.orgId._id
-        );
+      /* const totalFeedbacks =
+         await this.serviceRequestService.getCompletedServiceRequest(
+           data.userId,
+           data.itemId.orgId._id
+         );*/
       data["profileData"] = profileInfo[0];
-      data["itemSold"] =
-        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ??
-        0;
+      /* data["itemSold"] =
+         parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ;*/
       data["ratingsData"] = ratingInfo.data;
       if (country_code) {
         let priceListData = await this.getPriceListItems(
@@ -312,6 +311,90 @@ export class ServiceItemService {
         acc[`${cur.item_id.toString()}`] = cur;
         return acc;
       }, {});
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getCourseHomeScreenData(userId) {
+    try {
+      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.featured });
+      let featureCarouselData = {
+        "ListData": []
+      };
+      for (let i = 0; i < featuredData.length; i++) {
+        featureCarouselData["ListData"].push({
+          "processId": featuredData[i].additionalDetails.processId,
+          "thumbnail": featuredData[i].additionalDetails.thumbnail,
+          "ctaName": featuredData[i].additionalDetails.ctaName,
+          "navigationURL": featuredData[i].additionalDetails.navigationURL,
+        })
+      }
+
+      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.SeriesForYou });
+      let updatedSeriesForYouData = {
+        "ListData": []
+      };
+
+      for (let i = 0; i < seriesForYouData.length; i++) {
+        updatedSeriesForYouData["ListData"].push({
+          "processId": seriesForYouData[i].additionalDetails.processId,
+          "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
+          "navigationURL": seriesForYouData[i].additionalDetails.navigationURL,
+          
+        })
+      }
+      let sections = [];
+      let pendingProcessInstanceData = await this.courseService.pendingProcess(userId);
+
+      sections.push({
+        "data": {
+          "headerName": Eheader.continue,
+          "listData": [
+            {
+              "thumbnail": pendingProcessInstanceData.currentTask.taskMetaData.media[0].mediaUrl,
+              "title": pendingProcessInstanceData.currentTask.taskTitle,
+              "ctaName": "Button",
+              "progressPercentage": pendingProcessInstanceData.completed,
+              //"providerName": "",
+              // "providerLogo": "",
+              "navigationURL": "process/" + pendingProcessInstanceData.processId + "/task/" + pendingProcessInstanceData.currentTask._id,
+              "taskDetail":pendingProcessInstanceData.currentTask
+            }
+          ]
+        },
+        "componentType": EcomponentType.ActiveProcessList
+
+      }),
+        sections.push({
+          "data": {
+            "headerName": Eheader.casttreeSpecials,
+            "listData": featureCarouselData["ListData"]
+          },
+          "horizontalScroll": true,
+          "componentType": EcomponentType.feature
+        }),
+        sections.push({
+          "data": {
+            "headerName": Eheader.mySeries,
+            "listData": updatedSeriesForYouData["ListData"]
+          },
+          "horizontalScroll": false,
+          "componentType": EcomponentType.ColThumbnailList
+        });
+
+      let data = {};
+      data["sections"] = sections;
+
+      let finalResponse = {
+        "status": 200,
+        "message": "success",
+        "data": data
+      }
+
+
+
+      return finalResponse;
     } catch (err) {
       throw err;
     }
