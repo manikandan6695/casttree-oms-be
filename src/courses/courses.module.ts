@@ -22,6 +22,8 @@ import { taskSchema } from './schema/task.schema';
 
   ],
   controllers: [CoursesController],
-  providers: [CoursesService]
+  providers: [CoursesService],
+  exports: [CoursesService
+    ],
 })
 export class CoursesModule {}

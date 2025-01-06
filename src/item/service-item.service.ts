@@ -1,9 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
+import { CoursesService } from "src/courses/courses.service";
 import { HelperService } from "src/helper/helper.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
@@ -15,10 +17,10 @@ import { serviceitems } from "./schema/serviceItem.schema";
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
-    @InjectModel("priceListItems")
-    private priceListItemModel: Model<IPriceListItemsModel>,
-    private readonly serviceRequestService: ServiceRequestService,
-    private helperService: HelperService
+    @InjectModel("priceListItems") private priceListItemModel: Model<IPriceListItemsModel>,
+    private helperService: HelperService,
+    private courseService: CoursesService,
+    private serviceRequestService : ServiceRequestService
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
@@ -135,15 +137,14 @@ export class ServiceItemService {
         data.itemId._id,
         Eitem.item
       );
-      const totalFeedbacks =
-        await this.serviceRequestService.getCompletedServiceRequest(
-          data.userId,
-          data.itemId.orgId._id
-        );
+       const totalFeedbacks =
+         await this.serviceRequestService.getCompletedServiceRequest(
+           data.userId,
+           data.itemId.orgId._id
+         );
       data["profileData"] = profileInfo[0];
-      data["itemSold"] =
-        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ??
-        0;
+       data["itemSold"] =
+         parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ;
       data["ratingsData"] = ratingInfo.data;
       if (country_code) {
         let priceListData = await this.getPriceListItems(
@@ -316,72 +317,76 @@ export class ServiceItemService {
     }
   }
 
-  async getCourseHomeScreenData() {
+  async getCourseHomeScreenData(userId) {
     try {
-      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": "featured" }).lean();
+      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.featured }).lean();
       let featureCarouselData = {
         "ListData": []
       };
-      featureCarouselData["headerName"] = "CASTTREE SPECIALS";
+
       for (let i = 0; i < featuredData.length; i++) {
         featureCarouselData["ListData"].push({
+          "processId": featuredData[i].additionalDetails.processId,
           "thumbnail": featuredData[i].additionalDetails.thumbnail,
           "ctaName": featuredData[i].additionalDetails.ctaName,
           "navigationURL": featuredData[i].additionalDetails.navigationURL,
         })
       }
-      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": "SeriesForYou" }).lean();
+      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.SeriesForYou }).lean();
       let updatedSeriesForYouData = {
         "ListData": []
       };
-      updatedSeriesForYouData["headerName"] = "2ColThumbnailList";
+
       for (let i = 0; i < seriesForYouData.length; i++) {
         updatedSeriesForYouData["ListData"].push({
+          "processId": seriesForYouData[i].additionalDetails.processId,
           "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
           "navigationURL": seriesForYouData[i].additionalDetails.navigationURL,
         })
       }
       let sections = [];
-     /* sections.push({
+      let pendingProcessInstanceData = await this.courseService.pendingProcess(userId);
+
+      sections.push({
         "data": {
-          "headerName": "Continue where you left",
+          "headerName": Eheader.continue,
           "listData": [
             {
-              "thumbnail": "",
-              "title": "Make it Better - After Effects",
+              "thumbnail": pendingProcessInstanceData.currentTask.taskMetaData.media[0].mediaUrl,
+              "title": pendingProcessInstanceData.currentTask.taskTitle,
               "ctaName": "Button",
-              "progressPercentage": 10,
-              "providerName": "",
-              "providerLogo": "",
-              "navigationURL": "process/{processId}/task/{taskId}",
+              "progressPercentage": pendingProcessInstanceData.completed,
+              //"providerName": "",
+              // "providerLogo": "",
+              "navigationURL": "process/" + pendingProcessInstanceData.processId + "/task/" + pendingProcessInstanceData.currentTask._id,
             }
           ]
         },
-        "componentType": "ActiveProcessList"
+        "componentType": EcomponentType.ActiveProcessList
 
-      }),*/
+      }),
         sections.push({
           "data": {
-            "headerName": "CASTTREE SPECIALS",
+            "headerName": Eheader.casttreeSpecials,
             "listData": featureCarouselData["ListData"]
           },
           "horizontalScroll": true,
-          "componentType": "feature-carousel"
+          "componentType": EcomponentType.feature
         }),
         sections.push({
           "data": {
-            "headerName": "Series for you",
+            "headerName": Eheader.mySeries,
             "listData": updatedSeriesForYouData["ListData"]
           },
           "horizontalScroll": false,
-          "componentType": "2ColThumbnailList"
+          "componentType": EcomponentType.ColThumbnailList
         });
 
       let data = {};
       data["sections"] = sections;
 
       let finalResponse = {
-        "status":200,
+        "status": 200,
         "message": "success",
         "data": data
       }

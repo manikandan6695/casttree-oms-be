@@ -99,7 +99,7 @@ export class ServiceItemController {
   @GetToken() token: UserToken
   ) {
     try {
-        let data = await this.serviceItemService.getCourseHomeScreenData();
+        let data = await this.serviceItemService.getCourseHomeScreenData(token.id);
         return data;
       
     } catch (err) {

@@ -35,7 +35,7 @@ import { ServiceItemService } from "./service-item.service";
     AuthModule,
     HelperModule,
     ServiceRequestModule,
-    CoursesModule
+    CoursesModule,
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],

@@ -20,7 +20,7 @@ export interface processInstanceModel {
 export const processInstanceSchema = new mongoose.Schema<any>({
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
-    processId:{ type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    processId:{ type: mongoose.Schema.Types.ObjectId, ref: "processes" },
     processType:{type:String},
     startedAt:{type:Date},
     orderId:{ type: String},

@@ -76,14 +76,28 @@ export class CoursesService {
     async pendingProcess(userId) {
         try {
             
-            let pendingProcessInstanceData = await this.processInstancesModel.find({userId:userId});
-            
+            let pendingProcessInstanceData: any = await this.processInstancesModel.findOne({userId:userId}).populate("currentTask").lean();
+            let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData.processId})).toString();
+                pendingProcessInstanceData.completed = Math.ceil((parseInt(  pendingProcessInstanceData.currentTask.taskNumber) / parseInt( totalTasks))*100);
             return pendingProcessInstanceData;
 
         } catch (err) {
             throw err;
         }
     }
+
+
+    async getMySeries(userId,status) {
+        try {
+            
+            let userProcessInstanceData: any = await this.processInstancesModel.findOne({userId:userId,processStatus:status}).populate("currentTask").populate("processId");
+            return userProcessInstanceData;
+
+        } catch (err) {
+            throw err;
+        }
+    }
+
 
 
 }
