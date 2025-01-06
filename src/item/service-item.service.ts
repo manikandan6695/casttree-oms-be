@@ -318,11 +318,10 @@ export class ServiceItemService {
 
   async getCourseHomeScreenData(userId) {
     try {
-      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.featured }).lean();
+      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.featured });
       let featureCarouselData = {
         "ListData": []
       };
-
       for (let i = 0; i < featuredData.length; i++) {
         featureCarouselData["ListData"].push({
           "processId": featuredData[i].additionalDetails.processId,
@@ -331,7 +330,8 @@ export class ServiceItemService {
           "navigationURL": featuredData[i].additionalDetails.navigationURL,
         })
       }
-      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.SeriesForYou }).lean();
+
+      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.SeriesForYou });
       let updatedSeriesForYouData = {
         "ListData": []
       };
@@ -341,6 +341,7 @@ export class ServiceItemService {
           "processId": seriesForYouData[i].additionalDetails.processId,
           "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
           "navigationURL": seriesForYouData[i].additionalDetails.navigationURL,
+          
         })
       }
       let sections = [];
@@ -358,6 +359,7 @@ export class ServiceItemService {
               //"providerName": "",
               // "providerLogo": "",
               "navigationURL": "process/" + pendingProcessInstanceData.processId + "/task/" + pendingProcessInstanceData.currentTask._id,
+              "taskDetail":pendingProcessInstanceData.currentTask
             }
           ]
         },

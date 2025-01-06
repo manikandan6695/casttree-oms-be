@@ -23,12 +23,14 @@ export const expertiseSchema = new mongoose.Schema<any>({
 })
 
 export interface serviceItemAdditionalDetailModel {
+
   processId: string;
   thumbnail: string;
   ctaName: string;
   navigationURL: string;
 }
 export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
+
   processId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "processes",

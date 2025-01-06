@@ -96,8 +96,18 @@ export class CoursesService {
     async getMySeries(userId,status) {
         try {
             
-            let userProcessInstanceData: any = await this.processInstancesModel.findOne({userId:userId,processStatus:status}).populate("currentTask").populate("processId");
+            let userProcessInstanceData: any = await this.processInstancesModel.find({userId:userId,processStatus:status}).populate("currentTask").populate("processId");
             return userProcessInstanceData;
+
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async getAllTasks(parentProcessId) {
+        try {
+            let allTaskdata : any = await this.tasksModel.find({parentProcessId:parentProcessId});
+            return allTaskdata;
 
         } catch (err) {
             throw err;

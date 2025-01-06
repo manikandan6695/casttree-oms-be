@@ -49,4 +49,18 @@ export class CoursesController {
       throw err
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("process/tasks/:parentProcessId")
+  async getAllTasks(
+    @GetToken() token: UserToken,
+    @Param("parentProcessId")parentProcessId: string,
+  ) {
+    try {
+      let data = await this.coursesService.getAllTasks(parentProcessId);
+      return data;
+    } catch (err) {
+      throw err
+    }
+  }
 }
