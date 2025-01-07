@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
 
-export interface processInstanceDetailsModel {
+export interface processInstanceDetailModel {
     processInstanceId: string;
     processId: string;
-    subprocessId: string;
     taskId: string;
     taskResponse: string;
     taskStatus: string;
@@ -14,11 +13,10 @@ export interface processInstanceDetailsModel {
     createdBy: string;
     updatedBy: string;
 }
-export const processInstanceDetailsSchema = new mongoose.Schema<any>({
-    processInstanceId: { type: mongoose.Schema.Types.ObjectId, ref: "processInstances" },
-    processId: { type: mongoose.Schema.Types.ObjectId, ref: "processes" },
-    subprocessId: { type: mongoose.Schema.Types.ObjectId, ref: "subprocess" },
-    taskId: { type: mongoose.Schema.Types.ObjectId, ref: "tasks" },
+export const processInstanceDetailSchema = new mongoose.Schema<any>({
+    processInstanceId: { type: mongoose.Schema.Types.ObjectId, ref: "processInstance" },
+    processId: { type: mongoose.Schema.Types.ObjectId, ref: "process" },
+    taskId: { type: mongoose.Schema.Types.ObjectId, ref: "task" },
     taskResponse: { type: String },
     taskStatus: { type: String },
     triggeredAt: { type: Date },
@@ -29,6 +27,6 @@ export const processInstanceDetailsSchema = new mongoose.Schema<any>({
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
 },
     {
-        collection: "processInstanceDetails",
+        collection: "processInstanceDetail",
         timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     });

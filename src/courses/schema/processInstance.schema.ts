@@ -7,7 +7,6 @@ export interface processInstanceModel {
     startedAt:any;
     orderId:string;
     processStatus:string;
-    currentSubProcess:string;
     currentTask:string;
     purchasedAt:any;
     validTill:any;
@@ -20,13 +19,12 @@ export interface processInstanceModel {
 export const processInstanceSchema = new mongoose.Schema<any>({
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
-    processId:{ type: mongoose.Schema.Types.ObjectId, ref: "processes" },
+    processId:{ type: mongoose.Schema.Types.ObjectId, ref: "process" },
     processType:{type:String},
     startedAt:{type:Date},
     orderId:{ type: String},
     processStatus:{type:String},
-    currentSubProcess:{ type: mongoose.Schema.Types.ObjectId, ref: "subprocess" },
-    currentTask:{ type: mongoose.Schema.Types.ObjectId, ref: "tasks" },
+    currentTask:{ type: mongoose.Schema.Types.ObjectId, ref: "task" },
     purchasedAt:{type:Date},
     validTill:{type:Date},
     status:{type:String},
@@ -36,6 +34,6 @@ export const processInstanceSchema = new mongoose.Schema<any>({
 }
 ,
 {
-    collection: "processInstances",
+    collection: "processInstance",
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   });

@@ -5,19 +5,18 @@ import { CoursesService } from './courses.service';
 import { errorResponseSchema } from './schema/errorResponse.schema';
 import { processSchema } from './schema/process.schema';
 import { processInstanceSchema } from './schema/processInstance.schema';
-import { processInstanceDetailsSchema } from './schema/processInstanceDetails.schema';
-import { subprocessSchema } from './schema/subprocess.schema';
+import { processInstanceDetailSchema } from './schema/processInstanceDetails.schema';
 import { taskSchema } from './schema/task.schema';
+
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: "subprocess", schema: subprocessSchema },
       { name: "errorResponses", schema: errorResponseSchema },
-      { name: "processes", schema: processSchema },
-      { name: "processInstances", schema: processInstanceSchema },
-      { name: "processInstanceDetails", schema: processInstanceDetailsSchema },
-      { name: "tasks", schema: taskSchema},
+      { name: "process", schema: processSchema },
+      { name: "processInstance", schema: processInstanceSchema },
+      { name: "processInstanceDetail", schema: processInstanceDetailSchema },
+      { name: "task", schema: taskSchema},
     ]),
 
   ],

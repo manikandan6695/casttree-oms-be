@@ -3,22 +3,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { processModel } from './schema/process.schema';
 import { processInstanceModel } from './schema/processInstance.schema';
-import { processInstanceDetailsModel } from './schema/processInstanceDetails.schema';
-import { subprocessModel } from './schema/subprocess.schema';
+import { processInstanceDetailModel } from './schema/processInstanceDetails.schema';
 import { taskModel } from './schema/task.schema';
+
+
 
 @Injectable()
 export class CoursesService {
     constructor(
-        @InjectModel("subprocess")
-        private readonly subprocessModel: Model<subprocessModel>,
-        @InjectModel("processes")
+        @InjectModel("process")
         private readonly processesModel: Model<processModel>,
-        @InjectModel("processInstances")
+        @InjectModel("processInstance")
         private readonly processInstancesModel: Model<processInstanceModel>,
-        @InjectModel("processInstanceDetails")
-        private readonly processInstanceDetailsModel: Model<processInstanceDetailsModel>,
-        @InjectModel("tasks")
+        @InjectModel("processInstanceDetail")
+        private readonly processInstanceDetailsModel: Model<processInstanceDetailModel>,
+        @InjectModel("task")
         private readonly tasksModel: Model<taskModel>,
     ) { }
     async getTaskDetail(processId, taskId) {
@@ -42,7 +41,7 @@ export class CoursesService {
                 "nextTaskTitle": nextTaskData.title,
                 "nextTaskType": nextTaskData.type,
                 "isLocked": nextTaskData.isLocked,
-                "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl 
+                "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl
             }
             finalResponse["nextTaskData"] = nextTask;
             return finalResponse;

@@ -1,21 +1,23 @@
 import mongoose from "mongoose";
 
 export interface processModel {
-    chapters: string[];
-    chapterMetaData: any;
-
+parentProcessId : string;
+processMetaData : any;
+status : string;
 }
+
 export const processSchema = new mongoose.Schema<any>({
-    chapters: [
+    parentProcessId: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "chapters",
+            ref: "process",
         },
     ],
-    chapterMetaDAta: { type: Object }
+    processMetaData: { type: mongoose.Schema.Types.Mixed },
+    status:{type: String}
 },
 {
-    collection: "processes",
+    collection: "process",
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
 }
 );
