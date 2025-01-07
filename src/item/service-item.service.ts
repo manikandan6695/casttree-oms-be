@@ -3,7 +3,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
 import { CoursesService } from "src/courses/courses.service";
 import { HelperService } from "src/helper/helper.service";
-import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
@@ -20,7 +19,7 @@ export class ServiceItemService {
     @InjectModel("priceListItems") private priceListItemModel: Model<IPriceListItemsModel>,
     private helperService: HelperService,
     private courseService: CoursesService,
-    private serviceRequestService: ServiceRequestService,
+    //private serviceRequestService: ServiceRequestService,
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
@@ -137,14 +136,14 @@ export class ServiceItemService {
         data.itemId._id,
         Eitem.item
       );
-      const totalFeedbacks =
+    /*  const totalFeedbacks =
         await this.serviceRequestService.getCompletedServiceRequest(
           data.userId,
           data.itemId.orgId._id
-        );
+        );*/
       data["profileData"] = profileInfo[0];
-      data["itemSold"] =
-        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
+     /* data["itemSold"] =
+        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;*/
       data["ratingsData"] = ratingInfo.data;
       if (country_code) {
         let priceListData = await this.getPriceListItems(
