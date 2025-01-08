@@ -364,7 +364,9 @@ export class ServiceItemService {
       let continueWhereYouLeftData = {
         "ListData": []
       };
+      if(pendingProcessInstanceData.length>0){
       let continueProcessIds = [];
+
       for (let i = 0; i < pendingProcessInstanceData.length; i++) {
         continueProcessIds.push(pendingProcessInstanceData[i].processId)
       }
@@ -381,7 +383,7 @@ export class ServiceItemService {
           "mentorImage": mentorUserIds[i].media,
           "mentorName": mentorUserIds[i].displayName
         });
-      }
+      }}
       sections.push({
         "data": {
           "headerName": Eheader.continue,
