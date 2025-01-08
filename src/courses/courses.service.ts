@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ObjectId } from 'mongodb';
 import { Model } from 'mongoose';
+import { ServiceItemService } from 'src/item/service-item.service';
 import { processModel } from './schema/process.schema';
 import { processInstanceModel } from './schema/processInstance.schema';
 import { processInstanceDetailModel } from './schema/processInstanceDetails.schema';
@@ -20,6 +21,8 @@ export class CoursesService {
         private readonly processInstanceDetailsModel: Model<processInstanceDetailModel>,
         @InjectModel("task")
         private readonly tasksModel: Model<taskModel>,
+        @Inject(forwardRef(() => ServiceItemService))
+        private serviceItemService: ServiceItemService
     ) { }
     async getTaskDetail(processId, taskId, token) {
         try {
@@ -144,12 +147,12 @@ export class CoursesService {
     async pendingProcess(userId) {
         try {
 
-            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId ,processStatus:"Started" }).populate("currentTask").lean();
-            for(let i = 0;i< pendingProcessInstanceData.length;i++){
+            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: "Started" }).populate("currentTask").lean();
+            for (let i = 0; i < pendingProcessInstanceData.length; i++) {
                 let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData[i].processId })).toString();
                 pendingProcessInstanceData[i].completed = Math.ceil((parseInt(pendingProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
             }
-            
+
             return pendingProcessInstanceData;
 
         } catch (err) {
@@ -161,13 +164,17 @@ export class CoursesService {
     async getMySeries(userId, status) {
         try {
 
-            let userProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").populate("processId");
+            let userProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").populate("processId").lean();
             let processIds = [];
-            for(let i = 0; i< userProcessInstanceData.length;i++){
+            for (let i = 0; i < userProcessInstanceData.length; i++) {
                 processIds.push(userProcessInstanceData[i].processId);
             }
-          /* let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
-            return mentorDetails;*/
+            let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
+            for (let i = 0; i < userProcessInstanceData.length; i++) {
+                userProcessInstanceData[i]["displayName"] = mentorDetails[i].displayName;
+                userProcessInstanceData[i]["media"] = mentorDetails[i].media;
+            }
+            return userProcessInstanceData;
 
         } catch (err) {
             throw err;
@@ -189,11 +196,7 @@ export class CoursesService {
     ) {
         try {
             let processObjIds = processIds.map((e) => new ObjectId(e));
-
-
-
             return this.tasksModel.aggregate([
-
                 { $match: { "processId": { $in: processObjIds } } },
                 { $sort: { createdAt: 1 } },
                 {

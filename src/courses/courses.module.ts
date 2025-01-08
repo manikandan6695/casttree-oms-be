@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ItemModule } from 'src/item/item.module';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
 import { errorResponseSchema } from './schema/errorResponse.schema';
@@ -18,8 +19,8 @@ import { taskSchema } from './schema/task.schema';
       { name: "processInstanceDetail", schema: processInstanceDetailSchema },
       { name: "task", schema: taskSchema},
     ]),
-    
-    // ItemModule
+    forwardRef(() =>  ItemModule)
+     
 
   ],
   controllers: [CoursesController],

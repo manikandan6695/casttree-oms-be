@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
 //import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -19,6 +19,7 @@ export class ServiceItemService {
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
     @InjectModel("priceListItems") private priceListItemModel: Model<IPriceListItemsModel>,
     private helperService: HelperService,
+    @Inject(forwardRef(() => CoursesService))
     private courseService: CoursesService,
     //  private serviceRequestService: ServiceRequestService,
   ) { }
@@ -356,55 +357,29 @@ export class ServiceItemService {
           "firstTask": firstTaskObject[processId]
         })
       }
-
-
       let sections = [];
-
-
-
-
       let pendingProcessInstanceData = await this.courseService.pendingProcess(userId);
       let continueWhereYouLeftData = {
         "ListData": []
       };
-      let continueProcessIds=[];
-      for(let i = 0; i< pendingProcessInstanceData.length; i++){
+      let continueProcessIds = [];
+      for (let i = 0; i < pendingProcessInstanceData.length; i++) {
         continueProcessIds.push(pendingProcessInstanceData[i].processId)
       }
       console.log(continueProcessIds);
-
       let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
-  
-
-
-
-
-
-
-
-
-
-
-      for(let i =0; i< pendingProcessInstanceData.length;i++){
-        
+      for (let i = 0; i < pendingProcessInstanceData.length; i++) {
         continueWhereYouLeftData["ListData"].push({
-        
           "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0].mediaUrl,
           "title": pendingProcessInstanceData[i].currentTask.taskTitle,
           "ctaName": "Button",
           "progressPercentage": pendingProcessInstanceData[i].completed,
           "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
           "taskDetail": pendingProcessInstanceData[i].currentTask,
-          "mentorImage":mentorUserIds[i].media,
-          "mentorName":mentorUserIds[i].displayName
-        });}
-
-
-
-
-
-
-
+          "mentorImage": mentorUserIds[i].media,
+          "mentorName": mentorUserIds[i].displayName
+        });
+      }
       sections.push({
         "data": {
           "headerName": Eheader.continue,
@@ -437,9 +412,6 @@ export class ServiceItemService {
         "message": "success",
         "data": data
       }
-
-
-
       return finalResponse;
     } catch (err) {
       throw err;
@@ -447,42 +419,38 @@ export class ServiceItemService {
   }
 
 
-  async getMentorUserIds(processId){
+  async getMentorUserIds(processId) {
     try {
       console.log(processId);
-      
-    let mentorUserIds = await this.serviceItemModel.find({type:"courses","additionalDetails.processId": {$in:processId}},{userId:1});
-    let userIds =[];
-    for(let i = 0 ;i< mentorUserIds.length;i++){
-    userIds.push(mentorUserIds[i].userId.toString());
-    }
-    console.log(userIds);
-    const profileInfo = await this.helperService.getProfileByIdTl(
-      userIds
-    );
-    const profileInfoObj = profileInfo.reduce((a, c) => {
-      a[c.userId] = c;
-      return a;
-    }, {});
 
-   let mentorProfiles=[];
-   for(let i = 0 ;i< processId.length;i++){
-    mentorProfiles.push(
-      { 
-        "processId": processId[i],
-        "userId":userIds[i],
-        "displayName":profileInfoObj[userIds[i]].displayName,
-        "media":profileInfoObj[userIds[i]].media
+      let mentorUserIds = await this.serviceItemModel.find({ type: "courses", "additionalDetails.processId": { $in: processId } }, { userId: 1 });
+      let userIds = [];
+      for (let i = 0; i < mentorUserIds.length; i++) {
+        userIds.push(mentorUserIds[i].userId.toString());
       }
-    );
-    }
-    return mentorProfiles;
+      console.log(userIds);
+      const profileInfo = await this.helperService.getProfileByIdTl(
+        userIds
+      );
+      const profileInfoObj = profileInfo.reduce((a, c) => {
+        a[c.userId] = c;
+        return a;
+      }, {});
 
-
-     
-
-  } catch (err) {
+      let mentorProfiles = [];
+      for (let i = 0; i < processId.length; i++) {
+        mentorProfiles.push(
+          {
+            "processId": processId[i],
+            "userId": userIds[i],
+            "displayName": profileInfoObj[userIds[i]].displayName,
+            "media": profileInfoObj[userIds[i]].media
+          }
+        );
+      }
+      return mentorProfiles;
+    } catch (err) {
       throw err;
-  }
+    }
   }
 }
