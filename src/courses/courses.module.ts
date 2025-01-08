@@ -18,11 +18,12 @@ import { taskSchema } from './schema/task.schema';
       { name: "processInstanceDetail", schema: processInstanceDetailSchema },
       { name: "task", schema: taskSchema},
     ]),
+    
+    // ItemModule
 
   ],
   controllers: [CoursesController],
   providers: [CoursesService],
-  exports: [CoursesService
-    ],
+  exports: [CoursesService],
 })
 export class CoursesModule {}

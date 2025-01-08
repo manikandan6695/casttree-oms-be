@@ -17,7 +17,7 @@ export const processInstanceDetailSchema = new mongoose.Schema<any>({
     processInstanceId: { type: mongoose.Schema.Types.ObjectId, ref: "processInstance" },
     processId: { type: mongoose.Schema.Types.ObjectId, ref: "process" },
     taskId: { type: mongoose.Schema.Types.ObjectId, ref: "task" },
-    taskResponse: { type: String },
+    taskResponse: { type: mongoose.Schema.Types.Mixed },
     taskStatus: { type: String },
     triggeredAt: { type: Date },
     startedAt: { type: Date },

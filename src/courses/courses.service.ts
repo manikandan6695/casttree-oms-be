@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ObjectId } from 'mongodb';
 import { Model } from 'mongoose';
 import { processModel } from './schema/process.schema';
 import { processInstanceModel } from './schema/processInstance.schema';
@@ -20,11 +21,12 @@ export class CoursesService {
         @InjectModel("task")
         private readonly tasksModel: Model<taskModel>,
     ) { }
-    async getTaskDetail(processId, taskId) {
+    async getTaskDetail(processId, taskId, token) {
         try {
+
             let currentTaskData: any = await this.tasksModel.findOne({ parentProcessId: processId, _id: taskId });
             let finalResponse = {};
-            let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId})).toString();
+            let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId })).toString();
             finalResponse["taskId"] = currentTaskData._id;
             finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
             finalResponse["processId"] = currentTaskData.processId;
@@ -34,43 +36,104 @@ export class CoursesService {
             finalResponse["taskData"] = currentTaskData.taskMetaData;
             finalResponse["totalTasks"] = totalTasks;
             let nextTaskData = await this.tasksModel.findOne({ _id: { $gt: taskId } });
-            let nextTask = {
-                "taskId" :nextTaskData._id,
-                "parentProcessId" : nextTaskData.parentProcessId,
-                "processId" : nextTaskData.processId,
-                "nextTaskTitle": nextTaskData.title,
-                "nextTaskType": nextTaskData.type,
-                "isLocked": nextTaskData.isLocked,
-                "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl
+            let nextTask = {};
+            if (nextTaskData) {
+                nextTask = {
+                    "taskId": nextTaskData._id,
+                    "parentProcessId": nextTaskData.parentProcessId,
+                    "processId": nextTaskData.processId,
+                    "nextTaskTitle": nextTaskData.title,
+                    "nextTaskType": nextTaskData.type,
+                    "isLocked": nextTaskData.isLocked,
+                    "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl
+                }
             }
+
             finalResponse["nextTaskData"] = nextTask;
+            let updateProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type);
             return finalResponse;
         } catch (err) {
             throw err
         }
     }
-    async createProcessInstance(body, token) {
+    async createProcessInstance(userId, processId, taskId, taskType) {
         try {
-            body.userId = token.id;
-            body.createdBy = token.id;
-            body.updatedBy = token.id;
-            let processInstanceData = await this.processInstancesModel.create(body);
-            let processInstanceDetailBody = {
-                "processInstanceId": processInstanceData._id,
-                "processId": body.currentSubProcess,
-                "parentProcessId": body.processId,
-                "taskId": body.currentTask,
-                "taskResponse": null,
-                "taskStatus": "Inprogress",
-                "triggeredAt": body.startedAt,
-                "startedAt": body.startedAt
+            let checkInstanceHistory = await this.processInstancesModel.findOne({ userId: userId, currentTask: taskId, status: "Active" });
+            let finalResponse = {};
+            if (!checkInstanceHistory) {
+                const currentTime = new Date();
+                let currentTimeIso = currentTime.toISOString();
+                let processInstanceBody = {
+                    "userId": userId,
+                    "processId": processId,
+                    "processType": taskType,
+                    "processStatus": "Started",
+                    "currentTask": taskId,
+                    "status": "Active",
+                    "startedAt": currentTimeIso,
+                    "createdBy": userId,
+                    "updatedBy": userId
+
+                }
+                let processInstanceData = await this.processInstancesModel.create(processInstanceBody);
+                let processInstanceDetailBody = {
+                    "processInstanceId": processInstanceData._id,
+                    "processId": processId,
+                    "taskId": taskId,
+                    "taskStatus": "Started",
+                    "triggeredAt": currentTimeIso,
+                    "startedAt": currentTimeIso,
+                    "status": "Active",
+                    "createdBy": userId,
+                    "updatedBy": userId
+                }
+                let processInstanceDetailData = await this.processInstanceDetailsModel.create(processInstanceDetailBody)
+                finalResponse = {
+                    "processInstanceData": processInstanceData,
+                    "processInstanceDetailData": processInstanceDetailData
+
+                }
             }
-            let processInstanceDetailData = await this.processInstanceDetailsModel.create(processInstanceDetailBody)
-            let finalResponse = {
-                "processInstanceData": processInstanceData,
-                "processInstanceDetailData": processInstanceDetailData
+
+            return finalResponse;
+
+        } catch (err) {
+            throw err;
+        }
+    }
+
+
+    async updateProcessInstance(body, token) {
+        try {
+            console.log("service");
+            let processInstanceBody = {};
+            let processInstanceDetailBody = {};
+
+            const currentTime = new Date();
+            let currentTimeIso = currentTime.toISOString();
+            if (body.orderId) {
+                processInstanceBody["orderId"] = body.orderId;
+                processInstanceBody["purchasedAt"] = currentTimeIso;
+                processInstanceBody["validTill"] = currentTimeIso;
+            }
+            if (body.processStatus) {
+                processInstanceBody["processStatus"] = body.processStatus;
+                processInstanceDetailBody["taskStatus"] = body.processStatus;
+
+
+                if (body.processStatus == "Completed") {
+                    processInstanceDetailBody["taskResponse"] = body.taskResponse;
+                    processInstanceDetailBody["endedAt"] = currentTimeIso;
+                }
 
             }
+            console.log(body.taskId, token.id, processInstanceBody);
+            let processInstanceData = await this.processInstancesModel.updateOne({ currentTask: new ObjectId(body.taskId), userId: new ObjectId(token.id) }, { $set: processInstanceBody });
+            let processInstanceDetailData = await this.processInstanceDetailsModel.updateOne({ taskId: new ObjectId(body.taskId), createdBy: new ObjectId(token.id) }, { $set: processInstanceDetailBody });
+            let finalResponse = {
+                "message": "updated",
+            }
+
             return finalResponse;
 
         } catch (err) {
@@ -80,10 +143,13 @@ export class CoursesService {
 
     async pendingProcess(userId) {
         try {
+
+            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId ,processStatus:"Started" }).populate("currentTask").lean();
+            for(let i = 0;i< pendingProcessInstanceData.length;i++){
+                let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData[i].processId })).toString();
+                pendingProcessInstanceData[i].completed = Math.ceil((parseInt(pendingProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
+            }
             
-            let pendingProcessInstanceData: any = await this.processInstancesModel.findOne({userId:userId}).populate("currentTask").lean();
-            let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData.processId})).toString();
-                pendingProcessInstanceData.completed = Math.ceil((parseInt(  pendingProcessInstanceData.currentTask.taskNumber) / parseInt( totalTasks))*100);
             return pendingProcessInstanceData;
 
         } catch (err) {
@@ -92,11 +158,16 @@ export class CoursesService {
     }
 
 
-    async getMySeries(userId,status) {
+    async getMySeries(userId, status) {
         try {
-            
-            let userProcessInstanceData: any = await this.processInstancesModel.find({userId:userId,processStatus:status}).populate("currentTask").populate("processId");
-            return userProcessInstanceData;
+
+            let userProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").populate("processId");
+            let processIds = [];
+            for(let i = 0; i< userProcessInstanceData.length;i++){
+                processIds.push(userProcessInstanceData[i].processId);
+            }
+          /* let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
+            return mentorDetails;*/
 
         } catch (err) {
             throw err;
@@ -105,8 +176,34 @@ export class CoursesService {
 
     async getAllTasks(parentProcessId) {
         try {
-            let allTaskdata : any = await this.tasksModel.find({parentProcessId:parentProcessId});
+            let allTaskdata: any = await this.tasksModel.find({ parentProcessId: parentProcessId });
             return allTaskdata;
+
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async getFirstTask(
+        processIds
+    ) {
+        try {
+            let processObjIds = processIds.map((e) => new ObjectId(e));
+
+
+
+            return this.tasksModel.aggregate([
+
+                { $match: { "processId": { $in: processObjIds } } },
+                { $sort: { createdAt: 1 } },
+                {
+                    $group: {
+                        _id: "$processId",
+                        firstTask: { $first: "$$ROOT" }
+                    }
+                },
+                { $replaceRoot: { newRoot: "$firstTask" } }
+            ]);
 
         } catch (err) {
             throw err;
