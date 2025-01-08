@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { CoursesModule } from "src/courses/courses.module";
@@ -35,7 +35,7 @@ import { ServiceItemService } from "./service-item.service";
     AuthModule,
     HelperModule,
     ServiceRequestModule,
-    CoursesModule,
+    forwardRef(() =>  CoursesModule)
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],
