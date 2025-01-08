@@ -34,7 +34,7 @@ import { ServiceItemService } from "./service-item.service";
     ]),
     AuthModule,
     HelperModule,
-    ServiceRequestModule,
+    forwardRef(() =>  ServiceRequestModule),
     forwardRef(() =>  CoursesModule)
   ],
   controllers: [ItemController, ServiceItemController],
