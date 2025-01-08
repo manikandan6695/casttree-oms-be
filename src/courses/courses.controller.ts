@@ -65,14 +65,18 @@ export class CoursesController {
     }
   }
 
- /* @Get("process/firstTask")
-  async getAllFirstTasks()
+  @UseGuards(JwtAuthGuard)
+  @Get("user/processInstanceDetails/:processId")
+  async userProcessDetail(
+    @Param("processId")processId: string,
+    @GetToken() token: UserToken,
+  )
    {
     try {
-      let data = await this.coursesService.getFirstTask();
+      let data = await this.coursesService.userProcessDetail(processId,token);
       return data;
     } catch (err) {
       throw err
     }
-  }*/
+  }
 }

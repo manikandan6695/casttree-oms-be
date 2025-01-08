@@ -173,6 +173,8 @@ export class CoursesService {
             for (let i = 0; i < userProcessInstanceData.length; i++) {
                 userProcessInstanceData[i]["displayName"] = mentorDetails[i].displayName;
                 userProcessInstanceData[i]["media"] = mentorDetails[i].media;
+                let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: userProcessInstanceData[i].processId })).toString();
+                userProcessInstanceData[i]["progressPercentage"] = Math.ceil((parseInt(userProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
             }
             return userProcessInstanceData;
 
@@ -207,6 +209,19 @@ export class CoursesService {
                 },
                 { $replaceRoot: { newRoot: "$firstTask" } }
             ]);
+
+        } catch (err) {
+            throw err;
+        }
+    }
+
+   async userProcessDetail(
+        processId, token
+    ) {
+        try {
+            let userProcessDetail = await this.processInstancesModel.find({userId: token.id, processId: processId}).populate("currentTask").sort({_id:1});
+            return userProcessDetail;
+
 
         } catch (err) {
             throw err;
