@@ -1,9 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards, ValidationPipe } from '@nestjs/common';
 import { UserToken } from 'src/auth/dto/usertoken.dto';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { GetToken } from 'src/shared/decorator/getuser.decorator';
 import { CoursesService } from './courses.service';
-import { processInstanceDTO } from './dto/course.dto';
 
 @Controller('courses')
 export class CoursesController {
@@ -13,9 +12,10 @@ export class CoursesController {
   async getTaskDetail(
     @Param("processId") processId: string,
     @Param("taskId") taskId: string,
+    @GetToken() token: UserToken,
   ) {
     try {
-      let data = await this.coursesService.getTaskDetail(processId, taskId);
+      let data = await this.coursesService.getTaskDetail(processId, taskId,token);
       return data;
     } catch (err) {
       throw err
@@ -23,13 +23,14 @@ export class CoursesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post("createProcessInstance")
-  async createProcessInstance(
-    @Body(new ValidationPipe({ whitelist: true })) body: processInstanceDTO,
+  @Patch("updateProcessInstance")
+  async updateProcessInstance(
+    @Body(new ValidationPipe({ whitelist: true })) body: any,
     @GetToken() token: UserToken,
   ) {
     try {
-      let data = await this.coursesService.createProcessInstance(body, token);
+      console.log("controller");
+      let data = await this.coursesService.updateProcessInstance(body, token);
       return data;
     } catch (err) {
       throw err
@@ -63,4 +64,15 @@ export class CoursesController {
       throw err
     }
   }
+
+ /* @Get("process/firstTask")
+  async getAllFirstTasks()
+   {
+    try {
+      let data = await this.coursesService.getFirstTask();
+      return data;
+    } catch (err) {
+      throw err
+    }
+  }*/
 }
