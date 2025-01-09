@@ -196,8 +196,8 @@ export class ProcessService {
             }
             let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
             for (let i = 0; i < userProcessInstanceData.length; i++) {
-                userProcessInstanceData[i]["displayName"] = mentorDetails[i].displayName;
-                userProcessInstanceData[i]["media"] = mentorDetails[i].media;
+                userProcessInstanceData[i]["mentorName"] = mentorDetails[i].displayName;
+                userProcessInstanceData[i]["mentorImage"] = mentorDetails[i].media;
                 let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: userProcessInstanceData[i].processId })).toString();
                 userProcessInstanceData[i]["progressPercentage"] = Math.ceil((parseInt(userProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
             }
