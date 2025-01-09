@@ -1,8 +1,8 @@
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
-import { CoursesService } from "src/courses/courses.service";
 import { HelperService } from "src/helper/helper.service";
+import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
@@ -19,8 +19,8 @@ export class ServiceItemService {
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
     @InjectModel("priceListItems") private priceListItemModel: Model<IPriceListItemsModel>,
     private helperService: HelperService,
-    @Inject(forwardRef(() => CoursesService))
-    private courseService: CoursesService,
+    @Inject(forwardRef(() => ProcessService))
+    private processService: ProcessService,
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService
    
@@ -337,7 +337,7 @@ export class ServiceItemService {
       for (let i = 0; i < featuredData.length; i++) {
         processIds.push(featuredData[i].additionalDetails.processId);
       }
-      let firstTasks = await this.courseService.getFirstTask(processIds);
+      let firstTasks = await this.processService.getFirstTask(processIds);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
@@ -348,7 +348,7 @@ export class ServiceItemService {
           "processId": featuredData[i].additionalDetails.processId,
           "thumbnail": featuredData[i].additionalDetails.thumbnail,
           "ctaName": featuredData[i].additionalDetails.ctaName,
-          "firstTask": firstTaskObject[processId]
+          "taskDetail": firstTaskObject[processId]
         })
       }
       for (let i = 0; i < seriesForYouData.length; i++) {
@@ -356,11 +356,11 @@ export class ServiceItemService {
         updatedSeriesForYouData["ListData"].push({
           "processId": seriesForYouData[i].additionalDetails.processId,
           "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
-          "firstTask": firstTaskObject[processId]
+          "taskDetail": firstTaskObject[processId]
         })
       }
       let sections = [];
-      let pendingProcessInstanceData = await this.courseService.pendingProcess(userId);
+      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
       let continueWhereYouLeftData = {
         "ListData": []
       };
@@ -376,7 +376,7 @@ export class ServiceItemService {
         continueWhereYouLeftData["ListData"].push({
           "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0].mediaUrl,
           "title": pendingProcessInstanceData[i].currentTask.taskTitle,
-          "ctaName": "Button",
+          "ctaName": "Continue",
           "progressPercentage": pendingProcessInstanceData[i].completed,
           "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
           "taskDetail": pendingProcessInstanceData[i].currentTask,
@@ -389,6 +389,7 @@ export class ServiceItemService {
           "headerName": Eheader.continue,
           "listData": continueWhereYouLeftData["ListData"]
         },
+        "horizontalScroll": true,
         "componentType": EcomponentType.ActiveProcessList
 
       }),
@@ -447,8 +448,8 @@ export class ServiceItemService {
           {
             "processId": processId[i],
             "userId": userIds[i],
-            "displayName": profileInfoObj[userIds[i]].displayName,
-            "media": profileInfoObj[userIds[i]].media
+            "mentorNmae": profileInfoObj[userIds[i]].displayName,
+            "mentorImage": profileInfoObj[userIds[i]].media
           }
         );
       }

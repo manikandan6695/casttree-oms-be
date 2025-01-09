@@ -1,8 +1,8 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ItemModule } from 'src/item/item.module';
-import { CoursesController } from './courses.controller';
-import { CoursesService } from './courses.service';
+import { ProcessController } from './process.controller';
+import { ProcessService } from './process.service';
 import { errorResponseSchema } from './schema/errorResponse.schema';
 import { processSchema } from './schema/process.schema';
 import { processInstanceSchema } from './schema/processInstance.schema';
@@ -23,8 +23,8 @@ import { taskSchema } from './schema/task.schema';
      
 
   ],
-  controllers: [CoursesController],
-  providers: [CoursesService],
-  exports: [CoursesService],
+  controllers: [ProcessController],
+  providers: [ProcessService],
+  exports: [ProcessService],
 })
-export class CoursesModule {}
+export class ProcessModule {}

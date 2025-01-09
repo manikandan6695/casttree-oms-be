@@ -11,7 +11,7 @@ import { taskModel } from './schema/task.schema';
 
 
 @Injectable()
-export class CoursesService {
+export class ProcessService {
     constructor(
         @InjectModel("process")
         private readonly processesModel: Model<processModel>,
@@ -53,19 +53,28 @@ export class CoursesService {
             }
 
             finalResponse["nextTaskData"] = nextTask;
-            let updateProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type);
+            let createProcessInstanceData;
+            if (currentTaskData.type == "Break") {
+                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type, currentTaskData.taskMetaData.timeDurationInMin);
+            } else {
+                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type);
+            }
+
+            finalResponse["processInstanceDetails"] = createProcessInstanceData;
             return finalResponse;
         } catch (err) {
             throw err
         }
     }
-    async createProcessInstance(userId, processId, taskId, taskType) {
+    async createProcessInstance(userId, processId, taskId, taskType, breakDuration?) {
         try {
+            let CurrentInstanceData;
+
+            const currentTime = new Date();
+            let currentTimeIso = currentTime.toISOString();
             let checkInstanceHistory = await this.processInstancesModel.findOne({ userId: userId, currentTask: taskId, status: "Active" });
             let finalResponse = {};
             if (!checkInstanceHistory) {
-                const currentTime = new Date();
-                let currentTimeIso = currentTime.toISOString();
                 let processInstanceBody = {
                     "userId": userId,
                     "processId": processId,
@@ -90,14 +99,29 @@ export class CoursesService {
                     "createdBy": userId,
                     "updatedBy": userId
                 }
+                if (taskType == "Break") {
+                    const newTime = new Date(currentTime.getTime() + parseInt(breakDuration) * 60000);
+                    const endAt = newTime.toISOString();
+                    processInstanceDetailBody["endedAt"] = endAt;
+                }
                 let processInstanceDetailData = await this.processInstanceDetailsModel.create(processInstanceDetailBody)
                 finalResponse = {
-                    "processInstanceData": processInstanceData,
-                    "processInstanceDetailData": processInstanceDetailData
+                    //"processInstanceData": processInstanceData,
+                    //"processInstanceDetailData": processInstanceDetailData,
+                    "breakEndsAt":  processInstanceDetailData.endedAt
 
                 }
-            }
+            } else {
+                if (taskType == "Break") {
+                    const newTime = new Date(currentTime.getTime() + parseInt(breakDuration) * 60000);
+                    const endAt = newTime.toISOString();
+                    CurrentInstanceData = await this.processInstanceDetailsModel.findOne({ createdBy: userId, taskId: taskId });
+                    finalResponse = {
+                        "breakEndsAt": CurrentInstanceData.endedAt
+                    }
+                }
 
+            }
             return finalResponse;
 
         } catch (err) {
@@ -111,7 +135,6 @@ export class CoursesService {
             console.log("service");
             let processInstanceBody = {};
             let processInstanceDetailBody = {};
-
             const currentTime = new Date();
             let currentTimeIso = currentTime.toISOString();
             if (body.orderId) {
@@ -122,15 +145,17 @@ export class CoursesService {
             if (body.processStatus) {
                 processInstanceBody["processStatus"] = body.processStatus;
                 processInstanceDetailBody["taskStatus"] = body.processStatus;
-
-
+                if (body.taskType == "Break") {
+                    const newTime = new Date(currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000);
+                    const endAt = newTime.toISOString();
+                    processInstanceDetailBody["endedAt"] = endAt;
+                }
                 if (body.processStatus == "Completed") {
                     processInstanceDetailBody["taskResponse"] = body.taskResponse;
                     processInstanceDetailBody["endedAt"] = currentTimeIso;
                 }
 
             }
-            console.log(body.taskId, token.id, processInstanceBody);
             let processInstanceData = await this.processInstancesModel.updateOne({ currentTask: new ObjectId(body.taskId), userId: new ObjectId(token.id) }, { $set: processInstanceBody });
             let processInstanceDetailData = await this.processInstanceDetailsModel.updateOne({ taskId: new ObjectId(body.taskId), createdBy: new ObjectId(token.id) }, { $set: processInstanceDetailBody });
             let finalResponse = {
@@ -215,11 +240,11 @@ export class CoursesService {
         }
     }
 
-   async userProcessDetail(
+    async userProcessDetail(
         processId, token
     ) {
         try {
-            let userProcessDetail = await this.processInstancesModel.find({userId: token.id, processId: processId}).populate("currentTask").sort({_id:1});
+            let userProcessDetail = await this.processInstancesModel.find({ userId: token.id, processId: processId }).populate("currentTask").sort({ _id: 1 });
             return userProcessDetail;
 
 

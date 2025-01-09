@@ -1,8 +1,8 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
-import { CoursesModule } from "src/courses/courses.module";
 import { HelperModule } from "src/helper/helper.module";
+import { ProcessModule } from "src/process/process.module";
 import { ServiceRequestModule } from "src/service-request/service-request.module";
 import { ItemController } from "./item.controller";
 import { ItemService } from "./item.service";
@@ -35,7 +35,7 @@ import { ServiceItemService } from "./service-item.service";
     AuthModule,
     HelperModule,
     forwardRef(() =>  ServiceRequestModule),
-    forwardRef(() =>  CoursesModule)
+    forwardRef(() =>  ProcessModule)
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],
