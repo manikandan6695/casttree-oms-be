@@ -370,9 +370,10 @@ export class ServiceItemService {
       for (let i = 0; i < pendingProcessInstanceData.length; i++) {
         continueProcessIds.push(pendingProcessInstanceData[i].processId)
       }
-      console.log(continueProcessIds);
       let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
+      
       for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+
         continueWhereYouLeftData["ListData"].push({
           "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0].mediaUrl,
           "title": pendingProcessInstanceData[i].currentTask.taskTitle,
@@ -417,7 +418,7 @@ export class ServiceItemService {
         "message": "success",
         "data": data
       }
-      return finalResponse;
+      return finalResponse;;
     } catch (err) {
       throw err;
     }
@@ -448,11 +449,12 @@ export class ServiceItemService {
           {
             "processId": processId[i],
             "userId": userIds[i],
-            "mentorNmae": profileInfoObj[userIds[i]].displayName,
-            "mentorImage": profileInfoObj[userIds[i]].media
+            "displayName": profileInfoObj[userIds[i]].displayName,
+            "media": profileInfoObj[userIds[i]].media
           }
         );
       }
+
       return mentorProfiles;
     } catch (err) {
       throw err;
