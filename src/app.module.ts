@@ -1,21 +1,21 @@
-import { MiddlewareConsumer, Module } from "@nestjs/common";
+import { CacheModule } from "@nestjs/cache-manager";
+import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { ItemModule } from "./item/item.module";
-import { HelperModule } from "./helper/helper.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { SharedModule } from "./shared/shared.module";
-import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
-import { EventEmitterModule } from "@nestjs/event-emitter";
-import { ServiceRequestModule } from "./service-request/service-request.module";
-import { ServiceResponseModule } from "./service-response/service-response.module";
-import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
 import { CommentsModule } from "./comments/comments.module";
+import { HelperModule } from "./helper/helper.module";
 import { InvoiceModule } from "./invoice/invoice.module";
+import { ItemModule } from "./item/item.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
-import { CacheModule } from "@nestjs/cache-manager";
-import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
+import { ProcessModule } from "./process/process.module";
+import { ServiceRequestModule } from "./service-request/service-request.module";
+import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
+import { ServiceResponseModule } from "./service-response/service-response.module";
+import { SharedModule } from "./shared/shared.module";
 
 @Module({
   imports: [
@@ -53,6 +53,7 @@ import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.mid
     CommentsModule,
     PaymentRequestModule,
     InvoiceModule,
+    ProcessModule
   ],
   controllers: [],
   providers: [
@@ -63,7 +64,7 @@ import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.mid
   ],
 })
 export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
+ configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(GetUserOriginMiddleware)
       .forRoutes("/service-item");
