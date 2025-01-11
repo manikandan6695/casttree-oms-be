@@ -427,14 +427,14 @@ export class ServiceItemService {
 
   async getMentorUserIds(processId) {
     try {
-      console.log(processId);
+      
 
       let mentorUserIds = await this.serviceItemModel.find({ type: "courses", "additionalDetails.processId": { $in: processId } }, { userId: 1 });
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
       }
-      console.log(userIds);
+  
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds
       );
