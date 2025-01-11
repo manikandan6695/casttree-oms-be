@@ -26,7 +26,11 @@ export class ProcessService {
     ) { }
     async getTaskDetail(processId, taskId, token) {
         try {
-
+            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started" ,userId:token.id});
+            if (isProcessExist) {
+                taskId = isProcessExist.currentTask;
+            }
+            console.log(taskId,isProcessExist);
             let currentTaskData: any = await this.tasksModel.findOne({ parentProcessId: processId, _id: taskId });
             let finalResponse = {};
             let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId })).toString();
@@ -38,20 +42,22 @@ export class ProcessService {
             finalResponse["taskTitle"] = currentTaskData.title;
             finalResponse["taskData"] = currentTaskData.taskMetaData;
             finalResponse["totalTasks"] = totalTasks;
-            let nextTaskData = await this.tasksModel.findOne({ _id: { $gt: taskId } });
+            finalResponse["isLocked"] = currentTaskData.isLocked;
+            let nextTaskData = await this.tasksModel.findOne({ _id: { $gt: taskId }, processId: processId });
             let nextTask = {};
-            if (nextTaskData) {
-                nextTask = {
-                    "taskId": nextTaskData._id,
-                    "parentProcessId": nextTaskData.parentProcessId,
-                    "processId": nextTaskData.processId,
-                    "nextTaskTitle": nextTaskData.title,
-                    "nextTaskType": nextTaskData.type,
-                    "isLocked": nextTaskData.isLocked,
-                    "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl
-                }
+            if (!nextTaskData) {
+                nextTaskData = await this.tasksModel.findOne({ processId: processId });
             }
-
+            nextTask = {
+                "taskId": nextTaskData._id,
+                "parentProcessId": nextTaskData.parentProcessId,
+                "processId": nextTaskData.processId,
+                "nextTaskTitle": nextTaskData.title,
+                "nextTaskType": nextTaskData.type,
+                "isLocked": nextTaskData.isLocked,
+                "nextTaskThumbnail": nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+                "taskNumber": nextTaskData.taskNumber
+            }
             finalResponse["nextTaskData"] = nextTask;
             let createProcessInstanceData;
             if (currentTaskData.type == "Break") {
@@ -59,7 +65,6 @@ export class ProcessService {
             } else {
                 createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type);
             }
-
             finalResponse["processInstanceDetails"] = createProcessInstanceData;
             return finalResponse;
         } catch (err) {
@@ -108,7 +113,7 @@ export class ProcessService {
                 finalResponse = {
                     //"processInstanceData": processInstanceData,
                     //"processInstanceDetailData": processInstanceDetailData,
-                    "breakEndsAt":  processInstanceDetailData.endedAt
+                    "breakEndsAt": processInstanceDetailData.endedAt
 
                 }
             } else {
