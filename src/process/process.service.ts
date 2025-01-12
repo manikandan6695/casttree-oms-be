@@ -26,11 +26,11 @@ export class ProcessService {
     ) { }
     async getTaskDetail(processId, taskId, token) {
         try {
-            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started" ,userId:token.id});
+            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started", userId: token.id });
             if (isProcessExist) {
                 taskId = isProcessExist.currentTask;
             }
-            console.log(taskId,isProcessExist,processId);
+            console.log(taskId, isProcessExist, processId);
             let currentTaskData: any = await this.tasksModel.findOne({ processId: processId, _id: taskId });
             let finalResponse = {};
             let totalTasks = (await this.tasksModel.countDocuments({ processId: processId })).toString();
@@ -227,18 +227,7 @@ export class ProcessService {
         processIds
     ) {
         try {
-            console.log(processIds);
-            let firstTask = [];
-            for(let i = 0;i<processIds.length;i++){
-                let data = await this.tasksModel.findOne({processId: processIds[i]}).limit(1);  
-                firstTask.push(data);
-            }
-            return firstTask;
-
-            
-
-
-            /*let processObjIds = processIds.map((e) => new ObjectId(e));
+            let processObjIds = processIds.map((e) => new ObjectId(e));
             return this.tasksModel.aggregate([
                 { $match: { "processId": { $in: processObjIds } } },
                 { $sort: { taskNumber: 1 } },
@@ -249,7 +238,7 @@ export class ProcessService {
                     }
                 },
                 { $replaceRoot: { newRoot: "$firstTask" } }
-            ]);*/
+            ]);
 
         } catch (err) {
             throw err;
