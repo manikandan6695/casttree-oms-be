@@ -10,6 +10,7 @@ import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
+import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
 import { serviceitems } from "./schema/serviceItem.schema";
 
@@ -22,7 +23,8 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ProcessService))
     private processService: ProcessService,
     @Inject(forwardRef(() => ServiceRequestService))
-    private serviceRequestService: ServiceRequestService
+    private serviceRequestService: ServiceRequestService,
+    private itemService :ItemService
 
   ) { }
   async getServiceItems(
@@ -464,10 +466,33 @@ export class ServiceItemService {
 
   async getPlanDetails(processId) {
     try {
-      let processPricingData :any  = (await this.serviceItemModel.findOne({ "additionalDetails.processId": processId })).populate({
-        path: "itemId"
-      });
-      return { processPricingData };
+      let processPricingData :any  = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate("itemId").lean();
+      let ids = ["677c06ce97b11f5b314ea8e5","677c06cb97b11f5b314ea8e4"];
+      let plandata : any = await this.itemService.getItemsDetails(ids);
+      let finalResponse ={};
+      let featuresArray = [];
+      featuresArray.push({ "feature" :"Access to this course","values":["check","check","check"]});
+      for(let i = 0; i< plandata[0].additionalDetail.planDetails.length ;i++){
+        let feature = plandata[0].additionalDetail.planDetails[i].feature;
+        let values = ["close",plandata[1].additionalDetail.planDetails[i].value ,plandata[0].additionalDetail.planDetails[i].value];
+        featuresArray.push({ "feature" :feature,"values":values  });
+      }
+      let planIds = [null,plandata[1].additionalDetail.planId,plandata[0].additionalDetail.planId];
+      let headings = ["This course",plandata[1].itemName,plandata[0].itemName];
+      let actualPrice = [processPricingData.itemId.price,plandata[1].price,plandata[0].price];
+      let comparePrice = [processPricingData.itemId.comparePrice,plandata[1].comparePrice,plandata[0].comparePrice];
+      let badgeColour = ["#FFC107D4","#FF8762","#06C270"];
+
+      finalResponse["planIds"] = planIds;
+      finalResponse["headings"] = headings;
+      finalResponse["featuresData"] = featuresArray;
+      finalResponse["actualPrice"] = actualPrice;
+      finalResponse["comparePrice"] = comparePrice;
+      finalResponse["badgeColour"] = badgeColour;
+
+      
+
+      return finalResponse;
     } catch (err) {
       throw err;
     }

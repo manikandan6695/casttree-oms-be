@@ -107,6 +107,7 @@ export class ServiceItemController {
     }
   }
 
+  
   @Get("getPlanDetails/:processId")
   async getPlanDetails(
     @Param("processId") processId:string,
