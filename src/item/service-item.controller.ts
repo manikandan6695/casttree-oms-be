@@ -106,6 +106,20 @@ export class ServiceItemController {
       throw err
     }
   }
+
+  
+  @Get("getPlanDetails/:processId")
+  async getPlanDetails(
+    @Param("processId") processId:string,
+ 
+  ) {
+    try {
+      let data = await this.serviceItemService.getPlanDetails(processId);
+      return data;
+    } catch (err) {
+    throw err;
+    }
+  }
 }
 
 
