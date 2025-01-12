@@ -230,7 +230,7 @@ export class ProcessService {
             let processObjIds = processIds.map((e) => new ObjectId(e));
             return this.tasksModel.aggregate([
                 { $match: { "processId": { $in: processObjIds } } },
-                { $sort: { createdAt: 1 } },
+                { $sort: { taskNumber: 1 } },
                 {
                     $group: {
                         _id: "$processId",
