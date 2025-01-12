@@ -23,7 +23,7 @@ export class ServiceItemService {
     private processService: ProcessService,
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService
-   
+
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
@@ -141,13 +141,13 @@ export class ServiceItemService {
         Eitem.item
       );
       const totalFeedbacks =
-         await this.serviceRequestService.getCompletedServiceRequest(
-           data.userId,
-           data.itemId.orgId._id
-         );
+        await this.serviceRequestService.getCompletedServiceRequest(
+          data.userId,
+          data.itemId.orgId._id
+        );
       data["profileData"] = profileInfo[0];
-       data["itemSold"] =
-         parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
+      data["itemSold"] =
+        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
       data["ratingsData"] = ratingInfo.data;
       if (country_code) {
         let priceListData = await this.getPriceListItems(
@@ -332,7 +332,7 @@ export class ServiceItemService {
       };
       let processIds = [];
       for (let i = 0; i < seriesForYouData.length; i++) {
-        processIds.push(seriesForYouData[i].additionalDetails.processId);
+        processIds.push(seriesForYouData[i]?.additionalDetails?.processId);
       }
       for (let i = 0; i < featuredData.length; i++) {
         processIds.push(featuredData[i].additionalDetails.processId);
@@ -364,27 +364,28 @@ export class ServiceItemService {
       let continueWhereYouLeftData = {
         "ListData": []
       };
-      if(pendingProcessInstanceData.length>0){
-      let continueProcessIds = [];
+      if (pendingProcessInstanceData.length > 0) {
+        let continueProcessIds = [];
 
-      for (let i = 0; i < pendingProcessInstanceData.length; i++) {
-        continueProcessIds.push(pendingProcessInstanceData[i].processId)
+        for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+          continueProcessIds.push(pendingProcessInstanceData[i].processId)
+        }
+        let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
+
+        for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+
+          continueWhereYouLeftData["ListData"].push({
+            "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0]?.mediaUrl,
+            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
+            "ctaName": "Continue",
+            "progressPercentage": pendingProcessInstanceData[i].completed,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
+            "taskDetail": pendingProcessInstanceData[i].currentTask,
+            "mentorImage": mentorUserIds[i].media,
+            "mentorName": mentorUserIds[i].displayName
+          });
+        }
       }
-      let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
-      
-      for (let i = 0; i < pendingProcessInstanceData.length; i++) {
-
-        continueWhereYouLeftData["ListData"].push({
-          "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0].mediaUrl,
-          "title": pendingProcessInstanceData[i].currentTask.taskTitle,
-          "ctaName": "Continue",
-          "progressPercentage": pendingProcessInstanceData[i].completed,
-          "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
-          "taskDetail": pendingProcessInstanceData[i].currentTask,
-          "mentorImage": mentorUserIds[i].media,
-          "mentorName": mentorUserIds[i].displayName
-        });
-      }}
       sections.push({
         "data": {
           "headerName": Eheader.continue,
@@ -427,14 +428,14 @@ export class ServiceItemService {
 
   async getMentorUserIds(processId) {
     try {
-      
+
 
       let mentorUserIds = await this.serviceItemModel.find({ type: "courses", "additionalDetails.processId": { $in: processId } }, { userId: 1 });
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
       }
-  
+
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds
       );
@@ -456,6 +457,17 @@ export class ServiceItemService {
       }
 
       return mentorProfiles;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getPlanDetails(processId) {
+    try {
+      let processPricingData :any  = (await this.serviceItemModel.findOne({ "additionalDetails.processId": processId })).populate({
+        path: "itemId"
+      });
+      return { processPricingData };
     } catch (err) {
       throw err;
     }
