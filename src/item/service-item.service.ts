@@ -385,7 +385,8 @@ export class ServiceItemService {
             "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
             "taskDetail": pendingProcessInstanceData[i].currentTask,
             "mentorImage": mentorUserIds[i].media,
-            "mentorName": mentorUserIds[i].displayName
+            "mentorName": mentorUserIds[i].displayName,
+            "seriesTitle":pendingProcessInstanceData[i].processId.processMetaData.processTitle
           });
         }
       }
