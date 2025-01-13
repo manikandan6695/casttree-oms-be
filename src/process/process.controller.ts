@@ -60,13 +60,13 @@ async test(){
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("tasks/:parentProcessId")
+  @Get("tasks/:processId")
   async getAllTasks(
     @GetToken() token: UserToken,
-    @Param("parentProcessId")parentProcessId: string,
+    @Param("processId")processId: string,
   ) {
     try {
-      let data = await this.processsService.getAllTasks(parentProcessId);
+      let data = await this.processsService.getAllTasks(processId,token);
       return data;
     } catch (err) {
       throw err
