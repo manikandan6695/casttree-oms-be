@@ -453,8 +453,8 @@ export class ServiceItemService {
           {
             "processId": processId[i],
             "userId": userIds[i],
-            "displayName": profileInfoObj[userIds[i]].displayName,
-            "media": profileInfoObj[userIds[i]].media
+            "displayName": profileInfoObj[userIds[i]]?.displayName,
+            "media": profileInfoObj[userIds[i]]?.media
           }
         );
       }
