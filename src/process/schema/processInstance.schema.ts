@@ -7,6 +7,7 @@ export interface processInstanceModel {
     startedAt:any;
     orderId:string;
     processStatus:string;
+    progressPercentage: string;
     currentTask:string;
     purchasedAt:any;
     validTill:any;
@@ -24,6 +25,7 @@ export const processInstanceSchema = new mongoose.Schema<any>({
     startedAt:{type:Date},
     orderId:{ type: String},
     processStatus:{type:String},
+    progressPercentage:{type:Number},
     currentTask:{ type: mongoose.Schema.Types.ObjectId, ref: "task" },
     purchasedAt:{type:Date},
     validTill:{type:Date},

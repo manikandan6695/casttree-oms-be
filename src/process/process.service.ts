@@ -26,11 +26,11 @@ export class ProcessService {
     ) { }
     async getTaskDetail(processId, taskId, token) {
         try {
-            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started" ,userId:token.id});
+            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started", userId: token.id });
             if (isProcessExist) {
                 taskId = isProcessExist.currentTask;
             }
-            console.log(taskId,isProcessExist);
+            console.log(taskId, isProcessExist);
             let currentTaskData: any = await this.tasksModel.findOne({ parentProcessId: processId, _id: taskId });
             let finalResponse = {};
             let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId })).toString();
@@ -43,7 +43,8 @@ export class ProcessService {
             finalResponse["taskData"] = currentTaskData.taskMetaData;
             finalResponse["totalTasks"] = totalTasks;
             finalResponse["isLocked"] = currentTaskData.isLocked;
-            let nextTaskData = await this.tasksModel.findOne({ _id: { $gt: taskId }, processId: processId });
+            finalResponse["progressPercentage"] = Math.ceil((parseInt(currentTaskData.taskNumber) / parseInt(totalTasks)) * 100);
+            let nextTaskData = await this.tasksModel.findOne({ taskNumber:  (currentTaskData.taskNumber+1 ), processId: processId });
             let nextTask = {};
             if (!nextTaskData) {
                 nextTaskData = await this.tasksModel.findOne({ processId: processId });
@@ -61,9 +62,9 @@ export class ProcessService {
             finalResponse["nextTaskData"] = nextTask;
             let createProcessInstanceData;
             if (currentTaskData.type == "Break") {
-                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type, currentTaskData.taskMetaData.timeDurationInMin);
+                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type, Math.ceil((parseInt(currentTaskData.taskNumber) / parseInt(totalTasks)) * 100), currentTaskData.taskMetaData.timeDurationInMin);
             } else {
-                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type);
+                createProcessInstanceData = await this.createProcessInstance(token.id, processId, taskId, currentTaskData.type, Math.ceil((parseInt(currentTaskData.taskNumber) / parseInt(totalTasks)) * 100));
             }
             finalResponse["processInstanceDetails"] = createProcessInstanceData;
             return finalResponse;
@@ -71,7 +72,7 @@ export class ProcessService {
             throw err
         }
     }
-    async createProcessInstance(userId, processId, taskId, taskType, breakDuration?) {
+    async createProcessInstance(userId, processId, taskId, taskType, progressPercentage, breakDuration?) {
         try {
             let CurrentInstanceData;
 
@@ -87,6 +88,7 @@ export class ProcessService {
                     "processStatus": "Started",
                     "currentTask": taskId,
                     "status": "Active",
+                    "progressPercentage": progressPercentage,
                     "startedAt": currentTimeIso,
                     "createdBy": userId,
                     "updatedBy": userId
@@ -193,18 +195,35 @@ export class ProcessService {
 
     async getMySeries(userId, status) {
         try {
-
-            let userProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").populate("processId").lean();
-            let processIds = [];
-            for (let i = 0; i < userProcessInstanceData.length; i++) {
-                processIds.push(userProcessInstanceData[i].processId);
+            let userProcessInstanceData;
+            if (status == "Completed") {
+                userProcessInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: status, progressPercentage: 100 }).populate("currentTask").populate("processId").lean();
+                let processIds = [];
+                for (let i = 0; i < userProcessInstanceData.length; i++) {
+                    processIds.push(userProcessInstanceData[i].processId);
+                }
+                let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
+                for (let i = 0; i < userProcessInstanceData.length; i++) {
+                    userProcessInstanceData[i]["mentorName"] = mentorDetails[i].displayName;
+                    userProcessInstanceData[i]["mentorImage"] = mentorDetails[i].media;
+                    let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: userProcessInstanceData[i].processId })).toString();
+                    userProcessInstanceData[i]["progressPercentage"] = Math.ceil((parseInt(userProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
+                }
             }
-            let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
-            for (let i = 0; i < userProcessInstanceData.length; i++) {
-                userProcessInstanceData[i]["mentorName"] = mentorDetails[i].displayName;
-                userProcessInstanceData[i]["mentorImage"] = mentorDetails[i].media;
-                let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: userProcessInstanceData[i].processId })).toString();
-                userProcessInstanceData[i]["progressPercentage"] = Math.ceil((parseInt(userProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
+
+            if (status == "Started") {
+                userProcessInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").populate("processId").lean();
+                let processIds = [];
+                for (let i = 0; i < userProcessInstanceData.length; i++) {
+                    processIds.push(userProcessInstanceData[i].processId);
+                }
+                let mentorDetails = await this.serviceItemService.getMentorUserIds(processIds);
+                for (let i = 0; i < userProcessInstanceData.length; i++) {
+                    userProcessInstanceData[i]["mentorName"] = mentorDetails[i].displayName;
+                    userProcessInstanceData[i]["mentorImage"] = mentorDetails[i].media;
+                    let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: userProcessInstanceData[i].processId })).toString();
+                    userProcessInstanceData[i]["progressPercentage"] = Math.ceil((parseInt(userProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
+                }
             }
             return userProcessInstanceData;
 
