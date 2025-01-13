@@ -340,6 +340,7 @@ export class ServiceItemService {
         processIds.push(featuredData[i].additionalDetails.processId);
       }
       let firstTasks = await this.processService.getFirstTask(processIds);
+      //return firstTasks;
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
@@ -350,7 +351,7 @@ export class ServiceItemService {
           "processId": featuredData[i].additionalDetails.processId,
           "thumbnail": featuredData[i].additionalDetails.thumbnail,
           "ctaName": featuredData[i].additionalDetails.ctaName,
-          "taskDetail": firstTaskObject[processId]
+          "taskDetail": firstTaskObject[featuredData[i].additionalDetails.processId]
         })
       }
       for (let i = 0; i < seriesForYouData.length; i++) {
@@ -358,7 +359,7 @@ export class ServiceItemService {
         updatedSeriesForYouData["ListData"].push({
           "processId": seriesForYouData[i].additionalDetails.processId,
           "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
-          "taskDetail": firstTaskObject[processId]
+          "taskDetail": firstTaskObject[seriesForYouData[i].additionalDetails.processId]
         })
       }
       let sections = [];
@@ -452,8 +453,8 @@ export class ServiceItemService {
           {
             "processId": processId[i],
             "userId": userIds[i],
-            "displayName": profileInfoObj[userIds[i]].displayName,
-            "media": profileInfoObj[userIds[i]].media
+            "displayName": profileInfoObj[userIds[i]]?.displayName,
+            "media": profileInfoObj[userIds[i]]?.media
           }
         );
       }

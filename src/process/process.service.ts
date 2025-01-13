@@ -30,10 +30,11 @@ export class ProcessService {
             if (isProcessExist) {
                 taskId = isProcessExist.currentTask;
             }
-            console.log(taskId, isProcessExist);
-            let currentTaskData: any = await this.tasksModel.findOne({ parentProcessId: processId, _id: taskId });
+            console.log(taskId, isProcessExist, processId);
+            let currentTaskData: any = await this.tasksModel.findOne({ processId: processId, _id: taskId });
+
             let finalResponse = {};
-            let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: processId })).toString();
+            let totalTasks = (await this.tasksModel.countDocuments({ processId: processId })).toString();
             finalResponse["taskId"] = currentTaskData._id;
             finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
             finalResponse["processId"] = currentTaskData.processId;
@@ -43,8 +44,10 @@ export class ProcessService {
             finalResponse["taskData"] = currentTaskData.taskMetaData;
             finalResponse["totalTasks"] = totalTasks;
             finalResponse["isLocked"] = currentTaskData.isLocked;
+
             finalResponse["progressPercentage"] = Math.ceil((parseInt(currentTaskData.taskNumber) / parseInt(totalTasks)) * 100);
             let nextTaskData = await this.tasksModel.findOne({ taskNumber:  (currentTaskData.taskNumber+1 ), processId: processId });
+
             let nextTask = {};
             if (!nextTaskData) {
                 nextTaskData = await this.tasksModel.findOne({ processId: processId });
@@ -249,7 +252,7 @@ export class ProcessService {
             let processObjIds = processIds.map((e) => new ObjectId(e));
             return this.tasksModel.aggregate([
                 { $match: { "processId": { $in: processObjIds } } },
-                { $sort: { createdAt: 1 } },
+                { $sort: { taskNumber: 1 } },
                 {
                     $group: {
                         _id: "$processId",

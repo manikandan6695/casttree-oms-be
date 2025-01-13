@@ -8,6 +8,7 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
 import { CommentsModule } from "./comments/comments.module";
 import { HelperModule } from "./helper/helper.module";
+import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { ItemModule } from "./item/item.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
