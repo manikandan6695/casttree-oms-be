@@ -17,6 +17,7 @@ import { ServiceRequestModule } from "./service-request/service-request.module";
 import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
+import { SubscriptionModule } from "./subscription/subscription.module";
 
 @Module({
   imports: [
@@ -54,7 +55,8 @@ import { SharedModule } from "./shared/shared.module";
     CommentsModule,
     PaymentRequestModule,
     InvoiceModule,
-    ProcessModule
+    ProcessModule,
+    SubscriptionModule 
   ],
   controllers: [],
   providers: [
