@@ -47,7 +47,7 @@ export class PaymentRequestService {
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
-    private helperService:HelperService
+    private helperService: HelperService
   ) {}
 
   async initiatePayment(
@@ -62,19 +62,22 @@ export class PaymentRequestService {
       // );
 
       const invoiceData = await this.createNewInvoice(body, token);
-      body["serviceRequest"] = {
-        ...body.serviceRequest,
-       
-        sourceId: invoiceData._id,
-        sourceType: EDocument.sales_document,
-      };
-      // console.log("body is", body.serviceRequest);
+      let serviceRequest;
+      if (body.serviceRequest) {
+        body["serviceRequest"] = {
+          ...body.serviceRequest,
 
-      const serviceRequest =
-        await this.serviceRequestService.createServiceRequest(
+          sourceId: invoiceData._id,
+          sourceType: EDocument.sales_document,
+        };
+        // console.log("body is", body.serviceRequest);
+
+        serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
+      }
+
       // console.log("service request is", serviceRequest.request._id);
 
       const existingPayment = await this.paymentModel.findOne({
@@ -89,29 +92,32 @@ export class PaymentRequestService {
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
-     if(body.couponCode != null){
-     let couponBody = {
-      sourceId: serviceRequest.request._id,
-      sourceType: ESourceType.serviceRequest,
-      couponCode: body.couponCode,
-      billingAmount: body.amount,
-      discountAmount: body.discount
-     };
+      if (body.couponCode != null) {
+        let couponBody = {
+          sourceId: serviceRequest.request._id,
+          sourceType: ESourceType.serviceRequest,
+          couponCode: body.couponCode,
+          billingAmount: body.amount,
+          discountAmount: body.discount,
+        };
 
-   
-      const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
-     }
-    
-     if(body.couponCode != null){
-      body.amount = body.amount- body.discount;
-     }
-    
+        const createCouponUsage = await this.helperService.createCouponUsage(
+          couponBody,
+          accessToken
+        );
+      }
 
+      if (body.couponCode != null) {
+        body.amount = body.amount - body.discount;
+      }
+      let requesId = serviceRequest?.request?._id.toString()
+        ? serviceRequest?.request?._id.toString()
+        : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
         body.amount,
-        serviceRequest.request._id.toString(),
+        requesId,
         accessToken,
         {
           invoiceId: invoiceData._id,
@@ -135,10 +141,10 @@ export class PaymentRequestService {
 
   async createNewInvoice(body: paymentDTO, token: UserToken) {
     let grand_total = body.amount;
-    if(body.couponCode != null){
-       grand_total = body.amount- body.discount;
+    if (body.couponCode != null) {
+      grand_total = body.amount - body.discount;
     }
-   
+
     return await this.invoiceService.createInvoice(
       {
         source_id: null,
