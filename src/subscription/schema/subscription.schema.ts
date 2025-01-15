@@ -1,7 +1,6 @@
 import * as mongoose from "mongoose";
-import { IUserModel } from "src/user/schema/user.schema";
 export interface ISubscriptionModel extends mongoose.Document {
-  userId: string | IUserModel;
+  userId: string;
   planId: string;
   totalCount: number;
   currentStart: Date;
@@ -15,8 +14,8 @@ export interface ISubscriptionModel extends mongoose.Document {
   notes: any;
   subscriptionStatus: string;
   status: string;
-  createdBy: string | IUserModel;
-  updatedBy: string | IUserModel;
+  createdBy: string;
+  updatedBy: string;
 }
 export const subscriptionSchema = new mongoose.Schema(
   {

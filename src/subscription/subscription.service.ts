@@ -2,16 +2,16 @@ import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { Model } from "mongoose";
-import { CtApiService } from "src/ct-api/ct-api.service";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
-import { UserToken } from "src/user/dto/usertoken.dto";
+import { UserToken } from "src/auth/dto/usertoken.dto";
+import { HelperService } from "src/helper/helper.service";
 
 @Injectable()
 export class SubscriptionService {
   constructor(
     @InjectModel("subscription")
     private readonly subscriptionModel: Model<ISubscriptionModel>,
-    private ctApiService: CtApiService
+    private helperService: HelperService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token: UserToken) {
@@ -25,7 +25,7 @@ export class SubscriptionService {
           sourceType: body.sourceType,
         },
       };
-      let data = await this.ctApiService.addSubscription(fv, token);
+      let data = await this.helperService.addSubscription(fv, token);
 
       return { data };
     } catch (err) {
@@ -43,11 +43,7 @@ export class SubscriptionService {
 
   async extractSubscriptionDetails(body) {
     try {
-      console.log(
-        "extrat payment invoice id",
-        body?.payload?.payment?.entity?.notes.invoiceId,
-        body?.payload?.payment?.entity?.notes
-      );
+      console.log("webhook", body?.payload,body);
     } catch (err) {
       throw err;
     }

@@ -5,7 +5,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { SharedModule } from 'src/shared/shared.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { subscriptionSchema } from './schema/subscription.schema';
-import { CtApiModule } from 'src/ct-api/ct-api.module';
+import { HelperModule } from 'src/helper/helper.module';
 
 @Module({
   imports: [
@@ -14,7 +14,7 @@ import { CtApiModule } from 'src/ct-api/ct-api.module';
     ]),
     SharedModule,
     AuthModule,
-    CtApiModule
+    HelperModule
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService]

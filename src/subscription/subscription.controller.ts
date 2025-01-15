@@ -1,11 +1,11 @@
 import { Body, Controller, Post, UseGuards,Res, ValidationPipe, Req, Param } from "@nestjs/common";
 import { SubscriptionService } from "./subscription.service";
 import { SharedService } from "src/shared/shared.service";
-import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
-import { UserToken } from "src/user/dto/usertoken.dto";
 import { Response } from "express";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
+import { UserToken } from "src/auth/dto/usertoken.dto";
 
 @Controller("subscription")
 export class SubscriptionController {
