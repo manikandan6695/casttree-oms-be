@@ -43,7 +43,7 @@ export class SubscriptionService {
 
   async extractSubscriptionDetails(body) {
     try {
-      console.log("webhook", body?.payload,body);
+      console.log("webhook", body,JSON.stringify(body?.payload));
     } catch (err) {
       throw err;
     }
