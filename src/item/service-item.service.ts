@@ -386,7 +386,7 @@ export class ServiceItemService {
             "taskDetail": pendingProcessInstanceData[i].currentTask,
             "mentorImage": mentorUserIds[i].media,
             "mentorName": mentorUserIds[i].displayName,
-            "seriesTitle":pendingProcessInstanceData[i].processId.processMetaData.processTitle
+            "seriesTitle": pendingProcessInstanceData[i].processId.processMetaData.processTitle
           });
         }
       }
@@ -473,6 +473,10 @@ export class ServiceItemService {
       let plandata: any = await this.itemService.getItemsDetails(ids);
       let finalResponse = {};
       let featuresArray = [];
+      featuresArray.push({
+        "feature": "planType",
+        "values": ["THIS COURSE", "CASTTREE PREMIUM", "CASTTREE PREMIUM PRO"]
+      });
       featuresArray.push({ "feature": "Access to this course", "values": ["check", "check", "check"] });
       for (let i = 0; i < plandata[0].additionalDetail.planDetails.length; i++) {
         let feature = plandata[0].additionalDetail.planDetails[i].feature;
@@ -484,7 +488,7 @@ export class ServiceItemService {
       let actualPrice = [processPricingData.itemId.price, plandata[1].price, plandata[0].price];
       let comparePrice = [processPricingData.itemId.comparePrice, plandata[1].comparePrice, plandata[0].comparePrice];
       let badgeColour = ["#FFC107D4", "#FF8762", "#06C270"];
-      let keys = ["casttree",plandata[1].additionalDetail.key, plandata[0].additionalDetail.key];
+      let keys = ["casttree", plandata[1].additionalDetail.key, plandata[0].additionalDetail.key];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -493,13 +497,14 @@ export class ServiceItemService {
           "planIds": planIds[i],
           "actualPrice": actualPrice[i],
           "comparePrice": comparePrice[i],
-          "badgeColour": badgeColour[i]
+          "badgeColour": badgeColour[i],
+          "expiry": "this year"
         })
       }
-      finalResponse["planData"]= planDetailsArray;
-      finalResponse["featuresData"]= featuresArray;
+      finalResponse["planData"] = planDetailsArray;
+      finalResponse["featuresData"] = featuresArray;
 
-    return finalResponse;
+      return finalResponse;
     } catch (err) {
       throw err;
     }
