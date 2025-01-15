@@ -493,7 +493,8 @@ export class ServiceItemService {
           "planIds": planIds[i],
           "actualPrice": actualPrice[i],
           "comparePrice": comparePrice[i],
-          "badgeColour": badgeColour[i]
+          "badgeColour": badgeColour[i],
+          "expiry" :"this year"
         })
       }
       finalResponse["planData"]= planDetailsArray;
