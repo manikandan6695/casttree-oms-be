@@ -215,6 +215,8 @@ export class HelperService {
 
   async addSubscription(body, token: UserToken) {
     try {
+      console.log("add subscription body is===>", body);
+
       let fv = {
         plan_id: body.plan_id,
         total_count: 1,
@@ -225,6 +227,7 @@ export class HelperService {
           itemId: body.notes.itemId,
         },
       };
+      console.log("fv is", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
@@ -257,7 +260,7 @@ export class HelperService {
         )
         .toPromise();
 
-      return data.data.profileData;
+      return data.data;
     } catch (err) {
       throw err;
     }
