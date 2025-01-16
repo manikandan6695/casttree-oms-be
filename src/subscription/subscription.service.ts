@@ -38,6 +38,8 @@ export class SubscriptionService {
           itemId: body.itemId,
         },
       };
+      console.log("create subscription fv ===>", fv);
+
       let data = await this.helperService.addSubscription(fv, token);
 
       return { data };
@@ -93,7 +95,6 @@ export class SubscriptionService {
         };
         let payment = await this.paymentService.createPaymentRecord(
           invoiceFV,
-
           null,
           invoice,
           null,
@@ -134,7 +135,7 @@ export class SubscriptionService {
       throw err;
     }
   }
-  
+
   async validateSubscription(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
