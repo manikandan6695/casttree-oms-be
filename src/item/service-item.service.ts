@@ -332,12 +332,19 @@ export class ServiceItemService {
       let updatedSeriesForYouData = {
         "ListData": []
       };
+      let upcomingData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.upcoming });
+      let updatedUpcomingData = {
+        "ListData": []
+      };
       let processIds = [];
       for (let i = 0; i < seriesForYouData.length; i++) {
         processIds.push(seriesForYouData[i]?.additionalDetails?.processId);
       }
       for (let i = 0; i < featuredData.length; i++) {
         processIds.push(featuredData[i].additionalDetails.processId);
+      }
+      for (let i = 0; i < upcomingData.length; i++) {
+        processIds.push(upcomingData[i].additionalDetails.processId);
       }
       let firstTasks = await this.processService.getFirstTask(processIds);
       //return firstTasks;
@@ -346,7 +353,6 @@ export class ServiceItemService {
         return a;
       }, {});
       for (let i = 0; i < featuredData.length; i++) {
-        let processId = seriesForYouData[i].additionalDetails.processId.toString();
         featureCarouselData["ListData"].push({
           "processId": featuredData[i].additionalDetails.processId,
           "thumbnail": featuredData[i].additionalDetails.thumbnail,
@@ -355,11 +361,17 @@ export class ServiceItemService {
         })
       }
       for (let i = 0; i < seriesForYouData.length; i++) {
-        let processId = seriesForYouData[i].additionalDetails.processId.toString();
         updatedSeriesForYouData["ListData"].push({
           "processId": seriesForYouData[i].additionalDetails.processId,
           "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
           "taskDetail": firstTaskObject[seriesForYouData[i].additionalDetails.processId]
+        })
+      }
+      for (let i = 0; i < upcomingData.length; i++) {
+        updatedUpcomingData["ListData"].push({
+          "processId": upcomingData[i].additionalDetails.processId,
+          "thumbnail": upcomingData[i].additionalDetails.thumbnail,
+          "taskDetail": firstTaskObject[upcomingData[i].additionalDetails.processId]
         })
       }
       let sections = [];
@@ -399,6 +411,7 @@ export class ServiceItemService {
         "componentType": EcomponentType.ActiveProcessList
 
       }),
+      
         sections.push({
           "data": {
             "listData": featureCarouselData["ListData"]
@@ -413,6 +426,14 @@ export class ServiceItemService {
           },
           "horizontalScroll": false,
           "componentType": EcomponentType.ColThumbnailList
+        });
+        sections.push({
+          "data": {
+            "headerName": Eheader.upcoming,
+            "listData": updatedUpcomingData["ListData"]
+          },
+          "horizontalScroll": false,
+          "componentType": EcomponentType.upcoming
         });
 
       let data = {};
