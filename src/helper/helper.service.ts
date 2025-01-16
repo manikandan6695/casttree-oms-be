@@ -253,13 +253,14 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
+      console.log("update user body is ===>", body);
+
       let data = await this.http_service
-        .post(
+        .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/${body.userId}`,
           body
         )
         .toPromise();
-      console.log("user updated data is", data.data);
 
       return data.data;
     } catch (err) {
