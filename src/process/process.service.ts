@@ -46,7 +46,7 @@ export class ProcessService {
             finalResponse["isLocked"] = currentTaskData.isLocked;
 
             finalResponse["progressPercentage"] = Math.ceil((parseInt(currentTaskData.taskNumber) / parseInt(totalTasks)) * 100);
-            let nextTaskData = await this.tasksModel.findOne({ taskNumber:  (currentTaskData.taskNumber+1 ), processId: processId });
+            let nextTaskData = await this.tasksModel.findOne({ taskNumber: (currentTaskData.taskNumber + 1), processId: processId });
 
             let nextTask = {};
             if (!nextTaskData) {
@@ -182,7 +182,7 @@ export class ProcessService {
     async pendingProcess(userId) {
         try {
 
-            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: "Started" }).populate("currentTask").populate("processId").lean();
+            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: { $lt: 100 } }).populate("currentTask").populate("processId").sort({ createdAt: -1 }).lean();
             for (let i = 0; i < pendingProcessInstanceData.length; i++) {
                 let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData[i].processId })).toString();
                 pendingProcessInstanceData[i].completed = Math.ceil((parseInt(pendingProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
@@ -235,21 +235,21 @@ export class ProcessService {
         }
     }
 
-    async getAllTasks(processId,token) {
+    async getAllTasks(processId, token) {
         try {
-            let userProcessInstanceData :any = await this.processInstancesModel.find({processId:processId ,userId:token.id}).lean();
-           
+            let userProcessInstanceData: any = await this.processInstancesModel.find({ processId: processId, userId: token.id }).lean();
+
             let createdInstanceTasks = [];
-            for(let i = 0; i<userProcessInstanceData.length;i++){
-              createdInstanceTasks.push(userProcessInstanceData[i].currentTask.toString())
+            for (let i = 0; i < userProcessInstanceData.length; i++) {
+                createdInstanceTasks.push(userProcessInstanceData[i].currentTask.toString())
             }
             let allTaskdata: any = await this.tasksModel.find({ processId: processId }).lean();
-            for(let i = 0;i < allTaskdata.length;i++){
-                if( createdInstanceTasks.includes(allTaskdata[i]._id.toString())){
+            for (let i = 0; i < allTaskdata.length; i++) {
+                if (createdInstanceTasks.includes(allTaskdata[i]._id.toString())) {
                     console.log(true)
-                    allTaskdata[i].isCompleted = true; 
-                }else{
-                    allTaskdata[i].isCompleted = false; 
+                    allTaskdata[i].isCompleted = true;
+                } else {
+                    allTaskdata[i].isCompleted = false;
                 }
             }
             return allTaskdata;
@@ -293,7 +293,4 @@ export class ProcessService {
             throw err;
         }
     }
-
-
-
 }
