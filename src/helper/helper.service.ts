@@ -267,28 +267,28 @@ export class HelperService {
       throw err;
     }
   }
-  @OnEvent(EVENT_UPDATE_USER)
-  async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
-    try {
-      console.log("updateUserPayload", updateUserPayload);
+  // @OnEvent(EVENT_UPDATE_USER)
+  // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
+  //   try {
+  //     console.log("updateUserPayload", updateUserPayload);
 
-      await this.sharedService.updateEventProcessingStatus(
-        updateUserPayload?.commandSource,
-        ECommandProcessingStatus.InProgress
-      );
-      let user = await this.updateUser(updateUserPayload);
-      console.log("user", user);
+  //     await this.sharedService.updateEventProcessingStatus(
+  //       updateUserPayload?.commandSource,
+  //       ECommandProcessingStatus.InProgress
+  //     );
+  //     let user = await this.updateUser(updateUserPayload);
+  //     console.log("user", user);
 
-      await this.sharedService.updateEventProcessingStatus(
-        updateUserPayload?.commandSource,
-        ECommandProcessingStatus.Complete
-      );
-    } catch (err) {
-      console.error("err", err);
-      await this.sharedService.updateEventProcessingStatus(
-        updateUserPayload?.commandSource,
-        ECommandProcessingStatus.Failed
-      );
-    }
-  }
+  //     await this.sharedService.updateEventProcessingStatus(
+  //       updateUserPayload?.commandSource,
+  //       ECommandProcessingStatus.Complete
+  //     );
+  //   } catch (err) {
+  //     console.error("err", err);
+  //     await this.sharedService.updateEventProcessingStatus(
+  //       updateUserPayload?.commandSource,
+  //       ECommandProcessingStatus.Failed
+  //     );
+  //   }
+  // }
 }
