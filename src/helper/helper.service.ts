@@ -262,7 +262,7 @@ export class HelperService {
         )
         .toPromise();
 
-      return data.data;
+      return JSON.stringify(data.data);
     } catch (err) {
       throw err;
     }
@@ -276,7 +276,8 @@ export class HelperService {
         updateUserPayload?.commandSource,
         ECommandProcessingStatus.InProgress
       );
-      await this.updateUser(updateUserPayload);
+      let user = await this.updateUser(updateUserPayload);
+      console.log("user", user);
 
       await this.sharedService.updateEventProcessingStatus(
         updateUserPayload?.commandSource,
