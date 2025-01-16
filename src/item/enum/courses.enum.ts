@@ -1,17 +1,14 @@
 export enum EcomponentType {
     ColThumbnailList = "2ColThumbnailList",
     ActiveProcessList = "ActiveProcessList",
-    feature = "feature-carousel",
-    upcoming = "upcomingseries",
+    feature = "feature-carousel"
  
   }
   
 export const EScomponentType = [
     EcomponentType.ColThumbnailList,
     EcomponentType.ActiveProcessList,
-    EcomponentType.feature,
-    EcomponentType.upcoming
-
+    EcomponentType.feature
   ];
 
   export enum Eheader {
