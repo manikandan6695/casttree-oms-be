@@ -76,7 +76,7 @@ export class SubscriptionService {
         console.log("subscription created ===>", subscription);
 
         let invoice = await this.invoiceService.createInvoice({
-          source_id: req.body?.payload?.subscription?.entity?.notes?.processId,
+          source_id: req.body?.payload?.subscription?.entity?.notes?.sourceId,
           source_type: "process",
           sub_total: req.body?.payload?.payment?.entity?.amount,
           document_status: EDocumentStatus.completed,
@@ -100,6 +100,10 @@ export class SubscriptionService {
           null
         );
         console.log("payment ===>", payment._id);
+        console.log(
+          "subscription entity notes",
+          req.body?.payload?.subscription?.entity?.notes
+        );
 
         let item = await this.itemService.getItemDetail(
           req.body?.payload?.subscription?.entity?.notes?.itemId
@@ -112,6 +116,8 @@ export class SubscriptionService {
           membership: item?.item_name,
           badge: item?.additionalDetail?.badge,
         };
+        console.log("user body to emit event ==>", userBody);
+
         await this.sharedService.trackAndEmitEvent(
           EVENT_UPDATE_USER,
           userBody,
@@ -128,12 +134,7 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async getItemDetail(itemId: string) {
-    try {
-    } catch (err) {
-      throw err;
-    }
-  }
+  
   async validateSubscription(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
@@ -144,11 +145,4 @@ export class SubscriptionService {
       throw err;
     }
   }
-  // async extractSubscriptionDetails(body) {
-  //   try {
-  //     console.log("webhook", body,JSON.stringify(body?.payload));
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // }
 }
