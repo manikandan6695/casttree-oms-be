@@ -432,8 +432,8 @@ export class ServiceItemService {
             "headerName": Eheader.upcoming,
             "listData": updatedUpcomingData["ListData"]
           },
-          "horizontalScroll": false,
-          "componentType": EcomponentType.upcoming
+          "horizontalScroll": true,
+          "componentType": EcomponentType.ColThumbnailList
         });
 
       let data = {};

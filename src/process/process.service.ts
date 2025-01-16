@@ -182,7 +182,7 @@ export class ProcessService {
     async pendingProcess(userId) {
         try {
 
-            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, processStatus: { $lt: 100 } }).populate("currentTask").populate("processId").sort({ createdAt: -1 }).lean();
+            let pendingProcessInstanceData: any = await this.processInstancesModel.find({ userId: userId, progressPercentage: { $lt: 100 } , processStatus:"Started"}).populate("currentTask").populate("processId").sort({ createdAt: -1 }).lean();
             for (let i = 0; i < pendingProcessInstanceData.length; i++) {
                 let totalTasks = (await this.tasksModel.countDocuments({ parentProcessId: pendingProcessInstanceData[i].processId })).toString();
                 pendingProcessInstanceData[i].completed = Math.ceil((parseInt(pendingProcessInstanceData[i].currentTask.taskNumber) / parseInt(totalTasks)) * 100);
