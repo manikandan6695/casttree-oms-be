@@ -33,7 +33,6 @@ export class ItemController {
     }
   }
 
-//   @UseGuards(JwtAuthGuard)
   @Get(":id")
   async getItemDetail(@Param("id") id: string) {
     try {

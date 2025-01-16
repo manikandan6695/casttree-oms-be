@@ -9,6 +9,9 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
+import { SharedService } from "src/shared/shared.service";
+import { EVENT_UPDATE_USER } from "src/shared/app.constants";
+import { ItemService } from "src/item/item.service";
 
 @Injectable()
 export class SubscriptionService {
@@ -17,7 +20,9 @@ export class SubscriptionService {
     private readonly subscriptionModel: Model<ISubscriptionModel>,
     private invoiceService: InvoiceService,
     private paymentService: PaymentRequestService,
-    private helperService: HelperService
+    private helperService: HelperService,
+    private sharedService: SharedService,
+    private itemService: ItemService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token: UserToken) {
@@ -45,6 +50,8 @@ export class SubscriptionService {
     try {
       // await this.extractSubscriptionDetails(req.body);
       if (req.body?.payload?.subscription) {
+        console.log("inside subscription creation ===>");
+
         let fv = {
           userId: req.body?.payload?.subscription?.entity?.notes?.userId,
           planId: req.body?.payload?.subscription?.entity?.plan_id,
@@ -65,7 +72,8 @@ export class SubscriptionService {
           updatedBy: req.body?.payload?.subscription?.entity?.notes?.userId,
         };
 
-        await this.subscriptionModel.create(fv);
+        let subscription = await this.subscriptionModel.create(fv);
+        console.log("subscription created ===>", subscription);
 
         let invoice = await this.invoiceService.createInvoice({
           source_id: req.body?.payload?.subscription?.entity?.notes?.processId,
@@ -74,21 +82,61 @@ export class SubscriptionService {
           document_status: EDocumentStatus.completed,
           grand_total: req.body?.payload?.payment?.entity?.amount,
         });
-        let body: any = {
+        console.log("invoice id is ==>", invoice._id);
+
+        let invoiceFV: any = {
           amount: req.body?.payload?.payment?.entity?.amount,
           invoiceDetail: {
             sourceId: invoice._id,
           },
+          document_status: EDocumentStatus.completed,
         };
-        await this.paymentService.createPaymentRecord(body, null, invoice);
+        let payment = await this.paymentService.createPaymentRecord(
+          invoiceFV,
+          null,
+          invoice
+        );
+        console.log("payment ===>", payment._id);
+
+        let item = await this.itemService.getItemDetail(
+          req.body?.payload?.subscription?.entity?.notes?.itemId
+        );
+
+        console.log("item data is===>", item._id);
+
+        let userBody = {
+          userId: req.body?.payload?.subscription?.entity?.notes?.userId,
+          membership: item?.item_name,
+          badge: item?.additionalDetail?.badge,
+        };
+        await this.sharedService.trackAndEmitEvent(
+          EVENT_UPDATE_USER,
+          userBody,
+          true,
+          {
+            userId:
+              req.body?.payload?.subscription?.entity?.notes?.userId.toString(),
+            resourceUri: null,
+            action: null,
+          }
+        );
       }
     } catch (err) {
       throw err;
     }
   }
-  async validateSubscription(processId: string, userId: string) {
+  async getItemDetail(itemId: string) {
     try {
-      let subscription = await this.subscriptionModel.findOne({userId : userId,})
+    } catch (err) {
+      throw err;
+    }
+  }
+  async validateSubscription(userId: string) {
+    try {
+      let subscription = await this.subscriptionModel.findOne({
+        userId: userId,
+      });
+      return subscription;
     } catch (err) {
       throw err;
     }

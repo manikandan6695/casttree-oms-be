@@ -153,7 +153,7 @@ export class PaymentRequestService {
   async createPaymentRecord(
     body: paymentDTO,
     token?: UserToken | null,
-    invoiceData? : any,
+    invoiceData?: any,
     currency = null,
     orderDetail = null
   ) {
@@ -168,18 +168,20 @@ export class PaymentRequestService {
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency._id,
-      currency_code: currency.currency_code,
+      currency: currency?._id,
+      currency_code: currency?.currency_code,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token.id,
-      user_id: token.id,
+      created_by: token?.id,
+      user_id: token?.id,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
     };
-
+    if (body.document_status) {
+      paymentData["document_status"] = body.document_status;
+    }
     return await this.paymentModel.create(paymentData);
   }
 

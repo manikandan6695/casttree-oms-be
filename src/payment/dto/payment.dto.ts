@@ -33,6 +33,10 @@ export class paymentDTO {
 
   @IsOptional()
   @IsString()
+  document_status : string;
+
+  @IsOptional()
+  @IsString()
   couponCode?: string;
 
   @IsOptional()
