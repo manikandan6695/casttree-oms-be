@@ -6,6 +6,8 @@ import { SharedModule } from 'src/shared/shared.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { subscriptionSchema } from './schema/subscription.schema';
 import { HelperModule } from 'src/helper/helper.module';
+import { InvoiceModule } from 'src/invoice/invoice.module';
+import { PaymentRequestModule } from 'src/payment/payment-request.module';
 
 @Module({
   imports: [
@@ -14,7 +16,9 @@ import { HelperModule } from 'src/helper/helper.module';
     ]),
     SharedModule,
     AuthModule,
-    HelperModule
+    HelperModule,
+    InvoiceModule,
+    PaymentRequestModule
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService]

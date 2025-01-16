@@ -13,12 +13,12 @@ import { ESourceType } from "../enum/payment.enum";
 export class InvoiceDTO {
   @IsOptional()
   @IsString()
-  sourceId: string;
+  sourceId?: string;
 
   @IsOptional()
   @IsString()
   @IsEnum(ESourceType)
-  sourceType: ESourceType;
+  sourceType?: ESourceType;
 }
 
 export class paymentDTO {
@@ -29,27 +29,27 @@ export class paymentDTO {
 
   @IsOptional()
   @IsString()
-  currency: string;
+  currency?: string;
 
   @IsOptional()
   @IsString()
-  couponCode: string;
+  couponCode?: string;
 
   @IsOptional()
   @IsNumber()
-  discount: number;
+  discount?: number;
 
   @IsOptional()
-  serviceRequest: AddServiceRequestDTO;
+  serviceRequest?: AddServiceRequestDTO;
 
   @IsOptional()
   @IsString()
-  paymentMode: string;
+  paymentMode?: string;
 
   @IsOptional()
   @IsMongoId()
-  userId: string;
+  userId?: string;
 
   @IsOptional()
-  invoiceDetail: InvoiceDTO;
+  invoiceDetail?: InvoiceDTO;
 }

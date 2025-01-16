@@ -13,6 +13,7 @@ export interface ISubscriptionModel extends mongoose.Document {
   expireBy: Date;
   notes: any;
   subscriptionStatus: string;
+  metaData: any;
   status: string;
   createdBy: string;
   updatedBy: string;
@@ -56,6 +57,9 @@ export const subscriptionSchema = new mongoose.Schema(
     },
     subscriptionStatus: {
       type: String,
+    },
+    metaData: {
+      type: mongoose.Schema.Types.Mixed,
     },
     status: {
       type: String,
