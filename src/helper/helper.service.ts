@@ -222,6 +222,7 @@ export class HelperService {
           userId: body.notes.userId,
           sourceId: body.notes.sourceId,
           sourceType: body.notes.sourceType,
+          itemId: body.notes.itemId,
         },
       };
 
