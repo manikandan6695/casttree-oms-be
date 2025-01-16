@@ -33,6 +33,8 @@ export class PaymentRequestController {
     @Res() res: Response
   ) {
     try {
+      console.log("inside initiate payment is ==>");
+
       let data = await this.paymentRequestService.initiatePayment(
         body,
         token,
@@ -56,6 +58,28 @@ export class PaymentRequestController {
       let data: any = await this.paymentRequestService.getPaymentDetail(id);
 
       return res.json(data.payment);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+
+  @Get(":sourceId/user/:userId")
+  async getPaymentDetailBySource(
+    @Param("sourceId") sourceId: string,
+    @Param("userId") userId: string,
+    @Res() res: Response
+  ) {
+    try {
+      let data: any = await this.paymentRequestService.getPaymentDetailBySource(
+        sourceId,
+        userId
+      );
+
+      return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,

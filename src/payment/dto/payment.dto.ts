@@ -8,7 +8,7 @@ import {
   IsString,
 } from "class-validator";
 import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
-import { ESourceType } from "../enum/payment.enum";
+import { EPaymentSourceType, ESourceType } from "../enum/payment.enum";
 
 export class InvoiceDTO {
   @IsOptional()
@@ -17,8 +17,8 @@ export class InvoiceDTO {
 
   @IsOptional()
   @IsString()
-  @IsEnum(ESourceType)
-  sourceType?: ESourceType;
+  @IsEnum(EPaymentSourceType)
+  sourceType?: EPaymentSourceType;
 }
 
 export class paymentDTO {
