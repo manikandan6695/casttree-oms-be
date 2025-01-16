@@ -62,19 +62,22 @@ export class PaymentRequestService {
       // );
 
       const invoiceData = await this.createNewInvoice(body, token);
-      body["serviceRequest"] = {
-        ...body.serviceRequest,
+      let serviceRequest;
+      if (body.serviceRequest) {
+        body["serviceRequest"] = {
+          ...body.serviceRequest,
 
-        sourceId: invoiceData._id,
-        sourceType: EDocument.sales_document,
-      };
-      // console.log("body is", body.serviceRequest);
+          sourceId: invoiceData._id,
+          sourceType: EDocument.sales_document,
+        };
+        // console.log("body is", body.serviceRequest);
 
-      const serviceRequest =
-        await this.serviceRequestService.createServiceRequest(
+        serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
+      }
+
       // console.log("service request is", serviceRequest.request._id);
 
       const existingPayment = await this.paymentModel.findOne({
@@ -107,12 +110,14 @@ export class PaymentRequestService {
       if (body.couponCode != null) {
         body.amount = body.amount - body.discount;
       }
-
+      let requesId = serviceRequest?.request?._id.toString()
+        ? serviceRequest?.request?._id.toString()
+        : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
         body.amount,
-        serviceRequest.request._id.toString(),
+        requesId,
         accessToken,
         {
           invoiceId: invoiceData._id,
@@ -152,8 +157,8 @@ export class PaymentRequestService {
 
   async createPaymentRecord(
     body: paymentDTO,
-    token?: UserToken | null,
-    invoiceData?: any,
+    token: UserToken,
+    invoiceData = null,
     currency = null,
     orderDetail = null
   ) {
@@ -180,7 +185,7 @@ export class PaymentRequestService {
       document_number: paymentNumber,
     };
     if (body.document_status) {
-      paymentData["document_status"] = body.document_status;
+      paymentData["paymentData"] = body.document_status;
     }
     return await this.paymentModel.create(paymentData);
   }

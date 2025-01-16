@@ -93,8 +93,11 @@ export class SubscriptionService {
         };
         let payment = await this.paymentService.createPaymentRecord(
           invoiceFV,
+
           null,
-          invoice
+          invoice,
+          null,
+          null
         );
         console.log("payment ===>", payment._id);
 
