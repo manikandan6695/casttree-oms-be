@@ -259,6 +259,7 @@ export class HelperService {
           body
         )
         .toPromise();
+      console.log("user updated data is", data.data);
 
       return data.data;
     } catch (err) {

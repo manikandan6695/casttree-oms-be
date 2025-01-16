@@ -110,11 +110,11 @@ export class SubscriptionService {
           req.body?.payload?.subscription?.entity?.notes?.itemId
         );
 
-        console.log("item data is===>", item._id);
+        console.log("item data is===>", item._id,item?.itemName);
 
         let userBody = {
           userId: req.body?.payload?.subscription?.entity?.notes?.userId,
-          membership: item?.item_name,
+          membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
         console.log("user body to emit event ==>", userBody);
