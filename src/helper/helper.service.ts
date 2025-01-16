@@ -244,7 +244,7 @@ export class HelperService {
         )
         .toPromise();
 
-      console.log("data is", data);
+      console.log("data is", data.data);
 
       return data.data;
     } catch (err) {
