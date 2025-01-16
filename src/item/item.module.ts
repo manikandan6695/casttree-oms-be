@@ -33,7 +33,7 @@ import { ServiceItemService } from "./service-item.service";
     
     ]),
     AuthModule,
-    HelperModule,
+    HelperModule, 
     forwardRef(() =>  ServiceRequestModule),
     forwardRef(() =>  ProcessModule)
   ],

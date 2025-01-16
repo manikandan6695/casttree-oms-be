@@ -145,25 +145,22 @@ export class PaymentRequestService {
       grand_total = body.amount - body.discount;
     }
 
-    return await this.invoiceService.createInvoice(
-      {
-        source_id: null,
-        source_type: null,
-        discount_amount: body.discount,
-        sub_total: body.amount,
-        document_status: EDocumentStatus.pending,
-        grand_total: grand_total,
-      },
-      token
-    );
+    return await this.invoiceService.createInvoice({
+      source_id: null,
+      source_type: null,
+      discount_amount: body.discount,
+      sub_total: body.amount,
+      document_status: EDocumentStatus.pending,
+      grand_total: grand_total,
+    });
   }
 
   async createPaymentRecord(
     body: paymentDTO,
     token: UserToken,
-    invoiceData,
-    currency,
-    orderDetail
+    invoiceData = null,
+    currency = null,
+    orderDetail = null
   ) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
@@ -176,18 +173,20 @@ export class PaymentRequestService {
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency._id,
-      currency_code: currency.currency_code,
+      currency: currency?._id,
+      currency_code: currency?.currency_code,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token.id,
-      user_id: token.id,
+      created_by: token?.id,
+      user_id: token?.id,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
     };
-
+    if (body.document_status) {
+      paymentData["paymentData"] = body.document_status;
+    }
     return await this.paymentModel.create(paymentData);
   }
 

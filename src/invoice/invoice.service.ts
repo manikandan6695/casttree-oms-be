@@ -18,7 +18,7 @@ export class InvoiceService {
     private itemDocumentService: ItemDocumentService
   ) {}
 
-  async createInvoice(body, token) {
+  async createInvoice(body) {
     try {
       let invoice_sequence = await this.sharedService.getNextNumber(
         "Invoice",

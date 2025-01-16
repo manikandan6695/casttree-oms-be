@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
-import { SubscriptionController } from './subscription.controller';
-import { SubscriptionService } from './subscription.service';
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { SharedModule } from 'src/shared/shared.module';
-import { AuthModule } from 'src/auth/auth.module';
-import { subscriptionSchema } from './schema/subscription.schema';
-import { HelperModule } from 'src/helper/helper.module';
+import { AuthModule } from "src/auth/auth.module";
+import { HelperModule } from "src/helper/helper.module";
+import { InvoiceModule } from "src/invoice/invoice.module";
+import { ItemModule } from "src/item/item.module";
+import { PaymentRequestModule } from "src/payment/payment-request.module";
+import { SharedModule } from "src/shared/shared.module";
+import { subscriptionSchema } from "./schema/subscription.schema";
+import { SubscriptionController } from "./subscription.controller";
+import { SubscriptionService } from "./subscription.service";
 
 @Module({
   imports: [
@@ -14,9 +17,13 @@ import { HelperModule } from 'src/helper/helper.module';
     ]),
     SharedModule,
     AuthModule,
-    HelperModule
+    HelperModule,
+    InvoiceModule,
+    PaymentRequestModule,
+    forwardRef(() =>  ItemModule),
   ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService]
+  providers: [SubscriptionService],
+  exports: [SubscriptionService],
 })
 export class SubscriptionModule {}
