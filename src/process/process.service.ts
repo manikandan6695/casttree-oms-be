@@ -30,15 +30,7 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
-    /*  let isProcessExist = await this.processInstancesModel.findOne({
-        processId: processId,
-        processStatus: "Started",
-        userId: token.id,
-      });
-      if (isProcessExist) {
-        taskId = isProcessExist.currentTask;
-      }
-      console.log(taskId, isProcessExist);*/
+
       let currentTaskData: any = await this.tasksModel.findOne({
         parentProcessId: processId,
         _id: taskId,
