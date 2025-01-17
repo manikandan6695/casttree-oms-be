@@ -409,7 +409,7 @@ export class ProcessService {
           100
         );
         if(status == "Completed"){
-          mySeries[i].completed = 100;
+          mySeries[i].progressPercentage = 100;
         }
         
       }
