@@ -366,6 +366,7 @@ export class ProcessService {
                   $expr: {
                     $and: [
                       { $eq: ['$processId', '$$processId'] },
+
                       (status == "Completed") ? { $eq: ['$taskNumber', 1] }: { $eq: ['$taskNumber', '$$completedCount'] }
                     ],
                   },
@@ -401,11 +402,15 @@ export class ProcessService {
             parentProcessId: mySeries[i].processId,
           })
         ).toString();
+
         mySeries[i].progressPercentage = Math.ceil(
           (parseInt(mySeries[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
           100
         );
+        if(status == "Completed"){
+          mySeries[i].completed = 100;
+        }
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {
