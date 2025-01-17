@@ -36,7 +36,7 @@ export class ProcessService {
         processId,
         token.id
       );
-      let isProcessExist = await this.processInstancesModel.findOne({
+      /*let isProcessExist = await this.processInstancesModel.findOne({
         processId: processId,
         processStatus: "Started",
         userId: token.id,
@@ -44,7 +44,7 @@ export class ProcessService {
       if (isProcessExist) {
         taskId = isProcessExist.currentTask;
       }
-      console.log(taskId, isProcessExist);
+      console.log(taskId, isProcessExist);*/
       let currentTaskData: any = await this.tasksModel.findOne({
         parentProcessId: processId,
         _id: taskId,
@@ -172,10 +172,10 @@ export class ProcessService {
         };
       } else {
         if (taskType == "Break") {
-          const newTime = new Date(
+          /*const newTime = new Date(
             currentTime.getTime() + parseInt(breakDuration) * 60000
           );
-          const endAt = newTime.toISOString();
+          const endAt = newTime.toISOString();*/
           CurrentInstanceData = await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
             taskId: taskId,
@@ -193,7 +193,6 @@ export class ProcessService {
 
   async updateProcessInstance(body, token) {
     try {
-      console.log("service");
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
       const currentTime = new Date();
