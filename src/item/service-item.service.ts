@@ -497,9 +497,9 @@ export class ServiceItemService {
       let featuresArray = [];
       featuresArray.push({
         "feature": "",
-        "values": ["THIS COURSE", "CASTTREE PREMIUM", "CASTTREE PREMIUM PRO"]
+        "values": ["THIS SERIES", "CASTTREE PREMIUM", "CASTTREE PREMIUM PRO"]
       });
-      featuresArray.push({ "feature": "Access to this course", "values": ["check", "check", "check"] });
+      featuresArray.push({ "feature": "Access to this series", "values": ["check", "check", "check"] });
       for (let i = 0; i < plandata[0].additionalDetail.planDetails.length; i++) {
         let feature = plandata[0].additionalDetail.planDetails[i].feature;
         let values = ["close", plandata[1].additionalDetail.planDetails[i].value, plandata[0].additionalDetail.planDetails[i].value];
@@ -511,6 +511,7 @@ export class ServiceItemService {
       let comparePrice = [processPricingData.itemId.comparePrice, plandata[1].comparePrice, plandata[0].comparePrice];
       let badgeColour = ["#FFC107D4", "#FF8762", "#06C270"];
       let keys = ["casttree", plandata[1].additionalDetail.key, plandata[0].additionalDetail.key];
+      let validity = ["for this series", "per year", "per year"];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -520,7 +521,7 @@ export class ServiceItemService {
           "actualPrice": actualPrice[i],
           "comparePrice": comparePrice[i],
           "badgeColour": badgeColour[i],
-          "expiry": "this year"
+          "expiry": validity[i]
         })
       }
       finalResponse["planData"] = planDetailsArray;
