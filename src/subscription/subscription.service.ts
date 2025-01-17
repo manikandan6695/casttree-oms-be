@@ -110,26 +110,26 @@ export class SubscriptionService {
           req.body?.payload?.subscription?.entity?.notes?.itemId
         );
 
-        console.log("item data is===>", item._id);
+        console.log("item data is===>", item._id, item?.itemName);
 
         let userBody = {
           userId: req.body?.payload?.subscription?.entity?.notes?.userId,
-          membership: item?.item_name,
+          membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
         console.log("user body to emit event ==>", userBody);
-
-        await this.sharedService.trackAndEmitEvent(
-          EVENT_UPDATE_USER,
-          userBody,
-          true,
-          {
-            userId:
-              req.body?.payload?.subscription?.entity?.notes?.userId.toString(),
-            resourceUri: null,
-            action: null,
-          }
-        );
+        await this.helperService.updateUser(userBody);
+        // await this.sharedService.trackAndEmitEvent(
+        //   EVENT_UPDATE_USER,
+        //   userBody,
+        //   true,
+        //   {
+        //     userId:
+        //       req.body?.payload?.subscription?.entity?.notes?.userId.toString(),
+        //     resourceUri: null,
+        //     action: null,
+        //   }
+        // );
       }
     } catch (err) {
       throw err;
