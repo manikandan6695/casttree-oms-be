@@ -435,7 +435,7 @@ export class ProcessService {
       );
       let allTaskdata: any = await this.tasksModel.find({
         parentProcessId: parentProcessId,
-      });
+      }).sort({taskNumber:1});
       if (subscription || payment?.paymentData?.length) {
         allTaskdata.forEach((task) => {
           task.isLocked = false;
