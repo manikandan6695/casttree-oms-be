@@ -26,11 +26,11 @@ export class ProcessService {
     ) { }
     async getTaskDetail(processId, taskId, token) {
         try {
-            let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started", userId: token.id });
+            /*let isProcessExist = await this.processInstancesModel.findOne({ processId: processId, processStatus: "Started", userId: token.id });
             if (isProcessExist) {
                 taskId = isProcessExist.currentTask;
             }
-            console.log(taskId, isProcessExist, processId);
+            console.log(taskId, isProcessExist, processId);*/
             let currentTaskData: any = await this.tasksModel.findOne({ processId: processId, _id: taskId });
 
             let finalResponse = {};
