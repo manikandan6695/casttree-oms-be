@@ -332,7 +332,7 @@ export class ServiceItemService {
       let updatedSeriesForYouData = {
         "ListData": []
       };
-      let upcomingData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.upcoming });
+      let upcomingData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.upcoming }).populate("itemId");
       let updatedUpcomingData = {
         "ListData": []
       };
@@ -375,7 +375,8 @@ export class ServiceItemService {
         })
       }
       let sections = [];
-      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
+      let pendingProcessInstanceData: any = await this.processService.pendingProcess(userId);
+      
       let continueWhereYouLeftData = {
         "ListData": []
       };
@@ -385,8 +386,7 @@ export class ServiceItemService {
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueProcessIds.push(pendingProcessInstanceData[i].processId)
         }
-        let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
-
+        let mentorUserIds: any = await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
 
           continueWhereYouLeftData["ListData"].push({
@@ -398,7 +398,8 @@ export class ServiceItemService {
             "taskDetail": pendingProcessInstanceData[i].currentTask,
             "mentorImage": mentorUserIds[i].media,
             "mentorName": mentorUserIds[i].displayName,
-            "seriesTitle": pendingProcessInstanceData[i].processId.processMetaData.processTitle
+            "seriesTitle": mentorUserIds[i].seriesName,
+            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
           });
         }
       }
@@ -410,8 +411,9 @@ export class ServiceItemService {
         "horizontalScroll": true,
         "componentType": EcomponentType.ActiveProcessList
 
-      }),
-      
+      })
+      ,
+
         sections.push({
           "data": {
             "listData": featureCarouselData["ListData"]
@@ -427,14 +429,14 @@ export class ServiceItemService {
           "horizontalScroll": false,
           "componentType": EcomponentType.ColThumbnailList
         });
-        sections.push({
-          "data": {
-            "headerName": Eheader.upcoming,
-            "listData": updatedUpcomingData["ListData"]
-          },
-          "horizontalScroll": true,
-          "componentType": EcomponentType.ColThumbnailList
-        });
+      sections.push({
+        "data": {
+          "headerName": Eheader.upcoming,
+          "listData": updatedUpcomingData["ListData"]
+        },
+        "horizontalScroll": true,
+        "componentType": EcomponentType.ColThumbnailList
+      });
 
       let data = {};
       data["sections"] = sections;
@@ -444,7 +446,7 @@ export class ServiceItemService {
         "message": "success",
         "data": data
       }
-      return finalResponse;;
+      return finalResponse;
     } catch (err) {
       throw err;
     }
@@ -453,14 +455,11 @@ export class ServiceItemService {
 
   async getMentorUserIds(processId) {
     try {
-
-
-      let mentorUserIds = await this.serviceItemModel.find({ type: "courses", "additionalDetails.processId": { $in: processId } }, { userId: 1 });
+      let mentorUserIds: any = await this.serviceItemModel.find({ type: "courses", "additionalDetails.processId": { $in: processId }, status: "Active" }, { userId: 1 }).populate("itemId");
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
       }
-
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds
       );
@@ -468,18 +467,21 @@ export class ServiceItemService {
         a[c.userId] = c;
         return a;
       }, {});
-
       let mentorProfiles = [];
       for (let i = 0; i < processId.length; i++) {
+        console.log("thumbNail: " + mentorUserIds[i].itemId.additionalDetail);
         mentorProfiles.push(
           {
             "processId": processId[i],
             "userId": userIds[i],
             "displayName": profileInfoObj[userIds[i]]?.displayName,
-            "media": profileInfoObj[userIds[i]]?.media
+            "media": profileInfoObj[userIds[i]]?.media,
+            "seriesName": mentorUserIds[i]?.itemId?.itemName,
+            "seriesThumbNail": mentorUserIds[i]?.itemId?.additionalDetail
           }
         );
       }
+
 
       return mentorProfiles;
     } catch (err) {
@@ -495,7 +497,7 @@ export class ServiceItemService {
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
-        "feature": "planType",
+        "feature": "",
         "values": ["THIS COURSE", "CASTTREE PREMIUM", "CASTTREE PREMIUM PRO"]
       });
       featuresArray.push({ "feature": "Access to this course", "values": ["check", "check", "check"] });
