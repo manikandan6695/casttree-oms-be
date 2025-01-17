@@ -1,34 +1,29 @@
-import { PaymentService } from "../service-provider/payment.service";
-import { InvoiceService } from "../invoice/invoice.service";
-import { Injectable, Req } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Req } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { SharedService } from "src/shared/shared.service";
-import { IPaymentModel } from "./schema/payment.schema";
-import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { CurrencyService } from "src/shared/currency/currency.service";
+import { HelperService } from "src/helper/helper.service";
+import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import {
   EDocument,
   EDocumentTypeName,
 } from "src/invoice/enum/document-type-name.enum";
 import {
-  EPaymentSourceType,
-  EPaymentStatus,
-  ERazorpayPaymentStatus,
-  ESourceType,
-} from "./enum/payment.enum";
-import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import { ServiceRequestService } from "src/service-request/service-request.service";
-import {
-  EServiceRequestStatus,
-  EVisibilityStatus,
+  EServiceRequestStatus
 } from "src/service-request/enum/service-request.enum";
-import { firstValueFrom } from "rxjs";
-import { Cron } from "@nestjs/schedule";
-import { HttpService } from "@nestjs/axios/";
-import { ConfigService } from "@nestjs/config";
-import { HelperService } from "src/helper/helper.service";
+import { ServiceRequestService } from "src/service-request/service-request.service";
+import { CurrencyService } from "src/shared/currency/currency.service";
+import { SharedService } from "src/shared/shared.service";
+import { InvoiceService } from "../invoice/invoice.service";
+import { PaymentService } from "../service-provider/payment.service";
+import { paymentDTO } from "./dto/payment.dto";
+import {
+  EPaymentSourceType,
+  ERazorpayPaymentStatus,
+  ESourceType
+} from "./enum/payment.enum";
+import { IPaymentModel } from "./schema/payment.schema";
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -44,6 +39,7 @@ export class PaymentRequestService {
     private readonly paymentModel: Model<IPaymentModel>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
+    @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,

@@ -107,6 +107,7 @@ export interface itemAdditionalDetailModel {
   workShopEndDate: Date;
   startTime: String;
   endTime: String;
+  thumbnail:String;
   faq: faqModel[];
   highlights: highlightsModel[];
   targetUsers: targetUsersModel[];
@@ -127,6 +128,9 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
     type: String,
   },
   endTime: {
+    type: String,
+  },
+  thumbnail: {
     type: String,
   },
   badge: { type: String },

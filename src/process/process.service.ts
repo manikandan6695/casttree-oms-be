@@ -26,7 +26,7 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService
-  ) {}
+  ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
@@ -36,7 +36,7 @@ export class ProcessService {
         processId,
         token.id
       );
-      let isProcessExist = await this.processInstancesModel.findOne({
+      /*let isProcessExist = await this.processInstancesModel.findOne({
         processId: processId,
         processStatus: "Started",
         userId: token.id,
@@ -44,7 +44,7 @@ export class ProcessService {
       if (isProcessExist) {
         taskId = isProcessExist.currentTask;
       }
-      console.log(taskId, isProcessExist);
+      console.log(taskId, isProcessExist);*/
       let currentTaskData: any = await this.tasksModel.findOne({
         parentProcessId: processId,
         _id: taskId,
@@ -66,7 +66,7 @@ export class ProcessService {
         : false;
 
       let nextTaskData = await this.tasksModel.findOne({
-        taskNumber: (currentTaskData.taskNumber+1) ,
+        taskNumber: (currentTaskData.taskNumber + 1),
         processId: processId,
       });
       let nextTask = {};
@@ -172,10 +172,10 @@ export class ProcessService {
         };
       } else {
         if (taskType == "Break") {
-          const newTime = new Date(
+          /*const newTime = new Date(
             currentTime.getTime() + parseInt(breakDuration) * 60000
           );
-          const endAt = newTime.toISOString();
+          const endAt = newTime.toISOString();*/
           CurrentInstanceData = await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
             taskId: taskId,
@@ -193,7 +193,6 @@ export class ProcessService {
 
   async updateProcessInstance(body, token) {
     try {
-      console.log("service");
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
       const currentTime = new Date();
@@ -245,24 +244,84 @@ export class ProcessService {
 
   async pendingProcess(userId) {
     try {
-      let pendingProcessInstanceData: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: "Started" })
-        .populate("currentTask").populate("processId")
-        .lean();
-      for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+      const pendingTasks = await this.processInstancesModel.aggregate([
+        {
+          $match: {
+            userId: new ObjectId(userId),
+          },
+        },
+        {
+          $group: {
+            _id: '$processId',
+            completedCount: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: 'task',
+            localField: '_id',
+            foreignField: 'processId',
+            as: 'tasks',
+          },
+        },
+        {
+          $addFields: {
+            totalTaskCount: { $size: '$tasks' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'task',
+            let: { processId: '$_id', completedCount: '$completedCount' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$processId', '$$processId'] },
+                      { $eq: ['$taskNumber', '$$completedCount'] }
+                    ],
+                  },
+                },
+              },
+            ],
+            as: 'currentTask',
+          },
+        },
+        {
+          $addFields: {
+            currentTask: { $arrayElemAt: ['$currentTask', 0] },
+          },
+        },
+        {
+          $match: {
+            $expr: { $ne: ['$completedCount', '$totalTaskCount'] },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            processId: '$_id',
+            //completedCount: 1,
+            //totalTaskCount: 1,
+            currentTask: 1,
+          },
+        },
+      ]);
+      for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: pendingProcessInstanceData[i].processId,
+            parentProcessId: pendingTasks[i].processId,
           })
         ).toString();
-        pendingProcessInstanceData[i].completed = Math.ceil(
-          (parseInt(pendingProcessInstanceData[i].currentTask.taskNumber) /
+        pendingTasks[i].completed = Math.ceil(
+          (parseInt(pendingTasks[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
-            100
+          100
         );
       }
 
-      return pendingProcessInstanceData;
+      return pendingTasks;
     } catch (err) {
       throw err;
     }
@@ -292,7 +351,7 @@ export class ProcessService {
         userProcessInstanceData[i]["progressPercentage"] = Math.ceil(
           (parseInt(userProcessInstanceData[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
-            100
+          100
         );
       }
       return userProcessInstanceData;
@@ -330,7 +389,7 @@ export class ProcessService {
       let processObjIds = processIds.map((e) => new ObjectId(e));
       return this.tasksModel.aggregate([
         { $match: { processId: { $in: processObjIds } } },
-        { $sort: { createdAt: 1 } },
+        { $sort: { taskNumber: 1 } },
         {
           $group: {
             _id: "$processId",
