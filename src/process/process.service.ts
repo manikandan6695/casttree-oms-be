@@ -366,7 +366,7 @@ export class ProcessService {
                   $expr: {
                     $and: [
                       { $eq: ['$processId', '$$processId'] },
-                      { $eq: ['$taskNumber', '$$completedCount'] }
+                      (status == "Completed") ? { $eq: ['$taskNumber', 1] }: { $eq: ['$taskNumber', '$$completedCount'] }
                     ],
                   },
                 },
