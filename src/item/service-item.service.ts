@@ -469,7 +469,6 @@ export class ServiceItemService {
       }, {});
       let mentorProfiles = [];
       for (let i = 0; i < processId.length; i++) {
-        console.log("thumbNail: " + mentorUserIds[i].itemId.additionalDetail);
         mentorProfiles.push(
           {
             "processId": processId[i],
@@ -477,7 +476,7 @@ export class ServiceItemService {
             "displayName": profileInfoObj[userIds[i]]?.displayName,
             "media": profileInfoObj[userIds[i]]?.media,
             "seriesName": mentorUserIds[i]?.itemId?.itemName,
-            "seriesThumbNail": mentorUserIds[i]?.itemId?.additionalDetail
+            "seriesThumbNail": mentorUserIds[i]?.itemId?.additionalDetail.thumbnail
           }
         );
       }
