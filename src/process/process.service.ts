@@ -329,32 +329,96 @@ export class ProcessService {
 
   async getMySeries(userId, status) {
     try {
-      let userProcessInstanceData: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: status })
-        .populate("currentTask")
-        .populate("processId")
-        .lean();
-      let processIds = [];
-      for (let i = 0; i < userProcessInstanceData.length; i++) {
-        processIds.push(userProcessInstanceData[i].processId);
-      }
-      let mentorDetails =
-        await this.serviceItemService.getMentorUserIds(processIds);
-      for (let i = 0; i < userProcessInstanceData.length; i++) {
-        userProcessInstanceData[i]["mentorName"] = mentorDetails[i].displayName;
-        userProcessInstanceData[i]["mentorImage"] = mentorDetails[i].media;
+
+      const mySeries = await this.processInstancesModel.aggregate([
+        {
+          $match: {
+            userId: new ObjectId(userId),
+          },
+        },
+        {
+          $group: {
+            _id: '$processId',
+            completedCount: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: 'task',
+            localField: '_id',
+            foreignField: 'processId',
+            as: 'tasks',
+          },
+        },
+        {
+          $addFields: {
+            totalTaskCount: { $size: '$tasks' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'task',
+            let: { processId: '$_id', completedCount: '$completedCount' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$processId', '$$processId'] },
+                      { $eq: ['$taskNumber', '$$completedCount'] }
+                    ],
+                  },
+                },
+              },
+            ],
+            as: 'currentTask',
+          },
+        },
+        {
+          $addFields: {
+            currentTask: { $arrayElemAt: ['$currentTask', 0] },
+          },
+        },
+        {
+          $match: {
+            $expr: (status == "Completed") ? { $eq: ['$completedCount', '$totalTaskCount'] } : { $ne: ['$completedCount', '$totalTaskCount'] },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            processId: '$_id',
+            //completedCount: 1,
+            //totalTaskCount: 1,
+            currentTask: 1,
+          },
+        },
+      ]);
+      for (let i = 0; i < mySeries.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: userProcessInstanceData[i].processId,
+            parentProcessId: mySeries[i].processId,
           })
         ).toString();
-        userProcessInstanceData[i]["progressPercentage"] = Math.ceil(
-          (parseInt(userProcessInstanceData[i].currentTask.taskNumber) /
+        mySeries[i].completed = Math.ceil(
+          (parseInt(mySeries[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
           100
         );
       }
-      return userProcessInstanceData;
+      let processIds = [];
+      for (let i = 0; i < mySeries.length; i++) {
+        processIds.push(mySeries[i].processId);
+      }
+      let mentorDetails =
+        await this.serviceItemService.getMentorUserIds(processIds);
+      for (let i = 0; i < mySeries.length; i++) {
+        mySeries[i]["mentorName"] = mentorDetails[i].displayName;
+        mySeries[i]["mentorImage"] = mentorDetails[i].media;
+        mySeries[i]["seriesName"] = mentorDetails[i].seriesName;
+        mySeries[i]["seriesThumbNail"] = mentorDetails[i].seriesThumbNail;
+}
+      return mySeries;
     } catch (err) {
       throw err;
     }
