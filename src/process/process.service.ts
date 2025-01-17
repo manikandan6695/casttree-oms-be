@@ -411,6 +411,7 @@ export class ProcessService {
         if(status == "Completed"){
           mySeries[i].completed = 100;
         }
+        
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {
