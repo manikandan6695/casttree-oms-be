@@ -2,14 +2,14 @@ import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
+import { UserToken } from "src/auth/dto/usertoken.dto";
 import { ServiceItemService } from "src/item/service-item.service";
+import { PaymentRequestService } from "src/payment/payment-request.service";
+import { SubscriptionService } from "src/subscription/subscription.service";
 import { processModel } from "./schema/process.schema";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
-import { SubscriptionService } from "src/subscription/subscription.service";
-import { UserToken } from "src/auth/dto/usertoken.dto";
-import { PaymentRequestService } from "src/payment/payment-request.service";
 
 @Injectable()
 export class ProcessService {
@@ -66,7 +66,7 @@ export class ProcessService {
         : false;
 
       let nextTaskData = await this.tasksModel.findOne({
-        _id: { $gt: taskId },
+        taskNumber: (currentTaskData.taskNumber+1) ,
         processId: processId,
       });
       let nextTask = {};
@@ -247,7 +247,7 @@ export class ProcessService {
     try {
       let pendingProcessInstanceData: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: "Started" })
-        .populate("currentTask")
+        .populate("currentTask").populate("processId")
         .lean();
       for (let i = 0; i < pendingProcessInstanceData.length; i++) {
         let totalTasks = (
