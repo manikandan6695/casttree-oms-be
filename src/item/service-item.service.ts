@@ -497,7 +497,7 @@ export class ServiceItemService {
       let featuresArray = [];
       featuresArray.push({
         "feature": "",
-        "values": ["THIS SERIES", "CASTTREE PREMIUM", "CASTTREE PREMIUM PRO"]
+        "values": ["THIS SERIES", plandata[1].itemName, plandata[0].itemName]
       });
       featuresArray.push({ "feature": "Access to this series", "values": ["check", "check", "check"] });
       for (let i = 0; i < plandata[0].additionalDetail.planDetails.length; i++) {
