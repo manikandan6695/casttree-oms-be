@@ -400,7 +400,7 @@ export class ProcessService {
             parentProcessId: mySeries[i].processId,
           })
         ).toString();
-        mySeries[i].completed = Math.ceil(
+        mySeries[i].progressPercentage = Math.ceil(
           (parseInt(mySeries[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
           100
