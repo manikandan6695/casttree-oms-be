@@ -30,7 +30,7 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
-      let isProcessExist = await this.processInstancesModel.findOne({
+    /*  let isProcessExist = await this.processInstancesModel.findOne({
         processId: processId,
         processStatus: "Started",
         userId: token.id,
@@ -38,7 +38,7 @@ export class ProcessService {
       if (isProcessExist) {
         taskId = isProcessExist.currentTask;
       }
-      console.log(taskId, isProcessExist);
+      console.log(taskId, isProcessExist);*/
       let currentTaskData: any = await this.tasksModel.findOne({
         parentProcessId: processId,
         _id: taskId,
@@ -62,7 +62,7 @@ export class ProcessService {
       }
 
       let nextTaskData = await this.tasksModel.findOne({
-        _id: { $gt: taskId },
+        taskNumber: (currentTaskData.taskNumber+1) ,
         processId: processId,
       });
       let nextTask = {};
