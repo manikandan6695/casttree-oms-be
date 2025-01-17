@@ -417,7 +417,7 @@ export class ProcessService {
         mySeries[i]["mentorImage"] = mentorDetails[i].media;
         mySeries[i]["seriesName"] = mentorDetails[i].seriesName;
         mySeries[i]["seriesThumbNail"] = mentorDetails[i].seriesThumbNail;
-}
+      }
       return mySeries;
     } catch (err) {
       throw err;
@@ -429,13 +429,29 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
+      let userProcessInstanceData: any = await this.processInstancesModel.find({ processId: parentProcessId, userId: token.id }).lean();
+
+      let createdInstanceTasks = [];
+      for (let i = 0; i < userProcessInstanceData.length; i++) {
+        createdInstanceTasks.push(userProcessInstanceData[i].currentTask.toString())
+      }
       let payment = await this.paymentService.getPaymentDetailBySource(
         parentProcessId,
         token.id
       );
       let allTaskdata: any = await this.tasksModel.find({
         parentProcessId: parentProcessId,
-      }).sort({taskNumber:1});
+      }).sort({ taskNumber: 1 }).lean();
+
+      allTaskdata.forEach((task) => {
+        console.log(task);
+        if (createdInstanceTasks.includes(task._id.toString())) {
+          console.log(true)
+          task.isCompleted = true;
+        } else {
+          task.isCompleted = false;
+        }
+      });
       if (subscription || payment?.paymentData?.length) {
         allTaskdata.forEach((task) => {
           task.isLocked = false;
