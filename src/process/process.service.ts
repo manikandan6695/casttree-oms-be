@@ -70,23 +70,24 @@ export class ProcessService {
         processId: processId,
       });
       let nextTask = {};
-      if (!nextTaskData) {
-        nextTaskData = await this.tasksModel.findOne({ processId: processId });
+      if (nextTaskData) {
+        //nextTaskData = await this.tasksModel.findOne({ processId: processId });
+        nextTask = {
+          taskId: nextTaskData._id,
+          parentProcessId: nextTaskData.parentProcessId,
+          processId: nextTaskData.processId,
+          nextTaskTitle: nextTaskData.title,
+          nextTaskType: nextTaskData.type,
+  
+          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+          taskNumber: nextTaskData.taskNumber,
+        };
+        nextTask["isLocked"] =
+          subscription || payment.paymentData.length
+            ? false
+            : nextTaskData.isLocked;
       }
-      nextTask = {
-        taskId: nextTaskData._id,
-        parentProcessId: nextTaskData.parentProcessId,
-        processId: nextTaskData.processId,
-        nextTaskTitle: nextTaskData.title,
-        nextTaskType: nextTaskData.type,
-
-        nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
-        taskNumber: nextTaskData.taskNumber,
-      };
-      nextTask["isLocked"] =
-        subscription || payment.paymentData.length
-          ? false
-          : nextTaskData.isLocked;
+      
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
       if (currentTaskData.type == "Break") {
@@ -365,7 +366,8 @@ export class ProcessService {
                   $expr: {
                     $and: [
                       { $eq: ['$processId', '$$processId'] },
-                      (status == "Completed") ? { $eq: ['$taskNumber', 1] } : { $eq: ['$taskNumber', '$$completedCount'] }
+
+                      (status == "Completed") ? { $eq: ['$taskNumber', 1] }: { $eq: ['$taskNumber', '$$completedCount'] }
                     ],
                   },
                 },
@@ -400,8 +402,9 @@ export class ProcessService {
             parentProcessId: mySeries[i].processId,
           })
         ).toString();
-        mySeries[i].completed = Math.ceil(
-          (parseInt(mySeries[i].currentTask?.taskNumber) /
+
+        mySeries[i].progressPercentage = Math.ceil(
+          (parseInt(mySeries[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
           100
         );
@@ -420,7 +423,7 @@ export class ProcessService {
         mySeries[i]["mentorImage"] = mentorDetails[i].media;
         mySeries[i]["seriesName"] = mentorDetails[i].seriesName;
         mySeries[i]["seriesThumbNail"] = mentorDetails[i].seriesThumbNail;
-}
+      }
       return mySeries;
     } catch (err) {
       throw err;
@@ -432,12 +435,28 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
+      let userProcessInstanceData: any = await this.processInstancesModel.find({ processId: parentProcessId, userId: token.id }).lean();
+
+      let createdInstanceTasks = [];
+      for (let i = 0; i < userProcessInstanceData.length; i++) {
+        createdInstanceTasks.push(userProcessInstanceData[i].currentTask.toString())
+      }
       let payment = await this.paymentService.getPaymentDetailBySource(
         parentProcessId,
         token.id
       );
       let allTaskdata: any = await this.tasksModel.find({
         parentProcessId: parentProcessId,
+      }).sort({ taskNumber: 1 }).lean();
+
+      allTaskdata.forEach((task) => {
+        console.log(task);
+        if (createdInstanceTasks.includes(task._id.toString())) {
+          console.log(true)
+          task.isCompleted = true;
+        } else {
+          task.isCompleted = false;
+        }
       });
       if (subscription || payment?.paymentData?.length) {
         allTaskdata.forEach((task) => {
