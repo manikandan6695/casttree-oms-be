@@ -506,7 +506,7 @@ export class ServiceItemService {
         featuresArray.push({ "feature": feature, "values": values });
       }
       let planIds = [null, plandata[1].additionalDetail.planId, plandata[0].additionalDetail.planId];
-      let headings = ["THIS COURSE", plandata[1].itemName, plandata[0].itemName];
+      let headings = ["THIS SERIES", plandata[1].itemName, plandata[0].itemName];
       let actualPrice = [processPricingData.itemId.price, plandata[1].price, plandata[0].price];
       let comparePrice = [processPricingData.itemId.comparePrice, plandata[1].comparePrice, plandata[0].comparePrice];
       let badgeColour = ["#FFC107D4", "#FF8762", "#06C270"];
