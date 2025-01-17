@@ -43,6 +43,7 @@ MSG91_END_POINT = "https://control.msg91.com/api/v5/flow/"
 RAZORPAY_API_KEY = "rzp_test_n3mWjwFQzH7YDM"
 RAZORPAY_SECRET_KEY = "ipNWATmDo20pFsUhajVV4Ell"
 PAYMENT_TYPE = "razorpay"
+RAZORPAY_BASE_URL = "https://api.razorpay.com"
 
 # PEERTUBE
 PEERTUBE_BASE_URL = "https://peertubedev.casttree.in"

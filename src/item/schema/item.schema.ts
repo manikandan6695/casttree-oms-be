@@ -16,7 +16,7 @@ import { itemAdditionalDetailModel, itemAdditionalDetailSchema } from "./itemAdd
 export interface IItemModel extends mongoose.Document {
   orgId: any; //or org model
   item_type: EItemType;
-  item_name: string;
+  itemName: string;
   item_sku?: string;
   item_long_description?: string;
   item_short_description?: string;

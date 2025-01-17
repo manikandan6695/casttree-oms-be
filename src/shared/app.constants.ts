@@ -6,3 +6,5 @@ export const PEERTUBE_LOGIN_API_THROTTLE_TTL = 10000;
 export const PEERTUBE_LOGIN_API_THROTTLE_LIMIT = 15;
 export const UPDATE_NOMINATION_STATUS =
   "Casttree.Events.Update.Nomination.Status";
+  export const EVENT_UPDATE_USER =
+  "Casttree.Events.Update.USER";   
