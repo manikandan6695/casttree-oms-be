@@ -70,23 +70,24 @@ export class ProcessService {
         processId: processId,
       });
       let nextTask = {};
-      if (!nextTaskData) {
-        nextTaskData = await this.tasksModel.findOne({ processId: processId });
+      if (nextTaskData) {
+        //nextTaskData = await this.tasksModel.findOne({ processId: processId });
+        nextTask = {
+          taskId: nextTaskData._id,
+          parentProcessId: nextTaskData.parentProcessId,
+          processId: nextTaskData.processId,
+          nextTaskTitle: nextTaskData.title,
+          nextTaskType: nextTaskData.type,
+  
+          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+          taskNumber: nextTaskData.taskNumber,
+        };
+        nextTask["isLocked"] =
+          subscription || payment.paymentData.length
+            ? false
+            : nextTaskData.isLocked;
       }
-      nextTask = {
-        taskId: nextTaskData._id,
-        parentProcessId: nextTaskData.parentProcessId,
-        processId: nextTaskData.processId,
-        nextTaskTitle: nextTaskData.title,
-        nextTaskType: nextTaskData.type,
-
-        nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
-        taskNumber: nextTaskData.taskNumber,
-      };
-      nextTask["isLocked"] =
-        subscription || payment.paymentData.length
-          ? false
-          : nextTaskData.isLocked;
+      
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
       if (currentTaskData.type == "Break") {
