@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { ServiceItemService } from "src/item/service-item.service";
+import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { processModel } from "./schema/process.schema";
 import { processInstanceModel } from "./schema/processInstance.schema";
@@ -23,14 +24,27 @@ export class ProcessService {
     private readonly tasksModel: Model<taskModel>,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private paymentService: PaymentRequestService
   ) {}
   async getTaskDetail(processId, taskId, token) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
-
+      let payment = await this.paymentService.getPaymentDetailBySource(
+        processId,
+        token.id
+      );
+      let isProcessExist = await this.processInstancesModel.findOne({
+        processId: processId,
+        processStatus: "Started",
+        userId: token.id,
+      });
+      if (isProcessExist) {
+        taskId = isProcessExist.currentTask;
+      }
+      console.log(taskId, isProcessExist);
       let currentTaskData: any = await this.tasksModel.findOne({
         parentProcessId: processId,
         _id: taskId,
@@ -47,11 +61,9 @@ export class ProcessService {
       finalResponse["taskTitle"] = currentTaskData.title;
       finalResponse["taskData"] = currentTaskData.taskMetaData;
       finalResponse["totalTasks"] = totalTasks;
-      if (subscription) {
-        finalResponse["isLocked"] = false;
-      } else {
-        finalResponse["isLocked"] = currentTaskData.isLocked;
-      }
+      finalResponse["isLocked"] = !(subscription || payment.paymentData.length)
+        ? currentTaskData.isLocked
+        : false;
 
       let nextTaskData = await this.tasksModel.findOne({
         taskNumber: (currentTaskData.taskNumber+1) ,
@@ -71,11 +83,10 @@ export class ProcessService {
         nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
         taskNumber: nextTaskData.taskNumber,
       };
-      if (subscription) {
-        nextTask["isLocked"] = false;
-      } else {
-        nextTask["isLocked"] = nextTaskData.isLocked;
-      }
+      nextTask["isLocked"] =
+        subscription || payment.paymentData.length
+          ? false
+          : nextTaskData.isLocked;
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
       if (currentTaskData.type == "Break") {
@@ -295,14 +306,19 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
+      let payment = await this.paymentService.getPaymentDetailBySource(
+        parentProcessId,
+        token.id
+      );
       let allTaskdata: any = await this.tasksModel.find({
         parentProcessId: parentProcessId,
       });
-      if (subscription) {
+      if (subscription || payment?.paymentData?.length) {
         allTaskdata.forEach((task) => {
           task.isLocked = false;
         });
       }
+
       return allTaskdata;
     } catch (err) {
       throw err;

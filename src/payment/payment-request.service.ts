@@ -13,6 +13,7 @@ import {
   EDocumentTypeName,
 } from "src/invoice/enum/document-type-name.enum";
 import {
+  EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
   ESourceType,
@@ -64,6 +65,8 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
+        console.log("inside service request iss ==>");
+
         body["serviceRequest"] = {
           ...body.serviceRequest,
 
@@ -146,8 +149,8 @@ export class PaymentRequestService {
     }
 
     return await this.invoiceService.createInvoice({
-      source_id: null,
-      source_type: null,
+      source_id: body.invoiceDetail.sourceId,
+      source_type: body.invoiceDetail.sourceType,
       discount_amount: body.discount,
       sub_total: body.amount,
       document_status: EDocumentStatus.pending,
@@ -247,7 +250,7 @@ export class PaymentRequestService {
 
       const ids = {
         invoiceId,
-        serviceRequestId: serviceRequest.data["_id"],
+        serviceRequestId: serviceRequest?.data["_id"],
         paymentId: payment._id,
       };
       // console.log("ids is", ids, serviceRequest.data["_id"]);
@@ -277,10 +280,12 @@ export class PaymentRequestService {
     });
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
-
-    const serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
-    console.log("service request payment", serviceRequest);
+    let serviceRequest;
+    if (invoice.source_type == EPaymentSourceType.serviceRequest) {
+      serviceRequest =
+        await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+      console.log("service request payment", serviceRequest);
+    }
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
@@ -301,6 +306,44 @@ export class PaymentRequestService {
     }
   }
 
+  async getPaymentDetailBySource(sourceId: string, userId: string) {
+    try {
+      let aggregation_pipeline = [];
+      aggregation_pipeline.push({
+        $match: { user_id: new ObjectId(userId) },
+      });
+      aggregation_pipeline.push({
+        $match: { document_status: EDocumentStatus.completed },
+      });
+      aggregation_pipeline.push(
+        {
+          $lookup: {
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDocument",
+          },
+        },
+        {
+          $unwind: {
+            path: "$salesDocument",
+            preserveNullAndEmptyArrays: true,
+          },
+        }
+      );
+
+      aggregation_pipeline.push({
+        $match: { "salesDocument.source_id": new ObjectId(sourceId) },
+      });
+
+      let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
+
+      return { paymentData };
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async completePayment(ids) {
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
@@ -310,13 +353,15 @@ export class PaymentRequestService {
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     });
-    await this.serviceRequestService.updateServiceRequest(
-      ids.serviceRequestId,
-      {
-        // visibilityStatus: EVisibilityStatus.unlocked,
-        requestStatus: EServiceRequestStatus.pending,
-      }
-    );
+    if (ids.serviceRequestId) {
+      await this.serviceRequestService.updateServiceRequest(
+        ids.serviceRequestId,
+        {
+          // visibilityStatus: EVisibilityStatus.unlocked,
+          requestStatus: EServiceRequestStatus.pending,
+        }
+      );
+    }
   }
 
   // Uncomment and implement if handling other statuses like failed

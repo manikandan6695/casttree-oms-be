@@ -4,6 +4,20 @@ export enum ESourceType {
 
 export const ESSourceType = [ESourceType.serviceRequest];
 
+export enum EPaymentSourceType {
+  salesDocument = "salesDocument",
+  process = "process",
+  serviceRequest = "serviceRequest",
+  invoice = "Invoice"
+}
+
+export const ESPaymentSourceType = [
+  EPaymentSourceType.salesDocument,
+  EPaymentSourceType.process,
+  EPaymentSourceType.serviceRequest,
+  EPaymentSourceType.invoice
+];
+
 export enum EPaymentStatus {
   pending = "Pending",
   initiated = "Initiated",
