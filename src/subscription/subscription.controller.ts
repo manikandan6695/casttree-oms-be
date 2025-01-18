@@ -1,4 +1,14 @@
-import { Body, Controller, Post, UseGuards,Res, ValidationPipe, Req, Param } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  UseGuards,
+  Res,
+  ValidationPipe,
+  Req,
+  Param,
+  Get,
+} from "@nestjs/common";
 import { SubscriptionService } from "./subscription.service";
 import { SharedService } from "src/shared/shared.service";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
@@ -40,6 +50,23 @@ export class SubscriptionController {
   ) {
     try {
       let data = await this.subscriptionService.subscriptionWebhook(req);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("comparision")
+  async subscriptionComparision(
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.subscriptionService.subscriptionComparision(token);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
