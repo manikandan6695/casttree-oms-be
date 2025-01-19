@@ -26,6 +26,8 @@ export class ServiceItemController {
     @Query("limit", ParseIntPipe) limit: number
   ) {
     try {
+      console.log("req.headers", req.headers);
+
       let data = await this.serviceItemService.getServiceItems(
         query,
         skip,
