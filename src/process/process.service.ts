@@ -258,6 +258,11 @@ export class ProcessService {
           },
         },
         {
+          $sort:{
+            _id:-1
+          }
+        },
+        {
           $lookup: {
             from: 'task',
             localField: '_id',
@@ -342,6 +347,11 @@ export class ProcessService {
             _id: '$processId',
             completedCount: { $sum: 1 },
           },
+        },
+        {
+          $sort:{
+            _id:-1
+          }
         },
         {
           $lookup: {
