@@ -22,7 +22,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       headers["x-forwarded-for"] ||
       headers["x-real-ip"] ||
       "";
-      console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
+    console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
     let userId = headers["x-user-id"];
     let countryCode: any = userId
       ? await this.cacheManager.get(`countryCode-${userId}`)
@@ -34,9 +34,11 @@ export class GetUserOriginMiddleware implements NestMiddleware {
           latitude,
           longitude
         );
+        console.log("country code inside lat long ===>", countryCode);
       } else if (ipAddress) {
         countryCode =
           await this.helperService.getCountryCodeByIpAddress(ipAddress);
+        console.log("country code inside ipAddress ===>", countryCode);
       }
       if (countryCode && userId) {
         await this.cacheManager.set(
