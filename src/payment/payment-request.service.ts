@@ -145,10 +145,10 @@ export class PaymentRequestService {
     }
 
     return await this.invoiceService.createInvoice({
-      source_id: body.invoiceDetail.sourceId,
-      source_type: body.invoiceDetail.sourceType,
-      discount_amount: body.discount,
-      sub_total: body.amount,
+      source_id: body?.invoiceDetail?.sourceId,
+      source_type: body?.invoiceDetail?.sourceType,
+      discount_amount: body?.discount,
+      sub_total: body?.amount,
       document_status: EDocumentStatus.pending,
       grand_total: grand_total,
     });
