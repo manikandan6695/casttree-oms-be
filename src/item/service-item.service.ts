@@ -428,7 +428,6 @@ export class ServiceItemService {
       }
       let sections = [];
       let pendingProcessInstanceData: any = await this.processService.pendingProcess(userId);
-
       let continueWhereYouLeftData = {
         "ListData": []
       };
@@ -442,12 +441,12 @@ export class ServiceItemService {
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
 
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": pendingProcessInstanceData[i].currentTask.taskMetaData.media[0]?.mediaUrl,
-            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
+            "thumbnail": pendingProcessInstanceData[i].taskId.taskMetaData.media[0]?.mediaUrl,
+            "title": pendingProcessInstanceData[i].taskId.taskTitle,
             "ctaName": "Continue",
             "progressPercentage": pendingProcessInstanceData[i].completed,
-            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
-            "taskDetail": pendingProcessInstanceData[i].currentTask,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].taskId._id,
+            "taskDetail": pendingProcessInstanceData[i].taskId,
             "mentorImage": mentorUserIds[i].media,
             "mentorName": mentorUserIds[i].displayName,
             "seriesTitle": mentorUserIds[i].seriesName,
@@ -463,8 +462,8 @@ export class ServiceItemService {
         "horizontalScroll": true,
         "componentType": EcomponentType.ActiveProcessList
 
-      }) ,
-       sections.push({
+      }),
+        sections.push({
           "data": {
             "listData": featureCarouselData["ListData"]
           },
