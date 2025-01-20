@@ -17,11 +17,6 @@ import { ProcessService } from "./process.service";
 export class ProcessController {
   constructor(private processsService: ProcessService) {}
 
-  @Get("test")
-  async test() {
-    console.log("working");
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get("taskDetails/:processId/task/:taskId")
   async getTaskDetail(
