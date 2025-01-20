@@ -6,14 +6,13 @@ import {
   Query,
   Req,
   UseGuards,
-  ValidationPipe
+  ValidationPipe,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { ServiceItemService } from "./service-item.service";
-
 
 @Controller("service-item")
 export class ServiceItemController {
@@ -27,8 +26,10 @@ export class ServiceItemController {
     @Query("limit", ParseIntPipe) limit: number
   ) {
     try {
+      console.log("req.headers", req.headers);
+
       let data = await this.serviceItemService.getServiceItems(
-        query, 
+        query,
         skip,
         limit,
         req.headers["x-country-code"]
@@ -48,8 +49,8 @@ export class ServiceItemController {
   ) {
     try {
       let data = await this.serviceItemService.getWorkshopServiceItems(
-        query, 
-     
+        query,
+
         skip,
         limit
       );
@@ -59,34 +60,24 @@ export class ServiceItemController {
     }
   }
 
- 
   @Get(":id")
-  async getServiceItemDetails(
-    @Req() req,
-    @Param("id") _id: string
-  ) {
+  async getServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
         req.headers["x-country-code"]
-    );
+      );
       return data;
     } catch (err) {
       return err;
     }
   }
 
-
   @Get("workShop/:id")
-  async getworkShopServiceItemDetails(
-    @Req() req,
-    @Param("id") _id: string
-  ) {
+  async getworkShopServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {
-      let data = await this.serviceItemService.getworkShopServiceItemDetails(
-        _id,
-        
-      );
+      let data =
+        await this.serviceItemService.getworkShopServiceItemDetails(_id);
       return data;
     } catch (err) {
       return err;
@@ -95,32 +86,24 @@ export class ServiceItemController {
 
   @UseGuards(JwtAuthGuard)
   @Get("courses/home-screen-data")
-  async getCourseHomeScreenData(
-  @GetToken() token: UserToken
-  ) {
+  async getCourseHomeScreenData(@GetToken() token: UserToken) {
     try {
-        let data = await this.serviceItemService.getCourseHomeScreenData(token.id);
-        return data;
-      
+      let data = await this.serviceItemService.getCourseHomeScreenData(
+        token.id
+      );
+      return data;
     } catch (err) {
-      throw err
+      throw err;
     }
   }
 
-  
   @Get("getPlanDetails/:processId")
-  async getPlanDetails(
-    @Param("processId") processId:string,
- 
-  ) {
+  async getPlanDetails(@Param("processId") processId: string) {
     try {
       let data = await this.serviceItemService.getPlanDetails(processId);
       return data;
     } catch (err) {
-    throw err;
+      throw err;
     }
   }
 }
-
-
-

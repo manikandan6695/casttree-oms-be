@@ -301,6 +301,7 @@ export class ProcessService {
           let currentTask = await this.tasksModel.findOne({processId:mySeries[i].processId, taskNumber:1});
           mySeries[i].currentTask = currentTask;
         }
+        
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {

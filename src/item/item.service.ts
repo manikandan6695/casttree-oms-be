@@ -46,7 +46,8 @@ export class ItemService {
 
   async getItemDetail(id: string) {
     try {
-      let data = await this.itemModel.findOne({ _id: id });
+        
+      let data = await this.itemModel.findOne({ _id: id }).lean();
       return data;
     } catch (err) {
       throw err;
