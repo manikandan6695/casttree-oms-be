@@ -5,7 +5,7 @@ import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
-import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
+import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
@@ -324,59 +324,111 @@ export class ServiceItemService {
 
   async getCourseHomeScreenData(userId) {
     try {
-      let featuredData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.featured });
+      const serviceItemData = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: "courses",
+            status: "Active",
+          },
+        },
+        {
+          $addFields: {
+            tagNames: {
+              $cond: {
+                if: { $isArray: "$tag.name" },
+                then: "$tag.name",
+                else: ["$tag.name"],
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$tagNames",
+        },
+        {
+          $group: {
+            _id: {
+              tagName: "$tagNames",
+              processId: "$additionalDetails.processId",
+            },
+            detail: { $first: "$additionalDetails" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $group: {
+            _id: "$_id.tagName",
+            details: { $push: "$detail" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $project: {
+            _id: 0,
+            tagName: "$_id",
+            details: 1,
+
+          },
+        },
+      ]);
+      const finalData = serviceItemData.reduce((a, c) => {
+        a[c.tagName] = c.details;
+        return a;
+      }, {});
+
       let featureCarouselData = {
         "ListData": []
       };
-      let seriesForYouData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.SeriesForYou });
       let updatedSeriesForYouData = {
         "ListData": []
       };
-      let upcomingData: any = await this.serviceItemModel.find({ type: "courses", "tag.name": Etag.upcoming }).populate("itemId");
       let updatedUpcomingData = {
         "ListData": []
       };
       let processIds = [];
-      for (let i = 0; i < seriesForYouData.length; i++) {
-        processIds.push(seriesForYouData[i]?.additionalDetails?.processId);
+      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
+        processIds.push(finalData["SeriesForYou"][i]?.processId);
       }
-      for (let i = 0; i < featuredData.length; i++) {
-        processIds.push(featuredData[i].additionalDetails.processId);
+      for (let i = 0; i < finalData["featured"].length; i++) {
+        processIds.push(finalData["featured"][i].processId);
       }
-      for (let i = 0; i < upcomingData.length; i++) {
-        processIds.push(upcomingData[i].additionalDetails.processId);
+      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
+        processIds.push(finalData["upcomingseries"][i].processId);
       }
       let firstTasks = await this.processService.getFirstTask(processIds);
-      //return firstTasks;
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
-      for (let i = 0; i < featuredData.length; i++) {
+      for (let i = 0; i < finalData["featured"].length; i++) {
         featureCarouselData["ListData"].push({
-          "processId": featuredData[i].additionalDetails.processId,
-          "thumbnail": featuredData[i].additionalDetails.thumbnail,
-          "ctaName": featuredData[i].additionalDetails.ctaName,
-          "taskDetail": firstTaskObject[featuredData[i].additionalDetails.processId]
+          "processId": finalData["featured"][i].processId,
+          "thumbnail": finalData["featured"][i].thumbnail,
+          "ctaName": finalData["featured"][i].ctaName,
+          "taskDetail": firstTaskObject[finalData["featured"][i].processId]
         })
       }
-      for (let i = 0; i < seriesForYouData.length; i++) {
+      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
         updatedSeriesForYouData["ListData"].push({
-          "processId": seriesForYouData[i].additionalDetails.processId,
-          "thumbnail": seriesForYouData[i].additionalDetails.thumbnail,
-          "taskDetail": firstTaskObject[seriesForYouData[i].additionalDetails.processId]
+          "processId": finalData["SeriesForYou"][i].processId,
+          "thumbnail": finalData["SeriesForYou"][i].thumbnail,
+          "taskDetail": firstTaskObject[finalData["SeriesForYou"][i].processId]
         })
       }
-      for (let i = 0; i < upcomingData.length; i++) {
+      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
         updatedUpcomingData["ListData"].push({
-          "processId": upcomingData[i].additionalDetails.processId,
-          "thumbnail": upcomingData[i].additionalDetails.thumbnail,
-          "taskDetail": firstTaskObject[upcomingData[i].additionalDetails.processId]
+          "processId": finalData["upcomingseries"][i].processId,
+          "thumbnail": finalData["upcomingseries"][i].thumbnail,
+          "taskDetail": firstTaskObject[finalData["upcomingseries"][i].processId]
         })
       }
       let sections = [];
       let pendingProcessInstanceData: any = await this.processService.pendingProcess(userId);
-      
+
       let continueWhereYouLeftData = {
         "ListData": []
       };
@@ -411,10 +463,8 @@ export class ServiceItemService {
         "horizontalScroll": true,
         "componentType": EcomponentType.ActiveProcessList
 
-      })
-      ,
-
-        sections.push({
+      }) ,
+       sections.push({
           "data": {
             "listData": featureCarouselData["ListData"]
           },
