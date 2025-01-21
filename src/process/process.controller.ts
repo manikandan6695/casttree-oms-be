@@ -81,4 +81,17 @@ export class ProcessController {
       throw err;
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("home-screen-data")
+  async getCourseHomeScreenData(@GetToken() token: UserToken) {
+    try {
+      let data = await this.processsService.getHomeScreenData(
+        token.id
+      );
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

@@ -322,6 +322,67 @@ export class ServiceItemService {
     }
   }
 
+
+  async getProcessHomeSceenData(userId) {
+    const serviceItemData = await this.serviceItemModel.aggregate([
+      {
+        $match: {
+          type: EserviceItemType.courses,
+          status: Estatus.Active,
+        },
+      },
+      {
+        $addFields: {
+          tagNames: {
+            $cond: {
+              if: { $isArray: "$tag.name" },
+              then: "$tag.name",
+              else: ["$tag.name"],
+            },
+          },
+        },
+      },
+      {
+        $unwind: "$tagNames",
+      },
+      {
+        $group: {
+          _id: {
+            tagName: "$tagNames",
+            processId: "$additionalDetails.processId",
+          },
+          detail: { $first: "$additionalDetails" },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $group: {
+          _id: "$_id.tagName",
+          details: { $push: "$detail" },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $project: {
+          _id: 0,
+          tagName: "$_id",
+          details: 1,
+
+        },
+      },
+    ]);
+    const finalData = serviceItemData.reduce((a, c) => {
+      a[c.tagName] = c.details;
+      return a;
+    }, {});
+
+    return finalData;
+  }
+
   async getCourseHomeScreenData(userId) {
     try {
       const serviceItemData = await this.serviceItemModel.aggregate([
@@ -390,42 +451,36 @@ export class ServiceItemService {
         ListData: [],
       };
       let processIds = [];
-      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
-        processIds.push(finalData["SeriesForYou"][i]?.processId);
-      }
-      for (let i = 0; i < finalData["featured"].length; i++) {
-        processIds.push(finalData["featured"][i].processId);
-      }
-      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
-        processIds.push(finalData["upcomingseries"][i].processId);
-      }
+      finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
+      finalData["featured"].map((data) => processIds.push(data?.processId));
+      finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
       let firstTasks = await this.processService.getFirstTask(processIds);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
-      for (let i = 0; i < finalData["featured"].length; i++) {
+      finalData["featured"].map((data) => {
         featureCarouselData["ListData"].push({
-          "processId": finalData["featured"][i].processId,
-          "thumbnail": finalData["featured"][i].thumbnail,
-          "ctaName": finalData["featured"][i].ctaName,
-          "taskDetail": firstTaskObject[finalData["featured"][i].processId]
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "ctaName": data.ctaName,
+          "taskDetail": firstTaskObject[data.processId]
         })
-      }
-      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
+      });
+      finalData["SeriesForYou"].map((data) => {
         updatedSeriesForYouData["ListData"].push({
-          "processId": finalData["SeriesForYou"][i].processId,
-          "thumbnail": finalData["SeriesForYou"][i].thumbnail,
-          "taskDetail": firstTaskObject[finalData["SeriesForYou"][i].processId]
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
         })
-      }
-      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
+      });
+      finalData["upcomingseries"].map((data) => {
         updatedUpcomingData["ListData"].push({
-          "processId": finalData["upcomingseries"][i].processId,
-          "thumbnail": finalData["upcomingseries"][i].thumbnail,
-          "taskDetail": firstTaskObject[finalData["upcomingseries"][i].processId]
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
         })
-      }
+      });
       let sections = [];
       let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
       let continueWhereYouLeftData = {
@@ -433,10 +488,7 @@ export class ServiceItemService {
       };
       if (pendingProcessInstanceData.length > 0) {
         let continueProcessIds = [];
-
-        for (let i = 0; i < pendingProcessInstanceData.length; i++) {
-          continueProcessIds.push(pendingProcessInstanceData[i].processId);
-        }
+        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
         let mentorUserIds =
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
@@ -548,6 +600,7 @@ export class ServiceItemService {
         .lean();
       let ids = ["677c06ce97b11f5b314ea8e5", "677c06cb97b11f5b314ea8e4"];
       let plandata: any = await this.itemService.getItemsDetails(ids);
+      
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
@@ -584,6 +637,11 @@ export class ServiceItemService {
         plandata[1].price,
         plandata[0].price,
       ];
+      let currencyCode = [
+        processPricingData.itemId.currency.currency_code,
+        plandata[1].currency.currency_code,
+        plandata[0].currency.currency_code,
+      ];
       let itemId = [null, plandata[1]._id, plandata[0]._id];
       let comparePrice = [
         processPricingData.itemId.comparePrice,
@@ -608,6 +666,7 @@ export class ServiceItemService {
           badgeColour: badgeColour[i],
           expiry: validity[i],
           itemId: itemId[i],
+          currencyCode: currencyCode[i]
         });
       }
       finalResponse["planData"] = planDetailsArray;

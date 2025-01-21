@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EcomponentType, Eheader } from "src/item/enum/courses.enum";
 import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
@@ -394,5 +395,120 @@ export class ProcessService {
       }
     });
     return mediaUrl;
+  }
+
+  async getHomeScreenData(userId) {
+    try {
+      let finalData = await this.serviceItemService.getProcessHomeSceenData(userId);
+      let featureCarouselData = {
+        ListData: [],
+      };
+      let updatedSeriesForYouData = {
+        ListData: [],
+      };
+      let updatedUpcomingData = {
+        ListData: [],
+      };
+      let processIds = [];
+      finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
+      finalData["featured"].map((data) => processIds.push(data?.processId));
+      finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
+      let firstTasks = await this.getFirstTask(processIds);
+      const firstTaskObject = firstTasks.reduce((a, c) => {
+        a[c.processId] = c;
+        return a;
+      }, {});
+      finalData["featured"].map((data) => {
+        featureCarouselData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "ctaName": data.ctaName,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      finalData["SeriesForYou"].map((data) => {
+        updatedSeriesForYouData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      finalData["upcomingseries"].map((data) => {
+        updatedUpcomingData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      let sections = [];
+      let pendingProcessInstanceData = await this.pendingProcess(userId);
+      let continueWhereYouLeftData = {
+        ListData: [],
+      };
+      if (pendingProcessInstanceData.length > 0) {
+        let continueProcessIds = [];
+        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
+        let mentorUserIds =
+          await this.serviceItemService.getMentorUserIds(continueProcessIds);
+        for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+          continueWhereYouLeftData["ListData"].push({
+            "thumbnail": await this.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
+            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
+            "ctaName": "Continue",
+            "progressPercentage": pendingProcessInstanceData[i].completed,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
+            "taskDetail": pendingProcessInstanceData[i].currentTask,
+            "mentorImage": mentorUserIds[i].media,
+            "mentorName": mentorUserIds[i].displayName,
+            "seriesTitle": mentorUserIds[i].seriesName,
+            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
+          });
+        }
+      }
+      sections.push({
+        data: {
+          headerName: Eheader.continue,
+          listData: continueWhereYouLeftData["ListData"],
+        },
+        "horizontalScroll": true,
+        "componentType": EcomponentType.ActiveProcessList
+
+      }),
+        sections.push({
+          data: {
+            listData: featureCarouselData["ListData"],
+          },
+          horizontalScroll: true,
+          componentType: EcomponentType.feature,
+        }),
+        sections.push({
+          data: {
+            headerName: Eheader.mySeries,
+            listData: updatedSeriesForYouData["ListData"],
+          },
+          horizontalScroll: false,
+          componentType: EcomponentType.ColThumbnailList,
+        });
+      sections.push({
+        data: {
+          headerName: Eheader.upcoming,
+          listData: updatedUpcomingData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
+
+      let data = {};
+      data["sections"] = sections;
+
+      let finalResponse = {
+        status: 200,
+        message: "success",
+        data: data,
+      };
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
   }
 }
