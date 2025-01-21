@@ -107,6 +107,7 @@ export class ProcessService {
     breakDuration?
   ) {
     try {
+      console.log("break:" +  breakDuration);
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
@@ -162,7 +163,12 @@ export class ProcessService {
           taskId: taskId
         });
         if (checkTaskInstanceDetailHistory) {
-          return { processInstanceData: checkTaskInstanceDetailHistory, processInstanceDetailData: checkTaskInstanceDetailHistory };
+          if (taskType == "Break") {
+            finalResponse = {
+              breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
+            };
+          }
+          
         } else {
           let updateProcessInstanceTask = await this.processInstancesModel.updateOne({ _id: checkInstanceHistory._id }, { $set: { currentTask: taskId } })
           let processInstanceDetailBody = {
