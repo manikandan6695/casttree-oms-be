@@ -328,7 +328,7 @@ export class ServiceItemService {
         {
           $match: {
             type: "courses",
-            status: "Active",
+            status: Estatus.Active,
           },
         },
         {
@@ -427,7 +427,7 @@ export class ServiceItemService {
         })
       }
       let sections = [];
-      let pendingProcessInstanceData: any = await this.processService.pendingProcess(userId);
+      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
       let continueWhereYouLeftData = {
         ListData: [],
       };
@@ -437,11 +437,11 @@ export class ServiceItemService {
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueProcessIds.push(pendingProcessInstanceData[i].processId);
         }
-        let mentorUserIds: any =
+        let mentorUserIds =
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": pendingProcessInstanceData[i].taskId.taskMetaData.media[0]?.mediaUrl,
+            "thumbnail":await this.processService.getNextTaskThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
             "title": pendingProcessInstanceData[i].taskId.taskTitle,
             "ctaName": "Continue",
             "progressPercentage": pendingProcessInstanceData[i].completed,
@@ -503,16 +503,16 @@ export class ServiceItemService {
 
   async getMentorUserIds(processId) {
     try {
-      let mentorUserIds: any = await this.serviceItemModel
+      let mentorUserIds:any = await this.serviceItemModel
         .find(
           {
             type: "courses",
             "additionalDetails.processId": { $in: processId },
-            status: "Active",
+            status: Estatus.Active,
           },
-          { userId: 1 }
+          { userId: 1 ,additionalDetails:1 }
         )
-        .populate("itemId");
+        .populate("itemId").lean();
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
@@ -530,7 +530,7 @@ export class ServiceItemService {
           displayName: profileInfoObj[userIds[i]]?.displayName,
           media: profileInfoObj[userIds[i]]?.media,
           seriesName: mentorUserIds[i]?.itemId?.itemName,
-          seriesThumbNail: mentorUserIds[i]?.itemId?.additionalDetail.thumbnail,
+          seriesThumbNail: mentorUserIds[i]?.additionalDetails.thumbnail,
         });
       }
 
