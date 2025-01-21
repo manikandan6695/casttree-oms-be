@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
@@ -10,8 +10,7 @@ import { PaymentRequestController } from "./payment-request.controller";
 import { PaymentRequestService } from "./payment-request.service";
 import { PaymentSchema } from "./schema/payment.schema";
 
-import { HttpModule } from '@nestjs/axios'
-
+import { HttpModule } from "@nestjs/axios";
 
 @Module({
   imports: [
@@ -20,9 +19,8 @@ import { HttpModule } from '@nestjs/axios'
     AuthModule,
     InvoiceModule,
     HelperModule,
-    ServiceRequestModule,
+    forwardRef(() =>  ServiceRequestModule),
     HttpModule,
-   
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

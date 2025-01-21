@@ -1,33 +1,29 @@
-import { PaymentService } from "../service-provider/payment.service";
-import { InvoiceService } from "../invoice/invoice.service";
-import { Injectable, Req } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Req } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { SharedService } from "src/shared/shared.service";
-import { IPaymentModel } from "./schema/payment.schema";
-import { paymentDTO } from "./dto/payment.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { CurrencyService } from "src/shared/currency/currency.service";
+import { HelperService } from "src/helper/helper.service";
+import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import {
   EDocument,
   EDocumentTypeName,
 } from "src/invoice/enum/document-type-name.enum";
 import {
-  EPaymentStatus,
-  ERazorpayPaymentStatus,
-  ESourceType,
-} from "./enum/payment.enum";
-import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import { ServiceRequestService } from "src/service-request/service-request.service";
-import {
-  EServiceRequestStatus,
-  EVisibilityStatus,
+  EServiceRequestStatus
 } from "src/service-request/enum/service-request.enum";
-import { firstValueFrom } from "rxjs";
-import { Cron } from "@nestjs/schedule";
-import { HttpService } from "@nestjs/axios/";
-import { ConfigService } from "@nestjs/config";
-import { HelperService } from "src/helper/helper.service";
+import { ServiceRequestService } from "src/service-request/service-request.service";
+import { CurrencyService } from "src/shared/currency/currency.service";
+import { SharedService } from "src/shared/shared.service";
+import { InvoiceService } from "../invoice/invoice.service";
+import { PaymentService } from "../service-provider/payment.service";
+import { paymentDTO } from "./dto/payment.dto";
+import {
+  EPaymentSourceType,
+  ERazorpayPaymentStatus,
+  ESourceType
+} from "./enum/payment.enum";
+import { IPaymentModel } from "./schema/payment.schema";
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -43,11 +39,12 @@ export class PaymentRequestService {
     private readonly paymentModel: Model<IPaymentModel>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
+    @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
-    private helperService:HelperService
+    private helperService: HelperService
   ) {}
 
   async initiatePayment(
@@ -62,19 +59,24 @@ export class PaymentRequestService {
       // );
 
       const invoiceData = await this.createNewInvoice(body, token);
-      body["serviceRequest"] = {
-        ...body.serviceRequest,
-       
-        sourceId: invoiceData._id,
-        sourceType: EDocument.sales_document,
-      };
-      // console.log("body is", body.serviceRequest);
+      let serviceRequest;
+      if (body.serviceRequest) {
+        console.log("inside service request iss ==>");
 
-      const serviceRequest =
-        await this.serviceRequestService.createServiceRequest(
+        body["serviceRequest"] = {
+          ...body.serviceRequest,
+
+          sourceId: invoiceData._id,
+          sourceType: EDocument.sales_document,
+        };
+        // console.log("body is", body.serviceRequest);
+
+        serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
+      }
+
       // console.log("service request is", serviceRequest.request._id);
 
       const existingPayment = await this.paymentModel.findOne({
@@ -89,29 +91,32 @@ export class PaymentRequestService {
       const currency = await this.currency_service.getSingleCurrency(
         "6091525bf2d365fa107635e2"
       );
-     if(body.couponCode != null){
-     let couponBody = {
-      sourceId: serviceRequest.request._id,
-      sourceType: ESourceType.serviceRequest,
-      couponCode: body.couponCode,
-      billingAmount: body.amount,
-      discountAmount: body.discount
-     };
+      if (body.couponCode != null) {
+        let couponBody = {
+          sourceId: serviceRequest.request._id,
+          sourceType: ESourceType.serviceRequest,
+          couponCode: body.couponCode,
+          billingAmount: body.amount,
+          discountAmount: body.discount,
+        };
 
-   
-      const createCouponUsage = await this.helperService.createCouponUsage(couponBody, accessToken)
-     }
-    
-     if(body.couponCode != null){
-      body.amount = body.amount- body.discount;
-     }
-    
+        const createCouponUsage = await this.helperService.createCouponUsage(
+          couponBody,
+          accessToken
+        );
+      }
 
+      if (body.couponCode != null) {
+        body.amount = body.amount - body.discount;
+      }
+      let requesId = serviceRequest?.request?._id.toString()
+        ? serviceRequest?.request?._id.toString()
+        : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         currency,
         body.amount,
-        serviceRequest.request._id.toString(),
+        requesId,
         accessToken,
         {
           invoiceId: invoiceData._id,
@@ -135,29 +140,26 @@ export class PaymentRequestService {
 
   async createNewInvoice(body: paymentDTO, token: UserToken) {
     let grand_total = body.amount;
-    if(body.couponCode != null){
-       grand_total = body.amount- body.discount;
+    if (body.couponCode != null) {
+      grand_total = body.amount - body.discount;
     }
-   
-    return await this.invoiceService.createInvoice(
-      {
-        source_id: null,
-        source_type: null,
-        discount_amount: body.discount,
-        sub_total: body.amount,
-        document_status: EDocumentStatus.pending,
-        grand_total: grand_total,
-      },
-      token
-    );
+
+    return await this.invoiceService.createInvoice({
+      source_id: body?.invoiceDetail?.sourceId,
+      source_type: body?.invoiceDetail?.sourceType,
+      discount_amount: body?.discount,
+      sub_total: body?.amount,
+      document_status: EDocumentStatus.pending,
+      grand_total: grand_total,
+    });
   }
 
   async createPaymentRecord(
     body: paymentDTO,
     token: UserToken,
-    invoiceData,
-    currency,
-    orderDetail
+    invoiceData = null,
+    currency = null,
+    orderDetail = null
   ) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
@@ -170,18 +172,20 @@ export class PaymentRequestService {
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency._id,
-      currency_code: currency.currency_code,
+      currency: currency?._id,
+      currency_code: currency?.currency_code,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token.id,
-      user_id: token.id,
+      created_by: token?.id,
+      user_id: token?.id,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
     };
-
+    if (body.document_status) {
+      paymentData["paymentData"] = body.document_status;
+    }
     return await this.paymentModel.create(paymentData);
   }
 
@@ -242,7 +246,7 @@ export class PaymentRequestService {
 
       const ids = {
         invoiceId,
-        serviceRequestId: serviceRequest.data["_id"],
+        serviceRequestId: serviceRequest?.data["_id"],
         paymentId: payment._id,
       };
       // console.log("ids is", ids, serviceRequest.data["_id"]);
@@ -272,10 +276,12 @@ export class PaymentRequestService {
     });
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
-
-    const serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
-    console.log("service request payment", serviceRequest);
+    let serviceRequest;
+    if (invoice.source_type == EPaymentSourceType.serviceRequest) {
+      serviceRequest =
+        await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+      console.log("service request payment", serviceRequest);
+    }
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
@@ -296,6 +302,44 @@ export class PaymentRequestService {
     }
   }
 
+  async getPaymentDetailBySource(sourceId: string, userId: string) {
+    try {
+      let aggregation_pipeline = [];
+      aggregation_pipeline.push({
+        $match: { user_id: new ObjectId(userId) },
+      });
+      aggregation_pipeline.push({
+        $match: { document_status: EDocumentStatus.completed },
+      });
+      aggregation_pipeline.push(
+        {
+          $lookup: {
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDocument",
+          },
+        },
+        {
+          $unwind: {
+            path: "$salesDocument",
+            preserveNullAndEmptyArrays: true,
+          },
+        }
+      );
+
+      aggregation_pipeline.push({
+        $match: { "salesDocument.source_id": new ObjectId(sourceId) },
+      });
+
+      let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
+
+      return { paymentData };
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async completePayment(ids) {
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
@@ -305,13 +349,15 @@ export class PaymentRequestService {
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     });
-    await this.serviceRequestService.updateServiceRequest(
-      ids.serviceRequestId,
-      {
-        // visibilityStatus: EVisibilityStatus.unlocked,
-        requestStatus: EServiceRequestStatus.pending,
-      }
-    );
+    if (ids.serviceRequestId) {
+      await this.serviceRequestService.updateServiceRequest(
+        ids.serviceRequestId,
+        {
+          // visibilityStatus: EVisibilityStatus.unlocked,
+          requestStatus: EServiceRequestStatus.pending,
+        }
+      );
+    }
   }
 
   // Uncomment and implement if handling other statuses like failed

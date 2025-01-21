@@ -1,5 +1,9 @@
 import * as mongoose from "mongoose";
-import { EPaymentStatus } from "../enum/payment.enum";
+import {
+  EPaymentStatus,
+  ESPaymentSourceType,
+  ESSourceType,
+} from "../enum/payment.enum";
 
 export interface IPaymentModel extends mongoose.Document {
   user_id: any;
@@ -67,7 +71,7 @@ export const PaymentSchema = new mongoose.Schema(
     },
     document_status: {
       type: String,
-      default : EPaymentStatus.pending
+      default: EPaymentStatus.pending,
     },
     payment_doc_id: {
       type: Number,
@@ -78,12 +82,8 @@ export const PaymentSchema = new mongoose.Schema(
     document_number: {
       type: String,
     },
-    source_id: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
-    source_type: {
-      type: String,
-    },
+    source_id: { type: mongoose.Schema.Types.ObjectId, refPath: "source_type" },
+    source_type: { type: String, enum: ESPaymentSourceType },
     place_of_supply: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "state",

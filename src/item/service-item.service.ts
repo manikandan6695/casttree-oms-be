@@ -1,33 +1,39 @@
-import { Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { serviceitems } from "./schema/serviceItem.schema";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import mongoose, { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
+import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
-import { Eitem } from "./enum/rating_sourcetype_enum";
+import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
+import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
-import { query } from "express";
+import { ItemService } from "./item.service";
+import { IPriceListItemsModel } from "./schema/price-list-items.schema";
+import { serviceitems } from "./schema/serviceItem.schema";
 
 @Injectable()
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
-    private readonly serviceRequestService: ServiceRequestService,
-    private helperService: HelperService
-
-
-
+    @InjectModel("priceListItems")
+    private priceListItemModel: Model<IPriceListItemsModel>,
+    private helperService: HelperService,
+    @Inject(forwardRef(() => ProcessService))
+    private processService: ProcessService,
+    @Inject(forwardRef(() => ServiceRequestService))
+    private serviceRequestService: ServiceRequestService,
+    private itemService: ItemService
   ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
     skip: number,
-    limit: number
+    limit: number,
+    country_code: string = ""
   ) {
-
     try {
       const filter = {};
       if (query.languageId) {
@@ -45,9 +51,9 @@ export class ServiceItemService {
         }
       }
       if (query.type) {
-        filter['type'] = query.type;
+        filter["type"] = query.type;
       }
-      filter['status'] = Estatus.Active;
+      filter["status"] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
         .populate({
@@ -62,10 +68,26 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
-
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
+      if (country_code) {
+        const uniqueArray = [
+          ...new Set(sourceIds.map((id) => new mongoose.Types.ObjectId(id))),
+        ];
+        let priceListData = await this.getPriceListItems(
+          uniqueArray,
+          country_code
+        );
+        serviceItemData.forEach((e) => {
+          let currData = priceListData[e.itemId._id.toString()];
+          if (currData) {
+            e.itemId["price"] = currData["price"];
+            e.itemId["comparePrice"] = currData["comparePrice"];
+            e.itemId["currency"] = currData["currency"];
+          }
+        });
+      }
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds,
 
@@ -73,8 +95,7 @@ export class ServiceItemService {
       );
       const ratingInfo = await this.helperService.getRatings(
         sourceIds,
-        Eitem.item,
-
+        Eitem.item
       );
       const userProfileInfo = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
@@ -86,8 +107,10 @@ export class ServiceItemService {
       }, {});
 
       for (let i = 0; i < serviceItemData.length; i++) {
-        serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]];
-        serviceItemData[i]["ratingData"] = userRatingInfo[(serviceItemData[i].itemId._id).toString()] ?? null;
+        serviceItemData[i]["profileData"] =
+          userProfileInfo[serviceItemData[i]["userId"]];
+        serviceItemData[i]["ratingData"] =
+          userRatingInfo[serviceItemData[i].itemId._id.toString()] ?? null;
       }
       return { data: serviceItemData, count: countData };
     } catch (err) {
@@ -95,8 +118,7 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(id: string) {
-
+  async getServiceItemDetails(id: string, country_code: string = "") {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
@@ -118,20 +140,39 @@ export class ServiceItemService {
 
       const ratingInfo = await this.helperService.getRatingsSummary(
         data.itemId._id,
-        Eitem.item,
-
-
+        Eitem.item
       );
-      const totalFeedbacks = await this.serviceRequestService.getCompletedServiceRequest(data.userId, data.itemId.orgId._id);
+      const totalFeedbacks =
+        await this.serviceRequestService.getCompletedServiceRequest(
+          data.userId,
+          data.itemId.orgId._id
+        );
       data["profileData"] = profileInfo[0];
-      data["itemSold"] = parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count ?? 0;
+      data["itemSold"] =
+        parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
       data["ratingsData"] = ratingInfo.data;
-
+      if (country_code) {
+        let priceListData = await this.getPriceListItems(
+          [new mongoose.Types.ObjectId(data.itemId._id.toString())],
+          country_code
+        );
+        let currData = priceListData[data.itemId._id.toString()];
+        if (currData) {
+          data.itemId["price"] = currData["price"];
+          data.itemId["comparePrice"] = currData["comparePrice"];
+          data.itemId["currency"] = currData["currency"];
+        }
+      }
       let newQuery = {
         skillId: data.skill.skillId,
         type: EserviceItemType.feedback,
-      }
-      let moreExpertsData = await this.getServiceItems(newQuery, 0, 500);
+      };
+      let moreExpertsData = await this.getServiceItems(
+        newQuery,
+        0,
+        500,
+        country_code
+      );
 
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
@@ -144,8 +185,8 @@ export class ServiceItemService {
             is_verified: moreExpertsData.data[i].profileData.is_verified,
             about: moreExpertsData.data[i].profileData.about,
             tags: moreExpertsData.data[i].profileData.tags,
-            ratings: moreExpertsData.data[i].ratingData
-          })
+            ratings: moreExpertsData.data[i].ratingData,
+          });
         }
       }
       data["similarExperts"] = updatedMoreExpertsData;
@@ -155,12 +196,15 @@ export class ServiceItemService {
     }
   }
 
-
   async serviceDueDate(itemId: string, userId: string) {
     try {
-      let data: any = await this.serviceItemModel.findOne({ itemId: itemId, userId: userId }).lean();
+      let data: any = await this.serviceItemModel
+        .findOne({ itemId: itemId, userId: userId })
+        .lean();
       let days = data.respondTime.split(" ")[0];
-      let serviceDueDate = new Date(new Date().setDate(new Date().getDate() + parseInt(days))).toISOString();
+      let serviceDueDate = new Date(
+        new Date().setDate(new Date().getDate() + parseInt(days))
+      ).toISOString();
       data["serviceDueDate"] = serviceDueDate;
       return data;
     } catch (err) {
@@ -170,14 +214,15 @@ export class ServiceItemService {
 
   async getLanguages(itemId: string) {
     try {
-      let data = await this.serviceItemModel.findOne({ itemId: itemId }, { language: 1 });
+      let data = await this.serviceItemModel.findOne(
+        { itemId: itemId },
+        { language: 1 }
+      );
       return data;
     } catch (err) {
       throw err;
     }
   }
-
-
 
   async getWorkshopServiceItems(
     query: FilterItemRequestDTO,
@@ -200,11 +245,14 @@ export class ServiceItemService {
           filter["skill.skillId"] = { $in: query.skillId };
         }
       }
-      filter['type'] = EserviceItemType.workShop;
-      filter['status'] = Estatus.Active;
+      filter["type"] = EserviceItemType.workShop;
+      filter["status"] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate("itemId", " itemName itemDescription additionalDetail price comparePrice orgId currency")
+        .populate(
+          "itemId",
+          " itemName itemDescription additionalDetail price comparePrice orgId currency"
+        )
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -220,7 +268,8 @@ export class ServiceItemService {
         return a;
       }, {});
       for (let i = 0; i < serviceItemData.length; i++) {
-        serviceItemData[i]["profileData"] = userProfileInfo[serviceItemData[i]["userId"]];
+        serviceItemData[i]["profileData"] =
+          userProfileInfo[serviceItemData[i]["userId"]];
       }
       return { data: serviceItemData, count: countData };
     } catch (err) {
@@ -228,13 +277,14 @@ export class ServiceItemService {
     }
   }
 
-
-
   async getworkShopServiceItemDetails(id: string) {
     try {
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
-        .populate("itemId", " itemName itemDescription additionalDetail price comparePrice orgId currency")
+        .populate(
+          "itemId",
+          " itemName itemDescription additionalDetail price comparePrice orgId currency"
+        )
         .lean();
 
       const profileInfo = await this.helperService.getworkShopProfileById(
@@ -249,4 +299,382 @@ export class ServiceItemService {
     }
   }
 
+  async getPriceListItems(itemIds: any[], country_code: string) {
+    try {
+      let data = await this.priceListItemModel
+        .find(
+          { item_id: { $in: itemIds }, country_code: country_code },
+          {
+            price: 1,
+            comparePrice: 1,
+            currency: 1,
+            item_id: 1,
+          }
+        )
+        .populate("currency", "_id currency_name currency_code")
+        .lean();
+      return data.reduce((acc, cur) => {
+        acc[`${cur.item_id.toString()}`] = cur;
+        return acc;
+      }, {});
+    } catch (err) {
+      throw err;
+    }
+  }
+
+
+  async getProcessHomeSceenData(userId) {
+    const serviceItemData = await this.serviceItemModel.aggregate([
+      {
+        $match: {
+          type: EserviceItemType.courses,
+          status: Estatus.Active,
+        },
+      },
+      {
+        $addFields: {
+          tagNames: {
+            $cond: {
+              if: { $isArray: "$tag.name" },
+              then: "$tag.name",
+              else: ["$tag.name"],
+            },
+          },
+        },
+      },
+      {
+        $unwind: "$tagNames",
+      },
+      {
+        $group: {
+          _id: {
+            tagName: "$tagNames",
+            processId: "$additionalDetails.processId",
+          },
+          detail: { $first: "$additionalDetails" },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $group: {
+          _id: "$_id.tagName",
+          details: { $push: "$detail" },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+      {
+        $project: {
+          _id: 0,
+          tagName: "$_id",
+          details: 1,
+
+        },
+      },
+    ]);
+    const finalData = serviceItemData.reduce((a, c) => {
+      a[c.tagName] = c.details;
+      return a;
+    }, {});
+
+    return finalData;
+  }
+
+  async getCourseHomeScreenData(userId) {
+    try {
+      const serviceItemData = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.courses,
+            status: Estatus.Active,
+          },
+        },
+        {
+          $addFields: {
+            tagNames: {
+              $cond: {
+                if: { $isArray: "$tag.name" },
+                then: "$tag.name",
+                else: ["$tag.name"],
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$tagNames",
+        },
+        {
+          $group: {
+            _id: {
+              tagName: "$tagNames",
+              processId: "$additionalDetails.processId",
+            },
+            detail: { $first: "$additionalDetails" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $group: {
+            _id: "$_id.tagName",
+            details: { $push: "$detail" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $project: {
+            _id: 0,
+            tagName: "$_id",
+            details: 1,
+
+          },
+        },
+      ]);
+      const finalData = serviceItemData.reduce((a, c) => {
+        a[c.tagName] = c.details;
+        return a;
+      }, {});
+
+      let featureCarouselData = {
+        ListData: [],
+      };
+      let updatedSeriesForYouData = {
+        ListData: [],
+      };
+      let updatedUpcomingData = {
+        ListData: [],
+      };
+      let processIds = [];
+      finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
+      finalData["featured"].map((data) => processIds.push(data?.processId));
+      finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
+      let firstTasks = await this.processService.getFirstTask(processIds);
+      const firstTaskObject = firstTasks.reduce((a, c) => {
+        a[c.processId] = c;
+        return a;
+      }, {});
+      finalData["featured"].map((data) => {
+        featureCarouselData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "ctaName": data.ctaName,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      finalData["SeriesForYou"].map((data) => {
+        updatedSeriesForYouData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      finalData["upcomingseries"].map((data) => {
+        updatedUpcomingData["ListData"].push({
+          "processId": data.processId,
+          "thumbnail": data.thumbnail,
+          "taskDetail": firstTaskObject[data.processId]
+        })
+      });
+      let sections = [];
+      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
+      let continueWhereYouLeftData = {
+        ListData: [],
+      };
+      if (pendingProcessInstanceData.length > 0) {
+        let continueProcessIds = [];
+        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
+        let mentorUserIds =
+          await this.getMentorUserIds(continueProcessIds);
+        for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+          continueWhereYouLeftData["ListData"].push({
+            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
+            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
+            "ctaName": "Continue",
+            "progressPercentage": pendingProcessInstanceData[i].completed,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
+            "taskDetail": pendingProcessInstanceData[i].currentTask,
+            "mentorImage": mentorUserIds[i].media,
+            "mentorName": mentorUserIds[i].displayName,
+            "seriesTitle": mentorUserIds[i].seriesName,
+            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
+          });
+        }
+      }
+      sections.push({
+        data: {
+          headerName: Eheader.continue,
+          listData: continueWhereYouLeftData["ListData"],
+        },
+        "horizontalScroll": true,
+        "componentType": EcomponentType.ActiveProcessList
+
+      }),
+        sections.push({
+          data: {
+            listData: featureCarouselData["ListData"],
+          },
+          horizontalScroll: true,
+          componentType: EcomponentType.feature,
+        }),
+        sections.push({
+          data: {
+            headerName: Eheader.mySeries,
+            listData: updatedSeriesForYouData["ListData"],
+          },
+          horizontalScroll: false,
+          componentType: EcomponentType.ColThumbnailList,
+        });
+      sections.push({
+        data: {
+          headerName: Eheader.upcoming,
+          listData: updatedUpcomingData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
+
+      let data = {};
+      data["sections"] = sections;
+
+      let finalResponse = {
+        status: 200,
+        message: "success",
+        data: data,
+      };
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getMentorUserIds(processId) {
+    try {
+      let mentorUserIds: any = await this.serviceItemModel
+        .find(
+          {
+            type: "courses",
+            "additionalDetails.processId": { $in: processId },
+            status: Estatus.Active,
+          },
+          { userId: 1, additionalDetails: 1 }
+        )
+        .populate("itemId").lean();
+      let userIds = [];
+      for (let i = 0; i < mentorUserIds.length; i++) {
+        userIds.push(mentorUserIds[i].userId.toString());
+      }
+      const profileInfo = await this.helperService.getProfileByIdTl(userIds);
+      const profileInfoObj = profileInfo.reduce((a, c) => {
+        a[c.userId] = c;
+        return a;
+      }, {});
+      let mentorProfiles = [];
+      for (let i = 0; i < processId.length; i++) {
+        mentorProfiles.push({
+          processId: processId[i],
+          userId: userIds[i],
+          displayName: profileInfoObj[userIds[i]]?.displayName,
+          media: profileInfoObj[userIds[i]]?.media,
+          seriesName: mentorUserIds[i]?.itemId?.itemName,
+          seriesThumbNail: mentorUserIds[i]?.additionalDetails.thumbnail,
+        });
+      }
+
+      return mentorProfiles;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getPlanDetails(processId) {
+    try {
+      let processPricingData: any = await this.serviceItemModel
+        .findOne({ "additionalDetails.processId": processId })
+        .populate("itemId")
+        .lean();
+      let ids = ["677c06ce97b11f5b314ea8e5", "677c06cb97b11f5b314ea8e4"];
+      let plandata: any = await this.itemService.getItemsDetails(ids);
+      
+      let finalResponse = {};
+      let featuresArray = [];
+      featuresArray.push({
+        feature: "",
+        values: ["THIS SERIES", plandata[1].itemName, plandata[0].itemName],
+      });
+
+
+      for (
+        let i = 0;
+        i < plandata[0].additionalDetail.planDetails.length;
+        i++
+      ) {
+        let feature = plandata[0].additionalDetail.planDetails[i].feature;
+        let values = [
+          processPricingData.itemId.additionalDetail.planDetails[i].value,
+          plandata[1].additionalDetail.planDetails[i].value,
+          plandata[0].additionalDetail.planDetails[i].value,
+        ];
+        featuresArray.push({ feature: feature, values: values });
+      }
+      let planIds = [
+        null,
+        plandata[1].additionalDetail.planId,
+        plandata[0].additionalDetail.planId,
+      ];
+      let headings = [
+        "THIS SERIES",
+        plandata[1].itemName,
+        plandata[0].itemName,
+      ];
+      let actualPrice = [
+        processPricingData.itemId.price,
+        plandata[1].price,
+        plandata[0].price,
+      ];
+      let currencyCode = [
+        processPricingData.itemId.currency.currency_code,
+        plandata[1].currency.currency_code,
+        plandata[0].currency.currency_code,
+      ];
+      let itemId = [null, plandata[1]._id, plandata[0]._id];
+      let comparePrice = [
+        processPricingData.itemId.comparePrice,
+        plandata[1].comparePrice,
+        plandata[0].comparePrice,
+      ];
+      let badgeColour = [processPricingData.itemId.additionalDetail.badgeColour, plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
+      let keys = [
+        "casttree",
+        plandata[1].additionalDetail.key,
+        plandata[0].additionalDetail.key,
+      ];
+      let validity = [processPricingData.itemId.additionalDetail.validity, plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let planDetailsArray = [];
+      for (let i = 0; i < headings.length; i++) {
+        planDetailsArray.push({
+          key: keys[i],
+          heading: headings[i],
+          planIds: planIds[i],
+          actualPrice: actualPrice[i],
+          comparePrice: comparePrice[i],
+          badgeColour: badgeColour[i],
+          expiry: validity[i],
+          itemId: itemId[i],
+          currencyCode: currencyCode[i]
+        });
+      }
+      finalResponse["planData"] = planDetailsArray;
+      finalResponse["featuresData"] = featuresArray;
+
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

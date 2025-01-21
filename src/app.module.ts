@@ -1,21 +1,23 @@
-import { Module } from "@nestjs/common";
+import { CacheModule } from "@nestjs/cache-manager";
+import { MiddlewareConsumer, Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { ItemModule } from "./item/item.module";
-import { HelperModule } from "./helper/helper.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { SharedModule } from "./shared/shared.module";
-import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
-import { EventEmitterModule } from "@nestjs/event-emitter";
-import { ServiceRequestModule } from "./service-request/service-request.module";
-import { ServiceResponseModule } from "./service-response/service-response.module";
-import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
 import { CommentsModule } from "./comments/comments.module";
+import { HelperModule } from "./helper/helper.module";
+import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 import { InvoiceModule } from "./invoice/invoice.module";
+import { ItemModule } from "./item/item.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
-
-
+import { ProcessModule } from "./process/process.module";
+import { ServiceRequestModule } from "./service-request/service-request.module";
+import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
+import { ServiceResponseModule } from "./service-response/service-response.module";
+import { SharedModule } from "./shared/shared.module";
+import { SubscriptionModule } from "./subscription/subscription.module";
 
 @Module({
   imports: [
@@ -40,6 +42,9 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
       },
       inject: [ConfigService],
     }),
+    CacheModule.register({
+      isGlobal: true,
+    }),
     SharedModule,
     ItemModule,
     HelperModule,
@@ -49,7 +54,9 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     ServiceResponseFormatModule,
     CommentsModule,
     PaymentRequestModule,
-    InvoiceModule 
+    InvoiceModule,
+    ProcessModule,
+    SubscriptionModule 
   ],
   controllers: [],
   providers: [
@@ -59,4 +66,10 @@ import { PaymentRequestModule } from "./payment/payment-request.module";
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+ configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(GetUserOriginMiddleware)
+      .forRoutes("/service-item");
+  }
+}

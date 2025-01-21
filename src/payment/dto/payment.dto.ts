@@ -8,17 +8,17 @@ import {
   IsString,
 } from "class-validator";
 import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
-import { ESourceType } from "../enum/payment.enum";
+import { EPaymentSourceType, ESourceType } from "../enum/payment.enum";
 
 export class InvoiceDTO {
   @IsOptional()
   @IsString()
-  sourceId: string;
+  sourceId?: string;
 
   @IsOptional()
   @IsString()
-  @IsEnum(ESourceType)
-  sourceType: ESourceType;
+  @IsEnum(EPaymentSourceType)
+  sourceType?: EPaymentSourceType;
 }
 
 export class paymentDTO {
@@ -29,27 +29,31 @@ export class paymentDTO {
 
   @IsOptional()
   @IsString()
-  currency: string;
+  currency?: string;
 
   @IsOptional()
   @IsString()
-  couponCode: string;
+  document_status : string;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 
   @IsOptional()
   @IsNumber()
-  discount: number;
+  discount?: number;
 
   @IsOptional()
-  serviceRequest: AddServiceRequestDTO;
+  serviceRequest?: AddServiceRequestDTO;
 
   @IsOptional()
   @IsString()
-  paymentMode: string;
+  paymentMode?: string;
 
   @IsOptional()
   @IsMongoId()
-  userId: string;
+  userId?: string;
 
   @IsOptional()
-  invoiceDetail: InvoiceDTO;
+  invoiceDetail?: InvoiceDTO;
 }
