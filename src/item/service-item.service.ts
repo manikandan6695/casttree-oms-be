@@ -441,12 +441,12 @@ export class ServiceItemService {
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
-            "title": pendingProcessInstanceData[i].taskId.taskTitle,
+            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
+            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
             "ctaName": "Continue",
             "progressPercentage": pendingProcessInstanceData[i].completed,
-            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].taskId._id,
-            "taskDetail": pendingProcessInstanceData[i].taskId,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
+            "taskDetail": pendingProcessInstanceData[i].currentTask,
             "mentorImage": mentorUserIds[i].media,
             "mentorName": mentorUserIds[i].displayName,
             "seriesTitle": mentorUserIds[i].seriesName,
