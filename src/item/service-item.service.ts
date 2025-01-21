@@ -598,17 +598,16 @@ export class ServiceItemService {
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
         .lean();
-      let ids = ["677c06ce97b11f5b314ea8e5", "677c06cb97b11f5b314ea8e4"];
+      let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
+      let ids = [];
+      subscriptionItemIds.map((data) => ids.push(data.itemId));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
         feature: "",
         values: ["THIS SERIES", plandata[1].itemName, plandata[0].itemName],
       });
-
-
       for (
         let i = 0;
         i < plandata[0].additionalDetail.planDetails.length;
