@@ -26,7 +26,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) {}
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -441,7 +441,7 @@ export class ServiceItemService {
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail":await this.processService.getNextTaskThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
+            "thumbnail": await this.processService.getNextTaskThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
             "title": pendingProcessInstanceData[i].taskId.taskTitle,
             "ctaName": "Continue",
             "progressPercentage": pendingProcessInstanceData[i].completed,
@@ -503,14 +503,14 @@ export class ServiceItemService {
 
   async getMentorUserIds(processId) {
     try {
-      let mentorUserIds:any = await this.serviceItemModel
+      let mentorUserIds: any = await this.serviceItemModel
         .find(
           {
             type: "courses",
             "additionalDetails.processId": { $in: processId },
             status: Estatus.Active,
           },
-          { userId: 1 ,additionalDetails:1 }
+          { userId: 1, additionalDetails: 1 }
         )
         .populate("itemId").lean();
       let userIds = [];
@@ -554,7 +554,7 @@ export class ServiceItemService {
         feature: "",
         values: ["THIS SERIES", plandata[1].itemName, plandata[0].itemName],
       });
-      
+
 
       for (
         let i = 0;
