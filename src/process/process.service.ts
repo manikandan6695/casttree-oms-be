@@ -7,7 +7,7 @@ import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EprocessStatus, EtaskType } from "./enums/courses.enum";
+import { EprocessStatus, EtaskType } from "./enums/process.enum";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
@@ -68,7 +68,7 @@ export class ProcessService {
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-          nextTaskThumbnail: await this.getNextTaskThumbNail(nextTaskData?.taskMetaData?.media),
+          nextTaskThumbnail: await this.getThumbNail(nextTaskData?.taskMetaData?.media),
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
@@ -76,7 +76,7 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-      
+
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
       if (currentTaskData.type == EtaskType.Break) {
@@ -169,7 +169,7 @@ export class ProcessService {
               breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
             };
           }
-          
+
         } else {
           let updateProcessInstanceTask = await this.processInstancesModel.updateOne({ _id: checkInstanceHistory._id }, { $set: { currentTask: taskId } })
           let processInstanceDetailBody = {
@@ -266,7 +266,7 @@ export class ProcessService {
   async pendingProcess(userId) {
 
     try {
-      console.log(userId)
+
       const pendingTasks: any = await this.processInstanceDetailsModel.find({ createdBy: userId, taskStatus: EprocessStatus.Started }).populate("taskId").lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
@@ -349,9 +349,7 @@ export class ProcessService {
       }).sort({ taskNumber: 1 }).lean();
 
       allTaskdata.forEach((task) => {
-        console.log(task);
         if (createdInstanceTasks.includes(task._id.toString())) {
-          console.log(true)
           task.isCompleted = true;
         } else {
           task.isCompleted = false;
@@ -388,7 +386,7 @@ export class ProcessService {
     }
   }
 
-  async getNextTaskThumbNail(media) {
+  async getThumbNail(media) {
     let mediaUrl = "";
     media.forEach((mediaData) => {
       if (mediaData.type === "thumbNail") {

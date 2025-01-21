@@ -4,11 +4,11 @@ export interface taskModel {
     title: string;
     processId: string;
     parentProcessId: string;
-    taskNumber:number;
+    taskNumber: number;
     type: string;
     isLocked: boolean;
     taskMetaData: any;
-    status : string;
+    status: string;
 }
 export const taskSchema = new mongoose.Schema<any>({
     title: { type: String },
@@ -17,11 +17,11 @@ export const taskSchema = new mongoose.Schema<any>({
     taskNumber: { type: Number },
     type: { type: String },
     isLocked: { type: Boolean },
-    taskMetaData: {type: Object},
+    taskMetaData: { type: Object },
     status: { type: String },
 
 }
-,
+    ,
 
     {
         collection: "task",
