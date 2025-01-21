@@ -555,10 +555,7 @@ export class ServiceItemService {
         values: ["THIS SERIES", plandata[1].itemName, plandata[0].itemName],
       });
       
-      featuresArray.push({
-        feature: "Access to this series",
-        values: ["check", "check", "check"],
-      });
+
       for (
         let i = 0;
         i < plandata[0].additionalDetail.planDetails.length;
@@ -566,7 +563,7 @@ export class ServiceItemService {
       ) {
         let feature = plandata[0].additionalDetail.planDetails[i].feature;
         let values = [
-          "close",
+          processPricingData.itemId.additionalDetail.planDetails[i].value,
           plandata[1].additionalDetail.planDetails[i].value,
           plandata[0].additionalDetail.planDetails[i].value,
         ];
@@ -593,13 +590,13 @@ export class ServiceItemService {
         plandata[1].comparePrice,
         plandata[0].comparePrice,
       ];
-      let badgeColour = ["#FFC107D4", "#FF8762", "#06C270"];
+      let badgeColour = [processPricingData.itemId.additionalDetail.badgeColour, plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
       let keys = [
         "casttree",
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = ["for this series", "per year", "per year"];
+      let validity = [processPricingData.itemId.additionalDetail.validity, plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({

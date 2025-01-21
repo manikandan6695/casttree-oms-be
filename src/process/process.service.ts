@@ -35,22 +35,13 @@ export class ProcessService {
         processId,
         token.id
       );
-      /*let isProcessExist = await this.processInstancesModel.findOne({
-        processId: processId,
-        processStatus: "Started",
-        userId: token.id,
-      });
-      if (isProcessExist) {
-        taskId = isProcessExist.currentTask;
-      }
-      console.log(taskId, isProcessExist);*/
       let currentTaskData: any = await this.tasksModel.findOne({
-        parentProcessId: processId,
+        processId: processId,
         _id: taskId,
       });
       let finalResponse = {};
       let totalTasks = (
-        await this.tasksModel.countDocuments({ parentProcessId: processId })
+        await this.tasksModel.countDocuments({ processId: processId })
       ).toString();
       finalResponse["taskId"] = currentTaskData._id;
       finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
@@ -77,8 +68,7 @@ export class ProcessService {
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-  
-          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+          nextTaskThumbnail: await this.getNextTaskThumbNail(nextTaskData?.taskMetaData?.media),
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
