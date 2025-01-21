@@ -35,15 +35,25 @@ export class ProcessService {
         processId,
         token.id
       );
-      let currentTaskData: any = await this.tasksModel.findOne({
+      /*let isProcessExist = await this.processInstancesModel.findOne({
         processId: processId,
+        processStatus: "Started",
+        userId: token.id,
+      });
+      if (isProcessExist) {
+        taskId = isProcessExist.currentTask;
+      }
+      console.log(taskId, isProcessExist);*/
+      let currentTaskData: any = await this.tasksModel.findOne({
+        parentProcessId: processId,
         _id: taskId,
       });
       let finalResponse = {};
       let totalTasks = (
-        await this.tasksModel.countDocuments({ processId: processId })
+        await this.tasksModel.countDocuments({ parentProcessId: processId })
       ).toString();
       finalResponse["taskId"] = currentTaskData._id;
+      finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
       finalResponse["processId"] = currentTaskData.processId;
       finalResponse["taskType"] = currentTaskData.type;
       finalResponse["taskNumber"] = currentTaskData.taskNumber;
@@ -59,14 +69,16 @@ export class ProcessService {
         processId: processId,
       });
       let nextTask = {};
-      let mediaurl;
       if (nextTaskData) {
+        //nextTaskData = await this.tasksModel.findOne({ processId: processId });
         nextTask = {
           taskId: nextTaskData._id,
+          parentProcessId: nextTaskData.parentProcessId,
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-          nextTaskThumbnail: await this.getNextTaskThumbNail(nextTaskData.taskMetaData?.media),
+  
+          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
@@ -74,10 +86,10 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-
+      
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
-      if (currentTaskData.type == EtaskType.Break) {
+      if (currentTaskData.type == "Break") {
         createProcessInstanceData = await this.createProcessInstance(
           token.id,
           processId,
