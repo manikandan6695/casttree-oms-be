@@ -4,24 +4,28 @@ export enum EtaskType {
     Video = "Video",
     Audio = "Audio",
     Anything = "Anything",
+    Break = "Break"
 }
 
 export const EStaskType = [
     EtaskType.Form,
     EtaskType.Video,
     EtaskType.Audio,
-    EtaskType.Anything];
+    EtaskType.Anything,
+    EtaskType.Break
+
+];
 
 
 export enum EprocessStatus {
     Started = "Started",
-    Ended = "Ended",
+    Completed = "Completed",
 
 }
 
 export const ESprocessStatus = [
     EprocessStatus.Started,
-    EprocessStatus.Ended
+    EprocessStatus.Completed
 ]
 
 export enum EStatus {

@@ -5,7 +5,7 @@ import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
-import { EcomponentType, Eheader, Etag } from "./enum/courses.enum";
+import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
 import { EserviceItemType } from "./enum/serviceItem.type.enum";
@@ -26,7 +26,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) {}
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -324,71 +324,110 @@ export class ServiceItemService {
 
   async getCourseHomeScreenData(userId) {
     try {
-      let featuredData: any = await this.serviceItemModel.find({
-        type: "courses",
-        "tag.name": Etag.featured,
-      });
+      const serviceItemData = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.courses,
+            status: Estatus.Active,
+          },
+        },
+        {
+          $addFields: {
+            tagNames: {
+              $cond: {
+                if: { $isArray: "$tag.name" },
+                then: "$tag.name",
+                else: ["$tag.name"],
+              },
+            },
+          },
+        },
+        {
+          $unwind: "$tagNames",
+        },
+        {
+          $group: {
+            _id: {
+              tagName: "$tagNames",
+              processId: "$additionalDetails.processId",
+            },
+            detail: { $first: "$additionalDetails" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $group: {
+            _id: "$_id.tagName",
+            details: { $push: "$detail" },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+        {
+          $project: {
+            _id: 0,
+            tagName: "$_id",
+            details: 1,
+
+          },
+        },
+      ]);
+      const finalData = serviceItemData.reduce((a, c) => {
+        a[c.tagName] = c.details;
+        return a;
+      }, {});
+
       let featureCarouselData = {
         ListData: [],
       };
-      let seriesForYouData: any = await this.serviceItemModel.find({
-        type: "courses",
-        "tag.name": Etag.SeriesForYou,
-      });
       let updatedSeriesForYouData = {
         ListData: [],
       };
-      let upcomingData: any = await this.serviceItemModel
-        .find({ type: "courses", "tag.name": Etag.upcoming })
-        .populate("itemId");
       let updatedUpcomingData = {
         ListData: [],
       };
       let processIds = [];
-      for (let i = 0; i < seriesForYouData.length; i++) {
-        processIds.push(seriesForYouData[i]?.additionalDetails?.processId);
+      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
+        processIds.push(finalData["SeriesForYou"][i]?.processId);
       }
-      for (let i = 0; i < featuredData.length; i++) {
-        processIds.push(featuredData[i].additionalDetails.processId);
+      for (let i = 0; i < finalData["featured"].length; i++) {
+        processIds.push(finalData["featured"][i].processId);
       }
-      for (let i = 0; i < upcomingData.length; i++) {
-        processIds.push(upcomingData[i].additionalDetails.processId);
+      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
+        processIds.push(finalData["upcomingseries"][i].processId);
       }
       let firstTasks = await this.processService.getFirstTask(processIds);
-      //return firstTasks;
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
-      for (let i = 0; i < featuredData.length; i++) {
+      for (let i = 0; i < finalData["featured"].length; i++) {
         featureCarouselData["ListData"].push({
-          processId: featuredData[i].additionalDetails.processId,
-          thumbnail: featuredData[i].additionalDetails.thumbnail,
-          ctaName: featuredData[i].additionalDetails.ctaName,
-          taskDetail:
-            firstTaskObject[featuredData[i].additionalDetails.processId],
-        });
+          "processId": finalData["featured"][i].processId,
+          "thumbnail": finalData["featured"][i].thumbnail,
+          "ctaName": finalData["featured"][i].ctaName,
+          "taskDetail": firstTaskObject[finalData["featured"][i].processId]
+        })
       }
-      for (let i = 0; i < seriesForYouData.length; i++) {
+      for (let i = 0; i < finalData["SeriesForYou"].length; i++) {
         updatedSeriesForYouData["ListData"].push({
-          processId: seriesForYouData[i].additionalDetails.processId,
-          thumbnail: seriesForYouData[i].additionalDetails.thumbnail,
-          taskDetail:
-            firstTaskObject[seriesForYouData[i].additionalDetails.processId],
-        });
+          "processId": finalData["SeriesForYou"][i].processId,
+          "thumbnail": finalData["SeriesForYou"][i].thumbnail,
+          "taskDetail": firstTaskObject[finalData["SeriesForYou"][i].processId]
+        })
       }
-      for (let i = 0; i < upcomingData.length; i++) {
+      for (let i = 0; i < finalData["upcomingseries"].length; i++) {
         updatedUpcomingData["ListData"].push({
-          processId: upcomingData[i].additionalDetails.processId,
-          thumbnail: upcomingData[i].additionalDetails.thumbnail,
-          taskDetail:
-            firstTaskObject[upcomingData[i].additionalDetails.processId],
-        });
+          "processId": finalData["upcomingseries"][i].processId,
+          "thumbnail": finalData["upcomingseries"][i].thumbnail,
+          "taskDetail": firstTaskObject[finalData["upcomingseries"][i].processId]
+        })
       }
       let sections = [];
-      let pendingProcessInstanceData: any =
-        await this.processService.pendingProcess(userId);
-
+      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
       let continueWhereYouLeftData = {
         ListData: [],
       };
@@ -398,26 +437,20 @@ export class ServiceItemService {
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueProcessIds.push(pendingProcessInstanceData[i].processId);
         }
-        let mentorUserIds: any =
+        let mentorUserIds =
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            thumbnail:
-              pendingProcessInstanceData[i].currentTask.taskMetaData.media[0]
-                ?.mediaUrl,
-            title: pendingProcessInstanceData[i].currentTask.taskTitle,
-            ctaName: "Continue",
-            progressPercentage: pendingProcessInstanceData[i].completed,
-            navigationURL:
-              "process/" +
-              pendingProcessInstanceData[i].processId +
-              "/task/" +
-              pendingProcessInstanceData[i].currentTask._id,
-            taskDetail: pendingProcessInstanceData[i].currentTask,
-            mentorImage: mentorUserIds[i].media,
-            mentorName: mentorUserIds[i].displayName,
-            seriesTitle: mentorUserIds[i].seriesName,
-            seriesThumbNail: mentorUserIds[i].seriesThumbNail,
+            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
+            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
+            "ctaName": "Continue",
+            "progressPercentage": pendingProcessInstanceData[i].completed,
+            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
+            "taskDetail": pendingProcessInstanceData[i].currentTask,
+            "mentorImage": mentorUserIds[i].media,
+            "mentorName": mentorUserIds[i].displayName,
+            "seriesTitle": mentorUserIds[i].seriesName,
+            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
           });
         }
       }
@@ -426,8 +459,9 @@ export class ServiceItemService {
           headerName: Eheader.continue,
           listData: continueWhereYouLeftData["ListData"],
         },
-        horizontalScroll: true,
-        componentType: EcomponentType.ActiveProcessList,
+        "horizontalScroll": true,
+        "componentType": EcomponentType.ActiveProcessList
+
       }),
         sections.push({
           data: {
@@ -474,11 +508,11 @@ export class ServiceItemService {
           {
             type: "courses",
             "additionalDetails.processId": { $in: processId },
-            status: "Active",
+            status: Estatus.Active,
           },
-          { userId: 1 }
+          { userId: 1, additionalDetails: 1 }
         )
-        .populate("itemId");
+        .populate("itemId").lean();
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
@@ -496,7 +530,7 @@ export class ServiceItemService {
           displayName: profileInfoObj[userIds[i]]?.displayName,
           media: profileInfoObj[userIds[i]]?.media,
           seriesName: mentorUserIds[i]?.itemId?.itemName,
-          seriesThumbNail: mentorUserIds[i]?.itemId?.additionalDetail.thumbnail,
+          seriesThumbNail: mentorUserIds[i]?.additionalDetails.thumbnail,
         });
       }
 
@@ -520,11 +554,8 @@ export class ServiceItemService {
         feature: "",
         values: ["THIS SERIES", plandata[1].itemName, plandata[0].itemName],
       });
-      
-      featuresArray.push({
-        feature: "Access to this series",
-        values: ["check", "check", "check"],
-      });
+
+
       for (
         let i = 0;
         i < plandata[0].additionalDetail.planDetails.length;
@@ -532,7 +563,7 @@ export class ServiceItemService {
       ) {
         let feature = plandata[0].additionalDetail.planDetails[i].feature;
         let values = [
-          "close",
+          processPricingData.itemId.additionalDetail.planDetails[i].value,
           plandata[1].additionalDetail.planDetails[i].value,
           plandata[0].additionalDetail.planDetails[i].value,
         ];
@@ -559,13 +590,13 @@ export class ServiceItemService {
         plandata[1].comparePrice,
         plandata[0].comparePrice,
       ];
-      let badgeColour = ["#FFC107D4", "#FF8762", "#06C270"];
+      let badgeColour = [processPricingData.itemId.additionalDetail.badgeColour, plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
       let keys = [
         "casttree",
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = ["for this series", "per year", "per year"];
+      let validity = [processPricingData.itemId.additionalDetail.validity, plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({

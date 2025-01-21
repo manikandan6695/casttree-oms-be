@@ -3,10 +3,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { processModel } from "./schema/process.schema";
+import { EprocessStatus, EtaskType } from "./enums/process.enum";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
@@ -14,8 +15,6 @@ import { taskModel } from "./schema/task.schema";
 @Injectable()
 export class ProcessService {
   constructor(
-    @InjectModel("process")
-    private readonly processesModel: Model<processModel>,
     @InjectModel("processInstance")
     private readonly processInstancesModel: Model<processInstanceModel>,
     @InjectModel("processInstanceDetail")
@@ -36,22 +35,13 @@ export class ProcessService {
         processId,
         token.id
       );
-      /*let isProcessExist = await this.processInstancesModel.findOne({
-        processId: processId,
-        processStatus: "Started",
-        userId: token.id,
-      });
-      if (isProcessExist) {
-        taskId = isProcessExist.currentTask;
-      }
-      console.log(taskId, isProcessExist);*/
       let currentTaskData: any = await this.tasksModel.findOne({
-        parentProcessId: processId,
+        processId: processId,
         _id: taskId,
       });
       let finalResponse = {};
       let totalTasks = (
-        await this.tasksModel.countDocuments({ parentProcessId: processId })
+        await this.tasksModel.countDocuments({ processId: processId })
       ).toString();
       finalResponse["taskId"] = currentTaskData._id;
       finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
@@ -78,8 +68,7 @@ export class ProcessService {
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-  
-          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+          nextTaskThumbnail: await this.getThumbNail(nextTaskData?.taskMetaData?.media),
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
@@ -87,10 +76,10 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-      
+
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
-      if (currentTaskData.type == "Break") {
+      if (currentTaskData.type == EtaskType.Break) {
         createProcessInstanceData = await this.createProcessInstance(
           token.id,
           processId,
@@ -121,41 +110,40 @@ export class ProcessService {
   ) {
     try {
       let CurrentInstanceData;
-
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
       let checkInstanceHistory = await this.processInstancesModel.findOne({
         userId: userId,
-        currentTask: taskId,
-        status: "Active",
+        processId: processId,
+        status: Estatus.Active,
       });
       let finalResponse = {};
       if (!checkInstanceHistory) {
         let processInstanceBody = {
           userId: userId,
           processId: processId,
-          processType: taskType,
-          processStatus: "Started",
+          processStatus: EprocessStatus.Started,
           currentTask: taskId,
-          status: "Active",
+          status: Estatus.Active,
           startedAt: currentTimeIso,
           createdBy: userId,
           updatedBy: userId,
         };
         let processInstanceData =
           await this.processInstancesModel.create(processInstanceBody);
+
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
           processId: processId,
           taskId: taskId,
-          taskStatus: "Started",
+          taskStatus: EprocessStatus.Started,
           triggeredAt: currentTimeIso,
           startedAt: currentTimeIso,
-          status: "Active",
+          status: Estatus.Active,
           createdBy: userId,
           updatedBy: userId,
         };
-        if (taskType == "Break") {
+        if (taskType == EtaskType.Break) {
           const newTime = new Date(
             currentTime.getTime() + parseInt(breakDuration) * 60000
           );
@@ -167,16 +155,47 @@ export class ProcessService {
             processInstanceDetailBody
           );
         finalResponse = {
-          //"processInstanceData": processInstanceData,
-          //"processInstanceDetailData": processInstanceDetailData,
           breakEndsAt: processInstanceDetailData.endedAt,
-        };
+        }
       } else {
-        if (taskType == "Break") {
-          /*const newTime = new Date(
-            currentTime.getTime() + parseInt(breakDuration) * 60000
-          );
-          const endAt = newTime.toISOString();*/
+        let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
+          createdBy: userId,
+          processId: processId,
+          taskId: taskId
+        });
+        if (checkTaskInstanceDetailHistory) {
+          if (taskType == EtaskType.Break) {
+            finalResponse = {
+              breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
+            };
+          }
+
+        } else {
+          let updateProcessInstanceTask = await this.processInstancesModel.updateOne({ _id: checkInstanceHistory._id }, { $set: { currentTask: taskId } })
+          let processInstanceDetailBody = {
+            processInstanceId: checkInstanceHistory._id,
+            processId: processId,
+            taskId: taskId,
+            taskStatus: EprocessStatus.Started,
+            triggeredAt: currentTimeIso,
+            startedAt: currentTimeIso,
+            status: Estatus.Active,
+            createdBy: userId,
+            updatedBy: userId,
+          };
+          if (taskType == EtaskType.Break) {
+            const newTime = new Date(
+              currentTime.getTime() + parseInt(breakDuration) * 60000
+            );
+            const endAt = newTime.toISOString();
+            processInstanceDetailBody["endedAt"] = endAt;
+          }
+          let processInstanceDetailData =
+            await this.processInstanceDetailsModel.create(
+              processInstanceDetailBody
+            );
+        }
+        if (taskType == EtaskType.Break) {
           CurrentInstanceData = await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
             taskId: taskId,
@@ -194,37 +213,38 @@ export class ProcessService {
 
   async updateProcessInstance(body, token) {
     try {
+      let isLastTask = false;
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
-      if (body.orderId) {
-        processInstanceBody["orderId"] = body.orderId;
-        processInstanceBody["purchasedAt"] = currentTimeIso;
-        processInstanceBody["validTill"] = currentTimeIso;
-      }
       if (body.processStatus) {
-        processInstanceBody["processStatus"] = body.processStatus;
         processInstanceDetailBody["taskStatus"] = body.processStatus;
-        if (body.taskType == "Break") {
+        if (body.taskType == EtaskType.Break) {
           const newTime = new Date(
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
           const endAt = newTime.toISOString();
           processInstanceDetailBody["endedAt"] = endAt;
         }
-        if (body.processStatus == "Completed") {
+        if (body.processStatus == EprocessStatus.Completed) {
           processInstanceDetailBody["taskResponse"] = body.taskResponse;
           processInstanceDetailBody["endedAt"] = currentTimeIso;
         }
       }
-      let processInstanceData = await this.processInstancesModel.updateOne(
-        {
-          currentTask: new ObjectId(body.taskId),
-          userId: new ObjectId(token.id),
-        },
-        { $set: processInstanceBody }
-      );
+      let taskDetail = await this.tasksModel.findOne({ _id: new ObjectId(body.taskId) })
+      let totalTasks = await this.tasksModel.countDocuments({ processId: taskDetail.processId });
+      if (totalTasks == taskDetail.taskNumber) {
+        processInstanceBody["processStatus"] = EprocessStatus.Completed;
+        let processInstanceData = await this.processInstancesModel.updateOne(
+          {
+            processId: taskDetail.processId,
+            userId: new ObjectId(token.id),
+          },
+          { $set: processInstanceBody }
+        );
+      }
+
       let processInstanceDetailData =
         await this.processInstanceDetailsModel.updateOne(
           {
@@ -244,80 +264,15 @@ export class ProcessService {
   }
 
   async pendingProcess(userId) {
+
     try {
-      const pendingTasks = await this.processInstancesModel.aggregate([
-        {
-          $match: {
-            userId: new ObjectId(userId),
-          },
-        },
-        {
-          $group: {
-            _id: '$processId',
-            completedCount: { $sum: 1 },
-          },
-        },
-        {
-          $sort:{
-            _id:-1
-          }
-        },
-        {
-          $lookup: {
-            from: 'task',
-            localField: '_id',
-            foreignField: 'processId',
-            as: 'tasks',
-          },
-        },
-        {
-          $addFields: {
-            totalTaskCount: { $size: '$tasks' },
-          },
-        },
-        {
-          $lookup: {
-            from: 'task',
-            let: { processId: '$_id', completedCount: '$completedCount' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ['$processId', '$$processId'] },
-                      { $eq: ['$taskNumber', '$$completedCount'] }
-                    ],
-                  },
-                },
-              },
-            ],
-            as: 'currentTask',
-          },
-        },
-        {
-          $addFields: {
-            currentTask: { $arrayElemAt: ['$currentTask', 0] },
-          },
-        },
-        {
-          $match: {
-            $expr: { $ne: ['$completedCount', '$totalTaskCount'] },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            processId: '$_id',
-            //completedCount: 1,
-            //totalTaskCount: 1,
-            currentTask: 1,
-          },
-        },
-      ]);
+
+      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").lean();
+
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: pendingTasks[i].processId,
+            processId: pendingTasks[i].processId,
           })
         ).toString();
         pendingTasks[i].completed = Math.ceil(
@@ -326,7 +281,6 @@ export class ProcessService {
           100
         );
       }
-
       return pendingTasks;
     } catch (err) {
       throw err;
@@ -336,80 +290,11 @@ export class ProcessService {
   async getMySeries(userId, status) {
     try {
 
-      const mySeries = await this.processInstancesModel.aggregate([
-        {
-          $match: {
-            userId: new ObjectId(userId),
-          },
-        },
-        {
-          $group: {
-            _id: '$processId',
-            completedCount: { $sum: 1 },
-          },
-        },
-        {
-          $sort:{
-            _id:-1
-          }
-        },
-        {
-          $lookup: {
-            from: 'task',
-            localField: '_id',
-            foreignField: 'processId',
-            as: 'tasks',
-          },
-        },
-        {
-          $addFields: {
-            totalTaskCount: { $size: '$tasks' },
-          },
-        },
-        {
-          $lookup: {
-            from: 'task',
-            let: { processId: '$_id', completedCount: '$completedCount' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ['$processId', '$$processId'] },
-
-                      (status == "Completed") ? { $eq: ['$taskNumber', 1] }: { $eq: ['$taskNumber', '$$completedCount'] }
-                    ],
-                  },
-                },
-              },
-            ],
-            as: 'currentTask',
-          },
-        },
-        {
-          $addFields: {
-            currentTask: { $arrayElemAt: ['$currentTask', 0] },
-          },
-        },
-        {
-          $match: {
-            $expr: (status == "Completed") ? { $eq: ['$completedCount', '$totalTaskCount'] } : { $ne: ['$completedCount', '$totalTaskCount'] },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            processId: '$_id',
-            //completedCount: 1,
-            //totalTaskCount: 1,
-            currentTask: 1,
-          },
-        },
-      ]);
+      const mySeries: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").lean();
       for (let i = 0; i < mySeries.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: mySeries[i].processId,
+            processId: mySeries[i].processId,
           })
         ).toString();
 
@@ -418,10 +303,13 @@ export class ProcessService {
             parseInt(totalTasks)) *
           100
         );
-        if(status == "Completed"){
-          mySeries[i].progressPercentage = 100;
+
+        if (status == EprocessStatus.Completed) {
+          mySeries[i].completed = 100;
+          let currentTask = await this.tasksModel.findOne({ processId: mySeries[i].processId, taskNumber: 1 });
+          mySeries[i].currentTask = currentTask;
         }
-        
+
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {
@@ -441,29 +329,27 @@ export class ProcessService {
     }
   }
 
-  async getAllTasks(parentProcessId, token: UserToken) {
+  async getAllTasks(processId, token: UserToken) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
-      let userProcessInstanceData: any = await this.processInstancesModel.find({ processId: parentProcessId, userId: token.id }).lean();
+      let userProcessInstanceData: any = await this.processInstanceDetailsModel.find({ processId: processId, createdBy: token.id }).lean();
 
       let createdInstanceTasks = [];
       for (let i = 0; i < userProcessInstanceData.length; i++) {
-        createdInstanceTasks.push(userProcessInstanceData[i].currentTask.toString())
+        createdInstanceTasks.push(userProcessInstanceData[i].taskId.toString())
       }
       let payment = await this.paymentService.getPaymentDetailBySource(
-        parentProcessId,
+        processId,
         token.id
       );
       let allTaskdata: any = await this.tasksModel.find({
-        parentProcessId: parentProcessId,
+        processId: processId,
       }).sort({ taskNumber: 1 }).lean();
 
       allTaskdata.forEach((task) => {
-        console.log(task);
         if (createdInstanceTasks.includes(task._id.toString())) {
-          console.log(true)
           task.isCompleted = true;
         } else {
           task.isCompleted = false;
@@ -500,15 +386,13 @@ export class ProcessService {
     }
   }
 
-  async userProcessDetail(processId, token) {
-    try {
-      let userProcessDetail = await this.processInstancesModel
-        .find({ userId: token.id, processId: processId })
-        .populate("currentTask")
-        .sort({ _id: 1 });
-      return userProcessDetail;
-    } catch (err) {
-      throw err;
-    }
+  async getThumbNail(media) {
+    let mediaUrl = "";
+    media.forEach((mediaData) => {
+      if (mediaData.type === "thumbNail") {
+        mediaUrl = mediaData.mediaUrl;
+      }
+    });
+    return mediaUrl;
   }
 }
