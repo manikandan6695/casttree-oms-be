@@ -441,7 +441,7 @@ export class ServiceItemService {
           await this.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": await this.processService.getNextTaskThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
+            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].taskId.taskMetaData?.media),
             "title": pendingProcessInstanceData[i].taskId.taskTitle,
             "ctaName": "Continue",
             "progressPercentage": pendingProcessInstanceData[i].completed,

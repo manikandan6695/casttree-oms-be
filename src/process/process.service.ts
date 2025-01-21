@@ -68,7 +68,7 @@ export class ProcessService {
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-          nextTaskThumbnail: await this.getNextTaskThumbNail(nextTaskData?.taskMetaData?.media),
+          nextTaskThumbnail: await this.getThumbNail(nextTaskData?.taskMetaData?.media),
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
@@ -386,7 +386,7 @@ export class ProcessService {
     }
   }
 
-  async getNextTaskThumbNail(media) {
+  async getThumbNail(media) {
     let mediaUrl = "";
     media.forEach((mediaData) => {
       if (mediaData.type === "thumbNail") {
