@@ -11,6 +11,7 @@ import {
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
+import { updateProcessInstanceDTO } from "./dto/process.dto";
 import { ProcessService } from "./process.service";
 
 @Controller("process")
@@ -39,7 +40,7 @@ export class ProcessController {
   @UseGuards(JwtAuthGuard)
   @Patch("updateProcessInstance")
   async updateProcessInstance(
-    @Body(new ValidationPipe({ whitelist: true })) body: any,
+    @Body(new ValidationPipe({ whitelist: true })) body: updateProcessInstanceDTO,
     @GetToken() token: UserToken
   ) {
     try {
@@ -76,20 +77,6 @@ export class ProcessController {
   ) {
     try {
       let data = await this.processsService.getAllTasks(processId,token);
-      return data;
-    } catch (err) {
-      throw err;
-    }
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get("user/processInstanceDetails/:processId")
-  async userProcessDetail(
-    @Param("processId") processId: string,
-    @GetToken() token: UserToken
-  ) {
-    try {
-      let data = await this.processsService.userProcessDetail(processId, token);
       return data;
     } catch (err) {
       throw err;

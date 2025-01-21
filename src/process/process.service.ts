@@ -79,7 +79,7 @@ export class ProcessService {
       
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
-      if (currentTaskData.type == "Break") {
+      if (currentTaskData.type == EtaskType.Break) {
         createProcessInstanceData = await this.createProcessInstance(
           token.id,
           processId,
@@ -109,7 +109,6 @@ export class ProcessService {
     breakDuration?
   ) {
     try {
-      console.log("break:" +  breakDuration);
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
@@ -165,7 +164,7 @@ export class ProcessService {
           taskId: taskId
         });
         if (checkTaskInstanceDetailHistory) {
-          if (taskType == "Break") {
+          if (taskType == EtaskType.Break) {
             finalResponse = {
               breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
             };
@@ -384,18 +383,6 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-    } catch (err) {
-      throw err;
-    }
-  }
-
-  async userProcessDetail(processId, token) {
-    try {
-      let userProcessDetail = await this.processInstancesModel
-        .find({ userId: token.id, processId: processId })
-        .populate("currentTask")
-        .sort({ _id: 1 });
-      return userProcessDetail;
     } catch (err) {
       throw err;
     }

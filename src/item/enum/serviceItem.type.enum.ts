@@ -1,6 +1,10 @@
 export enum EserviceItemType {
     feedback = "feedback",
-    workShop="workShop"
+    workShop="workShop",
+    courses= "courses"
   }
   
-  export const ESserviceItemType = [EserviceItemType.feedback, EserviceItemType.workShop];
+  export const ESserviceItemType = [EserviceItemType.feedback, 
+    EserviceItemType.workShop,
+    EserviceItemType.courses
+  ];

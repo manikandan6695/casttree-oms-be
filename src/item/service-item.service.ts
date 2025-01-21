@@ -327,7 +327,7 @@ export class ServiceItemService {
       const serviceItemData = await this.serviceItemModel.aggregate([
         {
           $match: {
-            type: "courses",
+            type: EserviceItemType.courses,
             status: Estatus.Active,
           },
         },

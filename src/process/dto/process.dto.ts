@@ -1,5 +1,5 @@
 import { IsDateString, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { EtaskType } from "../enums/courses.enum";
+import { EprocessStatus, EtaskType } from "../enums/courses.enum";
 
 export class processInstanceDTO {
     @IsNotEmpty()
@@ -54,4 +54,17 @@ export class processInstanceDTO {
     @IsMongoId()
     updatedBy: string;
 
+}
+
+export class updateProcessInstanceDTO {
+    @IsNotEmpty()
+    @IsMongoId()
+    taskId: string;
+
+    @IsOptional()
+    @IsEnum(EprocessStatus)
+    processStatus: EprocessStatus;
+
+    @IsOptional()
+    taskResponse: any;
 }
