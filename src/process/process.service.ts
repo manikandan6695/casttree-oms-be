@@ -3,9 +3,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
+import { EprocessStatus, EtaskType } from "./enums/courses.enum";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
@@ -34,15 +36,14 @@ export class ProcessService {
         token.id
       );
       let currentTaskData: any = await this.tasksModel.findOne({
-        parentProcessId: processId,
+        processId: processId,
         _id: taskId,
       });
       let finalResponse = {};
       let totalTasks = (
-        await this.tasksModel.countDocuments({ parentProcessId: processId })
+        await this.tasksModel.countDocuments({ processId: processId })
       ).toString();
       finalResponse["taskId"] = currentTaskData._id;
-      finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
       finalResponse["processId"] = currentTaskData.processId;
       finalResponse["taskType"] = currentTaskData.type;
       finalResponse["taskNumber"] = currentTaskData.taskNumber;
@@ -58,14 +59,14 @@ export class ProcessService {
         processId: processId,
       });
       let nextTask = {};
+      let mediaurl;
       if (nextTaskData) {
         nextTask = {
           taskId: nextTaskData._id,
-          parentProcessId: nextTaskData.parentProcessId,
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-          nextTaskThumbnail: nextTaskData.taskMetaData?.media[0]?.mediaUrl,
+          nextTaskThumbnail: await this.getNextTaskThumbNail(nextTaskData.taskMetaData?.media),
           taskNumber: nextTaskData.taskNumber,
         };
         nextTask["isLocked"] =
@@ -76,7 +77,7 @@ export class ProcessService {
 
       finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
-      if (currentTaskData.type == "Break") {
+      if (currentTaskData.type == EtaskType.Break) {
         createProcessInstanceData = await this.createProcessInstance(
           token.id,
           processId,
@@ -113,16 +114,16 @@ export class ProcessService {
       let checkInstanceHistory = await this.processInstancesModel.findOne({
         userId: userId,
         processId: processId,
-        status: "Active",
+        status: Estatus.Active,
       });
       let finalResponse = {};
       if (!checkInstanceHistory) {
         let processInstanceBody = {
           userId: userId,
           processId: processId,
-          processStatus: "Started",
+          processStatus: EprocessStatus.Started,
           currentTask: taskId,
-          status: "Active",
+          status: Estatus.Active,
           startedAt: currentTimeIso,
           createdBy: userId,
           updatedBy: userId,
@@ -134,14 +135,14 @@ export class ProcessService {
           processInstanceId: processInstanceData._id,
           processId: processId,
           taskId: taskId,
-          taskStatus: "Started",
+          taskStatus: EprocessStatus.Started,
           triggeredAt: currentTimeIso,
           startedAt: currentTimeIso,
-          status: "Active",
+          status: Estatus.Active,
           createdBy: userId,
           updatedBy: userId,
         };
-        if (taskType == "Break") {
+        if (taskType == EtaskType.Break) {
           const newTime = new Date(
             currentTime.getTime() + parseInt(breakDuration) * 60000
           );
@@ -174,14 +175,14 @@ export class ProcessService {
             processInstanceId: checkInstanceHistory._id,
             processId: processId,
             taskId: taskId,
-            taskStatus: "Started",
+            taskStatus: EprocessStatus.Started,
             triggeredAt: currentTimeIso,
             startedAt: currentTimeIso,
-            status: "Active",
+            status: Estatus.Active,
             createdBy: userId,
             updatedBy: userId,
           };
-          if (taskType == "Break") {
+          if (taskType == EtaskType.Break) {
             const newTime = new Date(
               currentTime.getTime() + parseInt(breakDuration) * 60000
             );
@@ -193,8 +194,7 @@ export class ProcessService {
               processInstanceDetailBody
             );
         }
-        if (taskType == "Break") {
-          console.log("break loop");
+        if (taskType == EtaskType.Break) {
           CurrentInstanceData = await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
             taskId: taskId,
@@ -219,14 +219,14 @@ export class ProcessService {
       let currentTimeIso = currentTime.toISOString();
       if (body.processStatus) {
         processInstanceDetailBody["taskStatus"] = body.processStatus;
-        if (body.taskType == "Break") {
+        if (body.taskType == EtaskType.Break) {
           const newTime = new Date(
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
           const endAt = newTime.toISOString();
           processInstanceDetailBody["endedAt"] = endAt;
         }
-        if (body.processStatus == "Completed") {
+        if (body.processStatus == EprocessStatus.Completed) {
           processInstanceDetailBody["taskResponse"] = body.taskResponse;
           processInstanceDetailBody["endedAt"] = currentTimeIso;
         }
@@ -234,7 +234,7 @@ export class ProcessService {
       let taskDetail = await this.tasksModel.findOne({ _id: new ObjectId(body.taskId) })
       let totalTasks = await this.tasksModel.countDocuments({ processId: taskDetail.processId });
       if (totalTasks == taskDetail.taskNumber) {
-        processInstanceBody["processStatus"] = "Completed";
+        processInstanceBody["processStatus"] = EprocessStatus.Completed;
         let processInstanceData = await this.processInstancesModel.updateOne(
           {
             processId: taskDetail.processId,
@@ -266,12 +266,12 @@ export class ProcessService {
 
     try {
       console.log(userId)
-      const pendingTasks: any = await this.processInstanceDetailsModel.find({ createdBy: userId, taskStatus: "Started" }).populate("taskId").lean();
+      const pendingTasks: any = await this.processInstanceDetailsModel.find({ createdBy: userId, taskStatus: EprocessStatus.Started }).populate("taskId").lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: pendingTasks[i].processId,
+            processId: pendingTasks[i].processId,
           })
         ).toString();
         pendingTasks[i].completed = Math.ceil(
@@ -289,11 +289,11 @@ export class ProcessService {
   async getMySeries(userId, status) {
     try {
 
-      const mySeries:any = await this.processInstancesModel.find({userId:userId,processStatus:status}).populate("currentTask").lean();
+      const mySeries: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").lean();
       for (let i = 0; i < mySeries.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
-            parentProcessId: mySeries[i].processId,
+            processId: mySeries[i].processId,
           })
         ).toString();
 
@@ -302,13 +302,13 @@ export class ProcessService {
             parseInt(totalTasks)) *
           100
         );
-        
-        if (status == "Completed") {
+
+        if (status == EprocessStatus.Completed) {
           mySeries[i].completed = 100;
-          let currentTask = await this.tasksModel.findOne({processId:mySeries[i].processId, taskNumber:1});
+          let currentTask = await this.tasksModel.findOne({ processId: mySeries[i].processId, taskNumber: 1 });
           mySeries[i].currentTask = currentTask;
         }
-        
+
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {
@@ -397,5 +397,15 @@ export class ProcessService {
     } catch (err) {
       throw err;
     }
+  }
+
+  async getNextTaskThumbNail(media) {
+    let mediaUrl = "";
+    media.forEach((mediaData) => {
+      if (mediaData.type === "thumbNail") {
+        mediaUrl = mediaData.mediaUrl;
+      }
+    });
+    return mediaUrl;
   }
 }
