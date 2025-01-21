@@ -267,7 +267,7 @@ export class ProcessService {
 
     try {
 
-      const pendingTasks: any = await this.processInstanceDetailsModel.find({ createdBy: userId, taskStatus: EprocessStatus.Started }).populate("taskId").lean();
+      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
@@ -276,7 +276,7 @@ export class ProcessService {
           })
         ).toString();
         pendingTasks[i].completed = Math.ceil(
-          (parseInt(pendingTasks[i].taskId.taskNumber) /
+          (parseInt(pendingTasks[i].currentTask.taskNumber) /
             parseInt(totalTasks)) *
           100
         );
