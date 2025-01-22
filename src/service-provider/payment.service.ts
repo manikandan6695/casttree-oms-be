@@ -61,7 +61,7 @@ export class PaymentService {
         accessToken,
         null
       );
-      // console.log("profile is",profile);
+      console.log("pg order notes is", notes);
 
       let pg_meta = { name: profile.userName };
       switch (pg_type) {
