@@ -9,9 +9,7 @@ import {
   EDocument,
   EDocumentTypeName,
 } from "src/invoice/enum/document-type-name.enum";
-import {
-  EServiceRequestStatus
-} from "src/service-request/enum/service-request.enum";
+import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
@@ -21,7 +19,7 @@ import { paymentDTO } from "./dto/payment.dto";
 import {
   EPaymentSourceType,
   ERazorpayPaymentStatus,
-  ESourceType
+  ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 const { ObjectId } = require("mongodb");
@@ -61,15 +59,14 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
-        console.log("inside service request iss ==>");
+        console.log("inside service request iss ==>", invoiceData._id);
 
         body["serviceRequest"] = {
           ...body.serviceRequest,
-
           sourceId: invoiceData._id,
           sourceType: EDocument.sales_document,
         };
-        // console.log("body is", body.serviceRequest);
+        // console.log("service request body is", body.serviceRequest);
 
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
@@ -83,6 +80,7 @@ export class PaymentRequestService {
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
       });
+      // console.log("existingPayment", existingPayment);
 
       if (existingPayment) {
         return { paymentData: existingPayment, serviceRequest };
@@ -161,6 +159,8 @@ export class PaymentRequestService {
     currency = null,
     orderDetail = null
   ) {
+    // console.log("payment body is ===>", body);
+
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
       "PMT",
@@ -173,7 +173,7 @@ export class PaymentRequestService {
       ...body,
       source_id: invoiceData._id,
       currency: currency?._id,
-      currency_code: currency?.currency_code,
+      currencyCode: body?.currencyCode,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
@@ -277,11 +277,11 @@ export class PaymentRequestService {
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
     let serviceRequest;
-    if (invoice.source_type == EPaymentSourceType.serviceRequest) {
-      serviceRequest =
-        await this.serviceRequestService.getServiceRequestDetail(invoiceId);
-      console.log("service request payment", serviceRequest);
-    }
+    // if (invoice.source_type == EPaymentSourceType.serviceRequest) {
+    serviceRequest =
+      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+    console.log("service request payment", serviceRequest);
+    // }
 
     return { invoiceId, status, payment, invoice, serviceRequest };
   }
@@ -349,6 +349,8 @@ export class PaymentRequestService {
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     });
+    console.log("ids is ==>", ids);
+
     if (ids.serviceRequestId) {
       await this.serviceRequestService.updateServiceRequest(
         ids.serviceRequestId,
