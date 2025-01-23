@@ -113,6 +113,7 @@ export class PaymentRequestService {
       const orderDetail = await this.paymentService.createPGOrder(
         body.userId.toString(),
         body.currencyCode,
+        body.currency,
         body.amount,
         requesId,
         accessToken,
