@@ -451,15 +451,15 @@ export class ServiceItemService {
         ListData: [],
       };
       let processIds = [];
-      finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
-      finalData["featured"].map((data) => processIds.push(data?.processId));
-      finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
+      (finalData["SeriesForYou"] ?? []).map((data) => processIds.push(data?.processId));
+      (finalData["featured"] ?? []).map((data) => processIds.push(data?.processId));
+      (finalData["upcomingseries"] ?? []).map((data) => processIds.push(data?.processId));
       let firstTasks = await this.processService.getFirstTask(processIds);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
-      finalData["featured"].map((data) => {
+      (finalData["featured"] ?? []).map((data) => {
         featureCarouselData["ListData"].push({
           "processId": data.processId,
           "thumbnail": data.thumbnail,
@@ -467,14 +467,14 @@ export class ServiceItemService {
           "taskDetail": firstTaskObject[data.processId]
         })
       });
-      finalData["SeriesForYou"].map((data) => {
+      (finalData["SeriesForYou"] ?? []).map((data) => {
         updatedSeriesForYouData["ListData"].push({
           "processId": data.processId,
           "thumbnail": data.thumbnail,
           "taskDetail": firstTaskObject[data.processId]
         })
       });
-      finalData["upcomingseries"].map((data) => {
+      (finalData["upcomingseries"] ?? []).map((data) => {
         updatedUpcomingData["ListData"].push({
           "processId": data.processId,
           "thumbnail": data.thumbnail,

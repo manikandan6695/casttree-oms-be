@@ -277,7 +277,7 @@ export class ProcessService {
           })
         ).toString();
         pendingTasks[i].completed = Math.ceil(
-          (parseInt(pendingTasks[i].currentTask.taskNumber) /
+          ((parseInt(pendingTasks[i].currentTask.taskNumber)-1) /
             parseInt(totalTasks)) *
           100
         );
@@ -300,7 +300,7 @@ export class ProcessService {
         ).toString();
 
         mySeries[i].progressPercentage = Math.ceil(
-          (parseInt(mySeries[i].currentTask.taskNumber) /
+          ((parseInt(mySeries[i].currentTask.taskNumber)-1) /
             parseInt(totalTasks)) *
           100
         );
