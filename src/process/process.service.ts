@@ -274,11 +274,11 @@ export class ProcessService {
         let totalTasks = (
           await this.tasksModel.countDocuments({
             processId: pendingTasks[i].processId,
-          })
-        ).toString();
+          }));
+          let completedTaskNumber = (totalTasks == pendingTasks[i].currentTask.taskNumber) ? pendingTasks[i].currentTask.taskNumber : (pendingTasks[i].currentTask.taskNumber-1);
         pendingTasks[i].completed = Math.ceil(
-          ((parseInt(pendingTasks[i].currentTask.taskNumber)-1) /
-            parseInt(totalTasks)) *
+          (completedTaskNumber /
+            totalTasks) *
           100
         );
       }
@@ -297,11 +297,11 @@ export class ProcessService {
           await this.tasksModel.countDocuments({
             processId: mySeries[i].processId,
           })
-        ).toString();
-
+        );
+        let completedTaskNumber = (totalTasks == mySeries[i].currentTask.taskNumber) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber-1);
         mySeries[i].progressPercentage = Math.ceil(
-          ((parseInt(mySeries[i].currentTask.taskNumber)-1) /
-            parseInt(totalTasks)) *
+          (completedTaskNumber /
+            totalTasks) *
           100
         );
 
