@@ -246,8 +246,8 @@ export class PaymentRequestService {
 
       const ids = {
         invoiceId,
-        serviceRequestId: serviceRequest?.data["_id"],
-        paymentId: payment._id,
+        serviceRequestId: serviceRequest?.data?._id,
+        paymentId: payment?._id,
       };
       // console.log("ids is", ids, serviceRequest.data["_id"]);
       await this.updatePaymentStatus(status, ids);
@@ -276,9 +276,9 @@ export class PaymentRequestService {
     });
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
-    let serviceRequest;
+    // let serviceRequest;
     // if (invoice.source_type == EPaymentSourceType.serviceRequest) {
-    serviceRequest =
+    let serviceRequest =
       await this.serviceRequestService.getServiceRequestDetail(invoiceId);
     console.log("service request payment", serviceRequest);
     // }
@@ -351,7 +351,7 @@ export class PaymentRequestService {
     });
     console.log("ids is ==>", ids);
 
-    if (ids.serviceRequestId) {
+    if (ids?.serviceRequestId) {
       await this.serviceRequestService.updateServiceRequest(
         ids.serviceRequestId,
         {
