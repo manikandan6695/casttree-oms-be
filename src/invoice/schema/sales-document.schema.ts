@@ -15,14 +15,14 @@ export interface ISalesDocumentModel extends mongoose.Document {
   document_status: string;
   item_count: number;
   currency: any;
-  curency_code: string;
+  currencyCode: string;
   sub_total: number;
   due_date: Date | string;
   due_status: string;
   discount_type: string;
   discount_level: string;
   discount: number;
- 
+
   discount_amount: number;
   adjustments: number;
   grand_total: number;
@@ -133,7 +133,7 @@ export const SalesDocumentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "currency",
     },
-    curency_code: {
+    currencyCode: {
       type: String,
     },
     sub_total: {

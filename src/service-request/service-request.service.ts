@@ -29,7 +29,7 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -37,38 +37,40 @@ export class ServiceRequestService {
     accessToken: string,
     organizationId: string,
     skip: number,
-    limit: number,
-   
+    limit: number
   ) {
     try {
-
       const filter = {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
           ? {
-            requestedToUser: new ObjectId(token.id),
-            requestedToOrg: new ObjectId(organizationId),
-          }
+              requestedToUser: new ObjectId(token.id),
+              requestedToOrg: new ObjectId(organizationId),
+            }
           : {
-            requestedBy: new ObjectId(token.id),
-            requestedByOrg: new ObjectId(organizationId),
-          }),
+              requestedBy: new ObjectId(token.id),
+              requestedByOrg: new ObjectId(organizationId),
+            }),
       };
-     if(query.type){
-      filter["type"]= query.type
-     }
-
+      if (query.type) {
+        filter["type"] = query.type;
+      }
 
       let sorting = {};
       if (query.mode === EServiceRequestMode.assign) {
-        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: 1 } : { _id: -1 };
+        sorting =
+          query.requestStatus === EServiceRequestStatus.pending
+            ? { _id: 1 }
+            : { _id: -1 };
       }
       if (query.mode === EServiceRequestMode.created) {
-        sorting = query.requestStatus === EServiceRequestStatus.pending ? { _id: -1 } : { _id: -1 };
+        sorting =
+          query.requestStatus === EServiceRequestStatus.pending
+            ? { _id: -1 }
+            : { _id: -1 };
       }
 
       filter["status"] = EStatus.Active;
-     
 
       const data = await this.serviceRequestModel
         .find(filter)
@@ -158,7 +160,7 @@ export class ServiceRequestService {
         sourceId,
         sourceType,
         requestId,
-        type
+        type,
       } = body;
 
       // Get service due date
@@ -217,8 +219,11 @@ export class ServiceRequestService {
           path: "itemId",
           populate: [{ path: "platformItemId" }],
         })
-        .populate("sourceId", "_id sub_total discount_amount grand_total")
-        .populate('languages', 'language')
+        .populate(
+          "sourceId",
+          "_id sub_total discount_amount grand_total currencyCode"
+        )
+        .populate("languages", "language")
         .lean();
 
       if (!data) throw new Error("Service request not found");
@@ -316,7 +321,6 @@ export class ServiceRequestService {
         })
         .lean();
 
-
       return { data: data };
     } catch (err) {
       throw err;
@@ -324,17 +328,13 @@ export class ServiceRequestService {
   }
 
   async getCompletedServiceRequest(id: string, orgId: any) {
-
-
-    
-    
     try {
       let countData = await this.serviceRequestModel.countDocuments({
         requestedToUser: id,
         requestedToOrg: orgId,
         requestStatus: EServiceRequestStatus.completed,
       });
-       return { count: countData };
+      return { count: countData };
     } catch (err) {
       throw err;
     }
