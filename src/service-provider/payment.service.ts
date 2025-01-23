@@ -45,7 +45,7 @@ export class PaymentService {
   }
   async createPGOrder(
     user_id: string,
-    currency: ICurrencyModel,
+    currency: string,
     amount: number,
     reference_no: string,
     accessToken: string,
@@ -67,7 +67,8 @@ export class PaymentService {
       switch (pg_type) {
         case EPaymentProvider.razorpay:
           var options = {
-            amount: amount * currency.base_conversion_factor,
+            amount: amount,
+            currency: currency,
             receipt: reference_no,
             notes,
           };
