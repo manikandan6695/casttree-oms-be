@@ -67,11 +67,13 @@ export class PaymentService {
       switch (pg_type) {
         case EPaymentProvider.razorpay:
           var options = {
-            amount: amount,
+            amount: amount * 100,
             currency: currency,
             receipt: reference_no,
             notes,
           };
+          console.log("options", options);
+
           let order_detail: any = await new Promise((res, rej) => {
             pg_instance.orders.create(options, function (err, order) {
               if (err) rej(err);
@@ -86,6 +88,8 @@ export class PaymentService {
 
       return { pg_meta, pg_type, order_id };
     } catch (err) {
+      console.log("err is", err);
+
       throw err;
     }
   }
