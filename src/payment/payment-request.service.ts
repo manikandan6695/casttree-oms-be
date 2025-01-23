@@ -148,6 +148,7 @@ export class PaymentRequestService {
       source_type: body?.invoiceDetail?.sourceType,
       discount_amount: body?.discount,
       sub_total: body?.amount,
+      currencyCode: body.currencyCode,
       document_status: EDocumentStatus.pending,
       grand_total: grand_total,
     });
