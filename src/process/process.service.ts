@@ -268,7 +268,7 @@ export class ProcessService {
 
     try {
 
-      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").lean();
+      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({_id:-1}).lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (

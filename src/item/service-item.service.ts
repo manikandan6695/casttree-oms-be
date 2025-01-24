@@ -483,6 +483,7 @@ export class ServiceItemService {
       });
       let sections = [];
       let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
+      console.log("pending instances: "+pendingProcessInstanceData);
       let continueWhereYouLeftData = {
         ListData: [],
       };
@@ -491,7 +492,9 @@ export class ServiceItemService {
         pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
         let mentorUserIds =
           await this.getMentorUserIds(continueProcessIds);
+          console.log("mentorids: "+mentorUserIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+
           continueWhereYouLeftData["ListData"].push({
             "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
             "title": pendingProcessInstanceData[i].currentTask.taskTitle,
