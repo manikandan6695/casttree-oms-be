@@ -71,6 +71,12 @@ PEERTUBE_PASSWORD = "lacecudacemosahu"
 THROTTLE_LIMIT= "10000"
 THROTTLE_TTL= "30"
 
+#GEOCODE (1 REQUEST PER SECOND)
+GEOCODE_API_KEY = "6791d94d2c2f6150189871kaz50f444"
+
+#IP_API (1000 REQUEST PER DAY)
+IP_API_KEY = "06ec32fd1a78428984edbbe29444262e"
+
 CASTTREE_BASE_URL = "https://prodapi.casttree.com/casttree"
 
 CASTTREE_RATINGS_BASE_URL = "https://prodapi.casttree.com/casttree-ratings"
