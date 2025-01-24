@@ -75,5 +75,5 @@ export class AddServiceRequestDTO {
 
   @IsOptional()
   @IsEnum(EserviceItemType)
-  type:EserviceItemType
+  type: EserviceItemType;
 }

@@ -26,14 +26,13 @@ export class paymentDTO {
   @IsNumber()
   amount: number;
 
-
   @IsOptional()
   @IsString()
   currency?: string;
 
   @IsOptional()
   @IsString()
-  document_status : string;
+  document_status: string;
 
   @IsOptional()
   @IsString()
@@ -56,4 +55,8 @@ export class paymentDTO {
 
   @IsOptional()
   invoiceDetail?: InvoiceDTO;
+
+  @IsOptional()
+  @IsString()
+  currencyCode?: string;
 }

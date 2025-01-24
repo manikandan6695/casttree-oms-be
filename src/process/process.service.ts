@@ -251,6 +251,7 @@ export class ProcessService {
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
+            updated_at: currentTime
           },
           { $set: processInstanceDetailBody }
         );
@@ -268,17 +269,17 @@ export class ProcessService {
 
     try {
 
-      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").lean();
+      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({updated_at:-1}).lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
             processId: pendingTasks[i].processId,
-          })
-        ).toString();
+          }));
+          let completedTaskNumber = pendingTasks[i].currentTask.taskNumber-1;
         pendingTasks[i].completed = Math.ceil(
-          (parseInt(pendingTasks[i].currentTask.taskNumber) /
-            parseInt(totalTasks)) *
+          (completedTaskNumber /
+            totalTasks) *
           100
         );
       }
@@ -297,11 +298,11 @@ export class ProcessService {
           await this.tasksModel.countDocuments({
             processId: mySeries[i].processId,
           })
-        ).toString();
-
+        );
+        let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber-1);
         mySeries[i].progressPercentage = Math.ceil(
-          (parseInt(mySeries[i].currentTask.taskNumber) /
-            parseInt(totalTasks)) *
+          (completedTaskNumber /
+            totalTasks) *
           100
         );
 

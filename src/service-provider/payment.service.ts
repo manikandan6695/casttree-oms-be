@@ -45,7 +45,8 @@ export class PaymentService {
   }
   async createPGOrder(
     user_id: string,
-    currency: ICurrencyModel,
+    currency: string,
+    currencyCode: string,
     amount: number,
     reference_no: string,
     accessToken: string,
@@ -61,16 +62,19 @@ export class PaymentService {
         accessToken,
         null
       );
-      // console.log("profile is",profile);
+      console.log("pg order notes is", notes);
 
       let pg_meta = { name: profile.userName };
       switch (pg_type) {
         case EPaymentProvider.razorpay:
           var options = {
-            amount: amount * currency.base_conversion_factor,
+            amount: amount * 100,
+            currency: currency ? currency : currencyCode,
             receipt: reference_no,
             notes,
           };
+          console.log("options", options);
+
           let order_detail: any = await new Promise((res, rej) => {
             pg_instance.orders.create(options, function (err, order) {
               if (err) rej(err);
@@ -85,6 +89,8 @@ export class PaymentService {
 
       return { pg_meta, pg_type, order_id };
     } catch (err) {
+      console.log("err is", err);
+
       throw err;
     }
   }

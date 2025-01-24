@@ -39,7 +39,7 @@ export interface IPaymentModel extends mongoose.Document {
   reference_number: string;
   payment_mode: any;
   account: any;
-  currency_code: string;
+  currencyCode: string;
   currency: any;
   created_by: any;
   updated_by: any;
@@ -127,7 +127,7 @@ export const PaymentSchema = new mongoose.Schema(
     transaction_type: {
       type: String,
     },
-    currency_code: {
+    currencyCode: {
       type: String,
     },
     tendered_amount: {
