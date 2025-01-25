@@ -219,7 +219,7 @@ export class HelperService {
 
       let fv = {
         plan_id: body.plan_id,
-        total_count: 1,
+        total_count: body.total_count,
         notes: {
           userId: body.notes.userId,
           sourceId: body.notes.sourceId,

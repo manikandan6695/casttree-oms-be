@@ -30,7 +30,7 @@ export class SubscriptionService {
     try {
       let fv = {
         plan_id: body.planId,
-        total_count: 1,
+        total_count: 10,
         quantity: 1,
         notes: {
           userId: token.id,
