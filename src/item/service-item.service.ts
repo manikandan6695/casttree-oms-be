@@ -568,6 +568,12 @@ export class ServiceItemService {
           { userId: 1, additionalDetails: 1 }
         )
         .populate("itemId").lean();
+        const seriesInfoObj = mentorUserIds.reduce((a, c) => {
+          a[c.additionalDetails.processId] = c;
+          return a;
+        }, {});
+
+      
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
@@ -584,11 +590,10 @@ export class ServiceItemService {
           userId: userIds[i],
           displayName: profileInfoObj[userIds[i]]?.displayName,
           media: profileInfoObj[userIds[i]]?.media,
-          seriesName: mentorUserIds[i]?.itemId?.itemName,
-          seriesThumbNail: mentorUserIds[i]?.additionalDetails.thumbnail,
+          seriesName: seriesInfoObj[processId[i]].itemId.itemName,
+          seriesThumbNail: seriesInfoObj[processId[i]].additionalDetails.thumbnail
         });
       }
-
       return mentorProfiles;
     } catch (err) {
       throw err;
