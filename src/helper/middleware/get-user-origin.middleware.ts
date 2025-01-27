@@ -8,7 +8,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private helperService: HelperService
-  ) { }
+  ) {}
 
   async use(
     request: Request,
@@ -24,8 +24,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       "";
     console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
     let userId = headers["x-user-id"];
-    let countryCode: any = 
-    userId
+    let countryCode: any = userId
       ? await this.cacheManager.get(`countryCode-${userId}`)
       : "";
     if (!countryCode) {
@@ -49,7 +48,6 @@ export class GetUserOriginMiddleware implements NestMiddleware {
         );
       }
     }
-    console.log(countryCode);
     request.headers["x-country-code"] = countryCode;
     next();
   }
