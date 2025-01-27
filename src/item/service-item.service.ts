@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
@@ -610,16 +611,12 @@ export class ServiceItemService {
 
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
       let ids = [];
-      subscriptionItemIds.map((data) => ids.push(data.itemId));
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      ids.push(new ObjectId(processPricingData.itemId._id))
       let plandata: any = await this.itemService.getItemsDetails(ids);
-     /* if (country_code) {
-        let uniqueArray = [
-          ...new Set(ids.map((id) => new mongoose.Types.ObjectId(id))),
-        ];
-        uniqueArray.push(new mongoose.Types.ObjectId(processPricingData.itemId._id));
-        console.log("pricelist requests: " + ids);
-        let priceListData = await this.getPriceListItems(
-          uniqueArray,
+      if (country_code) {
+       let priceListData = await this.getPriceListItems(
+          ids,
           country_code
         );
         plandata.forEach((e) => {
@@ -634,7 +631,7 @@ export class ServiceItemService {
         processPricingData.itemId["price"] = processPrice["price"];
         processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
         processPricingData.itemId["currency"] = processPrice["currency"];
-      }*/
+      }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
