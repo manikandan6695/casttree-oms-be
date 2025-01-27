@@ -301,6 +301,7 @@ export class ServiceItemService {
 
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
+      console.log("stage 2:" + itemIds)
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -568,12 +569,12 @@ export class ServiceItemService {
           { userId: 1, additionalDetails: 1 }
         )
         .populate("itemId").lean();
-        const seriesInfoObj = mentorUserIds.reduce((a, c) => {
-          a[c.additionalDetails.processId] = c;
-          return a;
-        }, {});
+      const seriesInfoObj = mentorUserIds.reduce((a, c) => {
+        a[c.additionalDetails.processId] = c;
+        return a;
+      }, {});
 
-      
+
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
@@ -600,16 +601,40 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId) {
+  async getPlanDetails(processId, country_code: string = "") {
     try {
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
         .lean();
+
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(data.itemId));
       let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (country_code) {
+        let uniqueArray = [
+          ...new Set(ids.map((id) => new mongoose.Types.ObjectId(id))),
+        ];
+        uniqueArray.push(new mongoose.Types.ObjectId(processPricingData.itemId._id));
+        console.log("pricelist requests: " + ids);
+        let priceListData = await this.getPriceListItems(
+          uniqueArray,
+          country_code
+        );
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+        let processPrice = priceListData[processPricingData.itemId._id];
+        processPricingData.itemId["price"] = processPrice["price"];
+        processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
+        processPricingData.itemId["currency"] = processPrice["currency"];
+      }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
