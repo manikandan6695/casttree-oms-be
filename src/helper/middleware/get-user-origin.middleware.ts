@@ -1,6 +1,6 @@
-import { Injectable, NestMiddleware, Inject } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
 import { CACHE_MANAGER, Cache } from "@nestjs/cache-manager";
+import { Inject, Injectable, NestMiddleware } from "@nestjs/common";
+import { NextFunction, Request, Response } from "express";
 import { HelperService } from "../helper.service";
 
 @Injectable()
@@ -24,9 +24,10 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       "";
     console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
     let userId = headers["x-user-id"];
-    let countryCode: any = userId
+    let countryCode: any ;
+    /*= userId
       ? await this.cacheManager.get(`countryCode-${userId}`)
-      : "";
+      : "";*/
     if (!countryCode) {
       if (latAndLong) {
         let [latitude, longitude] = latAndLong.split(",");
@@ -40,13 +41,13 @@ export class GetUserOriginMiddleware implements NestMiddleware {
           await this.helperService.getCountryCodeByIpAddress(ipAddress);
         console.log("country code inside ipAddress ===>", countryCode);
       }
-      if (countryCode && userId) {
+      /*if (countryCode && userId) {
         await this.cacheManager.set(
           `countryCode-${userId}`,
           countryCode,
           86400000
         );
-      }
+      }*/
     }
     request.headers["x-country-code"] = countryCode;
     next();
