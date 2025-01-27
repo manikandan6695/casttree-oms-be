@@ -24,7 +24,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       "";
     console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
     let userId = headers["x-user-id"];
-    let countryCode: any = null;
+    let countryCode: any = 
     userId
       ? await this.cacheManager.get(`countryCode-${userId}`)
       : "";
