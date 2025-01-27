@@ -612,7 +612,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(data.itemId));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code) {
+     /* if (country_code) {
         let uniqueArray = [
           ...new Set(ids.map((id) => new mongoose.Types.ObjectId(id))),
         ];
@@ -634,7 +634,7 @@ export class ServiceItemService {
         processPricingData.itemId["price"] = processPrice["price"];
         processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
         processPricingData.itemId["currency"] = processPrice["currency"];
-      }
+      }*/
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
