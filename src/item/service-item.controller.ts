@@ -102,7 +102,7 @@ export class ServiceItemController {
     try {
       console.log("req.headers", req.headers);
       let data = await this.serviceItemService.getPlanDetails(processId,
-        req.headers["x-country-code"]);
+        req.headers["x-country-code"] ?? "");
       return data;
     } catch (err) {
       throw err;

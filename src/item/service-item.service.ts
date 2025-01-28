@@ -602,7 +602,7 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId, country_code: string = "") {
+  async getPlanDetails(processId, country_code: string ) {
     try {
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -614,11 +614,13 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       ids.push(new ObjectId(processPricingData.itemId._id))
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code) {
+      if (country_code != "") {
+        console.log("ids: "+ids);
        let priceListData = await this.getPriceListItems(
           ids,
           country_code
         );
+        return priceListData;
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
