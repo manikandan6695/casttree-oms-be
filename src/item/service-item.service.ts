@@ -614,6 +614,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       ids.push(new ObjectId(processPricingData.itemId._id))
       let plandata: any = await this.itemService.getItemsDetails(ids);
+      return plandata;
       if (country_code) {
        let priceListData = await this.getPriceListItems(
           ids,
