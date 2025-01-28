@@ -318,10 +318,13 @@ export class ServiceItemService {
         )
         .populate("currency", "_id currency_name currency_code")
         .lean();
-      return data.reduce((acc, cur) => {
+     let finalData =  data.reduce((acc, cur) => {
         acc[`${cur.item_id.toString()}`] = cur;
         return acc;
       }, {});
+      console.log("finaldata: "+ finalData)
+      return finalData;
+
     } catch (err) {
       throw err;
     }
