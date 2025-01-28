@@ -628,10 +628,11 @@ export class ServiceItemService {
           }
         });
         let processPrice = priceListData[processPricingData.itemId._id];
-        processPricingData.itemId["price"] = processPrice["price"];
-        processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
-        processPricingData.itemId["currency"] = processPrice["currency"];
-      }
+        if(processPrice != undefined){
+          processPricingData.itemId["price"] = processPrice["price"];
+          processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
+          processPricingData.itemId["currency"] = processPrice["currency"];}
+       }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
