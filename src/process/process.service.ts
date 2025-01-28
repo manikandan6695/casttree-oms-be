@@ -110,14 +110,17 @@ export class ProcessService {
     breakDuration?
   ) {
     try {
+      let itemId = await this.serviceItemService.getServuceItemDetailsByProcessId(processId);
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
-      let checkInstanceHistory = await this.processInstancesModel.findOne({
+      let checkInstanceHistory :any = await this.processInstancesModel.findOne({
         userId: userId,
         processId: processId,
         status: Estatus.Active,
-      });
+      }).lean();
+      checkInstanceHistory.itemId = itemId.itemId;
+
       let finalResponse = {};
       if (!checkInstanceHistory) {
         let processInstanceBody = {
