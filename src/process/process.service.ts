@@ -208,9 +208,7 @@ export class ProcessService {
             instanceDetails: checkInstanceHistory,
           };
         }
-        finalResponse = {
-          instanceDetails: checkInstanceHistory,
-        };
+        
       }
       return finalResponse;
     } catch (err) {
