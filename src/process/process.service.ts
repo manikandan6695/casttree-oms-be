@@ -157,6 +157,7 @@ export class ProcessService {
           );
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
+          instancedetails :processInstanceData
         }
       } else {
         let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
@@ -168,6 +169,7 @@ export class ProcessService {
           if (taskType == EtaskType.Break) {
             finalResponse = {
               breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
+              instanceDetails: checkInstanceHistory
             };
           }
 
@@ -203,8 +205,10 @@ export class ProcessService {
           });
           finalResponse = {
             breakEndsAt: CurrentInstanceData.endedAt,
+            instanceDetails: checkInstanceHistory,
           };
         }
+        
       }
       return finalResponse;
     } catch (err) {
