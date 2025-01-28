@@ -627,7 +627,9 @@ export class ServiceItemService {
             e["currency"] = currData["currency"];
           }
         });
-        let processPrice = priceListData[processPricingData.itemId._id];
+        console.log("priceListData: "+priceListData);
+        console.log("id: "+processPricingData.itemId._id.toString());
+        let processPrice = priceListData[processPricingData.itemId._id.toString()];
         console.log("processPrice: "+ processPrice);
         if(processPrice != undefined){
           processPricingData.itemId["price"] = processPrice["price"];
