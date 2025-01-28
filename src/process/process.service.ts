@@ -172,6 +172,10 @@ export class ProcessService {
               instanceDetails: checkInstanceHistory
             };
           }
+          finalResponse = {
+            breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
+            instanceDetails: checkInstanceHistory
+          };
 
         } else {
           let updateProcessInstanceTask = await this.processInstancesModel.updateOne({ _id: checkInstanceHistory._id }, { $set: { currentTask: taskId } })
