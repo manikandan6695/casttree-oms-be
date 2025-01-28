@@ -706,5 +706,13 @@ export class ServiceItemService {
     } catch (err) {
       throw err;
     }
+
+    
+  }
+  async getServuceItemDetailsByProcessId(processId){
+    try{
+      let data = await this.serviceItemModel.findOne({"additionalDetails.processId":processId});
+      return data;
+    }catch(err){throw err}
   }
 }
