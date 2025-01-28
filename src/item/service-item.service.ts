@@ -300,9 +300,12 @@ export class ServiceItemService {
     }
   }
 
-  async getPriceListItems(itemIds: any[], country_code: string) {
+  async getPriceListItems(itemIds, country_code: string) {
     try {
-      console.log("stage 2:" + itemIds)
+      console.log("stage 2:" + itemIds);
+      console.log("stage 2:" + country_code);
+     itemIds.map((a)=> a = new ObjectId(a));
+      console.log( itemIds)
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -614,6 +617,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       ids.push(new ObjectId(processPricingData.itemId._id))
+      console.log(ids);
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
        let priceListData = await this.getPriceListItems(
