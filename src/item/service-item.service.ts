@@ -300,12 +300,9 @@ export class ServiceItemService {
     }
   }
 
-  async getPriceListItems(itemIds, country_code: string) {
+  async getPriceListItems(itemIds: any[], country_code: string) {
     try {
-      console.log("stage 2:" + itemIds);
-      console.log("stage 2:" + country_code);
-     itemIds.map((a)=> a = new ObjectId(a));
-      console.log( itemIds)
+      console.log("stage 2:" + itemIds)
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -318,7 +315,6 @@ export class ServiceItemService {
         )
         .populate("currency", "_id currency_name currency_code")
         .lean();
-        return data;
       return data.reduce((acc, cur) => {
         acc[`${cur.item_id.toString()}`] = cur;
         return acc;
@@ -616,15 +612,13 @@ export class ServiceItemService {
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
-      ids.push(new ObjectId(processPricingData.itemId._id))
-      console.log(ids);
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
-       let priceListData = await this.getPriceListItems(
+        ids.push(new ObjectId(processPricingData.itemId._id))
+        let priceListData = await this.getPriceListItems(
           ids,
           country_code
         );
-        return priceListData;
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
