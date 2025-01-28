@@ -628,6 +628,7 @@ export class ServiceItemService {
           }
         });
         let processPrice = priceListData[processPricingData.itemId._id];
+        console.log("processPrice: "+ processPrice);
         if(processPrice != undefined){
           processPricingData.itemId["price"] = processPrice["price"];
           processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
