@@ -303,6 +303,9 @@ export class ServiceItemService {
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
       console.log("stage 2:" + itemIds)
+      itemIds.map((data)=>{data = new ObjectId(data)});
+
+      console.log("stage 3:" + itemIds)
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -620,7 +623,7 @@ export class ServiceItemService {
           ids,
           country_code
         );
-        return priceListData;
+
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -629,10 +632,9 @@ export class ServiceItemService {
             e["currency"] = currData["currency"];
           }
         });
-        console.log("priceListData: "+priceListData);
-        console.log("id: "+processPricingData.itemId._id.toString());
+
         let processPrice = priceListData[processPricingData.itemId._id.toString()];
-        return {priceListData:priceListData,processPrice:processPrice,processPricingData:processPricingData}
+        
         console.log("processPrice: "+ processPrice);
         if(processPrice != undefined){
           processPricingData.itemId["price"] = processPrice["price"];
