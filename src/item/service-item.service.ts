@@ -303,9 +303,6 @@ export class ServiceItemService {
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
       console.log("stage 2:" + itemIds)
-      itemIds.map((data)=>{data = new ObjectId(data)});
-
-      console.log("stage 3:" + itemIds)
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -318,13 +315,10 @@ export class ServiceItemService {
         )
         .populate("currency", "_id currency_name currency_code")
         .lean();
-     let finalData =  data.reduce((acc, cur) => {
+      return data.reduce((acc, cur) => {
         acc[`${cur.item_id.toString()}`] = cur;
         return acc;
       }, {});
-      console.log("finaldata: "+ finalData)
-      return finalData;
-
     } catch (err) {
       throw err;
     }
@@ -608,7 +602,7 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId, country_code: string ) {
+  async getPlanDetails(processId, country_code: string = "") {
     try {
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -620,13 +614,11 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       ids.push(new ObjectId(processPricingData.itemId._id))
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code != "") {
-        console.log("ids: "+ids);
+      if (country_code) {
        let priceListData = await this.getPriceListItems(
           ids,
           country_code
         );
-
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -635,15 +627,11 @@ export class ServiceItemService {
             e["currency"] = currData["currency"];
           }
         });
-
-        let processPrice = priceListData[processPricingData.itemId._id.toString()];
-        
-        console.log("processPrice: "+ processPrice);
-        if(processPrice != undefined){
-          processPricingData.itemId["price"] = processPrice["price"];
-          processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
-          processPricingData.itemId["currency"] = processPrice["currency"];}
-       }
+        let processPrice = priceListData[processPricingData.itemId._id];
+        processPricingData.itemId["price"] = processPrice["price"];
+        processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
+        processPricingData.itemId["currency"] = processPrice["currency"];
+      }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
