@@ -111,7 +111,6 @@ export class ProcessService {
   ) {
     try {
       let itemId = await this.serviceItemService.getServuceItemDetailsByProcessId(processId);
-      console.log("itemId: "+itemId,"processId: "+processId);
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
@@ -120,7 +119,7 @@ export class ProcessService {
         processId: processId,
         status: Estatus.Active,
       }).lean();
-      checkInstanceHistory.itemId = itemId?.itemId;
+      
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
@@ -134,7 +133,7 @@ export class ProcessService {
           createdBy: userId,
           updatedBy: userId,
         };
-        let processInstanceData =
+        let processInstanceData: any =
           await this.processInstancesModel.create(processInstanceBody);
 
         let processInstanceDetailBody = {
@@ -159,11 +158,13 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
+          processInstanceData.itemId = itemId?.itemId;
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
           instancedetails :processInstanceData
         }
       } else {
+        checkInstanceHistory.itemId = itemId?.itemId;
         let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
           createdBy: userId,
           processId: processId,
