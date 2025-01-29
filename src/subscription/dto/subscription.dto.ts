@@ -19,3 +19,30 @@ export class CreateSubscriptionDTO {
   @IsString()
   sourceType : string;
 }
+
+export class AddSubscriptionDTO {
+  @IsNotEmpty()
+  @IsString()
+  planId: string;
+
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  currency : string;
+
+  @IsOptional()
+  @IsString()
+  amount : string;
+
+  @IsOptional()
+  @IsMongoId()
+  sourceId : string;
+
+  @IsOptional()
+  @IsString()
+  sourceType : string;
+}
