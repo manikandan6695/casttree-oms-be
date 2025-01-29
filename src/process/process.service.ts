@@ -136,6 +136,7 @@ export class ProcessService {
         let processInstanceData: any =
           await this.processInstancesModel.create(processInstanceBody);
 
+
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
           processId: processId,
@@ -158,10 +159,11 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
-          processInstanceData.itemId = itemId?.itemId;
+         // let updatedProcessInstanceData : any = processInstanceData
+         // updatedProcessInstanceData.itemId = itemId?.itemId;
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
-          instancedetails :processInstanceData
+          instancedetails : {...processInstanceData, "itemId":itemId?.itemId}
         }
       } else {
         checkInstanceHistory.itemId = itemId?.itemId;
