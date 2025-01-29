@@ -111,6 +111,7 @@ export class ProcessService {
   ) {
     try {
       let itemId = await this.serviceItemService.getServuceItemDetailsByProcessId(processId);
+      console.log("itemId: "+itemId,"processId: "+processId);
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
