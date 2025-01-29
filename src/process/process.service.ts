@@ -120,7 +120,7 @@ export class ProcessService {
         processId: processId,
         status: Estatus.Active,
       }).lean();
-      checkInstanceHistory.itemId = itemId.itemId;
+      checkInstanceHistory.itemId = itemId?.itemId;
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
