@@ -415,10 +415,11 @@ export class ServiceItemService {
               processId: "$additionalDetails.processId",
             },
             detail: { $first: "$additionalDetails" },
+            priorityOrder: { $first: "$priorityOrder" }, 
           },
         },
         {
-          $sort: { _id: -1 },
+          $sort: { priorityOrder: 1, _id: -1 }, 
         },
         {
           $group: {
@@ -427,17 +428,17 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: { priorityOrder: 1 },
+          $sort: { _id: -1 },
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
             details: 1,
-
           },
         },
       ]);
+      
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
