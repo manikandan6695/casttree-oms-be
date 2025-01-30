@@ -401,9 +401,13 @@ export class ProcessService {
       ]);
       let processInstanceData = await this.processInstancesModel.find({ userId: userId , processStatus: EprocessStatus.Started}).populate("currentTask");
       let activeProcessIds = [];
-      processInstanceData.map((data) => {
-        activeProcessIds.push(data.processId.toString());
-      });
+      if(processInstanceData != undefined && processInstanceData.length>0){
+        processInstanceData.map((data) => {
+
+          activeProcessIds.push(data.processId.toString());
+        });
+      }
+
       const currentTaskObject = processInstanceData.reduce((a, c) => {
         a[c.processId] = c.currentTask;
         return a;
