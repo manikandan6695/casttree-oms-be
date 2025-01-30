@@ -114,12 +114,12 @@ export class ProcessService {
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
-      let checkInstanceHistory :any = await this.processInstancesModel.findOne({
+      let checkInstanceHistory: any = await this.processInstancesModel.findOne({
         userId: userId,
         processId: processId,
         status: Estatus.Active,
       }).lean();
-      
+
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
@@ -159,11 +159,11 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
-         let updatedProcessInstanceData : any = processInstanceData
-         updatedProcessInstanceData.itemId = itemId?.itemId;
+        let updatedProcessInstanceData: any = processInstanceData
+        updatedProcessInstanceData.itemId = itemId?.itemId;
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
-          instancedetails : updatedProcessInstanceData
+          instancedetails: updatedProcessInstanceData
         }
       } else {
         checkInstanceHistory.itemId = itemId?.itemId;
@@ -219,7 +219,7 @@ export class ProcessService {
             instanceDetails: checkInstanceHistory,
           };
         }
-        
+        finalResponse["instanceDetails"]=checkInstanceHistory;
       }
       return finalResponse;
     } catch (err) {
@@ -284,14 +284,14 @@ export class ProcessService {
 
     try {
 
-      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({updated_at:-1}).lean();
+      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({ updated_at: -1 }).lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
             processId: pendingTasks[i].processId,
           }));
-          let completedTaskNumber = pendingTasks[i].currentTask.taskNumber-1;
+        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber /
             totalTasks) *
@@ -314,7 +314,7 @@ export class ProcessService {
             processId: mySeries[i].processId,
           })
         );
-        let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber-1);
+        let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber - 1);
         mySeries[i].progressPercentage = Math.ceil(
           (completedTaskNumber /
             totalTasks) *

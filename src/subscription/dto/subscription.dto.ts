@@ -21,21 +21,15 @@ export class CreateSubscriptionDTO {
 }
 
 export class AddSubscriptionDTO {
-  @IsNotEmpty()
-  @IsString()
-  planId: string;
-
   @IsOptional()
-  @IsString()
   @IsMongoId()
   itemId: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   currency : string;
 
   @IsOptional()
   @IsNumber()
   amount : string;
-
 }
