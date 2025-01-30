@@ -399,7 +399,7 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-      let processInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask");
+     /* let processInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask");
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
         processInstanceData.map((data) => {
@@ -420,7 +420,7 @@ export class ProcessService {
             data = currentTaskObject[processId];
           
         }
-      }
+      }*/
 
       return data;
     } catch (err) {
