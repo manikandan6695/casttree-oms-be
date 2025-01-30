@@ -418,7 +418,7 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: { priorityOrder: 1 },
+          $sort: { _id: 1 },
         },
         {
           $group: {
