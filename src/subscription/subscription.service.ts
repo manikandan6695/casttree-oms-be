@@ -194,8 +194,7 @@ export class SubscriptionService {
         notes: {
           itemId: body.itemId,
           userId: token.id,
-          sourceId: body.sourceId,
-          sourceType: body.sourceType
+          amount:body.amount
         },
         subscriptionStatus: Estatus.Active,
         status: EStatus.Active,
