@@ -456,7 +456,7 @@ export class ServiceItemService {
       (finalData["SeriesForYou"] ?? []).map((data) => processIds.push(data?.processId));
       (finalData["featured"] ?? []).map((data) => processIds.push(data?.processId));
       (finalData["upcomingseries"] ?? []).map((data) => processIds.push(data?.processId));
-      let firstTasks = await this.processService.getFirstTask(processIds);
+      let firstTasks = await this.processService.getFirstTask(processIds,userId);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
