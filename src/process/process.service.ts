@@ -115,15 +115,15 @@ export class ProcessService {
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
       let checkInstanceHistory: any = await this.processInstancesModel.findOne({
-      let checkInstanceHistory: any = await this.processInstancesModel.findOne({
         userId: userId,
         processId: processId,
         status: Estatus.Active,
       }).lean();
-
+      
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
+        checkInstanceHistory.itemId = itemId.itemId;
         let processInstanceBody = {
           userId: userId,
           processId: processId,
@@ -134,9 +134,8 @@ export class ProcessService {
           createdBy: userId,
           updatedBy: userId,
         };
-        let processInstanceData: any =
+        let processInstanceData =
           await this.processInstancesModel.create(processInstanceBody);
-
 
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
@@ -160,14 +159,11 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
-        let updatedProcessInstanceData: any = processInstanceData
-        updatedProcessInstanceData.itemId = itemId?.itemId;
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
           instancedetails: processInstanceData
         }
       } else {
-        checkInstanceHistory.itemId = itemId?.itemId;
         let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
           createdBy: userId,
           processId: processId,
@@ -217,6 +213,10 @@ export class ProcessService {
           });
           finalResponse = {
             breakEndsAt: CurrentInstanceData.endedAt,
+            instanceDetails: checkInstanceHistory,
+          };
+        }else{
+          finalResponse = {
             instanceDetails: checkInstanceHistory,
           };
         }
@@ -286,14 +286,12 @@ export class ProcessService {
     try {
 
       const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({ updated_at: -1 }).lean();
-      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({ updated_at: -1 }).lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = (
           await this.tasksModel.countDocuments({
             processId: pendingTasks[i].processId,
           }));
-        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
         let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber /
@@ -317,7 +315,6 @@ export class ProcessService {
             processId: mySeries[i].processId,
           })
         );
-        let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber - 1);
         let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber - 1);
         mySeries[i].progressPercentage = Math.ceil(
           (completedTaskNumber /
