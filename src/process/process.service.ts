@@ -414,11 +414,11 @@ export class ProcessService {
       }, {});
       console.log("data: " + data);
       for (let i = 0; i < data.length; i++) {
-        if (processInstanceData != undefined && processInstanceData.length > 0) {
+        
           if (activeProcessIds.includes(data.processId.toString())) {
-            let processId = data.processId.toString;
+            let processId = data.processId.toString();
             data = currentTaskObject[processId];
-          }
+          
         }
       }
 
