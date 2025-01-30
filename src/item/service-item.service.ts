@@ -418,7 +418,7 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: { _id: 1 },
+          $sort: { _id: -1 },
         },
         {
           $group: {
@@ -427,7 +427,7 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: { _id: -1 },
+          $sort: { priorityOrder: 1 },
         },
         {
           $project: {
