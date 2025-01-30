@@ -135,8 +135,8 @@ export class ProcessService {
         };
         let processInstanceData =
           await this.processInstancesModel.create(processInstanceBody);
-          let updatedProcessInstanceData :any = processInstanceData
-          updatedProcessInstanceData.itemId = itemId.itemId;
+        let updatedProcessInstanceData: any = processInstanceData
+        updatedProcessInstanceData.itemId = itemId.itemId;
 
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
@@ -160,7 +160,7 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
- 
+
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
           instancedetails: updatedProcessInstanceData
@@ -402,30 +402,23 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-     /* let processInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask");
+      let processInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask");
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
-        processInstanceData.map((data) => {
-
-          activeProcessIds.push(data.processId.toString());
+        processInstanceData.map((a) => {
+          activeProcessIds.push(a.processId.toString());
         });
       }
-
       const currentTaskObject = processInstanceData.reduce((a, c) => {
         a[c.processId] = c.currentTask;
         return a;
       }, {});
-      console.log("data: " + data);
       for (let i = 0; i < data.length; i++) {
-        
-          if (activeProcessIds.includes(data.processId.toString())) {
-            let processId = data.processId.toString();
-            data = currentTaskObject[processId];
-          
-        }
-      }*/
-
-      return data;
+        if (activeProcessIds.includes(data[i].processId.toString())) {
+          let processId = data[i].processId.toString();
+          data[i] = currentTaskObject[processId];}
+      }
+     return data;
     } catch (err) {
       throw err;
     }
