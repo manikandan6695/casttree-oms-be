@@ -119,10 +119,11 @@ export class ProcessService {
         processId: processId,
         status: Estatus.Active,
       }).lean();
-
+      
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
+        checkInstanceHistory.itemId = itemId.itemId;
         let processInstanceBody = {
           userId: userId,
           processId: processId,
@@ -133,9 +134,8 @@ export class ProcessService {
           createdBy: userId,
           updatedBy: userId,
         };
-        let processInstanceData: any =
+        let processInstanceData =
           await this.processInstancesModel.create(processInstanceBody);
-
 
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
@@ -159,14 +159,11 @@ export class ProcessService {
           await this.processInstanceDetailsModel.create(
             processInstanceDetailBody
           );
-        let updatedProcessInstanceData: any = processInstanceData
-        updatedProcessInstanceData.itemId = itemId?.itemId;
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
-          instancedetails: updatedProcessInstanceData
+          instancedetails: processInstanceData
         }
       } else {
-        checkInstanceHistory.itemId = itemId?.itemId;
         let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
           createdBy: userId,
           processId: processId,
@@ -218,8 +215,12 @@ export class ProcessService {
             breakEndsAt: CurrentInstanceData.endedAt,
             instanceDetails: checkInstanceHistory,
           };
+        }else{
+          finalResponse = {
+            instanceDetails: checkInstanceHistory,
+          };
         }
-        finalResponse["instanceDetails"]=checkInstanceHistory;
+
       }
       return finalResponse;
     } catch (err) {
@@ -384,10 +385,10 @@ export class ProcessService {
     }
   }
 
-  async getFirstTask(processIds) {
+  async getFirstTask(processIds, userId) {
     try {
       let processObjIds = processIds.map((e) => new ObjectId(e));
-      return this.tasksModel.aggregate([
+      let data: any = this.tasksModel.aggregate([
         { $match: { processId: { $in: processObjIds } } },
         { $sort: { taskNumber: 1 } },
         {
@@ -398,6 +399,23 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
+      let processInstanceData = await this.processInstancesModel.find({ userId: userId , processStatus: EprocessStatus.Started}).populate("currentTask");
+      let activeProcessIds = [];
+      processInstanceData.map((data) => {
+        activeProcessIds.push(data.processId.toString());
+      });
+      const currentTaskObject = processInstanceData.reduce((a, c) => {
+        a[c.processId] = c.currentTask;
+        return a;
+      }, {});
+      for (let i = 0; i < (await data).length; i++) {
+        if (activeProcessIds.includes(data.processId.toString)) {
+          let processId = data.processId.toString;
+          data = currentTaskObject[processId];
+        }
+      }
+
+      return data;
     } catch (err) {
       throw err;
     }
@@ -429,7 +447,7 @@ export class ProcessService {
       finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
       finalData["featured"].map((data) => processIds.push(data?.processId));
       finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
-      let firstTasks = await this.getFirstTask(processIds);
+      let firstTasks = await this.getFirstTask(processIds, userId);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
