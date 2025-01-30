@@ -65,7 +65,7 @@ export class ServiceItemService {
             },
           ],
         })
-        .sort({ _id: -1 })
+        .sort({ priorityOrder: 1 })
         .skip(skip)
         .limit(limit)
         .lean();
@@ -254,7 +254,7 @@ export class ServiceItemService {
           "itemId",
           " itemName itemDescription additionalDetail price comparePrice orgId currency"
         )
-        .sort({ _id: -1 })
+        .sort({ priorityOrder: 1 })
         .skip(skip)
         .limit(limit)
         .lean();
