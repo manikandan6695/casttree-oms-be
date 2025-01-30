@@ -413,7 +413,7 @@ export class ProcessService {
         return a;
       }, {});
       for (let i = 0; i < (await data).length; i++) {
-        if (activeProcessIds.includes(data.processId.toString)) {
+        if (activeProcessIds.includes(data.processId.toString())) {
           let processId = data.processId.toString;
           data = currentTaskObject[processId];
         }
