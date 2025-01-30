@@ -78,6 +78,7 @@ export interface serviceitems {
   expertise: expertiseModel;
   tag: tagModel;
   additionalDetails: serviceItemAdditionalDetailModel;
+  priorityOrder:number
 
 }
 
@@ -110,6 +111,9 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   },
   expertise: [expertiseSchema],
   tag: [tagSchema],
-  additionalDetails: serviceItemAdditionalDetailSchema
+  additionalDetails: serviceItemAdditionalDetailSchema,
+  priorityOrder: {
+    type: Number,
+},
 
 });
