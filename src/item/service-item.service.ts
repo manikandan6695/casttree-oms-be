@@ -716,4 +716,96 @@ export class ServiceItemService {
       return data;
     }catch(err){throw err}
   }
+
+  async getSubscriptionPlanDetails( country_code: string = "") {
+    try {
+      let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
+      let ids = [];
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (country_code != "" && country_code != "IN") {
+        console.log("country_code: "+country_code);
+        let priceListData = await this.getPriceListItems(
+          ids,
+          country_code
+        );
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+      }
+      let finalResponse = {};
+      let featuresArray = [];
+      featuresArray.push({
+        feature: "",
+        values: [plandata[1].itemName, plandata[0].itemName],
+      });
+      for (
+        let i = 0;
+        i < plandata[0].additionalDetail.planDetails.length;
+        i++
+      ) {
+        let feature = plandata[0].additionalDetail.planDetails[i].feature;
+        let values = [
+          plandata[1].additionalDetail.planDetails[i].value,
+          plandata[0].additionalDetail.planDetails[i].value,
+        ];
+        featuresArray.push({ feature: feature, values: values });
+      }
+      let planIds = [
+        plandata[1].additionalDetail.planId,
+        plandata[0].additionalDetail.planId,
+      ];
+      let headings = [
+        plandata[1].itemName,
+        plandata[0].itemName,
+      ];
+      let actualPrice = [
+        plandata[1].price,
+        plandata[0].price,
+      ];
+      let currencyCode = [
+        plandata[1].currency.currency_code,
+        plandata[0].currency.currency_code,
+      ];
+      let itemId = [ plandata[1]._id, plandata[0]._id];
+      let comparePrice = [
+        plandata[1].comparePrice,
+        plandata[0].comparePrice,
+      ];
+      let badgeColour = [ plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
+      let keys = [
+        plandata[1].additionalDetail.key,
+        plandata[0].additionalDetail.key,
+      ];
+      let validity = [ plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let planDetailsArray = [];
+      for (let i = 0; i < headings.length; i++) {
+        planDetailsArray.push({
+          key: keys[i],
+          heading: headings[i],
+          planIds: planIds[i],
+          actualPrice: actualPrice[i],
+          comparePrice: comparePrice[i],
+          badgeColour: badgeColour[i],
+          expiry: validity[i],
+          itemId: itemId[i],
+          currencyCode: currencyCode[i]
+        });
+      }
+      finalResponse["planData"] = planDetailsArray;
+      finalResponse["featuresData"] = featuresArray;
+
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
+
+    
+  }
+  
 }
