@@ -415,11 +415,11 @@ export class ServiceItemService {
               processId: "$additionalDetails.processId",
             },
             detail: { $first: "$additionalDetails" },
-            priorityOrder: { $first: "$priorityOrder" }, 
+            priorityOrder: { $first: "$priorityOrder" },
           },
         },
         {
-          $sort: { priorityOrder: 1, _id: -1 }, 
+          $sort: { priorityOrder: 1, _id: -1 },
         },
         {
           $group: {
@@ -438,7 +438,7 @@ export class ServiceItemService {
           },
         },
       ]);
-      
+
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
@@ -457,7 +457,7 @@ export class ServiceItemService {
       (finalData["SeriesForYou"] ?? []).map((data) => processIds.push(data?.processId));
       (finalData["featured"] ?? []).map((data) => processIds.push(data?.processId));
       (finalData["upcomingseries"] ?? []).map((data) => processIds.push(data?.processId));
-      let firstTasks = await this.processService.getFirstTask(processIds,userId);
+      let firstTasks = await this.processService.getFirstTask(processIds, userId);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
@@ -615,7 +615,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
-        console.log("country_code: "+country_code);
+        console.log("country_code: " + country_code);
         ids.push(new ObjectId(processPricingData.itemId._id))
         let priceListData = await this.getPriceListItems(
           ids,
@@ -708,23 +708,29 @@ export class ServiceItemService {
       throw err;
     }
 
-    
+
   }
-  async getServuceItemDetailsByProcessId(processId){
-    try{
-      let data = await this.serviceItemModel.findOne({"additionalDetails.processId":processId});
+  async getServuceItemDetailsByProcessId(processId) {
+    try {
+      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId });
       return data;
-    }catch(err){throw err}
+    } catch (err) { throw err }
   }
 
-  async getSubscriptionPlanDetails( country_code: string = "") {
+  async getSubscriptionPlanDetails(country_code: string = "") {
     try {
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
-      let ids = [];
-      subscriptionItemIds.map((data) => ids.push(data.itemId));
+      //let ids = [];
+      //subscriptionItemIds.map((data) => ids.push(data.itemId));
+      let ids: mongoose.Types.ObjectId[] = [];
+      subscriptionItemIds.map((data) => {
+        if (mongoose.Types.ObjectId.isValid(data.itemId)) {
+          ids.push(new mongoose.Types.ObjectId(data.itemId));
+        }
+      });
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
-        console.log("country_code: "+country_code);
+        console.log("country_code: " + country_code);
         let priceListData = await this.getPriceListItems(
           ids,
           country_code
@@ -772,17 +778,17 @@ export class ServiceItemService {
         plandata[1].currency.currency_code,
         plandata[0].currency.currency_code,
       ];
-      let itemId = [ plandata[1]._id, plandata[0]._id];
+      let itemId = [plandata[1]._id, plandata[0]._id];
       let comparePrice = [
         plandata[1].comparePrice,
         plandata[0].comparePrice,
       ];
-      let badgeColour = [ plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
+      let badgeColour = [plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
       let keys = [
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = [ plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let validity = [plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -805,7 +811,7 @@ export class ServiceItemService {
       throw err;
     }
 
-    
+
   }
-  
+
 }
