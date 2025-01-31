@@ -721,7 +721,7 @@ export class ServiceItemService {
     try {
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
       let ids = [];
-      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      subscriptionItemIds.map((data) => ids.push(data.itemId));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
         console.log("country_code: "+country_code);
