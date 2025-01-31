@@ -108,4 +108,15 @@ export class ServiceItemController {
       throw err;
     }
   }
+
+  @Get("getSubscriptionPlanDetails")
+  async getSubscriptionPlanDetails( @Req() req) {
+    try {
+      let data = await this.serviceItemService.getSubscriptionPlanDetails(
+        req.headers["x-country-code"] ?? "");
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
