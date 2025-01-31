@@ -719,7 +719,6 @@ export class ServiceItemService {
 
   async getSubscriptionPlanDetails(country_code: string = "") {
     try {
-
       let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
