@@ -134,7 +134,7 @@ export class ProcessService {
           updatedBy: userId,
         };
         let processInstanceData =
-          await this.processInstancesModel.create(processInstanceBody);
+        await this.processInstancesModel.create(processInstanceBody);
         let updatedProcessInstanceData: any = processInstanceData
         updatedProcessInstanceData.itemId = itemId.itemId;
 
