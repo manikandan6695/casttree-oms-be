@@ -179,51 +179,58 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
-      const now = new Date();
-      let currentDate = now.toISOString();
-      var duedate = new Date(now);
-      duedate.setDate(now.getDate() + 365);
-      let fv =
-      {
+
+      console.log("inside subscription creation ===>");
+      let existingSubscription = await this.subscriptionModel.findOne({
         userId: token.id,
-        planId: body.plan_id,
-        currentStart: currentDate,
-        currentEnd: duedate,
-        endAt: duedate,
-        expireBy: duedate,
-        notes: {
-          itemId: body.itemId,
+      });
+      if (!existingSubscription) {
+        const now = new Date();
+        let currentDate = now.toISOString();
+        var duedate = new Date(now);
+        duedate.setDate(now.getDate() + 365);
+        let fv =
+        {
           userId: token.id,
-          amount:body.amount
-        },
-        subscriptionStatus: Estatus.Active,
-        status: EStatus.Active,
-        createdBy: token.id,
-        updatedBy: token.id,
+          planId: body.plan_id,
+          currentStart: currentDate,
+          currentEnd: duedate,
+          endAt: duedate,
+          expireBy: duedate,
+          notes: {
+            itemId: body.itemId,
+            userId: token.id,
+            amount: body.amount
+          },
+          subscriptionStatus: Estatus.Active,
+          status: EStatus.Active,
+          createdBy: token.id,
+          updatedBy: token.id,
+        }
+        let subscription = await this.subscriptionModel.create(fv);
+        console.log("subscription created ===>", subscription);
+        let item = await this.itemService.getItemDetail(
+          body.itemId
+        );
+
+        console.log(
+          "item data is===>",
+          item?._id,
+          item?.itemName,
+          item?.additionalDetail?.badge,
+          body.itemId
+        );
+
+        let userBody = {
+          userId: token.id,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
+        };
+        console.log("user body to emit event ==>", userBody);
+        await this.helperService.updateUser(userBody);
+
+        return subscription;
       }
-      let subscription = await this.subscriptionModel.create(fv);
-      console.log("subscription created ===>", subscription);
-      let item = await this.itemService.getItemDetail(
-        body.itemId
-      );
-
-      console.log(
-        "item data is===>",
-        item?._id,
-        item?.itemName,
-        item?.additionalDetail?.badge,
-        body.itemId
-      );
-
-      let userBody = {
-        userId: token.id,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      console.log("user body to emit event ==>", userBody);
-      await this.helperService.updateUser(userBody);
-
-      return subscription;
     } catch (err) {
       throw err
     }
