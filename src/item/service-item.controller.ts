@@ -17,6 +17,16 @@ import { ServiceItemService } from "./service-item.service";
 @Controller("service-item")
 export class ServiceItemController {
   constructor(private serviceItemService: ServiceItemService) {}
+  @Get("getSubscriptionPlanDetails")
+  async getSubscriptionPlanDetails( @Req() req) {
+    try {
+      let data = await this.serviceItemService.getSubscriptionPlanDetails(
+        req.headers["x-country-code"] ?? "");
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 
   @Get()
   async getServiceItems(
@@ -97,13 +107,19 @@ export class ServiceItemController {
     }
   }
 
+
   @Get("getPlanDetails/:processId")
-  async getPlanDetails(@Param("processId") processId: string) {
+  async getPlanDetails( @Req() req,@Param("processId") processId: string) {
     try {
-      let data = await this.serviceItemService.getPlanDetails(processId);
+      console.log("req.headers", req.headers);
+      let data = await this.serviceItemService.getPlanDetails(processId,
+        req.headers["x-country-code"] ?? "");
       return data;
     } catch (err) {
       throw err;
     }
   }
+
+  
+
 }

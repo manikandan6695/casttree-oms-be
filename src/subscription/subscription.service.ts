@@ -1,18 +1,17 @@
 import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { ISubscriptionModel } from "./schema/subscription.schema";
 import { Model } from "mongoose";
-import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { HelperService } from "src/helper/helper.service";
-import { EStatus } from "src/shared/enum/privacy.enum";
-import { InvoiceService } from "src/invoice/invoice.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import { PaymentRequestService } from "src/payment/payment-request.service";
-import { SharedService } from "src/shared/shared.service";
-import { EVENT_UPDATE_USER } from "src/shared/app.constants";
+import { InvoiceService } from "src/invoice/invoice.service";
+import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
-import { features } from "process";
+import { PaymentRequestService } from "src/payment/payment-request.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { SharedService } from "src/shared/shared.service";
+import { CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { ISubscriptionModel } from "./schema/subscription.schema";
 
 @Injectable()
 export class SubscriptionService {
@@ -24,7 +23,7 @@ export class SubscriptionService {
     private helperService: HelperService,
     private sharedService: SharedService,
     private itemService: ItemService
-  ) {}
+  ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token: UserToken) {
     try {
@@ -174,6 +173,66 @@ export class SubscriptionService {
       return { subscription, item };
     } catch (err) {
       throw err;
+    }
+  }
+
+
+  async addSubscription(body, token) {
+    try {
+
+      console.log("inside subscription creation ===>");
+      let existingSubscription = await this.subscriptionModel.findOne({
+        userId: token.id,
+      });
+      if (!existingSubscription) {
+        const now = new Date();
+        let currentDate = now.toISOString();
+        var duedate = new Date(now);
+        duedate.setDate(now.getDate() + 365);
+        let fv =
+        {
+          userId: token.id,
+          planId: body.plan_id,
+          currentStart: currentDate,
+          currentEnd: duedate,
+          endAt: duedate,
+          expireBy: duedate,
+          notes: {
+            itemId: body.itemId,
+            userId: token.id,
+            amount: body.amount
+          },
+          subscriptionStatus: Estatus.Active,
+          status: EStatus.Active,
+          createdBy: token.id,
+          updatedBy: token.id,
+        }
+        let subscription = await this.subscriptionModel.create(fv);
+        console.log("subscription created ===>", subscription);
+        let item = await this.itemService.getItemDetail(
+          body.itemId
+        );
+
+        console.log(
+          "item data is===>",
+          item?._id,
+          item?.itemName,
+          item?.additionalDetail?.badge,
+          body.itemId
+        );
+
+        let userBody = {
+          userId: token.id,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
+        };
+        console.log("user body to emit event ==>", userBody);
+        await this.helperService.updateUser(userBody);
+
+        return subscription;
+      }
+    } catch (err) {
+      throw err
     }
   }
 }

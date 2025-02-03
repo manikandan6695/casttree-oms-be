@@ -11,11 +11,12 @@ import {
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
+import { updateProcessInstanceDTO } from "./dto/process.dto";
 import { ProcessService } from "./process.service";
 
 @Controller("process")
 export class ProcessController {
-  constructor(private processsService: ProcessService) {}
+  constructor(private processsService: ProcessService) { }
 
   @UseGuards(JwtAuthGuard)
   @Get("taskDetails/:processId/task/:taskId")
@@ -39,11 +40,10 @@ export class ProcessController {
   @UseGuards(JwtAuthGuard)
   @Patch("updateProcessInstance")
   async updateProcessInstance(
-    @Body(new ValidationPipe({ whitelist: true })) body: any,
+    @Body(new ValidationPipe({ whitelist: true })) body: updateProcessInstanceDTO,
     @GetToken() token: UserToken
   ) {
     try {
-      console.log("controller");
       let data = await this.processsService.updateProcessInstance(body, token);
       return data;
     } catch (err) {
@@ -72,10 +72,10 @@ export class ProcessController {
   @Get("tasks/:processId")
   async getAllTasks(
     @GetToken() token: UserToken,
-    @Param("processId")processId: string,
+    @Param("processId") processId: string,
   ) {
     try {
-      let data = await this.processsService.getAllTasks(processId,token);
+      let data = await this.processsService.getAllTasks(processId, token);
       return data;
     } catch (err) {
       throw err;
@@ -83,13 +83,12 @@ export class ProcessController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("user/processInstanceDetails/:processId")
-  async userProcessDetail(
-    @Param("processId") processId: string,
-    @GetToken() token: UserToken
-  ) {
+  @Get("home-screen-data")
+  async getCourseHomeScreenData(@GetToken() token: UserToken) {
     try {
-      let data = await this.processsService.userProcessDetail(processId, token);
+      let data = await this.processsService.getHomeScreenData(
+        token.id
+      );
       return data;
     } catch (err) {
       throw err;
