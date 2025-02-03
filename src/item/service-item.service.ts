@@ -596,7 +596,7 @@ export class ServiceItemService {
       }
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds,
-        "Expert"
+        EprofileType.Expert
       );
       const profileInfoObj = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
