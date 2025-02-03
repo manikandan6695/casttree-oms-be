@@ -590,6 +590,11 @@ export class ServiceItemService {
         return a;
       }, {});
 
+      const userInfoObj = mentorUserIds.reduce((a, c) => {
+        a[c.additionalDetails.processId] = c.userId;
+        return a;
+      }, {});
+
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
@@ -606,12 +611,11 @@ export class ServiceItemService {
       for (let i = 0; i < processId.length; i++) {
         mentorProfiles.push({
           processId: processId[i],
-          userId: userIds[i],
-          displayName: profileInfoObj[userIds[i]]?.displayName,
-          media: profileInfoObj[userIds[i]]?.media,
+          userId: userInfoObj[processId[i]],
+          displayName: profileInfoObj[userInfoObj[processId[i]]]?.displayName,
+          media: profileInfoObj[userInfoObj[processId[i]]]?.media,
           seriesName: seriesInfoObj[processId[i]].itemId.itemName,
-          seriesThumbNail:
-            seriesInfoObj[processId[i]].additionalDetails.thumbnail,
+          seriesThumbNail:seriesInfoObj[processId[i]].additionalDetails.thumbnail,
         });
       }
       return mentorProfiles;
