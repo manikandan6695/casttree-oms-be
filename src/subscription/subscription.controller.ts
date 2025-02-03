@@ -1,21 +1,21 @@
 import {
   Body,
   Controller,
-  Post,
-  UseGuards,
-  Res,
-  ValidationPipe,
-  Req,
-  Param,
   Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+  ValidationPipe,
 } from "@nestjs/common";
-import { SubscriptionService } from "./subscription.service";
-import { SharedService } from "src/shared/shared.service";
-import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { Response } from "express";
-import { CreateSubscriptionDTO } from "./dto/subscription.dto";
-import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
+import { GetToken } from "src/shared/decorator/getuser.decorator";
+import { SharedService } from "src/shared/shared.service";
+import { AddSubscriptionDTO, CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { SubscriptionService } from "./subscription.service";
 
 @Controller("subscription")
 export class SubscriptionController {
@@ -76,4 +76,17 @@ export class SubscriptionController {
       return res.status(code).json(response);
     }
   }
+
+@UseGuards(JwtAuthGuard)
+@Post("add-subscription")
+async addSubscription(
+  @Body(new ValidationPipe({ whitelist: true })) body: AddSubscriptionDTO,
+  @GetToken() token: UserToken,
+){
+try{
+  let data = await this.subscriptionService.addSubscription(body,token);
+  return data;
+}catch(err){}
+}
+
 }

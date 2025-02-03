@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
@@ -64,7 +65,7 @@ export class ServiceItemService {
             },
           ],
         })
-        .sort({ _id: -1 })
+        .sort({ priorityOrder: 1 })
         .skip(skip)
         .limit(limit)
         .lean();
@@ -253,7 +254,7 @@ export class ServiceItemService {
           "itemId",
           " itemName itemDescription additionalDetail price comparePrice orgId currency"
         )
-        .sort({ _id: -1 })
+        .sort({ priorityOrder: 1 })
         .skip(skip)
         .limit(limit)
         .lean();
@@ -301,6 +302,7 @@ export class ServiceItemService {
 
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
+
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -321,7 +323,6 @@ export class ServiceItemService {
       throw err;
     }
   }
-
 
   async getProcessHomeSceenData(userId) {
     const serviceItemData = await this.serviceItemModel.aggregate([
@@ -355,7 +356,7 @@ export class ServiceItemService {
         },
       },
       {
-        $sort: { _id: 1 },
+        $sort: { priorityOrder: 1 },
       },
       {
         $group: {
@@ -364,14 +365,13 @@ export class ServiceItemService {
         },
       },
       {
-        $sort: { _id: 1 },
+        $sort: { priorityOrder: 1 },
       },
       {
         $project: {
           _id: 0,
           tagName: "$_id",
           details: 1,
-
         },
       },
     ]);
@@ -413,10 +413,11 @@ export class ServiceItemService {
               processId: "$additionalDetails.processId",
             },
             detail: { $first: "$additionalDetails" },
+            priorityOrder: { $first: "$priorityOrder" },
           },
         },
         {
-          $sort: { _id: 1 },
+          $sort: { priorityOrder: 1, _id: -1 },
         },
         {
           $group: {
@@ -425,17 +426,17 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: { _id: 1 },
+          $sort: { _id: -1 },
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
             details: 1,
-
           },
         },
       ]);
+
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
@@ -451,61 +452,77 @@ export class ServiceItemService {
         ListData: [],
       };
       let processIds = [];
-      (finalData["SeriesForYou"] ?? []).map((data) => processIds.push(data?.processId));
-      (finalData["featured"] ?? []).map((data) => processIds.push(data?.processId));
-      (finalData["upcomingseries"] ?? []).map((data) => processIds.push(data?.processId));
-      let firstTasks = await this.processService.getFirstTask(processIds);
+      (finalData["SeriesForYou"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["featured"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["upcomingseries"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      let firstTasks = await this.processService.getFirstTask(
+        processIds,
+        userId
+      );
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
       (finalData["featured"] ?? []).map((data) => {
         featureCarouselData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "ctaName": data.ctaName,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       (finalData["SeriesForYou"] ?? []).map((data) => {
         updatedSeriesForYouData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       (finalData["upcomingseries"] ?? []).map((data) => {
         updatedUpcomingData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       let sections = [];
-      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
+      let pendingProcessInstanceData =
+        await this.processService.pendingProcess(userId);
 
       let continueWhereYouLeftData = {
         ListData: [],
       };
       if (pendingProcessInstanceData.length > 0) {
         let continueProcessIds = [];
-        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
-        let mentorUserIds =
-          await this.getMentorUserIds(continueProcessIds);
+        pendingProcessInstanceData.map((data) =>
+          continueProcessIds.push(data?.processId)
+        );
+        let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
 
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
-
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
-            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
-            "ctaName": "Continue",
-            "progressPercentage": pendingProcessInstanceData[i].completed,
-            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
-            "taskDetail": pendingProcessInstanceData[i].currentTask,
-            "mentorImage": mentorUserIds[i].media,
-            "mentorName": mentorUserIds[i].displayName,
-            "seriesTitle": mentorUserIds[i].seriesName,
-            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
+            thumbnail: await this.processService.getThumbNail(
+              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
+            ),
+            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            ctaName: "Continue",
+            progressPercentage: pendingProcessInstanceData[i].completed,
+            navigationURL:
+              "process/" +
+              pendingProcessInstanceData[i].processId +
+              "/task/" +
+              pendingProcessInstanceData[i].currentTask._id,
+            taskDetail: pendingProcessInstanceData[i].currentTask,
+            mentorImage: mentorUserIds[i].media,
+            mentorName: mentorUserIds[i].displayName,
+            seriesTitle: mentorUserIds[i].seriesName,
+            seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
         }
       }
@@ -514,9 +531,8 @@ export class ServiceItemService {
           headerName: Eheader.continue,
           listData: continueWhereYouLeftData["ListData"],
         },
-        "horizontalScroll": true,
-        "componentType": EcomponentType.ActiveProcessList
-
+        horizontalScroll: true,
+        componentType: EcomponentType.ActiveProcessList,
       }),
         sections.push({
           data: {
@@ -567,18 +583,21 @@ export class ServiceItemService {
           },
           { userId: 1, additionalDetails: 1 }
         )
-        .populate("itemId").lean();
-        const seriesInfoObj = mentorUserIds.reduce((a, c) => {
-          a[c.additionalDetails.processId] = c;
-          return a;
-        }, {});
+        .populate("itemId")
+        .lean();
+      const seriesInfoObj = mentorUserIds.reduce((a, c) => {
+        a[c.additionalDetails.processId] = c;
+        return a;
+      }, {});
 
-      
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
       }
-      const profileInfo = await this.helperService.getProfileByIdTl(userIds);
+      const profileInfo = await this.helperService.getProfileByIdTl(
+        userIds,
+        EprofileType.Expert
+      );
       const profileInfoObj = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
@@ -591,7 +610,8 @@ export class ServiceItemService {
           displayName: profileInfoObj[userIds[i]]?.displayName,
           media: profileInfoObj[userIds[i]]?.media,
           seriesName: seriesInfoObj[processId[i]].itemId.itemName,
-          seriesThumbNail: seriesInfoObj[processId[i]].additionalDetails.thumbnail
+          seriesThumbNail:
+            seriesInfoObj[processId[i]].additionalDetails.thumbnail,
         });
       }
       return mentorProfiles;
@@ -600,16 +620,37 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId) {
+  async getPlanDetails(processId, country_code: string = "") {
     try {
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
         .lean();
-      let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
+
+      let subscriptionItemIds = await this.serviceItemModel
+        .find({ type: EserviceItemType.subscription })
+        .sort({ _id: 1 });
       let ids = [];
-      subscriptionItemIds.map((data) => ids.push(data.itemId));
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (country_code != "" && country_code != "IN") {
+
+        ids.push(new ObjectId(processPricingData.itemId._id));
+        let priceListData = await this.getPriceListItems(ids, country_code);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+        let processPrice = priceListData[processPricingData.itemId._id];
+        processPricingData.itemId["price"] = processPrice["price"];
+        processPricingData.itemId["comparePrice"] =
+          processPrice["comparePrice"];
+        processPricingData.itemId["currency"] = processPrice["currency"];
+      }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
@@ -655,13 +696,21 @@ export class ServiceItemService {
         plandata[1].comparePrice,
         plandata[0].comparePrice,
       ];
-      let badgeColour = [processPricingData.itemId.additionalDetail.badgeColour, plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
+      let badgeColour = [
+        processPricingData.itemId.additionalDetail.badgeColour,
+        plandata[1].additionalDetail.badgeColour,
+        plandata[0].additionalDetail.badgeColour,
+      ];
       let keys = [
         "casttree",
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = [processPricingData.itemId.additionalDetail.validity, plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let validity = [
+        processPricingData.itemId.additionalDetail.validity,
+        plandata[1].additionalDetail.validity,
+        plandata[0].additionalDetail.validity,
+      ];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -673,7 +722,102 @@ export class ServiceItemService {
           badgeColour: badgeColour[i],
           expiry: validity[i],
           itemId: itemId[i],
-          currencyCode: currencyCode[i]
+          currencyCode: currencyCode[i],
+        });
+      }
+      finalResponse["planData"] = planDetailsArray;
+      finalResponse["featuresData"] = featuresArray;
+
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getServuceItemDetailsByProcessId(processId) {
+    try {
+      let data = await this.serviceItemModel.findOne({
+        "additionalDetails.processId": processId,
+      });
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getSubscriptionPlanDetails(country_code: string = "") {
+    try {
+      let subscriptionItemIds = await this.serviceItemModel
+        .find({ type: EserviceItemType.subscription })
+        .sort({ _id: 1 });
+      let ids = [];
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (country_code != "" && country_code != "IN") {
+
+        let priceListData = await this.getPriceListItems(ids, country_code);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+      }
+      let finalResponse = {};
+      let featuresArray = [];
+      featuresArray.push({
+        feature: "",
+        values: [plandata[1].itemName, plandata[0].itemName],
+      });
+      for (
+        let i = 0;
+        i < plandata[0].additionalDetail.planDetails.length;
+        i++
+      ) {
+        let feature = plandata[0].additionalDetail.planDetails[i].feature;
+        let values = [
+          plandata[1].additionalDetail.planDetails[i].value,
+          plandata[0].additionalDetail.planDetails[i].value,
+        ];
+        featuresArray.push({ feature: feature, values: values });
+      }
+      let planIds = [
+        plandata[1].additionalDetail.planId,
+        plandata[0].additionalDetail.planId,
+      ];
+      let headings = [plandata[1].itemName, plandata[0].itemName];
+      let actualPrice = [plandata[1].price, plandata[0].price];
+      let currencyCode = [
+        plandata[1].currency.currency_code,
+        plandata[0].currency.currency_code,
+      ];
+      let itemId = [plandata[1]._id, plandata[0]._id];
+      let comparePrice = [plandata[1].comparePrice, plandata[0].comparePrice];
+      let badgeColour = [
+        plandata[1].additionalDetail.badgeColour,
+        plandata[0].additionalDetail.badgeColour,
+      ];
+      let keys = [
+        plandata[1].additionalDetail.key,
+        plandata[0].additionalDetail.key,
+      ];
+      let validity = [
+        plandata[1].additionalDetail.validity,
+        plandata[0].additionalDetail.validity,
+      ];
+      let planDetailsArray = [];
+      for (let i = 0; i < headings.length; i++) {
+        planDetailsArray.push({
+          key: keys[i],
+          heading: headings[i],
+          planIds: planIds[i],
+          actualPrice: actualPrice[i],
+          comparePrice: comparePrice[i],
+          badgeColour: badgeColour[i],
+          expiry: validity[i],
+          itemId: itemId[i],
+          currencyCode: currencyCode[i],
         });
       }
       finalResponse["planData"] = planDetailsArray;

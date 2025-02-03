@@ -1,4 +1,4 @@
-import { IsMongoId, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateSubscriptionDTO {
   @IsNotEmpty()
@@ -18,4 +18,18 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   sourceType : string;
+}
+
+export class AddSubscriptionDTO {
+  @IsNotEmpty()
+  @IsMongoId()
+  itemId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  currency : string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  amount : string;
 }

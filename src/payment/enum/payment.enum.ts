@@ -6,16 +6,18 @@ export const ESSourceType = [ESourceType.serviceRequest];
 
 export enum EPaymentSourceType {
   salesDocument = "salesDocument",
-  process = "process",
   serviceRequest = "serviceRequest",
-  invoice = "Invoice"
+  invoice = "Invoice",
+  subscription = "subscription",
+  processInstance = "processInstance",
 }
 
 export const ESPaymentSourceType = [
   EPaymentSourceType.salesDocument,
-  EPaymentSourceType.process,
+  EPaymentSourceType.processInstance,
   EPaymentSourceType.serviceRequest,
-  EPaymentSourceType.invoice
+  EPaymentSourceType.invoice,
+  EPaymentSourceType.subscription,
 ];
 
 export enum EPaymentStatus {
