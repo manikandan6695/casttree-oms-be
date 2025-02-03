@@ -114,6 +114,7 @@ export interface itemAdditionalDetailModel {
   testimonials: testimonialModel[];
   videDescription: videoDescriptionModel[];
   badge: string;
+  planId:string;
 }
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
@@ -139,4 +140,5 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   targetUsers: [targetUsersSchema],
   testimonials: [testimonialSchema],
   videDescription: [videoDescriptionSchema],
+  planId: {type:String}
 });

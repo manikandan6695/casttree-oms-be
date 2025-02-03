@@ -36,7 +36,7 @@ export class ServiceItemController {
     @Query("limit", ParseIntPipe) limit: number
   ) {
     try {
-      console.log("req.headers", req.headers);
+  
 
       let data = await this.serviceItemService.getServiceItems(
         query,
@@ -111,7 +111,7 @@ export class ServiceItemController {
   @Get("getPlanDetails/:processId")
   async getPlanDetails( @Req() req,@Param("processId") processId: string) {
     try {
-      console.log("req.headers", req.headers);
+      
       let data = await this.serviceItemService.getPlanDetails(processId,
         req.headers["x-country-code"] ?? "");
       return data;

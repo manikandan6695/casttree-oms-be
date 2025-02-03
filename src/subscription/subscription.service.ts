@@ -38,7 +38,7 @@ export class SubscriptionService {
           itemId: body.itemId,
         },
       };
-      console.log("create subscription fv ===>", fv);
+    
 
       let data = await this.helperService.addSubscription(fv, token);
 
@@ -52,7 +52,7 @@ export class SubscriptionService {
     try {
       // await this.extractSubscriptionDetails(req.body);
       if (req.body?.payload?.subscription) {
-        console.log("inside subscription creation ===>");
+     
         let existingSubscription = await this.subscriptionModel.findOne({
           userId: req.body?.payload?.subscription?.entity?.notes?.userId,
         });
@@ -79,7 +79,7 @@ export class SubscriptionService {
           };
 
           let subscription = await this.subscriptionModel.create(fv);
-          console.log("subscription created ===>", subscription);
+       
 
           let invoice = await this.invoiceService.createInvoice({
             source_id: req.body?.payload?.subscription?.entity?.notes?.sourceId,
@@ -88,7 +88,7 @@ export class SubscriptionService {
             document_status: EDocumentStatus.completed,
             grand_total: req.body?.payload?.payment?.entity?.amount,
           });
-          console.log("invoice id is ==>", invoice._id);
+        
 
           let invoiceFV: any = {
             amount: req.body?.payload?.payment?.entity?.amount,
@@ -104,30 +104,20 @@ export class SubscriptionService {
             null,
             null
           );
-          console.log("payment ===>", payment._id);
-          console.log(
-            "subscription entity notes",
-            req.body?.payload?.subscription?.entity?.notes
-          );
+
 
           let item = await this.itemService.getItemDetail(
             req.body?.payload?.subscription?.entity?.notes?.itemId
           );
 
-          console.log(
-            "item data is===>",
-            item?._id,
-            item?.itemName,
-            item?.additionalDetail?.badge,
-            req.body?.payload?.subscription?.entity?.notes?.itemId
-          );
+
 
           let userBody = {
             userId: req.body?.payload?.subscription?.entity?.notes?.userId,
             membership: item?.itemName,
             badge: item?.additionalDetail?.badge,
           };
-          console.log("user body to emit event ==>", userBody);
+          
           await this.helperService.updateUser(userBody);
         }
 
@@ -164,12 +154,12 @@ export class SubscriptionService {
       let subscription = await this.subscriptionModel.findOne({
         userId: token.id,
       });
-      // console.log("subscription data is ===>", subscription);
+     
 
       let item = await this.itemService.getItemDetail(
         subscription?.notes?.itemId
       );
-      // console.log("item is ===>", item,subscription?.notes?.itemId);
+     
       return { subscription, item };
     } catch (err) {
       throw err;
@@ -179,8 +169,8 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
-
-      console.log("inside subscription creation ===>");
+      let itemDetails = await this.itemService.getItemDetail(body.itemId);
+    
       let existingSubscription = await this.subscriptionModel.findOne({
         userId: token.id,
       });
@@ -192,7 +182,7 @@ export class SubscriptionService {
         let fv =
         {
           userId: token.id,
-          planId: body.plan_id,
+          planId: itemDetails.additionalDetail.planId,
           currentStart: currentDate,
           currentEnd: duedate,
           endAt: duedate,
@@ -208,25 +198,18 @@ export class SubscriptionService {
           updatedBy: token.id,
         }
         let subscription = await this.subscriptionModel.create(fv);
-        console.log("subscription created ===>", subscription);
+    
         let item = await this.itemService.getItemDetail(
           body.itemId
         );
 
-        console.log(
-          "item data is===>",
-          item?._id,
-          item?.itemName,
-          item?.additionalDetail?.badge,
-          body.itemId
-        );
 
         let userBody = {
           userId: token.id,
           membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
-        console.log("user body to emit event ==>", userBody);
+   
         await this.helperService.updateUser(userBody);
 
         return subscription;
