@@ -177,7 +177,7 @@ export class ProcessService {
 
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
-          instancedetails: updatedProcessInstanceData,
+          instanceDetails: updatedProcessInstanceData,
         };
       } else {
         checkInstanceHistory.itemId = itemId.itemId;
