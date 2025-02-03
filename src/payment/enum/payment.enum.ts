@@ -8,14 +8,16 @@ export enum EPaymentSourceType {
   salesDocument = "salesDocument",
   process = "process",
   serviceRequest = "serviceRequest",
-  invoice = "Invoice"
+  invoice = "Invoice",
+  processInstance = "processInstance"
 }
 
 export const ESPaymentSourceType = [
   EPaymentSourceType.salesDocument,
   EPaymentSourceType.process,
   EPaymentSourceType.serviceRequest,
-  EPaymentSourceType.invoice
+  EPaymentSourceType.invoice,
+  EPaymentSourceType.processInstance
 ];
 
 export enum EPaymentStatus {
