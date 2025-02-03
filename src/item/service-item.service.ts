@@ -27,7 +27,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) {}
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -302,7 +302,7 @@ export class ServiceItemService {
 
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
-  
+
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -753,7 +753,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
-   
+
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];

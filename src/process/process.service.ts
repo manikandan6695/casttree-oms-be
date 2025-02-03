@@ -26,7 +26,7 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService
-  ) {}
+  ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
       // let subscription = await this.subscriptionService.validateSubscription(
@@ -96,13 +96,15 @@ export class ProcessService {
         createProcessInstanceData.instanceDetails._id,
         token.id
       );
-      finalResponse["isLocked"] = !(subscription || payment.paymentData.length)
-        ? currentTaskData.isLocked
-        : false;
-      nextTask["isLocked"] =
-        subscription || payment.paymentData.length
-          ? false
-          : nextTaskData.isLocked;
+      finalResponse["isLocked"] = (subscription || payment.paymentData.length)
+        ? false
+        : currentTaskData.isLocked;
+      if (nextTaskData) {
+        nextTask["isLocked"] =
+          (subscription || payment.paymentData.length)
+            ? false
+            : nextTaskData.isLocked;
+      }
       finalResponse["nextTaskData"] = nextTask;
 
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
@@ -134,7 +136,9 @@ export class ProcessService {
           status: Estatus.Active,
         })
         .lean();
-
+      if (checkInstanceHistory) {
+        checkInstanceHistory.itemId = itemId.itemId;
+      }
       let finalResponse = {};
       if (!checkInstanceHistory) {
         let processInstanceBody = {
@@ -180,7 +184,7 @@ export class ProcessService {
           instanceDetails: updatedProcessInstanceData,
         };
       } else {
-        checkInstanceHistory.itemId = itemId.itemId;
+
         let checkTaskInstanceDetailHistory =
           await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
