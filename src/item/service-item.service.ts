@@ -757,7 +757,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code != "" && country_code != "IN") {
+     /* if (country_code != "" && country_code != "IN") {
 
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
@@ -768,7 +768,7 @@ export class ServiceItemService {
             e["currency"] = currData["currency"];
           }
         });
-      }
+      }*/
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
