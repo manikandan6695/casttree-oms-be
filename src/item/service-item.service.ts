@@ -27,7 +27,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) { }
+  ) {}
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -302,7 +302,7 @@ export class ServiceItemService {
 
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
-      console.log("stage 2:" + itemIds)
+      console.log("stage 2:" + itemIds);
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -323,7 +323,6 @@ export class ServiceItemService {
       throw err;
     }
   }
-
 
   async getProcessHomeSceenData(userId) {
     const serviceItemData = await this.serviceItemModel.aggregate([
@@ -373,7 +372,6 @@ export class ServiceItemService {
           _id: 0,
           tagName: "$_id",
           details: 1,
-
         },
       },
     ]);
@@ -454,61 +452,77 @@ export class ServiceItemService {
         ListData: [],
       };
       let processIds = [];
-      (finalData["SeriesForYou"] ?? []).map((data) => processIds.push(data?.processId));
-      (finalData["featured"] ?? []).map((data) => processIds.push(data?.processId));
-      (finalData["upcomingseries"] ?? []).map((data) => processIds.push(data?.processId));
-      let firstTasks = await this.processService.getFirstTask(processIds, userId);
+      (finalData["SeriesForYou"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["featured"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["upcomingseries"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      let firstTasks = await this.processService.getFirstTask(
+        processIds,
+        userId
+      );
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
       (finalData["featured"] ?? []).map((data) => {
         featureCarouselData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "ctaName": data.ctaName,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       (finalData["SeriesForYou"] ?? []).map((data) => {
         updatedSeriesForYouData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       (finalData["upcomingseries"] ?? []).map((data) => {
         updatedUpcomingData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       let sections = [];
-      let pendingProcessInstanceData = await this.processService.pendingProcess(userId);
+      let pendingProcessInstanceData =
+        await this.processService.pendingProcess(userId);
 
       let continueWhereYouLeftData = {
         ListData: [],
       };
       if (pendingProcessInstanceData.length > 0) {
         let continueProcessIds = [];
-        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
-        let mentorUserIds =
-          await this.getMentorUserIds(continueProcessIds);
+        pendingProcessInstanceData.map((data) =>
+          continueProcessIds.push(data?.processId)
+        );
+        let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
 
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
-
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": await this.processService.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
-            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
-            "ctaName": "Continue",
-            "progressPercentage": pendingProcessInstanceData[i].completed,
-            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
-            "taskDetail": pendingProcessInstanceData[i].currentTask,
-            "mentorImage": mentorUserIds[i].media,
-            "mentorName": mentorUserIds[i].displayName,
-            "seriesTitle": mentorUserIds[i].seriesName,
-            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
+            thumbnail: await this.processService.getThumbNail(
+              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
+            ),
+            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            ctaName: "Continue",
+            progressPercentage: pendingProcessInstanceData[i].completed,
+            navigationURL:
+              "process/" +
+              pendingProcessInstanceData[i].processId +
+              "/task/" +
+              pendingProcessInstanceData[i].currentTask._id,
+            taskDetail: pendingProcessInstanceData[i].currentTask,
+            mentorImage: mentorUserIds[i].media,
+            mentorName: mentorUserIds[i].displayName,
+            seriesTitle: mentorUserIds[i].seriesName,
+            seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
         }
       }
@@ -517,9 +531,8 @@ export class ServiceItemService {
           headerName: Eheader.continue,
           listData: continueWhereYouLeftData["ListData"],
         },
-        "horizontalScroll": true,
-        "componentType": EcomponentType.ActiveProcessList
-
+        horizontalScroll: true,
+        componentType: EcomponentType.ActiveProcessList,
       }),
         sections.push({
           data: {
@@ -570,18 +583,21 @@ export class ServiceItemService {
           },
           { userId: 1, additionalDetails: 1 }
         )
-        .populate("itemId").lean();
+        .populate("itemId")
+        .lean();
       const seriesInfoObj = mentorUserIds.reduce((a, c) => {
         a[c.additionalDetails.processId] = c;
         return a;
       }, {});
 
-
       let userIds = [];
       for (let i = 0; i < mentorUserIds.length; i++) {
         userIds.push(mentorUserIds[i].userId.toString());
       }
-      const profileInfo = await this.helperService.getProfileByIdTl(userIds);
+      const profileInfo = await this.helperService.getProfileByIdTl(
+        userIds,
+        "Expert"
+      );
       const profileInfoObj = profileInfo.reduce((a, c) => {
         a[c.userId] = c;
         return a;
@@ -594,7 +610,8 @@ export class ServiceItemService {
           displayName: profileInfoObj[userIds[i]]?.displayName,
           media: profileInfoObj[userIds[i]]?.media,
           seriesName: seriesInfoObj[processId[i]].itemId.itemName,
-          seriesThumbNail: seriesInfoObj[processId[i]].additionalDetails.thumbnail
+          seriesThumbNail:
+            seriesInfoObj[processId[i]].additionalDetails.thumbnail,
         });
       }
       return mentorProfiles;
@@ -610,17 +627,16 @@ export class ServiceItemService {
         .populate("itemId")
         .lean();
 
-      let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
+      let subscriptionItemIds = await this.serviceItemModel
+        .find({ type: EserviceItemType.subscription })
+        .sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
         console.log("country_code: " + country_code);
-        ids.push(new ObjectId(processPricingData.itemId._id))
-        let priceListData = await this.getPriceListItems(
-          ids,
-          country_code
-        );
+        ids.push(new ObjectId(processPricingData.itemId._id));
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -631,7 +647,8 @@ export class ServiceItemService {
         });
         let processPrice = priceListData[processPricingData.itemId._id];
         processPricingData.itemId["price"] = processPrice["price"];
-        processPricingData.itemId["comparePrice"] = processPrice["comparePrice"];
+        processPricingData.itemId["comparePrice"] =
+          processPrice["comparePrice"];
         processPricingData.itemId["currency"] = processPrice["currency"];
       }
       let finalResponse = {};
@@ -679,13 +696,21 @@ export class ServiceItemService {
         plandata[1].comparePrice,
         plandata[0].comparePrice,
       ];
-      let badgeColour = [processPricingData.itemId.additionalDetail.badgeColour, plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
+      let badgeColour = [
+        processPricingData.itemId.additionalDetail.badgeColour,
+        plandata[1].additionalDetail.badgeColour,
+        plandata[0].additionalDetail.badgeColour,
+      ];
       let keys = [
         "casttree",
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = [processPricingData.itemId.additionalDetail.validity, plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let validity = [
+        processPricingData.itemId.additionalDetail.validity,
+        plandata[1].additionalDetail.validity,
+        plandata[0].additionalDetail.validity,
+      ];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -697,7 +722,7 @@ export class ServiceItemService {
           badgeColour: badgeColour[i],
           expiry: validity[i],
           itemId: itemId[i],
-          currencyCode: currencyCode[i]
+          currencyCode: currencyCode[i],
         });
       }
       finalResponse["planData"] = planDetailsArray;
@@ -707,28 +732,29 @@ export class ServiceItemService {
     } catch (err) {
       throw err;
     }
-
-
   }
   async getServuceItemDetailsByProcessId(processId) {
     try {
-      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId });
+      let data = await this.serviceItemModel.findOne({
+        "additionalDetails.processId": processId,
+      });
       return data;
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
 
   async getSubscriptionPlanDetails(country_code: string = "") {
     try {
-      let subscriptionItemIds = await this.serviceItemModel.find({ type: EserviceItemType.subscription }).sort({ _id: 1 });
+      let subscriptionItemIds = await this.serviceItemModel
+        .find({ type: EserviceItemType.subscription })
+        .sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code != "" && country_code != "IN") {
         console.log("country_code: " + country_code);
-        let priceListData = await this.getPriceListItems(
-          ids,
-          country_code
-        );
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -760,29 +786,26 @@ export class ServiceItemService {
         plandata[1].additionalDetail.planId,
         plandata[0].additionalDetail.planId,
       ];
-      let headings = [
-        plandata[1].itemName,
-        plandata[0].itemName,
-      ];
-      let actualPrice = [
-        plandata[1].price,
-        plandata[0].price,
-      ];
+      let headings = [plandata[1].itemName, plandata[0].itemName];
+      let actualPrice = [plandata[1].price, plandata[0].price];
       let currencyCode = [
         plandata[1].currency.currency_code,
         plandata[0].currency.currency_code,
       ];
       let itemId = [plandata[1]._id, plandata[0]._id];
-      let comparePrice = [
-        plandata[1].comparePrice,
-        plandata[0].comparePrice,
+      let comparePrice = [plandata[1].comparePrice, plandata[0].comparePrice];
+      let badgeColour = [
+        plandata[1].additionalDetail.badgeColour,
+        plandata[0].additionalDetail.badgeColour,
       ];
-      let badgeColour = [ plandata[1].additionalDetail.badgeColour, plandata[0].additionalDetail.badgeColour];
       let keys = [
         plandata[1].additionalDetail.key,
         plandata[0].additionalDetail.key,
       ];
-      let validity = [ plandata[1].additionalDetail.validity, plandata[0].additionalDetail.validity];
+      let validity = [
+        plandata[1].additionalDetail.validity,
+        plandata[0].additionalDetail.validity,
+      ];
       let planDetailsArray = [];
       for (let i = 0; i < headings.length; i++) {
         planDetailsArray.push({
@@ -794,7 +817,7 @@ export class ServiceItemService {
           badgeColour: badgeColour[i],
           expiry: validity[i],
           itemId: itemId[i],
-          currencyCode: currencyCode[i]
+          currencyCode: currencyCode[i],
         });
       }
       finalResponse["planData"] = planDetailsArray;

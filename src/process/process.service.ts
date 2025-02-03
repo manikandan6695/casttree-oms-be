@@ -26,16 +26,16 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService
-  ) { }
+  ) {}
   async getTaskDetail(processId, taskId, token) {
     try {
-      let subscription = await this.subscriptionService.validateSubscription(
-        token.id
-      );
-      let payment = await this.paymentService.getPaymentDetailBySource(
-        processId,
-        token.id
-      );
+      // let subscription = await this.subscriptionService.validateSubscription(
+      //   token.id
+      // );
+      // let payment = await this.paymentService.getPaymentDetailBySource(
+      //   processId,
+      //   token.id
+      // );
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
         _id: taskId,
@@ -52,12 +52,8 @@ export class ProcessService {
       finalResponse["taskTitle"] = currentTaskData.title;
       finalResponse["taskData"] = currentTaskData.taskMetaData;
       finalResponse["totalTasks"] = totalTasks;
-      finalResponse["isLocked"] = !(subscription || payment.paymentData.length)
-        ? currentTaskData.isLocked
-        : false;
-
       let nextTaskData = await this.tasksModel.findOne({
-        taskNumber: (currentTaskData.taskNumber + 1),
+        taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
       });
       let nextTask = {};
@@ -69,16 +65,13 @@ export class ProcessService {
           processId: nextTaskData.processId,
           nextTaskTitle: nextTaskData.title,
           nextTaskType: nextTaskData.type,
-          nextTaskThumbnail: await this.getThumbNail(nextTaskData?.taskMetaData?.media),
+          nextTaskThumbnail: await this.getThumbNail(
+            nextTaskData?.taskMetaData?.media
+          ),
           taskNumber: nextTaskData.taskNumber,
         };
-        nextTask["isLocked"] =
-          subscription || payment.paymentData.length
-            ? false
-            : nextTaskData.isLocked;
       }
 
-      finalResponse["nextTaskData"] = nextTask;
       let createProcessInstanceData;
       if (currentTaskData.type == EtaskType.Break) {
         createProcessInstanceData = await this.createProcessInstance(
@@ -96,7 +89,24 @@ export class ProcessService {
           currentTaskData.type
         );
       }
+      let subscription = await this.subscriptionService.validateSubscription(
+        token.id
+      );
+      let payment = await this.paymentService.getPaymentDetailBySource(
+        createProcessInstanceData.instanceDetails._id,
+        token.id
+      );
+      finalResponse["isLocked"] = !(subscription || payment.paymentData.length)
+        ? currentTaskData.isLocked
+        : false;
+      nextTask["isLocked"] =
+        subscription || payment.paymentData.length
+          ? false
+          : nextTaskData.isLocked;
+      finalResponse["nextTaskData"] = nextTask;
+
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
+
       return finalResponse;
     } catch (err) {
       throw err;
@@ -110,16 +120,20 @@ export class ProcessService {
     breakDuration?
   ) {
     try {
-      let itemId = await this.serviceItemService.getServuceItemDetailsByProcessId(processId);
+      let itemId =
+        await this.serviceItemService.getServuceItemDetailsByProcessId(
+          processId
+        );
       let CurrentInstanceData;
       const currentTime = new Date();
       let currentTimeIso = currentTime.toISOString();
-      let checkInstanceHistory: any = await this.processInstancesModel.findOne({
-        userId: userId,
-        processId: processId,
-        status: Estatus.Active,
-      }).lean();
-
+      let checkInstanceHistory: any = await this.processInstancesModel
+        .findOne({
+          userId: userId,
+          processId: processId,
+          status: Estatus.Active,
+        })
+        .lean();
 
       let finalResponse = {};
       if (!checkInstanceHistory) {
@@ -134,8 +148,8 @@ export class ProcessService {
           updatedBy: userId,
         };
         let processInstanceData =
-        await this.processInstancesModel.create(processInstanceBody);
-        let updatedProcessInstanceData: any = processInstanceData
+          await this.processInstancesModel.create(processInstanceBody);
+        let updatedProcessInstanceData: any = processInstanceData;
         updatedProcessInstanceData.itemId = itemId.itemId;
 
         let processInstanceDetailBody = {
@@ -163,29 +177,33 @@ export class ProcessService {
 
         finalResponse = {
           breakEndsAt: processInstanceDetailData.endedAt,
-          instancedetails: updatedProcessInstanceData
-        }
+          instancedetails: updatedProcessInstanceData,
+        };
       } else {
         checkInstanceHistory.itemId = itemId.itemId;
-        let checkTaskInstanceDetailHistory = await this.processInstanceDetailsModel.findOne({
-          createdBy: userId,
-          processId: processId,
-          taskId: taskId
-        });
+        let checkTaskInstanceDetailHistory =
+          await this.processInstanceDetailsModel.findOne({
+            createdBy: userId,
+            processId: processId,
+            taskId: taskId,
+          });
         if (checkTaskInstanceDetailHistory) {
           if (taskType == EtaskType.Break) {
             finalResponse = {
               breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
-              instanceDetails: checkInstanceHistory
+              instanceDetails: checkInstanceHistory,
             };
           }
           finalResponse = {
             breakEndsAt: checkTaskInstanceDetailHistory.endedAt,
-            instanceDetails: checkInstanceHistory
+            instanceDetails: checkInstanceHistory,
           };
-
         } else {
-          let updateProcessInstanceTask = await this.processInstancesModel.updateOne({ _id: checkInstanceHistory._id }, { $set: { currentTask: taskId } })
+          let updateProcessInstanceTask =
+            await this.processInstancesModel.updateOne(
+              { _id: checkInstanceHistory._id },
+              { $set: { currentTask: taskId } }
+            );
           let processInstanceDetailBody = {
             processInstanceId: checkInstanceHistory._id,
             processId: processId,
@@ -223,7 +241,6 @@ export class ProcessService {
             instanceDetails: checkInstanceHistory,
           };
         }
-
       }
       return finalResponse;
     } catch (err) {
@@ -252,8 +269,12 @@ export class ProcessService {
           processInstanceDetailBody["endedAt"] = currentTimeIso;
         }
       }
-      let taskDetail = await this.tasksModel.findOne({ _id: new ObjectId(body.taskId) })
-      let totalTasks = await this.tasksModel.countDocuments({ processId: taskDetail.processId });
+      let taskDetail = await this.tasksModel.findOne({
+        _id: new ObjectId(body.taskId),
+      });
+      let totalTasks = await this.tasksModel.countDocuments({
+        processId: taskDetail.processId,
+      });
       if (totalTasks == taskDetail.taskNumber) {
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
         let processInstanceData = await this.processInstancesModel.updateOne(
@@ -270,7 +291,7 @@ export class ProcessService {
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
-            updated_at: currentTime
+            updated_at: currentTime,
           },
           { $set: processInstanceDetailBody }
         );
@@ -285,21 +306,20 @@ export class ProcessService {
   }
 
   async pendingProcess(userId) {
-
     try {
-
-      const pendingTasks: any = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask").sort({ updated_at: -1 }).lean();
+      const pendingTasks: any = await this.processInstancesModel
+        .find({ userId: userId, processStatus: EprocessStatus.Started })
+        .populate("currentTask")
+        .sort({ updated_at: -1 })
+        .lean();
 
       for (let i = 0; i < pendingTasks.length; i++) {
-        let totalTasks = (
-          await this.tasksModel.countDocuments({
-            processId: pendingTasks[i].processId,
-          }));
+        let totalTasks = await this.tasksModel.countDocuments({
+          processId: pendingTasks[i].processId,
+        });
         let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
         pendingTasks[i].completed = Math.ceil(
-          (completedTaskNumber /
-            totalTasks) *
-          100
+          (completedTaskNumber / totalTasks) * 100
         );
       }
       return pendingTasks;
@@ -310,27 +330,30 @@ export class ProcessService {
 
   async getMySeries(userId, status) {
     try {
-
-      const mySeries: any = await this.processInstancesModel.find({ userId: userId, processStatus: status }).populate("currentTask").lean();
+      const mySeries: any = await this.processInstancesModel
+        .find({ userId: userId, processStatus: status })
+        .populate("currentTask")
+        .lean();
       for (let i = 0; i < mySeries.length; i++) {
-        let totalTasks = (
-          await this.tasksModel.countDocuments({
-            processId: mySeries[i].processId,
-          })
-        );
-        let completedTaskNumber = (status == EprocessStatus.Completed) ? mySeries[i].currentTask.taskNumber : (mySeries[i].currentTask.taskNumber - 1);
+        let totalTasks = await this.tasksModel.countDocuments({
+          processId: mySeries[i].processId,
+        });
+        let completedTaskNumber =
+          status == EprocessStatus.Completed
+            ? mySeries[i].currentTask.taskNumber
+            : mySeries[i].currentTask.taskNumber - 1;
         mySeries[i].progressPercentage = Math.ceil(
-          (completedTaskNumber /
-            totalTasks) *
-          100
+          (completedTaskNumber / totalTasks) * 100
         );
 
         if (status == EprocessStatus.Completed) {
           mySeries[i].completed = 100;
-          let currentTask = await this.tasksModel.findOne({ processId: mySeries[i].processId, taskNumber: 1 });
+          let currentTask = await this.tasksModel.findOne({
+            processId: mySeries[i].processId,
+            taskNumber: 1,
+          });
           mySeries[i].currentTask = currentTask;
         }
-
       }
       let processIds = [];
       for (let i = 0; i < mySeries.length; i++) {
@@ -355,19 +378,30 @@ export class ProcessService {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id
       );
-      let userProcessInstanceData: any = await this.processInstanceDetailsModel.find({ processId: processId, createdBy: token.id }).lean();
+      let userProcessInstanceData: any = await this.processInstanceDetailsModel
+        .find({ processId: processId, createdBy: token.id })
+        .lean();
 
+      let allTaskdata: any = await this.tasksModel
+        .find({
+          processId: processId,
+        })
+        .sort({ taskNumber: 1 })
+        .lean();
       let createdInstanceTasks = [];
       for (let i = 0; i < userProcessInstanceData.length; i++) {
-        createdInstanceTasks.push(userProcessInstanceData[i].taskId.toString())
+        createdInstanceTasks.push(userProcessInstanceData[i].taskId.toString());
+        let payment = await this.paymentService.getPaymentDetailBySource(
+          userProcessInstanceData[i].processInstanceId,
+          token.id
+        );
+
+        if (subscription || payment?.paymentData?.length) {
+          allTaskdata.forEach((task) => {
+            task.isLocked = false;
+          });
+        }
       }
-      let payment = await this.paymentService.getPaymentDetailBySource(
-        processId,
-        token.id
-      );
-      let allTaskdata: any = await this.tasksModel.find({
-        processId: processId,
-      }).sort({ taskNumber: 1 }).lean();
 
       allTaskdata.forEach((task) => {
         if (createdInstanceTasks.includes(task._id.toString())) {
@@ -376,11 +410,6 @@ export class ProcessService {
           task.isCompleted = false;
         }
       });
-      if (subscription || payment?.paymentData?.length) {
-        allTaskdata.forEach((task) => {
-          task.isLocked = false;
-        });
-      }
 
       return allTaskdata;
     } catch (err) {
@@ -402,7 +431,9 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-      let processInstanceData = await this.processInstancesModel.find({ userId: userId, processStatus: EprocessStatus.Started }).populate("currentTask");
+      let processInstanceData = await this.processInstancesModel
+        .find({ userId: userId, processStatus: EprocessStatus.Started })
+        .populate("currentTask");
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
         processInstanceData.map((a) => {
@@ -416,9 +447,10 @@ export class ProcessService {
       for (let i = 0; i < data.length; i++) {
         if (activeProcessIds.includes(data[i].processId.toString())) {
           let processId = data[i].processId.toString();
-          data[i] = currentTaskObject[processId];}
+          data[i] = currentTaskObject[processId];
+        }
       }
-     return data;
+      return data;
     } catch (err) {
       throw err;
     }
@@ -436,7 +468,8 @@ export class ProcessService {
 
   async getHomeScreenData(userId) {
     try {
-      let finalData = await this.serviceItemService.getProcessHomeSceenData(userId);
+      let finalData =
+        await this.serviceItemService.getProcessHomeSceenData(userId);
       let featureCarouselData = {
         ListData: [],
       };
@@ -449,7 +482,9 @@ export class ProcessService {
       let processIds = [];
       finalData["SeriesForYou"].map((data) => processIds.push(data?.processId));
       finalData["featured"].map((data) => processIds.push(data?.processId));
-      finalData["upcomingseries"].map((data) => processIds.push(data?.processId));
+      finalData["upcomingseries"].map((data) =>
+        processIds.push(data?.processId)
+      );
       let firstTasks = await this.getFirstTask(processIds, userId);
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
@@ -457,25 +492,25 @@ export class ProcessService {
       }, {});
       finalData["featured"].map((data) => {
         featureCarouselData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "ctaName": data.ctaName,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       finalData["SeriesForYou"].map((data) => {
         updatedSeriesForYouData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       finalData["upcomingseries"].map((data) => {
         updatedUpcomingData["ListData"].push({
-          "processId": data.processId,
-          "thumbnail": data.thumbnail,
-          "taskDetail": firstTaskObject[data.processId]
-        })
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
       });
       let sections = [];
       let pendingProcessInstanceData = await this.pendingProcess(userId);
@@ -484,21 +519,29 @@ export class ProcessService {
       };
       if (pendingProcessInstanceData.length > 0) {
         let continueProcessIds = [];
-        pendingProcessInstanceData.map((data) => continueProcessIds.push(data?.processId));
+        pendingProcessInstanceData.map((data) =>
+          continueProcessIds.push(data?.processId)
+        );
         let mentorUserIds =
           await this.serviceItemService.getMentorUserIds(continueProcessIds);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWhereYouLeftData["ListData"].push({
-            "thumbnail": await this.getThumbNail(pendingProcessInstanceData[i].currentTask.taskMetaData?.media),
-            "title": pendingProcessInstanceData[i].currentTask.taskTitle,
-            "ctaName": "Continue",
-            "progressPercentage": pendingProcessInstanceData[i].completed,
-            "navigationURL": "process/" + pendingProcessInstanceData[i].processId + "/task/" + pendingProcessInstanceData[i].currentTask._id,
-            "taskDetail": pendingProcessInstanceData[i].currentTask,
-            "mentorImage": mentorUserIds[i].media,
-            "mentorName": mentorUserIds[i].displayName,
-            "seriesTitle": mentorUserIds[i].seriesName,
-            "seriesThumbNail": mentorUserIds[i].seriesThumbNail
+            thumbnail: await this.getThumbNail(
+              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
+            ),
+            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            ctaName: "Continue",
+            progressPercentage: pendingProcessInstanceData[i].completed,
+            navigationURL:
+              "process/" +
+              pendingProcessInstanceData[i].processId +
+              "/task/" +
+              pendingProcessInstanceData[i].currentTask._id,
+            taskDetail: pendingProcessInstanceData[i].currentTask,
+            mentorImage: mentorUserIds[i].media,
+            mentorName: mentorUserIds[i].displayName,
+            seriesTitle: mentorUserIds[i].seriesName,
+            seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
         }
       }
@@ -507,9 +550,8 @@ export class ProcessService {
           headerName: Eheader.continue,
           listData: continueWhereYouLeftData["ListData"],
         },
-        "horizontalScroll": true,
-        "componentType": EcomponentType.ActiveProcessList
-
+        horizontalScroll: true,
+        componentType: EcomponentType.ActiveProcessList,
       }),
         sections.push({
           data: {
