@@ -843,6 +843,7 @@ export class ServiceItemService {
         .lean();
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
+      processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
       finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
@@ -854,6 +855,7 @@ export class ServiceItemService {
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.price = data.price;
+        data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
