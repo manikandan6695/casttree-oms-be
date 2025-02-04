@@ -856,6 +856,7 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.price = data.price;
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
+        data.additionalDetail.promotionDetails.planId= data.additionalDetail.planId;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
