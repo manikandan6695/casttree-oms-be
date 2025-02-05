@@ -865,6 +865,8 @@ export class ServiceItemService {
 
   async getPromotionDetails(processId, country_code: string = "", userId?) {
     try {
+      console.log("userId: "+userId);
+
       let userCountryCode;
       let userData;
       if (userId) {
@@ -875,6 +877,7 @@ export class ServiceItemService {
 
         }
       }
+      console.log("userCountryCode: "+userCountryCode);
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -887,7 +890,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-     /* if (userCountryCode != "IN") {
+      if (userCountryCode != "IN") {
         ids.push(new ObjectId(processPricingData.itemId._id));
         let priceListData = await this.getPriceListItems(ids, userCountryCode);
         plandata.forEach((e) => {
@@ -903,7 +906,7 @@ export class ServiceItemService {
         processPricingData.itemId["comparePrice"] =
           processPrice["comparePrice"];
         processPricingData.itemId["currency"] = processPrice["currency"];
-      }*/
+      }
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
