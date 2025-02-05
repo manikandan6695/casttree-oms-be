@@ -73,12 +73,12 @@ export class HelperService {
     }
   }
 
-  async updateUserIpById(ip,user_id) {
+  async updateUserIpById(country_code,user_id) {
     try {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
-          { userId: user_id,ip:ip },)
+          { userId: user_id,country_code:country_code },)
         .toPromise();
       return data;
     } catch (err) {
@@ -237,8 +237,6 @@ export class HelperService {
 
   async addSubscription(body, token: UserToken) {
     try {
-      console.log("add subscription body is===>", body);
-
       let fv = {
         plan_id: body.plan_id,
         total_count: body.total_count,
@@ -249,7 +247,6 @@ export class HelperService {
           itemId: body.notes.itemId,
         },
       };
-      console.log("fv is", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
@@ -266,8 +263,6 @@ export class HelperService {
         )
         .toPromise();
 
-      console.log("data is", data.data);
-
       return data.data;
     } catch (err) {
       throw err;
@@ -275,7 +270,7 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
-      console.log("update user body is ===>", body);
+   
 
       let data = await this.http_service
         .patch(
