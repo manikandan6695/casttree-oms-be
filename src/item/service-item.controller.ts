@@ -28,11 +28,12 @@ export class ServiceItemController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("getPromotionDetails/:processId")
-  async getPromotionDetails(@Req() req, @Param("processId") processId: string) {
+  async getPromotionDetails(@Req() req, @Param("processId") processId: string,@GetToken() token: UserToken,) {
     try {
       let data = await this.serviceItemService.getPromotionDetails(processId,
-        req.headers["x-country-code"] ?? "");
+        req.headers["x-country-code"] ?? "",token.id);
       return data;
     } catch (err) {
       throw err;

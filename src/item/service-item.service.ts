@@ -624,20 +624,20 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId, country_code: string = "",userId?) {
+  async getPlanDetails(processId, country_code: string = "", userId?) {
     try {
       let userCountryCode;
-      console.log("country_code: "+ country_code);
-      if(userId){
+      console.log("country_code: " + country_code);
+      if (userId) {
         let userData = await this.helperService.getUserById(userId);
-        if(userData.data.country_code){
+        if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
-        }else{
-          
+        } else {
+
         }
-        
+
       }
-     
+
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
@@ -668,22 +668,22 @@ export class ServiceItemService {
            processPrice["comparePrice"];
          processPricingData.itemId["currency"] = processPrice["currency"];
        }*/
-      if(userCountryCode != "IN"){
+      if (userCountryCode != "IN") {
         ids.push(new ObjectId(processPricingData.itemId._id));
-         let priceListData = await this.getPriceListItems(ids, userCountryCode);
-         plandata.forEach((e) => {
-           let currData = priceListData[e._id.toString()];
-           if (currData) {
-             e["price"] = currData["price"];
-             e["comparePrice"] = currData["comparePrice"];
-             e["currency"] = currData["currency"];
-           }
-         });
-         let processPrice = priceListData[processPricingData.itemId._id];
-         processPricingData.itemId["price"] = processPrice["price"];
-         processPricingData.itemId["comparePrice"] =
-           processPrice["comparePrice"];
-         processPricingData.itemId["currency"] = processPrice["currency"];
+        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+        let processPrice = priceListData[processPricingData.itemId._id];
+        processPricingData.itemId["price"] = processPrice["price"];
+        processPricingData.itemId["comparePrice"] =
+          processPrice["comparePrice"];
+        processPricingData.itemId["currency"] = processPrice["currency"];
       }
       let finalResponse = {};
       let featuresArray = [];
@@ -863,22 +863,23 @@ export class ServiceItemService {
     }
   }
 
-  async getPromotionDetails(processId, country_code: string = "") {
+  async getPromotionDetails(processId, country_code: string = "", userId?) {
     try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+
+        }
+      }
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
         .lean();
-      processPricingData.itemId.additionalDetail.promotionDetails.price =
-        processPricingData.itemId.price;
-      processPricingData.itemId.additionalDetail.promotionDetails.comparePrice =
-        processPricingData.itemId.comparePrice;
-      processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
-        processPricingData.itemId.currency.currency_code;
-      finalResponse.push(
-        processPricingData.itemId.additionalDetail.promotionDetails
-      );
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
@@ -886,14 +887,33 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
+      if (userCountryCode != "IN") {
+        ids.push(new ObjectId(processPricingData.itemId._id));
+        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+        let processPrice = priceListData[processPricingData.itemId._id];
+        processPricingData.itemId["price"] = processPrice["price"];
+        processPricingData.itemId["comparePrice"] =
+          processPrice["comparePrice"];
+        processPricingData.itemId["currency"] = processPrice["currency"];
+      }
+      processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
+      processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
+      processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
+      finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
+
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.price = data.price;
-        data.additionalDetail.promotionDetails.currency_code =
-          data.currency.currency_code;
-        data.additionalDetail.promotionDetails.planId =
-          data.additionalDetail.planId;
-        data.additionalDetail.promotionDetails.itemId = data._id;
+        data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
+        data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
