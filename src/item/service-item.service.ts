@@ -624,8 +624,20 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId, country_code: string = "") {
+  async getPlanDetails(processId, country_code: string = "",userId?) {
     try {
+      let userCountryCode;
+      console.log("country_code: "+ country_code);
+      if(userId){
+        let userData = await this.helperService.getUserById(userId);
+        if(userData.data.country_code){
+          userCountryCode = userData.data.country_code;
+        }else{
+          
+        }
+        
+      }
+     
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
@@ -638,7 +650,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       console.log("code:" + country_code);
-      /* if (country_code) {
+      /*if (country_code) {
          console.log("code:"+country_code );
          ids.push(new ObjectId(processPricingData.itemId._id));
          let priceListData = await this.getPriceListItems(ids, country_code);
@@ -656,6 +668,23 @@ export class ServiceItemService {
            processPrice["comparePrice"];
          processPricingData.itemId["currency"] = processPrice["currency"];
        }*/
+      if(userCountryCode != "IN"){
+        ids.push(new ObjectId(processPricingData.itemId._id));
+         let priceListData = await this.getPriceListItems(ids, userCountryCode);
+         plandata.forEach((e) => {
+           let currData = priceListData[e._id.toString()];
+           if (currData) {
+             e["price"] = currData["price"];
+             e["comparePrice"] = currData["comparePrice"];
+             e["currency"] = currData["currency"];
+           }
+         });
+         let processPrice = priceListData[processPricingData.itemId._id];
+         processPricingData.itemId["price"] = processPrice["price"];
+         processPricingData.itemId["comparePrice"] =
+           processPrice["comparePrice"];
+         processPricingData.itemId["currency"] = processPrice["currency"];
+      }
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({

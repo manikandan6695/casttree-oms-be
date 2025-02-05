@@ -1,12 +1,8 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { OnEvent } from "@nestjs/event-emitter";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { EVENT_UPDATE_USER } from "src/shared/app.constants";
-import { IUserUpdateEvent } from "./events/user-creation.interface";
 import { SharedService } from "src/shared/shared.service";
-import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 
 @Injectable()
 export class HelperService {
@@ -14,7 +10,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -59,6 +55,19 @@ export class HelperService {
         .toPromise();
 
       return data.data.profileData;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getUserById(user_id) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/get-user-detail`,
+          { user_id: user_id },)
+        .toPromise();
+      return data;
     } catch (err) {
       throw err;
     }
