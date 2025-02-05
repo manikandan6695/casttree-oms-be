@@ -624,7 +624,7 @@ export class ServiceItemService {
     }
   }
 
-  async getPlanDetails(processId, country_code: string = "",userId) {
+  async getPlanDetails(processId, country_code: string = "",userId?) {
     try {
       let userCountryCode;
       console.log("country_code: "+ country_code);
