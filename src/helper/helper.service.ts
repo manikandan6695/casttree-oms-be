@@ -73,6 +73,19 @@ export class HelperService {
     }
   }
 
+  async updateUserIpById(ip,user_id) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
+          { userId: user_id,ip:ip },)
+        .toPromise();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async getworkShopProfileById(userId: string[], type?: string) {
     try {
       let data = await this.http_service
