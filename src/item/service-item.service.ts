@@ -906,11 +906,13 @@ export class ServiceItemService {
         processPricingData.itemId["currency"] = processPrice["currency"];}
       }
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
+      processPricingData.itemId.additionalDetail.promotionDetails.itemId = processPricingData.itemId._id;
       processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
       finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
+        data.additionalDetail.promotionDetails.itemId = data._id;
         data.additionalDetail.promotionDetails.price = data.price;
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
