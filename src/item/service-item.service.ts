@@ -27,7 +27,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) {}
+  ) { }
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -865,8 +865,6 @@ export class ServiceItemService {
 
   async getPromotionDetails(processId, country_code: string = "", userId?) {
     try {
-      console.log("userId: "+userId);
-
       let userCountryCode;
       let userData;
       if (userId) {
@@ -877,7 +875,6 @@ export class ServiceItemService {
 
         }
       }
-      console.log("userCountryCode: "+userCountryCode);
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -902,16 +899,16 @@ export class ServiceItemService {
           }
         });
         let processPrice = priceListData[processPricingData.itemId._id];
+        if(processPrice){
         processPricingData.itemId["price"] = processPrice["price"];
         processPricingData.itemId["comparePrice"] =
           processPrice["comparePrice"];
-        processPricingData.itemId["currency"] = processPrice["currency"];
+        processPricingData.itemId["currency"] = processPrice["currency"];}
       }
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
       finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
-
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.price = data.price;
