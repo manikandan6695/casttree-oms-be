@@ -33,9 +33,22 @@ export class ServiceItemService {
     //accessToken: string,
     skip: number,
     limit: number,
-    country_code: string = ""
+    country_code: string = "",
+    userId?:string
   ) {
     try {
+      let userCountryCode;
+
+      if (userId) {
+        let userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code,userId);
+          userCountryCode = country_code
+        }
+
+      }
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -72,13 +85,13 @@ export class ServiceItemService {
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
-      if (country_code) {
+      if (userCountryCode) {
         const uniqueArray = [
           ...new Set(sourceIds.map((id) => new mongoose.Types.ObjectId(id))),
         ];
         let priceListData = await this.getPriceListItems(
           uniqueArray,
-          country_code
+          userCountryCode
         );
         serviceItemData.forEach((e) => {
           let currData = priceListData[e.itemId._id.toString()];
@@ -633,6 +646,7 @@ export class ServiceItemService {
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
         } else {
+          await this.helperService.updateUserIpById(country_code,userId);
           userCountryCode = country_code
         }
 
@@ -791,6 +805,7 @@ export class ServiceItemService {
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
         } else {
+          await this.helperService.updateUserIpById(country_code,userId);
           userCountryCode = country_code
         }
       }
@@ -899,7 +914,9 @@ export class ServiceItemService {
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
         } else {
+          await this.helperService.updateUserIpById(country_code,userId);
           userCountryCode = country_code
+
         }
       }
       let finalResponse = [];

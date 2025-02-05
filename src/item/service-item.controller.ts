@@ -41,12 +41,14 @@ export class ServiceItemController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceItems(
     @Req() req,
     @Query(ValidationPipe) query: FilterItemRequestDTO,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("limit", ParseIntPipe) limit: number,
+    @GetToken() token: UserToken
   ) {
     try {
 
@@ -55,7 +57,7 @@ export class ServiceItemController {
         query,
         skip,
         limit,
-        req.headers["x-country-code"]
+        req.headers["x-country-code"],token.id
       );
       return data;
     } catch (err) {
