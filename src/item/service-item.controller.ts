@@ -118,13 +118,13 @@ export class ServiceItemController {
     }
   }
 
-
+  @UseGuards(JwtAuthGuard)
   @Get("getPlanDetails/:processId")
-  async getPlanDetails(@Req() req, @Param("processId") processId: string) {
+  async getPlanDetails(@Req() req, @Param("processId") processId: string, @GetToken() token: UserToken,) {
     try {
 
       let data = await this.serviceItemService.getPlanDetails(processId,
-        req.headers["x-country-code"] ?? "");
+        req.headers["x-country-code"] ?? "",token.id);
       return data;
     } catch (err) {
       throw err;
