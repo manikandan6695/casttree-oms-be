@@ -627,13 +627,13 @@ export class ServiceItemService {
   async getPlanDetails(processId, country_code: string = "", userId?) {
     try {
       let userCountryCode;
-      console.log("country_code: " + country_code);
+
       if (userId) {
         let userData = await this.helperService.getUserById(userId);
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
         } else {
-
+          userCountryCode = country_code
         }
 
       }
@@ -649,7 +649,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      console.log("code:" + country_code);
+      
       /*if (country_code) {
          console.log("code:"+country_code );
          ids.push(new ObjectId(processPricingData.itemId._id));
@@ -680,10 +680,14 @@ export class ServiceItemService {
           }
         });
         let processPrice = priceListData[processPricingData.itemId._id];
-        processPricingData.itemId["price"] = processPrice["price"];
+        if(processPrice){
+          processPricingData.itemId["price"] = processPrice["price"];
         processPricingData.itemId["comparePrice"] =
           processPrice["comparePrice"];
         processPricingData.itemId["currency"] = processPrice["currency"];
+       
+        }
+        
       }
       let finalResponse = {};
       let featuresArray = [];
@@ -724,7 +728,7 @@ export class ServiceItemService {
         plandata[1].currency.currency_code,
         plandata[0].currency.currency_code,
       ];
-      let itemId = [null, plandata[1]._id, plandata[0]._id];
+      let itemId = [ processPricingData.itemId._id, plandata[1]._id, plandata[0]._id];
       let comparePrice = [
         processPricingData.itemId.comparePrice,
         plandata[1].comparePrice,
@@ -778,14 +782,37 @@ export class ServiceItemService {
     }
   }
 
-  async getSubscriptionPlanDetails(country_code: string = "") {
+  async getSubscriptionPlanDetails(country_code: string = "",userId?) {
     try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          userCountryCode = country_code
+        }
+      }
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (userCountryCode != "IN") {
+        
+        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+
+      }
       /* if (country_code != "" && country_code != "IN") {
  
          let priceListData = await this.getPriceListItems(ids, country_code);
@@ -872,7 +899,7 @@ export class ServiceItemService {
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
         } else {
-
+          userCountryCode = country_code
         }
       }
       let finalResponse = [];

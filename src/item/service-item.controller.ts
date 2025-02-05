@@ -17,11 +17,12 @@ import { ServiceItemService } from "./service-item.service";
 @Controller("service-item")
 export class ServiceItemController {
   constructor(private serviceItemService: ServiceItemService) { }
+  @UseGuards(JwtAuthGuard)
   @Get("getSubscriptionPlanDetails")
-  async getSubscriptionPlanDetails(@Req() req) {
+  async getSubscriptionPlanDetails(@Req() req,@GetToken() token: UserToken) {
     try {
       let data = await this.serviceItemService.getSubscriptionPlanDetails(
-        req.headers["x-country-code"] ?? "");
+        req.headers["x-country-code"] ?? "",token.id);
       return data;
     } catch (err) {
       throw err;
