@@ -27,7 +27,7 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
-  ) { }
+  ) {}
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -302,7 +302,6 @@ export class ServiceItemService {
 
   async getPriceListItems(itemIds: any[], country_code: string) {
     try {
-
       let data = await this.priceListItemModel
         .find(
           { item_id: { $in: itemIds }, country_code: country_code },
@@ -615,7 +614,8 @@ export class ServiceItemService {
           displayName: profileInfoObj[userInfoObj[processId[i]]]?.displayName,
           media: profileInfoObj[userInfoObj[processId[i]]]?.media,
           seriesName: seriesInfoObj[processId[i]].itemId.itemName,
-          seriesThumbNail: seriesInfoObj[processId[i]].additionalDetails.thumbnail,
+          seriesThumbNail:
+            seriesInfoObj[processId[i]].additionalDetails.thumbnail,
         });
       }
       return mentorProfiles;
@@ -921,6 +921,4 @@ export class ServiceItemService {
       throw err;
     }
   }
-
-
 }
