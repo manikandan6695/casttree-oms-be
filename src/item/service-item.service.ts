@@ -39,7 +39,7 @@ export class ServiceItemService {
     try {
       let userCountryCode;
 
-      if (userId) {
+      if (userId ) {
         let userData = await this.helperService.getUserById(userId);
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
