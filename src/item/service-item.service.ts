@@ -131,8 +131,19 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(id: string, country_code: string = "") {
+  async getServiceItemDetails(id: string, country_code: string = "",userId?) {
     try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code, userId);
+          userCountryCode = country_code
+        }
+      }
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
@@ -164,10 +175,10 @@ export class ServiceItemService {
       data["itemSold"] =
         parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
       data["ratingsData"] = ratingInfo.data;
-      if (country_code) {
+      if (userCountryCode) {
         let priceListData = await this.getPriceListItems(
           [new mongoose.Types.ObjectId(data.itemId._id.toString())],
-          country_code
+          userCountryCode
         );
         let currData = priceListData[data.itemId._id.toString()];
         if (currData) {
