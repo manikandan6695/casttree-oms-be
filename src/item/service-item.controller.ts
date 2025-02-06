@@ -94,7 +94,9 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
-        req.headers["x-country-code"]
+        req.headers["x-country-code"],
+        req.headers["x-userid"],
+
       );
       return data;
     } catch (err) {
