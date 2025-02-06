@@ -17,9 +17,8 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
 import {
-  EPaymentSourceType,
   ERazorpayPaymentStatus,
-  ESourceType,
+  ESourceType
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 const { ObjectId } = require("mongodb");
@@ -144,6 +143,7 @@ export class PaymentRequestService {
     }
 
     return await this.invoiceService.createInvoice({
+      itemId: body.itemId,
       source_id: body?.invoiceDetail?.sourceId,
       source_type: body?.invoiceDetail?.sourceType,
       discount_amount: body?.discount,
