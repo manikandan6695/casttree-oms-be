@@ -16,33 +16,52 @@ import { ServiceItemService } from "./service-item.service";
 
 @Controller("service-item")
 export class ServiceItemController {
-  constructor(private serviceItemService: ServiceItemService) {}
+  constructor(private serviceItemService: ServiceItemService) { }
+ // @UseGuards(JwtAuthGuard)
   @Get("getSubscriptionPlanDetails")
-  async getSubscriptionPlanDetails( @Req() req) {
+  async getSubscriptionPlanDetails(@Req() req
+  //,@GetToken() token: UserToken
+  ) {
     try {
       let data = await this.serviceItemService.getSubscriptionPlanDetails(
-        req.headers["x-country-code"] ?? "");
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
       return data;
     } catch (err) {
       throw err;
     }
   }
 
+  //@UseGuards(JwtAuthGuard)
+  @Get("getPromotionDetails/:processId")
+  async getPromotionDetails(@Req() req, @Param("processId") processId: string
+  //,@GetToken() token: UserToken,
+) {
+    try {
+      let data = await this.serviceItemService.getPromotionDetails(processId,
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+ // @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceItems(
     @Req() req,
     @Query(ValidationPipe) query: FilterItemRequestDTO,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("limit", ParseIntPipe) limit: number,
+    //@GetToken() token: UserToken
   ) {
     try {
-  
+
 
       let data = await this.serviceItemService.getServiceItems(
         query,
         skip,
         limit,
-        req.headers["x-country-code"]
+        req.headers["x-country-code"],req.headers["x-userid"]
       );
       return data;
     } catch (err) {
@@ -75,7 +94,9 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
-        req.headers["x-country-code"]
+        req.headers["x-country-code"],
+        req.headers["x-userid"],
+
       );
       return data;
     } catch (err) {
@@ -107,19 +128,21 @@ export class ServiceItemController {
     }
   }
 
-
+ // @UseGuards(JwtAuthGuard)
   @Get("getPlanDetails/:processId")
-  async getPlanDetails( @Req() req,@Param("processId") processId: string) {
+  async getPlanDetails(@Req() req, @Param("processId") processId: string,
+  // @GetToken() token: UserToken
+  ) {
     try {
-      
+
       let data = await this.serviceItemService.getPlanDetails(processId,
-        req.headers["x-country-code"] ?? "");
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
       return data;
     } catch (err) {
       throw err;
     }
   }
 
-  
+
 
 }

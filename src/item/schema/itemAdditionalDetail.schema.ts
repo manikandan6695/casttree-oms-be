@@ -115,6 +115,7 @@ export interface itemAdditionalDetailModel {
   videDescription: videoDescriptionModel[];
   badge: string;
   planId:string;
+  promotionDetails:any;
 }
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
@@ -140,5 +141,6 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   targetUsers: [targetUsersSchema],
   testimonials: [testimonialSchema],
   videDescription: [videoDescriptionSchema],
-  planId: {type:String}
+  planId: {type:String},
+  promotionDetails: { type: mongoose.Schema.Types.Mixed },
 });
