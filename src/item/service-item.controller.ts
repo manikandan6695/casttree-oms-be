@@ -24,7 +24,7 @@ export class ServiceItemController {
   ) {
     try {
       let data = await this.serviceItemService.getSubscriptionPlanDetails(
-        req.headers["x-country-code"] ?? "",req.headers["x-userId"]);
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
       return data;
     } catch (err) {
       throw err;
@@ -38,7 +38,7 @@ export class ServiceItemController {
 ) {
     try {
       let data = await this.serviceItemService.getPromotionDetails(processId,
-        req.headers["x-country-code"] ?? "",req.headers["x-userId"]);
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
       return data;
     } catch (err) {
       throw err;
@@ -61,7 +61,7 @@ export class ServiceItemController {
         query,
         skip,
         limit,
-        req.headers["x-country-code"],req.headers["x-userId"]
+        req.headers["x-country-code"],req.headers["x-userid"]
       );
       return data;
     } catch (err) {
@@ -134,7 +134,7 @@ export class ServiceItemController {
     try {
 
       let data = await this.serviceItemService.getPlanDetails(processId,
-        req.headers["x-country-code"] ?? "",req.headers["x-userId"]);
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
       return data;
     } catch (err) {
       throw err;
