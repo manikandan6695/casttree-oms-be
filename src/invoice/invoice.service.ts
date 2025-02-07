@@ -38,9 +38,9 @@ export class InvoiceService {
       let data = await this.salesDocumentModel.create(fv);
       await this.itemDocumentService.createItemDocuments([
         {
-          source_id: body.itemId,
+          source_id: data._id,
           source_type: EDocumentTypeName.invoice,
-          item_id: data.source_id,
+          item_id: body.itemId,
           amount: data.sub_total,
           quantity: data.item_count,
         },
