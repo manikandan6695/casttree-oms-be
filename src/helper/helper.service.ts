@@ -167,6 +167,20 @@ export class HelperService {
     }
   }
 
+  async trackEvent(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
+          body
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async sendWhastappMessage(body) {
     try {
       let data = await this.http_service
