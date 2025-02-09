@@ -206,7 +206,7 @@ export class ProcessService {
           let updateProcessInstanceTask =
             await this.processInstancesModel.updateOne(
               { _id: checkInstanceHistory._id },
-              { $set: { currentTask: taskId } }
+              { $set: { currentTask: taskId ,updated_at:currentTimeIso} }
             );
           let processInstanceDetailBody = {
             processInstanceId: checkInstanceHistory._id,
