@@ -131,7 +131,7 @@ export class ServiceItemService {
     }
   }
 
-  async getServiceItemDetails(id: string, country_code: string = "",userId?) {
+  async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
       let userCountryCode;
       let userData;
@@ -970,6 +970,52 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
+      return finalResponse;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getPremiumDetails(country_code: string = "", userId?) {
+    try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code, userId);
+          userCountryCode = country_code
+        }
+      }
+      let subscriptionItemIds: any = await this.serviceItemModel
+        .find({ type: EserviceItemType.subscription })
+        .sort({ _id: 1 }).lean();
+      let ids = [];
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      let plandata: any = await this.itemService.getItemsDetails(ids);
+      if (userCountryCode != "IN") {
+        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        plandata.forEach((e) => {
+          let currData = priceListData[e._id.toString()];
+          if (currData) {
+            e["price"] = currData["price"];
+            e["comparePrice"] = currData["comparePrice"];
+            e["currency"] = currData["currency"];
+          }
+        });
+
+      }
+
+      let finalResponse = [];
+      plandata.map((data) => { finalResponse.push(data.additionalDetail.premiumPage) });
+      for (let i = 0; i < finalResponse.length; i++) {
+        finalResponse[i].price = plandata[i].price;
+        finalResponse[i].comparePrice = plandata[i].comparePrice;
+        finalResponse[i].currency_code = plandata[i].currency.currency_code;
+      }
+
       return finalResponse;
     } catch (err) {
       throw err;
