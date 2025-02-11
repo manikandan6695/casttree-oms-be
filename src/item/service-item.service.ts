@@ -1014,6 +1014,7 @@ export class ServiceItemService {
         finalResponse[i].price = plandata[i].price;
         finalResponse[i].comparePrice = plandata[i].comparePrice;
         finalResponse[i].currency_code = plandata[i].currency.currency_code;
+        finalResponse[i].itemId = plandata[i]._id;
       }
 
       return finalResponse;
