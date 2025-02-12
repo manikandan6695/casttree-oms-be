@@ -28,6 +28,36 @@ export class ServiceItemService {
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
   ) { }
+async getServiceItemDetailbyItemId(itemId){
+  try{
+    let data = await this.serviceItemModel.findOne({itemId: itemId}).populate({
+      path: "itemId",
+      populate: [
+        {
+          path: "platformItemId",
+        },
+      ],
+    }).lean();
+    return data;
+    
+  }catch(err){throw err}
+}
+
+async getServiceItemDetailbyProcessId(processId){
+  try{
+    let data = await this.serviceItemModel.findOne({"additionalDetails.processId": processId}).populate({
+      path: "itemId",
+      populate: [
+        {
+          path: "platformItemId",
+        },
+      ],
+    }).lean();
+    return data;
+    
+  }catch(err){throw err}
+}
+
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -156,6 +186,8 @@ export class ServiceItemService {
         })
         .lean();
 
+        
+
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
 
@@ -212,6 +244,12 @@ export class ServiceItemService {
             ratings: moreExpertsData.data[i].ratingData,
           });
         }
+      }
+      if(data.type == EserviceItemType.feedback){
+        let mixPanelBody;
+      mixPanelBody.eventName = "feedback_expert_detail_view";
+      mixPanelBody.distinctId = userId;
+      mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name":data.profileData.displayName };
       }
       data["similarExperts"] = updatedMoreExpertsData;
       return data;
@@ -588,6 +626,11 @@ export class ServiceItemService {
         message: "success",
         data: data,
       };
+      let mixPanelBody;
+      mixPanelBody.eventName = "learn_homepage_success";
+      mixPanelBody.distinctId = userId;
+      mixPanelBody.properties = {};
+      await this.helperService.mixPanel(mixPanelBody);
       return finalResponse;
     } catch (err) {
       throw err;

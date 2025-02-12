@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { HelperService } from "src/helper/helper.service";
 import { EcomponentType, Eheader } from "src/item/enum/courses.enum";
 import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
@@ -25,7 +26,8 @@ export class ProcessService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
-    private paymentService: PaymentRequestService
+    private paymentService: PaymentRequestService,
+    private helperService : HelperService
   ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
@@ -36,6 +38,7 @@ export class ProcessService {
       //   processId,
       //   token.id
       // );
+      let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
         _id: taskId,
@@ -56,6 +59,10 @@ export class ProcessService {
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
       });
+      let mixPanelBody;
+        mixPanelBody.eventName = "initiate_episode";
+        mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber };
       let nextTask = {};
       if (nextTaskData) {
         //nextTaskData = await this.tasksModel.findOne({ processId: processId });
@@ -280,6 +287,11 @@ export class ProcessService {
         processId: taskDetail.processId,
       });
       if (totalTasks == taskDetail.taskNumber) {
+        let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
+        let mixPanelBody;
+        mixPanelBody.eventName = "episode_complete";
+        mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
         let processInstanceData = await this.processInstancesModel.updateOne(
           {

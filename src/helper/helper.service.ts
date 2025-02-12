@@ -73,12 +73,12 @@ export class HelperService {
     }
   }
 
-  async updateUserIpById(country_code,user_id) {
+  async updateUserIpById(country_code, user_id) {
     try {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
-          { userId: user_id,country_code:country_code },)
+          { userId: user_id, country_code: country_code },)
         .toPromise();
       return data;
     } catch (err) {
@@ -146,7 +146,6 @@ export class HelperService {
           }
         )
         .toPromise();
-
       return data.data;
     } catch (err) {
       throw err;
@@ -270,7 +269,7 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
-   
+
 
       let data = await this.http_service
         .patch(
@@ -279,6 +278,21 @@ export class HelperService {
         )
         .toPromise();
 
+      return JSON.stringify(data.data);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async mixPanel(body: any) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
+          // `http://localhost:3000/casttree/mixpanel/track-event`,
+          body
+        )
+        .toPromise();
       return JSON.stringify(data.data);
     } catch (err) {
       throw err;
