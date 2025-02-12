@@ -45,6 +45,20 @@ export class ServiceItemController {
     }
   }
 
+  //@UseGuards(JwtAuthGuard)
+  @Get("getPremiumDetails")
+  async getPremiumDetails(@Req() req, @Param("processId") processId: string
+  //,@GetToken() token: UserToken,
+) {
+    try {
+      let data = await this.serviceItemService.getPremiumDetails(
+        req.headers["x-country-code"] ?? "",req.headers["x-userid"]);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
  // @UseGuards(JwtAuthGuard)
   @Get()
   async getServiceItems(

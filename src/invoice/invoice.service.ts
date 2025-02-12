@@ -5,7 +5,6 @@ import { Model } from "mongoose";
 import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
 import { EDocumentTypeName } from "./enum/document-type-name.enum";
-import { EDocumentNumberType } from "./enum/transaction-type.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
 
 @Injectable()
@@ -41,7 +40,7 @@ export class InvoiceService {
         {
           source_id: data._id,
           source_type: EDocumentTypeName.invoice,
-          item_id: data.source_id,
+          item_id: body.itemId,
           amount: data.sub_total,
           quantity: data.item_count,
         },
