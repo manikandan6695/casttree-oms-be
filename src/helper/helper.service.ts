@@ -289,7 +289,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
-          // `http://localhost:3000/casttree/mixpanel/track-event`,
+         //  `http://localhost:3000/casttree/mixpanel/track-event`,
           body
         )
         .toPromise();

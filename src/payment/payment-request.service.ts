@@ -43,6 +43,7 @@ export class PaymentRequestService {
     private currency_service: CurrencyService,
     private configService: ConfigService,
     private helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
   ) { }
 
@@ -135,7 +136,7 @@ export class PaymentRequestService {
       );
 
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
-      let mixPanelBody;
+      let mixPanelBody: any ={};
       mixPanelBody.eventName = "initiate_payment";
       mixPanelBody.distinctId = body.userId;
       mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": body.amount, "cuurency_code": body.currencyCode, "serviceItemType": serviceItemDetail.type };

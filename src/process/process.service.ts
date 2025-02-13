@@ -59,10 +59,11 @@ export class ProcessService {
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
       });
-      let mixPanelBody;
+      let mixPanelBody : any = {};
         mixPanelBody.eventName = "initiate_episode";
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber };
+        await this.helperService.mixPanel(mixPanelBody);
       let nextTask = {};
       if (nextTaskData) {
         //nextTaskData = await this.tasksModel.findOne({ processId: processId });
@@ -261,6 +262,7 @@ export class ProcessService {
 
   async updateProcessInstance(body, token) {
     try {
+      
       let isLastTask = false;
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
@@ -272,7 +274,7 @@ export class ProcessService {
           const newTime = new Date(
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
-          const endAt = newTime.toISOString();
+          const endAt = newTime.toISOString();   
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
@@ -286,12 +288,19 @@ export class ProcessService {
       let totalTasks = await this.tasksModel.countDocuments({
         processId: taskDetail.processId,
       });
-      if (totalTasks == taskDetail.taskNumber) {
-        let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
-        let mixPanelBody;
+      let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
+        let mixPanelBody: any = {};
         mixPanelBody.eventName = "episode_complete";
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
+        await this.helperService.mixPanel(mixPanelBody);
+      if (totalTasks == taskDetail.taskNumber) {
+   
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = "series_complete";
+        mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
+        await this.helperService.mixPanel(mixPanelBody);
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
         let processInstanceData = await this.processInstancesModel.updateOne(
           {

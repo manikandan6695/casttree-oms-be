@@ -28,35 +28,35 @@ export class ServiceItemService {
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
   ) { }
-async getServiceItemDetailbyItemId(itemId){
-  try{
-    let data = await this.serviceItemModel.findOne({itemId: itemId}).populate({
-      path: "itemId",
-      populate: [
-        {
-          path: "platformItemId",
-        },
-      ],
-    }).lean();
-    return data;
-    
-  }catch(err){throw err}
-}
+  async getServiceItemDetailbyItemId(itemId) {
+    try {
+      let data = await this.serviceItemModel.findOne({ itemId: itemId }).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).lean();
+      return data;
 
-async getServiceItemDetailbyProcessId(processId){
-  try{
-    let data = await this.serviceItemModel.findOne({"additionalDetails.processId": processId}).populate({
-      path: "itemId",
-      populate: [
-        {
-          path: "platformItemId",
-        },
-      ],
-    }).lean();
-    return data;
-    
-  }catch(err){throw err}
-}
+    } catch (err) { throw err }
+  }
+
+  async getServiceItemDetailbyProcessId(processId) {
+    try {
+      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).lean();
+      return data;
+
+    } catch (err) { throw err }
+  }
 
   async getServiceItems(
     query: FilterItemRequestDTO,
@@ -163,6 +163,7 @@ async getServiceItemDetailbyProcessId(processId){
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
+
       let userCountryCode;
       let userData;
       if (userId) {
@@ -185,15 +186,11 @@ async getServiceItemDetailbyProcessId(processId){
           ],
         })
         .lean();
-
-        
-
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
 
         EprofileType.Expert
       );
-
       const ratingInfo = await this.helperService.getRatingsSummary(
         data.itemId._id,
         Eitem.item
@@ -229,7 +226,7 @@ async getServiceItemDetailbyProcessId(processId){
         500,
         country_code
       );
-
+      console.log("called detail api 3: " + moreExpertsData);
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
         if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
@@ -245,11 +242,13 @@ async getServiceItemDetailbyProcessId(processId){
           });
         }
       }
-      if(data.type == EserviceItemType.feedback){
-        let mixPanelBody;
-      mixPanelBody.eventName = "feedback_expert_detail_view";
-      mixPanelBody.distinctId = userId;
-      mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name":data.profileData.displayName };
+
+      if (data.type == EserviceItemType.feedback) {
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = "feedback_expert_detail_view";
+        mixPanelBody.distinctId = userId;
+        mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
+        await this.helperService.mixPanel(mixPanelBody);
       }
       data["similarExperts"] = updatedMoreExpertsData;
       return data;
@@ -626,7 +625,7 @@ async getServiceItemDetailbyProcessId(processId){
         message: "success",
         data: data,
       };
-      let mixPanelBody;
+      let mixPanelBody: any = {};
       mixPanelBody.eventName = "learn_homepage_success";
       mixPanelBody.distinctId = userId;
       mixPanelBody.properties = {};
