@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -245,7 +246,7 @@ export class ServiceItemService {
 
       if (data.type == EserviceItemType.feedback) {
         let mixPanelBody: any = {};
-        mixPanelBody.eventName = "feedback_expert_detail_view";
+        mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
         mixPanelBody.distinctId = userId;
         mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
         await this.helperService.mixPanel(mixPanelBody);
@@ -626,7 +627,7 @@ export class ServiceItemService {
         data: data,
       };
       let mixPanelBody: any = {};
-      mixPanelBody.eventName = "learn_homepage_success";
+      mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
       mixPanelBody.distinctId = userId;
       mixPanelBody.properties = {};
       await this.helperService.mixPanel(mixPanelBody);

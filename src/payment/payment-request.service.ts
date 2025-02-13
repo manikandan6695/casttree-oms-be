@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import {
@@ -137,7 +138,7 @@ export class PaymentRequestService {
 
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
       let mixPanelBody: any ={};
-      mixPanelBody.eventName = "initiate_payment";
+      mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
       mixPanelBody.distinctId = body.userId;
       mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": body.amount, "cuurency_code": body.currencyCode, "serviceItemType": serviceItemDetail.type };
 
@@ -323,9 +324,10 @@ export class PaymentRequestService {
       if (status === ERazorpayPaymentStatus.captured) {
         let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(ids.itemId);
         let mixPanelBody;
-        mixPanelBody.eventName = "payment_success";
+        mixPanelBody.eventName =EMixedPanelEvents.payment_success;
         mixPanelBody.distinctId = ids.userId;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": ids.amount, "cuurency_code": ids.currency, "serviceItemType": serviceItemDetail.type };
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": ids.amount, "currency_code": ids.currency, "serviceItemType": serviceItemDetail.type };
+        await this.helperService.mixPanel(mixPanelBody);
         await this.completePayment(ids);
 
       }

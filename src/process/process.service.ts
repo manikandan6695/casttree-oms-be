@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EcomponentType, Eheader } from "src/item/enum/courses.enum";
 import { Estatus } from "src/item/enum/status.enum";
@@ -60,7 +61,7 @@ export class ProcessService {
         processId: processId,
       });
       let mixPanelBody : any = {};
-        mixPanelBody.eventName = "initiate_episode";
+        mixPanelBody.eventName =EMixedPanelEvents.initiate_episode;
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber };
         await this.helperService.mixPanel(mixPanelBody);
@@ -290,14 +291,14 @@ export class ProcessService {
       });
       let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
         let mixPanelBody: any = {};
-        mixPanelBody.eventName = "episode_complete";
+        mixPanelBody.eventName =EMixedPanelEvents.episode_complete;
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
         await this.helperService.mixPanel(mixPanelBody);
       if (totalTasks == taskDetail.taskNumber) {
    
         let mixPanelBody: any = {};
-        mixPanelBody.eventName = "series_complete";
+        mixPanelBody.eventName = EMixedPanelEvents.series_complete;
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
         await this.helperService.mixPanel(mixPanelBody);
