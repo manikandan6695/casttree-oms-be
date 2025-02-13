@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -28,6 +29,36 @@ export class ServiceItemService {
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService
   ) { }
+  async getServiceItemDetailbyItemId(itemId) {
+    try {
+      let data = await this.serviceItemModel.findOne({ itemId: itemId }).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).lean();
+      return data;
+
+    } catch (err) { throw err }
+  }
+
+  async getServiceItemDetailbyProcessId(processId) {
+    try {
+      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).lean();
+      return data;
+
+    } catch (err) { throw err }
+  }
+
   async getServiceItems(
     query: FilterItemRequestDTO,
     //accessToken: string,
@@ -133,6 +164,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
+
       let userCountryCode;
       let userData;
       if (userId) {
@@ -155,13 +187,11 @@ export class ServiceItemService {
           ],
         })
         .lean();
-
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
 
         EprofileType.Expert
       );
-
       const ratingInfo = await this.helperService.getRatingsSummary(
         data.itemId._id,
         Eitem.item
@@ -197,7 +227,7 @@ export class ServiceItemService {
         500,
         country_code
       );
-
+      console.log("called detail api 3: " + moreExpertsData);
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
         if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
@@ -212,6 +242,14 @@ export class ServiceItemService {
             ratings: moreExpertsData.data[i].ratingData,
           });
         }
+      }
+
+      if (data.type == EserviceItemType.feedback) {
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
+        mixPanelBody.distinctId = userId;
+        mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
+        await this.helperService.mixPanel(mixPanelBody);
       }
       data["similarExperts"] = updatedMoreExpertsData;
       return data;
@@ -588,6 +626,11 @@ export class ServiceItemService {
         message: "success",
         data: data,
       };
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
+      mixPanelBody.distinctId = userId;
+      mixPanelBody.properties = {};
+      await this.helperService.mixPanel(mixPanelBody);
       return finalResponse;
     } catch (err) {
       throw err;

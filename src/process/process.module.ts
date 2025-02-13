@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { HelperModule } from "src/helper/helper.module";
 import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SubscriptionModule } from "src/subscription/subscription.module";
@@ -20,7 +21,8 @@ import { taskSchema } from "./schema/task.schema";
     ]),
     forwardRef(() => ItemModule),
     SubscriptionModule,
-    PaymentRequestModule
+    PaymentRequestModule,
+    HelperModule
   ],
   controllers: [ProcessController],
   providers: [ProcessService],

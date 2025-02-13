@@ -3,12 +3,14 @@ import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import {
   EDocument,
   EDocumentTypeName,
 } from "src/invoice/enum/document-type-name.enum";
+import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { CurrencyService } from "src/shared/currency/currency.service";
@@ -41,8 +43,10 @@ export class PaymentRequestService {
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
-    private helperService: HelperService
-  ) {}
+    private helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -118,7 +122,9 @@ export class PaymentRequestService {
         accessToken,
         {
           invoiceId: invoiceData._id,
+          itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
+          userId: body.userId
         }
       );
 
@@ -129,6 +135,14 @@ export class PaymentRequestService {
         currency,
         orderDetail
       );
+
+      let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
+      let mixPanelBody: any ={};
+      mixPanelBody.eventName = EMixedPanelEvents.initiate_payment;
+      mixPanelBody.distinctId = body.userId;
+      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": body.amount, "cuurency_code": body.currencyCode, "serviceItemType": serviceItemDetail.type };
+
+      await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
       return { paymentData, serviceRequest };
     } catch (err) {
@@ -243,13 +257,19 @@ export class PaymentRequestService {
       // var expectedSignature = crypto.createHmac('sha256', "casttree@123").update(mbody).digest('hex');
       // console.log("generated: "+expectedSignature);
       // if(req["headers"]["x-razorpay-signature"] === expectedSignature){
-      const { invoiceId, status, payment, invoice, serviceRequest } =
+      const { invoiceId, status, payment, invoice, serviceRequest, itemId, amount, currency, userId } =
         await this.extractPaymentDetails(req.body);
 
       const ids = {
         invoiceId,
         serviceRequestId: serviceRequest?.data?._id,
         paymentId: payment?._id,
+        itemId: itemId,
+        currency: currency,
+        amount: amount,
+        userId: userId
+
+
       };
       // console.log("ids is", ids, serviceRequest.data["_id"]);
       await this.updatePaymentStatus(status, ids);
@@ -263,10 +283,20 @@ export class PaymentRequestService {
   async extractPaymentDetails(body) {
     console.log(
       "extrat payment invoice id",
+      body,
       body?.payload?.payment?.entity?.notes.invoiceId,
       body?.payload?.payment?.entity?.notes
     );
-
+    const itemId = new ObjectId(
+      body?.payload?.payment?.entity?.notes.itemId
+    );
+    const amount = parseInt(body?.payload?.payment?.entity?.amount)/100;
+    const userId = new ObjectId(
+      body?.payload?.payment?.entity?.notes.userId
+    );
+    const currency = 
+      body?.payload?.payment?.entity?.currency
+;
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
@@ -285,13 +315,20 @@ export class PaymentRequestService {
     console.log("service request payment", serviceRequest);
     // }
 
-    return { invoiceId, status, payment, invoice, serviceRequest };
+    return { invoiceId, status, payment, invoice, serviceRequest, itemId, amount, currency , userId };
   }
 
   async updatePaymentStatus(status, ids) {
     try {
       if (status === ERazorpayPaymentStatus.captured) {
+        let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(ids.itemId);
+        let mixPanelBody: any={};
+        mixPanelBody.eventName =EMixedPanelEvents.payment_success;
+        mixPanelBody.distinctId = ids.userId;
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": ids.amount, "currency_code": ids.currency, "serviceItemType": serviceItemDetail.type };
+        await this.helperService.mixPanel(mixPanelBody);
         await this.completePayment(ids);
+
       }
 
       // if (status === ERazorpayPaymentStatus.failed) {
