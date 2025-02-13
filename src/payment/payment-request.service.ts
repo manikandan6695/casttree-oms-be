@@ -322,7 +322,7 @@ export class PaymentRequestService {
     try {
       if (status === ERazorpayPaymentStatus.captured) {
         let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(ids.itemId);
-        let mixPanelBody;
+        let mixPanelBody: any={};
         mixPanelBody.eventName =EMixedPanelEvents.payment_success;
         mixPanelBody.distinctId = ids.userId;
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": ids.amount, "currency_code": ids.currency, "serviceItemType": serviceItemDetail.type };
