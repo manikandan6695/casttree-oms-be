@@ -138,7 +138,7 @@ export class PaymentRequestService {
 
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
       let mixPanelBody: any ={};
-      mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
+      mixPanelBody.eventName = EMixedPanelEvents.initiate_payment;
       mixPanelBody.distinctId = body.userId;
       mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": body.amount, "cuurency_code": body.currencyCode, "serviceItemType": serviceItemDetail.type };
 
@@ -283,21 +283,20 @@ export class PaymentRequestService {
   async extractPaymentDetails(body) {
     console.log(
       "extrat payment invoice id",
+      body,
       body?.payload?.payment?.entity?.notes.invoiceId,
       body?.payload?.payment?.entity?.notes
     );
     const itemId = new ObjectId(
       body?.payload?.payment?.entity?.notes.itemId
     );
-    const amount = new ObjectId(
-      body?.payload?.payment?.entity?.amount
-    );
+    const amount = body?.payload?.payment?.entity?.amount;
     const userId = new ObjectId(
       body?.payload?.payment?.entity?.notes.userId
     );
-    const currency = new ObjectId(
+    const currency = 
       body?.payload?.payment?.entity?.currency
-    );
+;
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
