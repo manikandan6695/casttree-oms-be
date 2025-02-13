@@ -290,7 +290,7 @@ export class PaymentRequestService {
     const itemId = new ObjectId(
       body?.payload?.payment?.entity?.notes.itemId
     );
-    const amount = body?.payload?.payment?.entity?.amount;
+    const amount = parseInt(body?.payload?.payment?.entity?.amount)/100;
     const userId = new ObjectId(
       body?.payload?.payment?.entity?.notes.userId
     );
