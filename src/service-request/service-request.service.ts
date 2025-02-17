@@ -1,10 +1,11 @@
-import { UserToken } from "./../auth/dto/usertoken.dto";
-import { forwardRef, Injectable, Req, Inject } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
-import { IServiceRequestModel } from "./schema/serviceRequest.schema";
+import { ServiceItemService } from "src/item/service-item.service";
 import { ServiceResponseService } from "src/service-response/service-response.service";
+import { UserToken } from "./../auth/dto/usertoken.dto";
+import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
   EProfileType,
@@ -14,9 +15,7 @@ import {
   EStatus,
   EVisibilityStatus,
 } from "./enum/service-request.enum";
-import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
-import { ServiceItemService } from "src/item/service-item.service";
-import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
+import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -338,5 +337,19 @@ export class ServiceRequestService {
     } catch (err) {
       throw err;
     }
+  }
+
+  async getUserRequests(status,userId,type){
+    try{
+      let data = await this.serviceRequestModel.find({requestStatus: status,requestedBy:new ObjectId(userId),type:type}).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).lean();
+      return data;
+    }catch(err){throw err}
   }
 }
