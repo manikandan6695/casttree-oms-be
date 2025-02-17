@@ -5,6 +5,7 @@ import mongoose, { Model } from "mongoose";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
+import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
@@ -1062,6 +1063,67 @@ export class ServiceItemService {
       return finalResponse;
     } catch (err) {
       throw err;
+    }
+  }
+
+  async getWorkshopHomePage(country_code, userId) {
+    try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code, userId);
+          userCountryCode = country_code
+        }
+      }
+      console.log(userCountryCode);
+      let allWorkshops: any = await this.serviceItemModel.find({ type: EserviceItemType.workShop, status: Estatus.Active }).populate({
+        path: "itemId",
+        populate: [
+          {
+            path: "platformItemId",
+          },
+        ],
+      }).sort({ priorityOrder: 1 })
+        .lean();
+      let userIds = [];
+      const uniqueArray = [];
+      allWorkshops.map((data) => { uniqueArray.push(data.itemId._id), userIds.push(data.userId) });
+      if (userCountryCode != "IN") {
+
+        let priceListData = await this.getPriceListItems(
+          uniqueArray,
+          userCountryCode
+        );
+        allWorkshops.forEach((e) => {
+          let currData = priceListData[e.itemId._id.toString()];
+          if (currData) {
+            e.itemId["price"] = currData["price"];
+            e.itemId["comparePrice"] = currData["comparePrice"];
+            e.itemId["currency"] = currData["currency"];
+          }
+        });
+      }
+      let currentUserWorkshops = await this.serviceRequestService.getUserRequests(EServiceRequestStatus.pending, userId, EserviceItemType.workShop);
+      currentUserWorkshops.map((data) => { userIds.push(data.requestedToUser) });
+      const profileInfo = await this.helperService.getProfileByIdTl(
+        userIds, EprofileType.Expert
+      );
+      let profileInfoObj = profileInfo.reduce((a, c) => {
+        a[c.userId] = c;
+        return a;
+      }, {});
+      allWorkshops.map((data) => { data['profileData'] = profileInfoObj[data.userId.toString()] });
+      currentUserWorkshops.map((data) => { data['profileData'] = profileInfoObj[data.requestedToUser.toString()] });
+      let finalResponse: any = {};
+      finalResponse["activeWorkshops"] = currentUserWorkshops;
+      finalResponse["allWorkshops"] = allWorkshops;
+      return finalResponse;
+    } catch (err) {
+      throw err
     }
   }
 }
