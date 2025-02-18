@@ -291,8 +291,8 @@ export class ServiceItemService {
     query: FilterItemRequestDTO,
     skip: number,
     limit: number,
-    userId?:string,
-    country_code?:string
+    userId?: string,
+    country_code?: string
 
   ) {
     try {
@@ -300,8 +300,8 @@ export class ServiceItemService {
       let userData;
       if (userId) {
         userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
+        if (userData?.data?.country_code) {
+          userCountryCode = userData?.data?.country_code;
         } else {
           await this.helperService.updateUserIpById(country_code, userId);
           userCountryCode = country_code
@@ -336,7 +336,7 @@ export class ServiceItemService {
         .lean();
 
       let currentUserWorkshops = await this.serviceRequestService.getUserRequests(EServiceRequestStatus.pending, userId, EserviceItemType.workShop);
-      
+
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       currentUserWorkshops.map((data) => { userIds.push(data.requestedToUser) });
@@ -352,10 +352,10 @@ export class ServiceItemService {
         serviceItemData[i]["profileData"] =
           userProfileInfo[serviceItemData[i]["userId"]];
       }
-     // let userIds = [];
-     currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
+      // let userIds = [];
+      currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
       const uniqueArray = [];
-      serviceItemData.map((data) => { uniqueArray.push(data.itemId._id), userIds.push(data.userId) });
+      serviceItemData.map((data) => { uniqueArray.push(data.itemId._id) });
       if (userCountryCode != "IN") {
 
         let priceListData = await this.getPriceListItems(
@@ -372,7 +372,7 @@ export class ServiceItemService {
         });
       }
 
-      return { data: serviceItemData, count: countData ,currentWorkShops: currentUserWorkshops };
+      return { data: serviceItemData, count: countData, currentWorkShops: currentUserWorkshops };
     } catch (err) {
       throw err;
     }
@@ -1104,5 +1104,5 @@ export class ServiceItemService {
     }
   }
 
-  
+
 }
