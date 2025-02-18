@@ -290,9 +290,23 @@ export class ServiceItemService {
   async getWorkshopServiceItems(
     query: FilterItemRequestDTO,
     skip: number,
-    limit: number
+    limit: number,
+    userId?:string,
+    country_code?:string
+
   ) {
     try {
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData.data.country_code) {
+          userCountryCode = userData.data.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code, userId);
+          userCountryCode = country_code
+        }
+      }
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -320,8 +334,12 @@ export class ServiceItemService {
         .skip(skip)
         .limit(limit)
         .lean();
+
+      let currentUserWorkshops = await this.serviceRequestService.getUserRequests(EServiceRequestStatus.pending, userId, EserviceItemType.workShop);
+      
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
+      currentUserWorkshops.map((data) => { userIds.push(data.requestedToUser) });
       const profileInfo = await this.helperService.getworkShopProfileById(
         userIds,
         EprofileType.Expert
@@ -334,7 +352,27 @@ export class ServiceItemService {
         serviceItemData[i]["profileData"] =
           userProfileInfo[serviceItemData[i]["userId"]];
       }
-      return { data: serviceItemData, count: countData };
+     // let userIds = [];
+     currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
+      const uniqueArray = [];
+      serviceItemData.map((data) => { uniqueArray.push(data.itemId._id), userIds.push(data.userId) });
+      if (userCountryCode != "IN") {
+
+        let priceListData = await this.getPriceListItems(
+          uniqueArray,
+          userCountryCode
+        );
+        serviceItemData.forEach((e) => {
+          let currData = priceListData[e.itemId._id.toString()];
+          if (currData) {
+            e.itemId["price"] = currData["price"];
+            e.itemId["comparePrice"] = currData["comparePrice"];
+            e.itemId["currency"] = currData["currency"];
+          }
+        });
+      }
+
+      return { data: serviceItemData, count: countData ,currentWorkShops: currentUserWorkshops };
     } catch (err) {
       throw err;
     }
@@ -1066,64 +1104,5 @@ export class ServiceItemService {
     }
   }
 
-  async getWorkshopHomePage(country_code, userId) {
-    try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
-      console.log(userCountryCode);
-      let allWorkshops: any = await this.serviceItemModel.find({ type: EserviceItemType.workShop, status: Estatus.Active }).populate({
-        path: "itemId",
-        populate: [
-          {
-            path: "platformItemId",
-          },
-        ],
-      }).sort({ priorityOrder: 1 })
-        .lean();
-      let userIds = [];
-      const uniqueArray = [];
-      allWorkshops.map((data) => { uniqueArray.push(data.itemId._id), userIds.push(data.userId) });
-      if (userCountryCode != "IN") {
-
-        let priceListData = await this.getPriceListItems(
-          uniqueArray,
-          userCountryCode
-        );
-        allWorkshops.forEach((e) => {
-          let currData = priceListData[e.itemId._id.toString()];
-          if (currData) {
-            e.itemId["price"] = currData["price"];
-            e.itemId["comparePrice"] = currData["comparePrice"];
-            e.itemId["currency"] = currData["currency"];
-          }
-        });
-      }
-      let currentUserWorkshops = await this.serviceRequestService.getUserRequests(EServiceRequestStatus.pending, userId, EserviceItemType.workShop);
-      currentUserWorkshops.map((data) => { userIds.push(data.requestedToUser) });
-      const profileInfo = await this.helperService.getProfileByIdTl(
-        userIds, EprofileType.Expert
-      );
-      let profileInfoObj = profileInfo.reduce((a, c) => {
-        a[c.userId] = c;
-        return a;
-      }, {});
-      allWorkshops.map((data) => { data['profileData'] = profileInfoObj[data.userId.toString()] });
-      currentUserWorkshops.map((data) => { data['profileData'] = profileInfoObj[data.requestedToUser.toString()] });
-      let finalResponse: any = {};
-      finalResponse["activeWorkshops"] = currentUserWorkshops;
-      finalResponse["allWorkshops"] = allWorkshops;
-      return finalResponse;
-    } catch (err) {
-      throw err
-    }
-  }
+  
 }
