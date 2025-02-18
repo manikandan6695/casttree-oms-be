@@ -95,7 +95,10 @@ export class ServiceItemController {
         query,
 
         skip,
-        limit
+        limit,
+        req.headers["x-userid"],
+        req.headers["x-country-code"]
+
       );
       return data;
     } catch (err) {
@@ -103,17 +106,7 @@ export class ServiceItemController {
     }
   }
 
-  @Get("workShopHomePage")
-  async getWorkshopHomePage(
-    @Req() req
-  ) {
-    try {
-      let data = await this.serviceItemService.getWorkshopHomePage(req.headers["x-country-code"], req.headers["x-userid"]);
-      return data;
-    } catch (err) {
-      return err;
-    }
-  }
+
 
   @Get(":id")
   async getServiceItemDetails(@Req() req, @Param("id") _id: string) {
