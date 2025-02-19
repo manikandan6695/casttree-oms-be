@@ -45,6 +45,8 @@ export class ServiceItemController {
     }
   }
 
+
+
   //@UseGuards(JwtAuthGuard)
   @Get("getPremiumDetails")
   async getPremiumDetails(@Req() req, @Param("processId") processId: string
