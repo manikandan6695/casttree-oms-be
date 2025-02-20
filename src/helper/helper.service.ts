@@ -208,6 +208,21 @@ export class HelperService {
     }
   }
 
+  async getServiceRequestRatings(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-serviceRequest-ratings`,
+          //`http://localhost:3200/casttree-ratings/ratings/get-serviceRequest-ratings`,
+          body
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async getCountryCodeByLatAndLong(latitude: string, longitude: string) {
     try {
       const response = await this.http_service

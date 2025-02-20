@@ -1013,6 +1013,17 @@ export class ServiceItemService {
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
         .lean();
+        let userIds = [];
+        userIds.push(processPricingData.userId);
+        const profileInfo = await this.helperService.getProfileByIdTl(
+          userIds,
+          EprofileType.Expert
+        );
+        const profileInfoObj = profileInfo.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        processPricingData["profileData"] = profileInfoObj[processPricingData.userId.toString()];
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
@@ -1040,6 +1051,9 @@ export class ServiceItemService {
         }
       }
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
+      processPricingData.itemId.additionalDetail.promotionDetails.itemName = processPricingData.itemId.itemName;
+      processPricingData.itemId.additionalDetail.promotionDetails.mentorName = processPricingData.profileData.displayName;
+      processPricingData.itemId.additionalDetail.promotionDetails.thumbnail = processPricingData.additionalDetails.thumbnail;
       processPricingData.itemId.additionalDetail.promotionDetails.itemId = processPricingData.itemId._id;
       processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
@@ -1047,9 +1061,11 @@ export class ServiceItemService {
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.itemId = data._id;
+        data.additionalDetail.promotionDetails.itemName = data.itemName;
         data.additionalDetail.promotionDetails.price = data.price;
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
+        
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1104,5 +1120,5 @@ export class ServiceItemService {
     }
   }
 
-
+  
 }
