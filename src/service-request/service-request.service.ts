@@ -85,7 +85,15 @@ export class ServiceRequestService {
         .sort(sorting)
         .skip(skip)
         .limit(limit);
-
+      let transactionIds = [];
+      data.map((a) => {
+        transactionIds.push(a._id);
+      });
+      let ratingData = await this.helperService.getServiceRequestRatings({ transactionIds: transactionIds ,userId: token.id});
+      let ratingDataObj = ratingData.reduce((acc, data) => {
+        acc[data.transactionId.toString()] = data;
+        return acc;
+      }, {});
       const count = await this.serviceRequestModel.countDocuments(filter);
 
       await Promise.all(
@@ -95,11 +103,10 @@ export class ServiceRequestService {
               curr_data._id
             );
           curr_data["response"] = response;
+          curr_data["ratingData"] = ratingDataObj[curr_data._id.toString()]
         })
       );
-
       await this.attachUserProfiles(data, accessToken);
-
       return { data, count };
     } catch (err) {
       throw err;
@@ -359,13 +366,13 @@ export class ServiceRequestService {
 
   async getUserWorkShopStatus(itemId, userId) {
     try {
-      let workShopData = await this.serviceRequestModel.findOne({ requestedBy: new ObjectId(userId), requestStatus: EServiceRequestStatus.pending, itemId: new ObjectId(itemId), type:EserviceItemType.workShop });
+      let workShopData = await this.serviceRequestModel.findOne({ requestedBy: new ObjectId(userId), requestStatus: EServiceRequestStatus.pending, itemId: new ObjectId(itemId), type: EserviceItemType.workShop });
       let userData = await this.helperService.getUserById(userId);
       let memberShipItemDetails;
       if (userData) {
         memberShipItemDetails = await this.itemService.getItemDetailByName(userData?.data?.membership);
       }
-      let finalResponse:any ={};
+      let finalResponse: any = {};
       if (workShopData) {
         finalResponse["isApplied"] = true,
           finalResponse["memberShip"] = userData?.data?.membership,
