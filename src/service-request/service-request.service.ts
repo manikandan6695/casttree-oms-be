@@ -2,12 +2,15 @@ import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { HelperService } from "src/helper/helper.service";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
+import { ItemService } from "src/item/item.service";
 import { ServiceItemService } from "src/item/service-item.service";
 import { ServiceResponseService } from "src/service-response/service-response.service";
 import { UserToken } from "./../auth/dto/usertoken.dto";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
+  EFeatureType,
   EProfileType,
   ERequestType,
   EServiceRequestMode,
@@ -27,8 +30,9 @@ export class ServiceRequestService {
     private serviceResponseService: ServiceResponseService,
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
-    private serviceItemService: ServiceItemService
-  ) {}
+    private serviceItemService: ServiceItemService,
+    private itemService: ItemService
+  ) { }
 
   async getServiceRequests(
     query: FilterServiceRequestDTO,
@@ -43,13 +47,13 @@ export class ServiceRequestService {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
           ? {
-              requestedToUser: new ObjectId(token.id),
-              requestedToOrg: new ObjectId(organizationId),
-            }
+            requestedToUser: new ObjectId(token.id),
+            requestedToOrg: new ObjectId(organizationId),
+          }
           : {
-              requestedBy: new ObjectId(token.id),
-              requestedByOrg: new ObjectId(organizationId),
-            }),
+            requestedBy: new ObjectId(token.id),
+            requestedByOrg: new ObjectId(organizationId),
+          }),
       };
       if (query.type) {
         filter["type"] = query.type;
@@ -81,7 +85,15 @@ export class ServiceRequestService {
         .sort(sorting)
         .skip(skip)
         .limit(limit);
-
+      let transactionIds = [];
+      data.map((a) => {
+        transactionIds.push(a._id);
+      });
+      let ratingData = await this.helperService.getServiceRequestRatings({ transactionIds: transactionIds ,userId: token.id});
+      let ratingDataObj = ratingData.reduce((acc, data) => {
+        acc[data.transactionId.toString()] = data;
+        return acc;
+      }, {});
       const count = await this.serviceRequestModel.countDocuments(filter);
 
       await Promise.all(
@@ -91,11 +103,10 @@ export class ServiceRequestService {
               curr_data._id
             );
           curr_data["response"] = response;
+          curr_data["ratingData"] = ratingDataObj[curr_data._id.toString()]
         })
       );
-
       await this.attachUserProfiles(data, accessToken);
-
       return { data, count };
     } catch (err) {
       throw err;
@@ -339,9 +350,9 @@ export class ServiceRequestService {
     }
   }
 
-  async getUserRequests(status,userId,type){
-    try{
-      let data = await this.serviceRequestModel.find({requestStatus: status,requestedBy:new ObjectId(userId),type:type}).populate({
+  async getUserRequests(status, userId, type) {
+    try {
+      let data = await this.serviceRequestModel.find({ requestStatus: status, requestedBy: new ObjectId(userId), type: type }).populate({
         path: "itemId",
         populate: [
           {
@@ -350,6 +361,31 @@ export class ServiceRequestService {
         ],
       }).lean();
       return data;
-    }catch(err){throw err}
+    } catch (err) { throw err }
+  }
+
+  async getUserWorkShopStatus(itemId, userId) {
+    try {
+      let workShopData = await this.serviceRequestModel.findOne({ requestedBy: new ObjectId(userId), requestStatus: EServiceRequestStatus.pending, itemId: new ObjectId(itemId), type: EserviceItemType.workShop });
+      let userData = await this.helperService.getUserById(userId);
+      let memberShipItemDetails;
+      if (userData) {
+        memberShipItemDetails = await this.itemService.getItemDetailByName(userData?.data?.membership);
+      }
+      let finalResponse: any = {};
+      if (workShopData) {
+        finalResponse["isApplied"] = true,
+          finalResponse["memberShip"] = userData?.data?.membership,
+          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.planDetails?.find(item => item?.feature === EFeatureType.workShopDiscount)?.value;
+      } else {
+        finalResponse["isApplied"] = false,
+          finalResponse["memberShip"] = userData?.data?.membership,
+          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.planDetails?.find(item => item?.feature === EFeatureType.workShopDiscount)?.value;
+      }
+      return finalResponse;
+    }
+    catch (err) {
+      throw err;
+    }
   }
 }

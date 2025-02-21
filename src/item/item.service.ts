@@ -53,4 +53,14 @@ export class ItemService {
       throw err;
     }
   }
+
+  async getItemDetailByName(name: string) {
+    try {
+        
+      let data = await this.itemModel.findOne({ itemName: name }).lean();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
