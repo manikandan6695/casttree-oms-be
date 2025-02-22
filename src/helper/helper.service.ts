@@ -3,6 +3,7 @@ import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
+import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 
 @Injectable()
 export class HelperService {
@@ -208,7 +209,7 @@ export class HelperService {
     }
   }
 
-  async getServiceRequestRatings(body) {
+  async getServiceRequestRatings(body: getServiceRequestRatingsDto) {
     try {
       let data = await this.http_service
         .post(

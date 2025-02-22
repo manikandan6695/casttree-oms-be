@@ -96,13 +96,13 @@ export class ServiceRequestController {
 
   @UseGuards(JwtAuthGuard)
   @Get("workshops/:itemId/participants/:userId")
-  async getUserWorkshopStatus(
+  async validateWorkshop(
     @Param("itemId") itemId: string,
     @Param("userId") userId: string,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.serviceRequestService.getUserWorkShopStatus(itemId,userId);
+      let data = await this.serviceRequestService.validateWorkshop(itemId,userId);
       return {data:data};
     } catch (err) {
       const { code, response } = await this.sservice.processError(
