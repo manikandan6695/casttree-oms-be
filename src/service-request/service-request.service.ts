@@ -43,6 +43,7 @@ export class ServiceRequestService {
     limit: number
   ) {
     try {
+   
       const filter = {
         requestStatus: query.requestStatus,
         ...(query.mode === EServiceRequestMode.assign
@@ -74,7 +75,7 @@ export class ServiceRequestService {
       }
 
       filter["status"] = EStatus.Active;
-
+      console.log(filter);
       const data = await this.serviceRequestModel
         .find(filter)
         .populate({
@@ -85,10 +86,12 @@ export class ServiceRequestService {
         .sort(sorting)
         .skip(skip)
         .limit(limit);
+      
       let transactionIds = [];
       data.map((a) => {
         transactionIds.push(a._id);
       });
+   
       let ratingData = await this.helperService.getServiceRequestRatings({ transactionIds: transactionIds ,userId: token.id});
       let ratingDataObj = ratingData.reduce((acc, data) => {
         acc[data.transactionId.toString()] = data;
@@ -364,7 +367,7 @@ export class ServiceRequestService {
     } catch (err) { throw err }
   }
 
-  async getUserWorkShopStatus(itemId, userId) {
+  async validateWorkshop(itemId, userId) {
     try {
       let workShopData = await this.serviceRequestModel.findOne({ requestedBy: new ObjectId(userId), requestStatus: EServiceRequestStatus.pending, itemId: new ObjectId(itemId), type: EserviceItemType.workShop });
       let userData = await this.helperService.getUserById(userId);
