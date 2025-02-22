@@ -3,6 +3,7 @@ import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
+import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 
 @Injectable()
 export class HelperService {
@@ -214,6 +215,21 @@ export class HelperService {
               accept: "application/json",
             },
           }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getServiceRequestRatings(body: getServiceRequestRatingsDto) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings/get-serviceRequest-ratings`,
+          //`http://localhost:3200/casttree-ratings/ratings/get-serviceRequest-ratings`,
+          body
         )
         .toPromise();
       return data.data;

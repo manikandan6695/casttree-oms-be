@@ -9,20 +9,20 @@ import {
   UseGuards,
   ValidationPipe,
 } from "@nestjs/common";
+import { Response } from "express";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { Response } from "express";
-import { ServiceRequestService } from "./service-request.service";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
+import { ServiceRequestService } from "./service-request.service";
 
 @Controller("service-request")
 export class ServiceRequestController {
   constructor(
     private readonly serviceRequestService: ServiceRequestService,
     private sservice: SharedService
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Get()
@@ -91,6 +91,25 @@ export class ServiceRequestController {
         this.constructor.name
       );
       return res.status(code).json(response);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("workshops/:itemId/participants/:userId")
+  async validateWorkshop(
+    @Param("itemId") itemId: string,
+    @Param("userId") userId: string,
+    @GetToken() token: UserToken
+  ) {
+    try {
+      let data = await this.serviceRequestService.validateWorkshop(itemId,userId);
+      return {data:data};
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      throw err;
     }
   }
 }

@@ -68,3 +68,13 @@ export const ESStatus = [
   EStatus.Active,
   EStatus.Inactive,
 ];
+
+export enum EFeatureType {
+  workShopDiscount = "Discount on Workshops",
+
+}
+
+export const ESFeatureType = [
+  EFeatureType.workShopDiscount
+
+];
