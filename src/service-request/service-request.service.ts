@@ -10,13 +10,12 @@ import { UserToken } from "./../auth/dto/usertoken.dto";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
 import {
-  EFeatureType,
   EProfileType,
   ERequestType,
   EServiceRequestMode,
   EServiceRequestStatus,
   EStatus,
-  EVisibilityStatus,
+  EVisibilityStatus
 } from "./enum/service-request.enum";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
 
@@ -75,7 +74,7 @@ export class ServiceRequestService {
       }
 
       filter["status"] = EStatus.Active;
-      console.log(filter);
+
       const data = await this.serviceRequestModel
         .find(filter)
         .populate({
@@ -379,11 +378,11 @@ export class ServiceRequestService {
       if (workShopData) {
         finalResponse["isApplied"] = true,
           finalResponse["memberShip"] = userData?.data?.membership,
-          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.planDetails?.find(item => item?.feature === EFeatureType.workShopDiscount)?.value;
+          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.workshop;
       } else {
         finalResponse["isApplied"] = false,
           finalResponse["memberShip"] = userData?.data?.membership,
-          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.planDetails?.find(item => item?.feature === EFeatureType.workShopDiscount)?.value;
+          finalResponse["discountValue"] = memberShipItemDetails?.additionalDetail?.workshop;
       }
       return finalResponse;
     }
