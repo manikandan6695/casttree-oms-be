@@ -6,6 +6,7 @@ import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { ProcessService } from "src/process/process.service";
 import { ServiceRequestService } from "src/service-request/service-request.service";
+import { SubscriptionService } from "src/subscription/subscription.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
@@ -27,7 +28,8 @@ export class ServiceItemService {
     private processService: ProcessService,
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
-    private itemService: ItemService
+    private itemService: ItemService,
+    private subscriptionService: SubscriptionService
   ) { }
   async getServiceItemDetailbyItemId(itemId) {
     try {
@@ -958,6 +960,8 @@ export class ServiceItemService {
 
   async getPromotionDetails(processId, country_code: string = "", userId?) {
     try {
+      let subscriptionData = await this.subscriptionService.validateSubscription(userId);
+      console.log(subscriptionData);
       let userCountryCode;
       let userData;
       if (userId) {
@@ -1011,6 +1015,7 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.price = data.price;
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
+        data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData? false : true;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;

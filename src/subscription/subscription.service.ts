@@ -141,7 +141,7 @@ export class SubscriptionService {
   async validateSubscription(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: userId,
+        userId: userId, subscriptionStatus : {$ne: "initiated"}
       });
       return subscription;
     } catch (err) {

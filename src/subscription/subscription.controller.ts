@@ -89,4 +89,23 @@ try{
 }catch(err){}
 }
 
+
+
+@Get("validate-subscription/:userId")
+async validateSubscription(
+  @Param("userId") userId: string,
+  @Res() res: Response
+) {
+  try {
+    let data = await this.subscriptionService.validateSubscription(userId);
+    return res.json(data);
+  } catch (err) {
+    const { code, response } = await this.sservice.processError(
+      err,
+      this.constructor.name
+    );
+    return res.status(code).json(response);
+  }
+}
+
 }
