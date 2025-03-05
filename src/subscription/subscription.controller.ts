@@ -22,7 +22,7 @@ export class SubscriptionController {
   constructor(
     private readonly subscriptionService: SubscriptionService,
     private sservice: SharedService
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -77,16 +77,35 @@ export class SubscriptionController {
     }
   }
 
-@UseGuards(JwtAuthGuard)
-@Post("add-subscription")
-async addSubscription(
-  @Body(new ValidationPipe({ whitelist: true })) body: AddSubscriptionDTO,
-  @GetToken() token: UserToken,
-){
-try{
-  let data = await this.subscriptionService.addSubscription(body,token);
-  return data;
-}catch(err){}
-}
+  @UseGuards(JwtAuthGuard)
+  @Post("add-subscription")
+  async addSubscription(
+    @Body(new ValidationPipe({ whitelist: true })) body: AddSubscriptionDTO,
+    @GetToken() token: UserToken,
+  ) {
+    try {
+      let data = await this.subscriptionService.addSubscription(body, token);
+      return data;
+    } catch (err) { }
+  }
+
+
+
+  @Get("validate-subscription/:userId")
+  async validateSubscription(
+    @Param("userId") userId: string,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.subscriptionService.validateSubscription(userId);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
 
 }

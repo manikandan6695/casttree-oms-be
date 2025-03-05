@@ -4,6 +4,7 @@ import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
 import { ProcessModule } from "src/process/process.module";
 import { ServiceRequestModule } from "src/service-request/service-request.module";
+import { SubscriptionModule } from "src/subscription/subscription.module";
 import { ItemController } from "./item.controller";
 import { ItemService } from "./item.service";
 import { AssociatedItemsSchema } from "./schema/associated-items.schema";
@@ -34,6 +35,7 @@ import { ServiceItemService } from "./service-item.service";
     ]),
     AuthModule,
     HelperModule, 
+    SubscriptionModule,
     forwardRef(() =>  ServiceRequestModule),
     forwardRef(() =>  ProcessModule)
   ],

@@ -11,6 +11,7 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 
 @Injectable()
@@ -141,7 +142,7 @@ export class SubscriptionService {
   async validateSubscription(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: userId,
+        userId: userId,subscriptionStatus :{$ne: EsubscriptionStatus.initiated}
       });
       return subscription;
     } catch (err) {
