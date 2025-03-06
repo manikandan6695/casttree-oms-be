@@ -11,7 +11,6 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
-import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 
 @Injectable()
@@ -139,16 +138,18 @@ export class SubscriptionService {
     }
   }
 
-  async validateSubscription(userId: string) {
+  async validateSubscription(userId: string,status:String[]) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: userId, subscriptionStatus: { $ne: EsubscriptionStatus.initiated }
+        userId: userId, subscriptionStatus: { $nin: status }, status: Estatus.Active
       });
       return subscription;
     } catch (err) {
       throw err;
     }
   }
+
+  
 
   async subscriptionComparision(token: UserToken) {
     try {

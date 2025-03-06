@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
+import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -1003,7 +1004,7 @@ export class ServiceItemService {
       let userCountryCode;
       let userData;
       if (userId) {
-        subscriptionData =  await this.subscriptionService.validateSubscription(userId);
+        subscriptionData =  await this.subscriptionService.validateSubscription(userId,[EsubscriptionStatus.active]);
         userData = await this.helperService.getUserById(userId);
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;

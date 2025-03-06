@@ -10,10 +10,11 @@ import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EprocessStatus, EtaskType } from "./enums/process.enum";
+import { EprocessStatus, EsubscriptionStatus, EtaskType } from "./enums/process.enum";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
+
 
 @Injectable()
 export class ProcessService {
@@ -99,7 +100,8 @@ export class ProcessService {
         );
       }
       let subscription = await this.subscriptionService.validateSubscription(
-        token.id
+        token.id,
+        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
       );
       let payment = await this.paymentService.getPaymentDetailBySource(
         createProcessInstanceData.instanceDetails._id,
@@ -402,7 +404,8 @@ export class ProcessService {
   async getAllTasks(processId, token: UserToken) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
-        token.id
+        token.id,
+        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
       );
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
         .find({ processId: processId, createdBy: token.id })

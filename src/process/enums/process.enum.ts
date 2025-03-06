@@ -30,7 +30,7 @@ export const ESprocessStatus = [
 
 export enum EStatus {
     Active = "Active",
-    Inactive ="Inactive",
+    Inactive = "Inactive",
 
 }
 
@@ -47,3 +47,13 @@ export const EStaskStatus = [
     EtaskStatus.Pending,
     EtaskStatus.InProgress,
     EtaskStatus.Completed];
+
+export enum EsubscriptionStatus {
+    initiated = "initiated",
+    expired = "Expired",
+    active = "Active",
+}
+export const ESsubscriptionStatus = [
+    EsubscriptionStatus.initiated,
+    EsubscriptionStatus.expired,
+    EsubscriptionStatus.active];
