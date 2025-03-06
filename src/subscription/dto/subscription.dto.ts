@@ -41,3 +41,11 @@ export class AddSubscriptionDTO {
   @IsString()
   validityType: string
 }
+
+export class ValidateSubscriptionDTO {
+  
+
+  @IsOptional()
+  @IsString()
+  status: string[]
+}
