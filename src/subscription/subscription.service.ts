@@ -39,7 +39,7 @@ export class SubscriptionService {
           itemId: body.itemId,
         },
       };
-    
+
 
       let data = await this.helperService.addSubscription(fv, token);
 
@@ -53,7 +53,7 @@ export class SubscriptionService {
     try {
       // await this.extractSubscriptionDetails(req.body);
       if (req.body?.payload?.subscription) {
-     
+
         let existingSubscription = await this.subscriptionModel.findOne({
           userId: req.body?.payload?.subscription?.entity?.notes?.userId,
         });
@@ -80,7 +80,7 @@ export class SubscriptionService {
           };
 
           let subscription = await this.subscriptionModel.create(fv);
-       
+
 
           let invoice = await this.invoiceService.createInvoice({
             source_id: req.body?.payload?.subscription?.entity?.notes?.sourceId,
@@ -89,7 +89,7 @@ export class SubscriptionService {
             document_status: EDocumentStatus.completed,
             grand_total: req.body?.payload?.payment?.entity?.amount,
           });
-        
+
 
           let invoiceFV: any = {
             amount: req.body?.payload?.payment?.entity?.amount,
@@ -118,7 +118,7 @@ export class SubscriptionService {
             membership: item?.itemName,
             badge: item?.additionalDetail?.badge,
           };
-          
+
           await this.helperService.updateUser(userBody);
         }
 
@@ -142,7 +142,7 @@ export class SubscriptionService {
   async validateSubscription(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: userId,subscriptionStatus :{$ne: EsubscriptionStatus.initiated}
+        userId: userId, subscriptionStatus: { $ne: EsubscriptionStatus.initiated }
       });
       return subscription;
     } catch (err) {
@@ -155,12 +155,12 @@ export class SubscriptionService {
       let subscription = await this.subscriptionModel.findOne({
         userId: token.id,
       });
-     
+
 
       let item = await this.itemService.getItemDetail(
         subscription?.notes?.itemId
       );
-     
+
       return { subscription, item };
     } catch (err) {
       throw err;
@@ -171,7 +171,7 @@ export class SubscriptionService {
   async addSubscription(body, token) {
     try {
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
-    
+
       let existingSubscription = await this.subscriptionModel.findOne({
         userId: token.id,
       });
@@ -179,7 +179,13 @@ export class SubscriptionService {
         const now = new Date();
         let currentDate = now.toISOString();
         var duedate = new Date(now);
-        duedate.setDate(now.getDate() + 365);
+        if (body.validity) {
+          let days = (body.validityType == "day") ? body.validity : ((body.validityType == "month") ? (body.validity * 30) : (body.validity * 365))
+          duedate.setDate(now.getDate() + days);
+        } else {
+          duedate.setDate(now.getDate() + 365);
+        }
+
         let fv =
         {
           userId: token.id,
@@ -199,7 +205,7 @@ export class SubscriptionService {
           updatedBy: token.id,
         }
         let subscription = await this.subscriptionModel.create(fv);
-    
+
         let item = await this.itemService.getItemDetail(
           body.itemId
         );
@@ -210,7 +216,7 @@ export class SubscriptionService {
           membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
-   
+
         await this.helperService.updateUser(userBody);
 
         return subscription;
