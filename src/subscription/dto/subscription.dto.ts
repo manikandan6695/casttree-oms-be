@@ -46,6 +46,5 @@ export class ValidateSubscriptionDTO {
   
 
   @IsOptional()
-  @IsString()
   status: string[]
 }
