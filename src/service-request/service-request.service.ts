@@ -6,6 +6,7 @@ import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 import { ItemService } from "src/item/item.service";
 import { ServiceItemService } from "src/item/service-item.service";
 import { ServiceResponseService } from "src/service-response/service-response.service";
+import { DataSource } from "typeorm";
 import { UserToken } from "./../auth/dto/usertoken.dto";
 import { AddServiceRequestDTO } from "./dto/add-service-request.dto";
 import { FilterServiceRequestDTO } from "./dto/filter-service-request.dto";
@@ -18,6 +19,7 @@ import {
   EVisibilityStatus
 } from "./enum/service-request.enum";
 import { IServiceRequestModel } from "./schema/serviceRequest.schema";
+import { SqlServiceRequest } from "./sqlTables/service-request";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -30,9 +32,39 @@ export class ServiceRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
-    private itemService: ItemService
+    private itemService: ItemService,
+    private dataSource: DataSource
   ) { }
+  async onModuleInit() {
+    this.watchChanges();
+  }
 
+  async watchChanges() {
+
+    const changeStreamSalesDocument = this.serviceRequestModel.watch();
+    changeStreamSalesDocument.on('change', async (change) => {
+
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        console.log({newData},newData._id,change.operationType);
+        await this.dataSource
+          .getRepository(SqlServiceRequest)
+          .save(newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.serviceRequestModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlServiceRequest)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+  }
   async getServiceRequests(
     query: FilterServiceRequestDTO,
     token: UserToken,

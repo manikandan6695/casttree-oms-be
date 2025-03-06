@@ -4,8 +4,10 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
+import { DataSource } from "typeorm";
 import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
+import { SqlSalesDocument } from "./sqlTables/sales-document";
 
 @Injectable()
 export class InvoiceService {
@@ -14,8 +16,39 @@ export class InvoiceService {
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private itemDocumentService: ItemDocumentService
+    private itemDocumentService: ItemDocumentService,
+    private dataSource: DataSource
   ) {}
+
+
+  async onModuleInit() {
+    this.watchChanges();
+  }
+
+  async watchChanges() {
+
+    const changeStreamSalesDocument = this.salesDocumentModel.watch();
+    changeStreamSalesDocument.on('change', async (change) => {
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        await this.dataSource
+          .getRepository(SqlSalesDocument)
+          .save( newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.salesDocumentModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlSalesDocument)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+}
 
   async createInvoice(body) {
     try {

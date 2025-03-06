@@ -98,6 +98,7 @@ export class SubscriptionController {
     @Res() res: Response
   ) {
     try {
+      console.log(body.status);
       let data = await this.subscriptionService.validateSubscription(userId,body.status);
       return res.json(data);
     } catch (err) {

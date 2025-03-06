@@ -15,6 +15,7 @@ import { EServiceRequestStatus } from "src/service-request/enum/service-request.
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
+import { DataSource } from "typeorm";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
@@ -23,6 +24,7 @@ import {
   ESourceType
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
+import { SqlPayment } from "./sqlTables/payment";
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -45,9 +47,39 @@ export class PaymentRequestService {
     private configService: ConfigService,
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
-    private serviceItemService: ServiceItemService
+    private serviceItemService: ServiceItemService,
+    private dataSource: DataSource,
   ) { }
 
+  async onModuleInit() {
+    this.watchChanges();
+  }
+
+  async watchChanges() {
+    const changeStreamUser = this.paymentModel.watch();
+      changeStreamUser.on('change', async (change) => {
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        await this.dataSource
+          .getRepository(SqlPayment)
+          .save( newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.paymentModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlPayment)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+   
+  }
+  
   async initiatePayment(
     body: paymentDTO,
     token: UserToken,
