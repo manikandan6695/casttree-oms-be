@@ -12,6 +12,7 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
+import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 
 @Injectable()
@@ -180,7 +181,7 @@ export class SubscriptionService {
         let currentDate = now.toISOString();
         var duedate = new Date(now);
         if (body.validity) {
-          let days = (body.validityType == "day") ? body.validity : ((body.validityType == "month") ? (body.validity * 30) : (body.validity * 365))
+          let days = (body.validityType == EvalidityType.day) ? body.validity : ((body.validityType == EvalidityType.month) ? (body.validity * 30) : (body.validity * 365))
           duedate.setDate(now.getDate() + days);
         } else {
           duedate.setDate(now.getDate() + 365);
