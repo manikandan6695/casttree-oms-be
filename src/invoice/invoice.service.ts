@@ -4,7 +4,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
-import { EDocumentTypeName } from "./enum/document-type-name.enum";
+import { EDocumentTypeName, ESourceType } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
 
 @Injectable()
@@ -51,8 +51,14 @@ export class InvoiceService {
     }
   }
 
-  async updateInvoice(id: any, status) {
+  async updateInvoice(id: any, status,serviceRequestId?) {
     try {
+      let updateBody : any = {};
+      updateBody.document_status = status;
+      if(serviceRequestId){
+        updateBody.source_id = serviceRequestId;
+        updateBody.source_type = ESourceType.serviceRequest
+      }
       await this.salesDocumentModel.updateOne(
         { _id: id },
         { $set: { document_status: status } }
