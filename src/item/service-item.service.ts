@@ -1004,7 +1004,7 @@ export class ServiceItemService {
       let userCountryCode;
       let userData;
       if (userId) {
-        subscriptionData =  await this.subscriptionService.validateSubscription(userId,[EsubscriptionStatus.active]);
+        subscriptionData =  await this.subscriptionService.validateSubscription(userId,[EsubscriptionStatus.initiated]);
         userData = await this.helperService.getUserById(userId);
         if (userData.data.country_code) {
           userCountryCode = userData.data.country_code;
