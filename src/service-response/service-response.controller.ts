@@ -1,21 +1,19 @@
-import { ServiceResponseService } from "./service-response.service";
 import {
   Body,
   Controller,
-  Get,
   Post,
-  Query,
   Req,
   Res,
   UseGuards,
-  ValidationPipe,
+  ValidationPipe
 } from "@nestjs/common";
-import { Response } from "express";
-import { SharedService } from "src/shared/shared.service";
+import { Request, Response } from "express";
+import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
-import { UserToken } from "src/auth/dto/usertoken.dto";
+import { SharedService } from "src/shared/shared.service";
 import { ServiceResponseDTO } from "./dto/service-response.dto";
+import { ServiceResponseService } from "./service-response.service";
 
 @Controller("service-response")
 export class ServiceResponseController {

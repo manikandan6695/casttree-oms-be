@@ -9,7 +9,7 @@ import {
   UseGuards,
   ValidationPipe,
 } from "@nestjs/common";
-import { Response } from "express";
+import { Request, Response } from "express";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";

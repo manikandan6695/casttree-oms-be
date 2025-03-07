@@ -31,5 +31,20 @@ export class AddSubscriptionDTO {
 
   @IsNotEmpty()
   @IsNumber()
-  amount : string;
+  amount : number;
+
+  @IsOptional()
+  @IsNumber()
+  validity: number
+
+  @IsOptional()
+  @IsString()
+  validityType: string
+}
+
+export class ValidateSubscriptionDTO {
+  
+
+  @IsOptional()
+  status: string[]
 }
