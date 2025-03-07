@@ -1,5 +1,6 @@
 import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { Cron } from '@nestjs/schedule';
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { HelperService } from "src/helper/helper.service";
@@ -11,6 +12,8 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
+import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 
 @Injectable()
@@ -138,7 +141,7 @@ export class SubscriptionService {
     }
   }
 
-  async validateSubscription(userId: string,status:String[]) {
+  async validateSubscription(userId: string, status: String[]) {
     try {
       let subscription = await this.subscriptionModel.findOne({
         userId: userId, subscriptionStatus: { $nin: status }, status: Estatus.Active
@@ -149,7 +152,7 @@ export class SubscriptionService {
     }
   }
 
-  
+
 
   async subscriptionComparision(token: UserToken) {
     try {
@@ -172,56 +175,66 @@ export class SubscriptionService {
   async addSubscription(body, token) {
     try {
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
+      const now = new Date();
+      let currentDate = now.toISOString();
+      var duedate = new Date(now);
+      if (body.validity) {
+        (body.validityType == EvalidityType.day) ?
+          duedate.setDate(now.getDate() + body.validity) :
+          ((body.validityType == EvalidityType.month) ? duedate.setMonth(duedate.getMonth() + body.validity)
+            : duedate.setFullYear(duedate.getFullYear() + body.validity))
 
-      let existingSubscription = await this.subscriptionModel.findOne({
-        userId: token.id,
-      });
-      if (!existingSubscription) {
-        const now = new Date();
-        let currentDate = now.toISOString();
-        var duedate = new Date(now);
-        if (body.validity) {
-          let days = (body.validityType == "day") ? body.validity : ((body.validityType == "month") ? (body.validity * 30) : (body.validity * 365))
-          duedate.setDate(now.getDate() + days);
-        } else {
-          duedate.setDate(now.getDate() + 365);
-        }
-
-        let fv =
-        {
-          userId: token.id,
-          planId: itemDetails.additionalDetail.planId,
-          currentStart: currentDate,
-          currentEnd: duedate,
-          endAt: duedate,
-          expireBy: duedate,
-          notes: {
-            itemId: body.itemId,
-            userId: token.id,
-            amount: body.amount
-          },
-          subscriptionStatus: Estatus.Active,
-          status: EStatus.Active,
-          createdBy: token.id,
-          updatedBy: token.id,
-        }
-        let subscription = await this.subscriptionModel.create(fv);
-
-        let item = await this.itemService.getItemDetail(
-          body.itemId
-        );
-
-
-        let userBody = {
-          userId: token.id,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-
-        await this.helperService.updateUser(userBody);
-
-        return subscription;
+      } else {
+        duedate.setFullYear(duedate.getFullYear() + body.validity);
       }
+
+      let fv =
+      {
+        userId: token.id,
+        planId: itemDetails.additionalDetail.planId,
+        currentStart: currentDate,
+        currentEnd: duedate,
+        endAt: duedate,
+        expireBy: duedate,
+        notes: {
+          itemId: body.itemId,
+          userId: token.id,
+          amount: body.amount
+        },
+        subscriptionStatus: Estatus.Active,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      }
+      let subscription = await this.subscriptionModel.create(fv);
+
+      let item = await this.itemService.getItemDetail(
+        body.itemId
+      );
+
+
+      let userBody = {
+        userId: token.id,
+        membership: item?.itemName,
+        badge: item?.additionalDetail?.badge,
+      };
+
+      await this.helperService.updateUser(userBody);
+
+      return subscription;
+
+    } catch (err) {
+      throw err
+    }
+  }
+
+  @Cron('0 * * * *')
+  async handleCron() {
+    try {
+      const now = new Date();
+      let currentDate = now.toISOString();
+      console.log("updating subscription entries : " + currentDate);
+      let updateSubscriptionData = await this.subscriptionModel.updateMany({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active }, { $set: { subscriptionStatus: EsubscriptionStatus.expired } })
     } catch (err) {
       throw err
     }
