@@ -185,7 +185,7 @@ export class SubscriptionService {
             : duedate.setFullYear(duedate.getFullYear() + body.validity))
 
       } else {
-        duedate.setFullYear(duedate.getFullYear() + body.validity);
+        duedate.setFullYear(duedate.getFullYear() + 1);
       }
 
       let fv =
