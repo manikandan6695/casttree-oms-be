@@ -305,7 +305,7 @@ export class HelperService {
 
       let data = await this.http_service
         .patch(
-          `${this.configService.get("CASTTREE_BASE_URL")}/user/update-users`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/remove-membership`,
           //`http://localhost:3000/casttree/user/update-users`,
 
           body
