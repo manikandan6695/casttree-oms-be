@@ -228,7 +228,9 @@ export class SubscriptionService {
         expiredSubscriptionsList.map((data) => { userIds.push(data.userId) });
         console.log(userIds);
         let updateBody = {
-          userId: userIds
+          userId: userIds,
+          membership: "",
+          badge: ""
         };
         console.log(updateBody);
         await this.helperService.updateUsers(updateBody);
