@@ -228,13 +228,27 @@ export class SubscriptionService {
     }
   }
 
-  @Cron('0 * * * *')
+  @Cron('*/10 * * * * *')
   async handleCron() {
     try {
       const now = new Date();
       let currentDate = now.toISOString();
       console.log("updating subscription entries : " + currentDate);
-      let updateSubscriptionData = await this.subscriptionModel.updateMany({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active }, { $set: { subscriptionStatus: EsubscriptionStatus.expired } })
+      let expiredSubscriptionsList = await this.subscriptionModel.find({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active });
+      if (expiredSubscriptionsList.length > 0) {
+        await this.subscriptionModel.updateMany({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active }, { $set: { subscriptionStatus: EsubscriptionStatus.expired } });
+        let userIds = [];
+
+        expiredSubscriptionsList.map((data) => { userIds.push(data.userId) });
+        console.log(userIds);
+        let updateBody = {
+          userId: userIds,
+          membership: "",
+          badge: ""
+        };
+        console.log(updateBody);
+        await this.helperService.updateUsers(updateBody);
+      }
     } catch (err) {
       throw err
     }
