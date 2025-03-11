@@ -214,7 +214,7 @@ export class SubscriptionService {
     }
   }
 
-  @Cron('0 */5 * * * *')
+  @Cron('0 * * * *')
   async handleCron() {
     try {
       const now = new Date();
