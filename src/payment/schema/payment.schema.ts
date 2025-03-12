@@ -41,6 +41,7 @@ export interface IPaymentModel extends mongoose.Document {
   account: any;
   currencyCode: string;
   currency: any;
+  amount_in_INR: any;
   created_by: any;
   updated_by: any;
 }

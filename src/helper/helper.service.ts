@@ -318,6 +318,7 @@ export class HelperService {
     }
   }
 
+  
   async mixPanel(body: any) {
     try {
       let data = await this.http_service

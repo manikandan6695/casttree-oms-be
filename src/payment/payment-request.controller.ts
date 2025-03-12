@@ -16,13 +16,14 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
 import { paymentDTO } from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
+import { PaymentWebhookMiddleware } from "./middleware/payment-middleware";
 
 @Controller("payment-request")
 export class PaymentRequestController {
   constructor(
     private readonly paymentRequestService: PaymentRequestService,
     private sservice: SharedService
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -89,6 +90,7 @@ export class PaymentRequestController {
     }
   }
 
+  //@UseGuards(PaymentWebhookMiddleware)
   @Post("webhook/provider/:providerId")
   async paymentWebhook(
     @Req() req,

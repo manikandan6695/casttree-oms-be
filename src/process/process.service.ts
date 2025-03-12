@@ -64,7 +64,7 @@ export class ProcessService {
       let mixPanelBody : any = {};
         mixPanelBody.eventName =EMixedPanelEvents.initiate_episode;
         mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber };
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber, "isLocked": currentTaskData.isLocked };
         await this.helperService.mixPanel(mixPanelBody);
       let nextTask = {};
       if (nextTaskData) {
@@ -295,7 +295,7 @@ export class ProcessService {
         let mixPanelBody: any = {};
         mixPanelBody.eventName =EMixedPanelEvents.episode_complete;
         mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title, "isLocked": taskDetail.isLocked};
         await this.helperService.mixPanel(mixPanelBody);
       if (totalTasks == taskDetail.taskNumber) {
    
