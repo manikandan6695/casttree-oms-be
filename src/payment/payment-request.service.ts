@@ -382,7 +382,8 @@ export class PaymentRequestService {
   async completePayment(ids) {
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
-      EDocumentStatus.completed
+      EDocumentStatus.completed,
+      ids.serviceRequestId
     );
     await this.updatePaymentRequest({
       id: ids.paymentId,

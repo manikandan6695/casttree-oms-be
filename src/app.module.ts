@@ -4,11 +4,11 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { MongooseModule } from "@nestjs/mongoose";
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from "@nestjs/throttler";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
 import { CommentsModule } from "./comments/comments.module";
 import { HelperModule } from "./helper/helper.module";
-import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { ItemModule } from "./item/item.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
@@ -18,6 +18,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
+import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 
 @Module({
   imports: [
@@ -56,7 +57,8 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     PaymentRequestModule,
     InvoiceModule,
     ProcessModule,
-    SubscriptionModule 
+    SubscriptionModule,
+    ScheduleModule.forRoot()
   ],
   controllers: [],
   providers: [

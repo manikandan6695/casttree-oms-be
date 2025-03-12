@@ -304,6 +304,24 @@ export class HelperService {
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/${body.userId}`,
+
+          body
+        )
+        .toPromise();
+
+      return JSON.stringify(data.data);
+    } catch (err) {
+      throw err;
+    }
+  }
+  async updateUsers(body: any) {
+    try {
+
+      let data = await this.http_service
+        .patch(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/remove-membership`,
+          //`http://localhost:3000/casttree/user/update-users`,
+
           body
         )
         .toPromise();
@@ -319,7 +337,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
-         //  `http://localhost:3000/casttree/mixpanel/track-event`,
+          //  `http://localhost:3000/casttree/mixpanel/track-event`,
           body
         )
         .toPromise();
