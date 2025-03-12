@@ -381,8 +381,24 @@ export class ServiceItemService {
     }
   }
 
-  async getworkShopServiceItemDetails(id: string) {
+  async getworkShopServiceItemDetails(id: string,
+    userId?: string,
+    country_code?: string
+  ) {
     try {
+      console.log("Pavan",userId);
+      let userCountryCode;
+      let userData;
+      if (userId) {
+        userData = await this.helperService.getUserById(userId);
+        if (userData?.data?.country_code) {
+          userCountryCode = userData?.data?.country_code;
+        } else {
+          await this.helperService.updateUserIpById(country_code, userId);
+          userCountryCode = country_code
+        }
+        console.log(userData,userCountryCode);
+      }
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate(
@@ -396,6 +412,18 @@ export class ServiceItemService {
 
         EprofileType.Expert
       );
+      if (userCountryCode) {
+        let priceListData = await this.getPriceListItems(
+          [new mongoose.Types.ObjectId(data.itemId._id.toString())],
+          userCountryCode
+        );
+        let currData = priceListData[data.itemId._id.toString()];
+        if (currData) {
+          data.itemId["price"] = currData["price"];
+          data.itemId["comparePrice"] = currData["comparePrice"];
+          data.itemId["currency"] = currData["currency"];
+        }
+      }
       data["profileData"] = profileInfo[0];
       return data;
     } catch (err) {

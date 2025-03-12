@@ -129,7 +129,7 @@ export class ServiceItemController {
   async getworkShopServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {
       let data =
-        await this.serviceItemService.getworkShopServiceItemDetails(_id);
+        await this.serviceItemService.getworkShopServiceItemDetails(_id, req.headers["x-userid"], req.headers["x-country-code"]);
       return data;
     } catch (err) {
       return err;
