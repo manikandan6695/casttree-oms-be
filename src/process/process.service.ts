@@ -10,10 +10,13 @@ import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
+import { DataSource } from "typeorm";
 import { EprocessStatus, EsubscriptionStatus, EtaskType } from "./enums/process.enum";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
+import { SqlProcessInstance } from "./sqlTables/processInstance";
+import { SqlProcessInsatnceDetail } from "./sqlTables/processInstanceDetail";
 
 
 @Injectable()
@@ -29,8 +32,60 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
-    private helperService : HelperService
+    private helperService : HelperService,
+    private dataSource: DataSource
   ) { }
+
+  async onModuleInit() {
+    this.watchChanges();
+  }
+
+  async watchChanges() {
+    const changeStreamProcessInstance = this.processInstancesModel.watch();
+    changeStreamProcessInstance.on('change', async (change) => {
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        await this.dataSource
+          .getRepository(SqlProcessInstance)
+          .save( newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.processInstancesModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlProcessInstance)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+
+    const changeStreamProcessinstanceDetail = this.processInstanceDetailsModel.watch();
+      changeStreamProcessinstanceDetail.on('change', async (change) => {
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        await this.dataSource
+          .getRepository(SqlProcessInsatnceDetail)
+          .save( newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.processInstanceDetailsModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlProcessInsatnceDetail)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+   
+  }
   async getTaskDetail(processId, taskId, token) {
     try {
       // let subscription = await this.subscriptionService.validateSubscription(

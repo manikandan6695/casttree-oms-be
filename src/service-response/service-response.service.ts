@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Req } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -10,10 +10,12 @@ import { ServiceRequestService } from "src/service-request/service-request.servi
 import { UPDATE_NOMINATION_STATUS } from "src/shared/app.constants";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { SharedService } from "src/shared/shared.service";
+import { DataSource } from "typeorm";
 import { ServiceResponseDTO } from "./dto/service-response.dto";
 import { EServiceResponse } from "./enum/service-response.enum";
 import { IUpdateNominationStatusByRequestEvent } from "./interfaces/update-service-response.interface";
 import { IServiceResponseModel } from "./schema/service-response.schema";
+import { SqlServiceResponse } from "./sqlTables/serviceResponse";
 
 @Injectable()
 export class ServiceResponseService {
@@ -26,9 +28,38 @@ export class ServiceResponseService {
     private serviceRequestService: ServiceRequestService,
     private shared_service: SharedService,
     private helperService: HelperService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    private dataSource: DataSource
   ) {}
+  async onModuleInit() {
+    this.watchChanges();
+  }
 
+  async watchChanges() {
+    const changeStreamProcessInstance = this.serviceResponseModel.watch();
+    changeStreamProcessInstance.on('change', async (change) => {
+      if (change.operationType === 'insert') {
+        const newData = change.fullDocument;
+        newData.id = newData._id;
+        newData.created_at =  newData.created_at.toISOString();
+        newData.updated_at =  newData.updated_at.toISOString();
+        await this.dataSource
+          .getRepository(SqlServiceResponse)
+          .save( newData);
+      }
+     if (change.operationType === 'update') {
+       const updatedData = await this.serviceResponseModel.findOne({ _id: change.documentKey._id }).lean();
+        await this.dataSource
+          .createQueryBuilder()
+          .update(SqlServiceResponse)
+          .set(updatedData)
+          .where('id = :id', { id: (change.documentKey._id).toString() })
+          .execute();
+      }
+    });
+
+   
+  }
   async saveServiceResponse(
     body: ServiceResponseDTO,
     token: UserToken,
