@@ -41,6 +41,7 @@ export class ProcessService {
       //   processId,
       //   token.id
       // );
+      
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
@@ -102,6 +103,7 @@ export class ProcessService {
       }
       let subscription = await this.subscriptionService.validateSubscription(
         token.id,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
         [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let payment = await this.paymentService.getPaymentDetailBySource(
@@ -219,6 +221,7 @@ export class ProcessService {
             await this.processInstancesModel.updateOne(
               { _id: checkInstanceHistory._id },
               { $set: { currentTask: taskId, updated_at: currentTimeIso } }
+          
             );
           let processInstanceDetailBody = {
             processInstanceId: checkInstanceHistory._id,
@@ -267,6 +270,7 @@ export class ProcessService {
   async updateProcessInstance(body, token) {
     try {
 
+
       let isLastTask = false;
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
@@ -279,6 +283,7 @@ export class ProcessService {
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
           const endAt = newTime.toISOString();
+     
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
@@ -300,9 +305,11 @@ export class ProcessService {
       await this.helperService.mixPanel(mixPanelBody);
       if (totalTasks == taskDetail.taskNumber) {
 
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.series_complete;
         mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber };
         mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber };
         await this.helperService.mixPanel(mixPanelBody);
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
@@ -437,6 +444,7 @@ export class ProcessService {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
         [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
