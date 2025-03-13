@@ -231,7 +231,7 @@ export class ServiceItemService {
         500,
         country_code
       );
-      console.log("called detail api 3: " + moreExpertsData);
+  
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
         if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
@@ -386,7 +386,7 @@ export class ServiceItemService {
     country_code?: string
   ) {
     try {
-      console.log("Pavan",userId);
+     
       let userCountryCode;
       let userData;
       if (userId) {
@@ -397,7 +397,7 @@ export class ServiceItemService {
           await this.helperService.updateUserIpById(country_code, userId);
           userCountryCode = country_code
         }
-        console.log(userData,userCountryCode);
+
       }
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
@@ -595,6 +595,7 @@ export class ServiceItemService {
         processIds,
         userId
       );
+
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
@@ -786,7 +787,7 @@ export class ServiceItemService {
       let plandata: any = await this.itemService.getItemsDetails(ids);
 
       /*if (country_code) {
-         console.log("code:"+country_code );
+
          ids.push(new ObjectId(processPricingData.itemId._id));
          let priceListData = await this.getPriceListItems(ids, country_code);
          plandata.forEach((e) => {
