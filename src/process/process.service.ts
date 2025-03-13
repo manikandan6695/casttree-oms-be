@@ -491,7 +491,6 @@ export class ProcessService {
           userId,
           EPaymentSourceType.processInstance
         );
-        console.log({ payment, userId });
         payment.paymentData.map((data) => {
           paidInstances.push(data.salesDocument.source_id.toString())
         })
