@@ -30,7 +30,7 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
-    private helperService : HelperService
+    private helperService: HelperService
   ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
@@ -41,7 +41,7 @@ export class ProcessService {
       //   processId,
       //   token.id
       // );
-      let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
+      let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
         _id: taskId,
@@ -62,11 +62,11 @@ export class ProcessService {
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
       });
-      let mixPanelBody : any = {};
-        mixPanelBody.eventName =EMixedPanelEvents.initiate_episode;
-        mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":currentTaskData.title , "task_number": currentTaskData.taskNumber };
-        await this.helperService.mixPanel(mixPanelBody);
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": currentTaskData.title, "task_number": currentTaskData.taskNumber };
+      await this.helperService.mixPanel(mixPanelBody);
       let nextTask = {};
       if (nextTaskData) {
         //nextTaskData = await this.tasksModel.findOne({ processId: processId });
@@ -102,7 +102,7 @@ export class ProcessService {
       }
       let subscription = await this.subscriptionService.validateSubscription(
         token.id,
-        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let payment = await this.paymentService.getPaymentDetailBySource(
         createProcessInstanceData.instanceDetails._id,
@@ -218,7 +218,7 @@ export class ProcessService {
           let updateProcessInstanceTask =
             await this.processInstancesModel.updateOne(
               { _id: checkInstanceHistory._id },
-              { $set: { currentTask: taskId ,updated_at:currentTimeIso} }
+              { $set: { currentTask: taskId, updated_at: currentTimeIso } }
             );
           let processInstanceDetailBody = {
             processInstanceId: checkInstanceHistory._id,
@@ -266,7 +266,7 @@ export class ProcessService {
 
   async updateProcessInstance(body, token) {
     try {
-      
+
       let isLastTask = false;
       let processInstanceBody = {};
       let processInstanceDetailBody = {};
@@ -278,7 +278,7 @@ export class ProcessService {
           const newTime = new Date(
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
-          const endAt = newTime.toISOString();   
+          const endAt = newTime.toISOString();
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
@@ -292,18 +292,18 @@ export class ProcessService {
       let totalTasks = await this.tasksModel.countDocuments({
         processId: taskDetail.processId,
       });
-      let serviceItemDetail :any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName =EMixedPanelEvents.episode_complete;
-        mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
-        await this.helperService.mixPanel(mixPanelBody);
+      let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyProcessId(taskDetail.processId);
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber };
+      await this.helperService.mixPanel(mixPanelBody);
       if (totalTasks == taskDetail.taskNumber) {
-   
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.series_complete;
         mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name":taskDetail.title , "task_number": taskDetail.taskNumber };
+        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber };
         await this.helperService.mixPanel(mixPanelBody);
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
         let processInstanceData = await this.processInstancesModel.updateOne(
@@ -338,24 +338,24 @@ export class ProcessService {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         userId,
-        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
-      let paidInstances=[];
-      if(!subscription){
+      let paidInstances = [];
+      if (!subscription) {
         let payment = await this.paymentService.getPaymentDetailBySource(
           "",
           userId,
           EPaymentSourceType.processInstance
         );
 
-       
-        payment.paymentData.map((data)=>{
+
+        payment.paymentData.map((data) => {
           paidInstances.push(data.salesDocument.source_id.toString())
         })
 
       }
 
-      
+
       const pendingTasks: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: EprocessStatus.Started })
         .populate("currentTask")
@@ -366,11 +366,11 @@ export class ProcessService {
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
         });
-        if(subscription){
+        if (subscription) {
           pendingTasks[i].currentTask.isLocked = false;
         }
-        if(paidInstances.length>0){
-          if(paidInstances.includes(pendingTasks[i]._id.toString())){
+        if (paidInstances.length > 0) {
+          if (paidInstances.includes(pendingTasks[i]._id.toString())) {
             pendingTasks[i].currentTask.isLocked = false;
           }
         }
@@ -381,7 +381,7 @@ export class ProcessService {
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
-   
+
       return pendingTasks;
     } catch (err) {
       throw err;
@@ -437,7 +437,7 @@ export class ProcessService {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         token.id,
-        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
         .find({ processId: processId, createdBy: token.id })
@@ -482,31 +482,23 @@ export class ProcessService {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         userId,
-        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
-      let paidInstances=[];
-      if(!subscription){
+      let paidInstances = [];
+      if (!subscription) {
         let payment = await this.paymentService.getPaymentDetailBySource(
           "",
           userId,
           EPaymentSourceType.processInstance
         );
-        console.log({payment,userId});
-        payment.paymentData.map((data)=>{
+        console.log({ payment, userId });
+        payment.paymentData.map((data) => {
           paidInstances.push(data.salesDocument.source_id.toString())
         })
       }
-      let userProcessInstances = await this.processInstancesModel.find({userId: userId});
+      let userProcessInstances = await this.processInstancesModel.find({ userId: userId });
       let sourceIds = [];
-      userProcessInstances.map((data)=>{sourceIds.push(data._id)});
-     
-      let payment = await this.paymentService.getPaymentDetailBySource(
-        "",
-        userId,
-       EPaymentSourceType.processInstance
-
-      );
-      //return payment;
+      userProcessInstances.map((data) => { sourceIds.push(data._id) });
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
         { $match: { processId: { $in: processObjIds } } },
@@ -519,7 +511,7 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-      let processInstanceData : any = await this.processInstancesModel
+      let processInstanceData: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: EprocessStatus.Started })
         .populate("currentTask").lean();
       let activeProcessIds = [];
@@ -529,11 +521,11 @@ export class ProcessService {
         });
       }
       const currentTaskObject = processInstanceData.reduce((a, c) => {
-        if(subscription){
+        if (subscription) {
           c.currentTask.isLocked = false;
-         
-        }if(paidInstances.length>0){
-          if(paidInstances.includes(c._id.toString())){
+
+        } if (paidInstances.length > 0) {
+          if (paidInstances.includes(c._id.toString())) {
             c.currentTask.isLocked = false;
           }
         }
