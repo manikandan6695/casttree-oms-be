@@ -8,6 +8,7 @@ import { HelperService } from "src/helper/helper.service";
 import { EcomponentType, Eheader } from "src/item/enum/courses.enum";
 import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
+import { EPaymentSourceType } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EprocessStatus, EsubscriptionStatus, EtaskType } from "./enums/process.enum";
@@ -335,21 +336,52 @@ export class ProcessService {
 
   async pendingProcess(userId) {
     try {
+      let subscription = await this.subscriptionService.validateSubscription(
+        userId,
+        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+      );
+      let paidInstances=[];
+      if(!subscription){
+        let payment = await this.paymentService.getPaymentDetailBySource(
+          "",
+          userId,
+          EPaymentSourceType.processInstance
+        );
+
+       
+        payment.paymentData.map((data)=>{
+          paidInstances.push(data.salesDocument.source_id.toString())
+        })
+
+      }
+
+      
       const pendingTasks: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: EprocessStatus.Started })
         .populate("currentTask")
         .sort({ updated_at: -1 })
         .lean();
-
+      let userProcessInstances = [];
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
         });
+        if(subscription){
+          pendingTasks[i].currentTask.isLocked = false;
+        }
+        if(paidInstances.length>0){
+          if(paidInstances.includes(pendingTasks[i]._id.toString())){
+            pendingTasks[i].currentTask.isLocked = false;
+          }
+        }
         let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
+        userProcessInstances.push(pendingTasks[i]._id);
       }
+
+   
       return pendingTasks;
     } catch (err) {
       throw err;
@@ -448,6 +480,33 @@ export class ProcessService {
 
   async getFirstTask(processIds, userId) {
     try {
+      let subscription = await this.subscriptionService.validateSubscription(
+        userId,
+        [EsubscriptionStatus.initiated,EsubscriptionStatus.expired]
+      );
+      let paidInstances=[];
+      if(!subscription){
+        let payment = await this.paymentService.getPaymentDetailBySource(
+          "",
+          userId,
+          EPaymentSourceType.processInstance
+        ); 
+        payment.paymentData.map((data)=>{
+          paidInstances.push(data.salesDocument.source_id.toString())
+        })
+
+      }
+      /*let userProcessInstances = await this.processInstancesModel.find({userId: userId});
+      let sourceIds = [];
+      userProcessInstances.map((data)=>{sourceIds.push(data._id)});
+     
+      let payment = await this.paymentService.getPaymentDetailBySource(
+        "",
+        userId,
+        sourceIds
+
+      );*/
+      //return payment;
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
         { $match: { processId: { $in: processObjIds } } },
@@ -460,9 +519,9 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-      let processInstanceData = await this.processInstancesModel
+      let processInstanceData : any = await this.processInstancesModel
         .find({ userId: userId, processStatus: EprocessStatus.Started })
-        .populate("currentTask");
+        .populate("currentTask").lean();
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
         processInstanceData.map((a) => {
@@ -470,12 +529,21 @@ export class ProcessService {
         });
       }
       const currentTaskObject = processInstanceData.reduce((a, c) => {
+        if(subscription){
+          c.currentTask.isLocked = false;
+         
+        }if(paidInstances.length>0){
+          if(paidInstances.includes(c._id.toString())){
+            c.currentTask.isLocked = false;
+          }
+        }
         a[c.processId] = c.currentTask;
         return a;
       }, {});
       for (let i = 0; i < data.length; i++) {
         if (activeProcessIds.includes(data[i].processId.toString())) {
           let processId = data[i].processId.toString();
+
           data[i] = currentTaskObject[processId];
         }
       }
