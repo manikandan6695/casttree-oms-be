@@ -345,6 +345,7 @@ export class PaymentRequestService {
 
   async getPaymentDetailBySource(sourceId: string, userId: string, type?: string) {
     try {
+      console.log(sourceId,userId,type);
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
         $match: { user_id: new ObjectId(userId) },
@@ -368,20 +369,18 @@ export class PaymentRequestService {
           },
         }
       );
-      if (type == "EPaymentSourceType.processInstance ") {
+      if (type == EPaymentSourceType.processInstance) {
         aggregation_pipeline.push({
-          $match: { "salesDocument.sourceType": EPaymentSourceType.processInstance, document_status : EPaymentStatus.completed },
+          $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status" : EPaymentStatus.completed }
         });
-      } if(sourceId != "") {
+      if(sourceId != "") {
         aggregation_pipeline.push({
           $match: { "salesDocument.source_id": new ObjectId(sourceId) },
         });
-      }
+      }}
+ let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
-
-      let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
-
-      return { paymentData };
+   return { paymentData };
     } catch (err) {
       throw err;
     }

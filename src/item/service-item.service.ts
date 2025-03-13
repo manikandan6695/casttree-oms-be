@@ -595,6 +595,7 @@ export class ServiceItemService {
         processIds,
         userId
       );
+      console.log({firstTasks});
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;

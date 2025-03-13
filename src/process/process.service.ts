@@ -490,22 +490,22 @@ export class ProcessService {
           "",
           userId,
           EPaymentSourceType.processInstance
-        ); 
+        );
+        console.log({payment,userId});
         payment.paymentData.map((data)=>{
           paidInstances.push(data.salesDocument.source_id.toString())
         })
-
       }
-      /*let userProcessInstances = await this.processInstancesModel.find({userId: userId});
+      let userProcessInstances = await this.processInstancesModel.find({userId: userId});
       let sourceIds = [];
       userProcessInstances.map((data)=>{sourceIds.push(data._id)});
      
       let payment = await this.paymentService.getPaymentDetailBySource(
         "",
         userId,
-        sourceIds
+       EPaymentSourceType.processInstance
 
-      );*/
+      );
       //return payment;
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
