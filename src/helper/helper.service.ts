@@ -4,7 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
-
+import axios from 'axios'
 @Injectable()
 export class HelperService {
   constructor(
@@ -318,6 +318,7 @@ export class HelperService {
     }
   }
 
+
   async mixPanel(body: any) {
     try {
       let data = await this.http_service
@@ -332,6 +333,23 @@ export class HelperService {
       throw err;
     }
   }
+  async getConversionRate(fromCurrency: string, amount: number): Promise<number> {
+    try {
+      const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
+      let toCurrency = "INR"
+      const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
+      const response = await axios.get(url);
+      console.log("API Response:", response.data);
+      const conversionRate = response.data?.conversion_result;
+      console.log(`Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`);
+      return conversionRate;
+    } catch (error: any) {
+      console.error("Failed to fetch conversion rate:", error.message);
+      return null;
+    }
+  }
+
+
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {

@@ -8,7 +8,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private helperService: HelperService
-  ) {}
+  ) { }
 
   async use(
     request: Request,
@@ -23,32 +23,49 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       headers["x-real-ip"] ||
       "";
     console.log("latAndLong: ", latAndLong, "ipAddress : ", ipAddress);
-    let userId = headers["x-user-id"];
+    let userId = headers["x-userid"];
     let countryCode: any = userId
       ? await this.cacheManager.get(`countryCode-${userId}`)
       : "";
-    if (!countryCode) {
-      if (latAndLong) {
-        let [latitude, longitude] = latAndLong.split(",");
-        countryCode = await this.helperService.getCountryCodeByLatAndLong(
-          latitude,
-          longitude
-        );
-        console.log("country code inside lat long ===>", countryCode);
-      } else if (ipAddress) {
+    console.log("country code ===>", countryCode);
+    console.log("userId ===>", userId);
+
+
+    if (userId) {
+
+      if (!countryCode) {
+
+        if (latAndLong) {
+          let [latitude, longitude] = latAndLong.split(",");
+          countryCode = await this.helperService.getCountryCodeByLatAndLong(
+            latitude,
+            longitude
+          );
+          // console.log("country code inside lat long ===>", countryCode);
+        } else if (ipAddress) {
+          countryCode =
+            await this.helperService.getCountryCodeByIpAddress(ipAddress);
+          // console.log("country code inside ipAddress ===>", countryCode);
+          // console.log("step3");
+        }
+        if (countryCode && userId) {
+          await this.cacheManager.set(
+            `countryCode-${userId}`,
+            countryCode,
+            86400000
+          );
+          // console.log("step4");
+        }
+      }
+      else {
         countryCode =
           await this.helperService.getCountryCodeByIpAddress(ipAddress);
-        console.log("country code inside ipAddress ===>", countryCode);
-      }
-      if (countryCode && userId) {
-        await this.cacheManager.set(
-          `countryCode-${userId}`,
-          countryCode,
-          86400000
-        );
+        // console.log("country code inside ipAddress ===>", countryCode);
+        // console.log("step3");
       }
     }
     request.headers["x-country-code"] = countryCode;
+    // console.log("end");
     next();
   }
 }
