@@ -327,7 +327,7 @@ export class ServiceItemService {
       currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
       const uniqueArray = [];
       serviceItemData.map((data) => { uniqueArray.push(data.itemId._id) });
-      if (country_code != "IN") {
+      if (country_code) {
 
         let priceListData = await this.getPriceListItems(
           uniqueArray,
@@ -750,7 +750,7 @@ export class ServiceItemService {
            processPrice["comparePrice"];
          processPricingData.itemId["currency"] = processPrice["currency"];
        }*/
-      if (country_code != "IN") {
+      if (country_code ) {
         ids.push(new ObjectId(processPricingData.itemId._id));
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
@@ -873,7 +873,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code != "IN") {
+      if (country_code) {
 
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
@@ -886,18 +886,7 @@ export class ServiceItemService {
         });
 
       }
-      /* if (country_code != "" && country_code != "IN") {
- 
-         let priceListData = await this.getPriceListItems(ids, country_code);
-         plandata.forEach((e) => {
-           let currData = priceListData[e._id.toString()];
-           if (currData) {
-             e["price"] = currData["price"];
-             e["comparePrice"] = currData["comparePrice"];
-             e["currency"] = currData["currency"];
-           }
-         });
-       }*/
+   
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
@@ -994,7 +983,7 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-      if (country_code != "IN") {
+      if (country_code ) {
         ids.push(new ObjectId(processPricingData.itemId._id));
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
@@ -1047,7 +1036,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (country_code != "IN") {
+      if (country_code ) {
         let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
