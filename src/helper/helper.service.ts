@@ -340,7 +340,7 @@ export class HelperService {
       const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
       const response = await axios.get(url);
       console.log("API Response:", response.data);
-      const conversionRate = response.data?.conversion_result;
+      const conversionRate = response.data?.conversion_rate;
       console.log(`Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`);
       return conversionRate;
     } catch (error: any) {
