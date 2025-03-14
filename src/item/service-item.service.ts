@@ -68,21 +68,9 @@ export class ServiceItemService {
     //accessToken: string,
     skip: number,
     limit: number,
-    country_code: string = "",
-    userId?: string
+    country_code: string = ""
   ) {
     try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -119,13 +107,13 @@ export class ServiceItemService {
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
-      if (userCountryCode) {
+      if (country_code) {
         const uniqueArray = [
           ...new Set(sourceIds.map((id) => new mongoose.Types.ObjectId(id))),
         ];
         let priceListData = await this.getPriceListItems(
           uniqueArray,
-          userCountryCode
+          country_code
         );
         serviceItemData.forEach((e) => {
           let currData = priceListData[e.itemId._id.toString()];
@@ -169,17 +157,7 @@ export class ServiceItemService {
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
 
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
+     
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
@@ -209,10 +187,10 @@ export class ServiceItemService {
       data["itemSold"] =
         parseInt(profileInfo[0].phoneNumber[9]) + 10 + totalFeedbacks.count;
       data["ratingsData"] = ratingInfo.data;
-      if (userCountryCode) {
+      if (country_code) {
         let priceListData = await this.getPriceListItems(
           [new mongoose.Types.ObjectId(data.itemId._id.toString())],
-          userCountryCode
+          country_code
         );
         let currData = priceListData[data.itemId._id.toString()];
         if (currData) {
@@ -299,17 +277,7 @@ export class ServiceItemService {
 
   ) {
     try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData?.data?.country_code) {
-          userCountryCode = userData?.data?.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
+      
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -359,11 +327,11 @@ export class ServiceItemService {
       currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
       const uniqueArray = [];
       serviceItemData.map((data) => { uniqueArray.push(data.itemId._id) });
-      if (userCountryCode != "IN") {
+      if (country_code != "IN") {
 
         let priceListData = await this.getPriceListItems(
           uniqueArray,
-          userCountryCode
+          country_code
         );
         serviceItemData.forEach((e) => {
           let currData = priceListData[e.itemId._id.toString()];
@@ -387,18 +355,6 @@ export class ServiceItemService {
   ) {
     try {
      
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData?.data?.country_code) {
-          userCountryCode = userData?.data?.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-
-      }
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate(
@@ -412,10 +368,10 @@ export class ServiceItemService {
 
         EprofileType.Expert
       );
-      if (userCountryCode) {
+      if (country_code) {
         let priceListData = await this.getPriceListItems(
           [new mongoose.Types.ObjectId(data.itemId._id.toString())],
-          userCountryCode
+          country_code
         );
         let currData = priceListData[data.itemId._id.toString()];
         if (currData) {
@@ -763,17 +719,7 @@ export class ServiceItemService {
 
   async getPlanDetails(processId, country_code: string = "", userId?) {
     try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
+    
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
@@ -804,9 +750,9 @@ export class ServiceItemService {
            processPrice["comparePrice"];
          processPricingData.itemId["currency"] = processPrice["currency"];
        }*/
-      if (userCountryCode != "IN") {
+      if (country_code != "IN") {
         ids.push(new ObjectId(processPricingData.itemId._id));
-        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -920,26 +866,16 @@ export class ServiceItemService {
 
   async getSubscriptionPlanDetails(country_code: string = "", userId?) {
     try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
+      
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (userCountryCode != "IN") {
+      if (country_code != "IN") {
 
-        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -1034,13 +970,6 @@ export class ServiceItemService {
       let userData;
       if (userId) {
         subscriptionData =  await this.subscriptionService.validateSubscription(userId,[EsubscriptionStatus.initiated]);
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
       }
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
@@ -1065,9 +994,9 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-      if (userCountryCode != "IN") {
+      if (country_code != "IN") {
         ids.push(new ObjectId(processPricingData.itemId._id));
-        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
@@ -1111,25 +1040,15 @@ export class ServiceItemService {
 
   async getPremiumDetails(country_code: string = "", userId?) {
     try {
-      let userCountryCode;
-      let userData;
-      if (userId) {
-        userData = await this.helperService.getUserById(userId);
-        if (userData.data.country_code) {
-          userCountryCode = userData.data.country_code;
-        } else {
-          await this.helperService.updateUserIpById(country_code, userId);
-          userCountryCode = country_code
-        }
-      }
+      
       let subscriptionItemIds: any = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 }).lean();
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      if (userCountryCode != "IN") {
-        let priceListData = await this.getPriceListItems(ids, userCountryCode);
+      if (country_code != "IN") {
+        let priceListData = await this.getPriceListItems(ids, country_code);
         plandata.forEach((e) => {
           let currData = priceListData[e._id.toString()];
           if (currData) {
