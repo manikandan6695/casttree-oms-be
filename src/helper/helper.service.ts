@@ -11,7 +11,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) { }
+  ) {}
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -66,7 +66,8 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/get-user-detail`,
-          { user_id: user_id },)
+          { user_id: user_id }
+        )
         .toPromise();
       return data;
     } catch (err) {
@@ -79,7 +80,8 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
-          { userId: user_id, country_code: country_code },)
+          { userId: user_id, country_code: country_code }
+        )
         .toPromise();
       return data;
     } catch (err) {
@@ -285,11 +287,24 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
-
-
       let data = await this.http_service
         .patch(
-          `${this.configService.get("CASTTREE_BASE_URL")}/user/${body.userId}`,
+          `${this.configService.get("CASHFREE_BASE_URL")}/user/${body.userId}`,
+          body
+        )
+        .toPromise();
+
+      return JSON.stringify(data.data);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createAuth(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}pg/subscriptions/pay`,
           body
         )
         .toPromise();
@@ -305,7 +320,7 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
-         //  `http://localhost:3000/casttree/mixpanel/track-event`,
+          //  `http://localhost:3000/casttree/mixpanel/track-event`,
           body
         )
         .toPromise();
@@ -314,28 +329,4 @@ export class HelperService {
       throw err;
     }
   }
-  // @OnEvent(EVENT_UPDATE_USER)
-  // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
-  //   try {
-  //     console.log("updateUserPayload", updateUserPayload);
-
-  //     await this.sharedService.updateEventProcessingStatus(
-  //       updateUserPayload?.commandSource,
-  //       ECommandProcessingStatus.InProgress
-  //     );
-  //     let user = await this.updateUser(updateUserPayload);
-  //     console.log("user", user);
-
-  //     await this.sharedService.updateEventProcessingStatus(
-  //       updateUserPayload?.commandSource,
-  //       ECommandProcessingStatus.Complete
-  //     );
-  //   } catch (err) {
-  //     console.error("err", err);
-  //     await this.sharedService.updateEventProcessingStatus(
-  //       updateUserPayload?.commandSource,
-  //       ECommandProcessingStatus.Failed
-  //     );
-  //   }
-  // }
 }

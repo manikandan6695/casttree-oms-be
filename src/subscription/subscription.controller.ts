@@ -82,11 +82,18 @@ export class SubscriptionController {
   async addSubscription(
     @Body(new ValidationPipe({ whitelist: true })) body: AddSubscriptionDTO,
     @GetToken() token: UserToken,
+    @Res() res: Response
   ) {
     try {
       let data = await this.subscriptionService.addSubscription(body, token);
       return data;
-    } catch (err) { }
+    } catch (err) { 
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response); 
+    }
   }
 
 
