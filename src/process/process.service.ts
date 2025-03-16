@@ -34,13 +34,7 @@ export class ProcessService {
   ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
-      // let subscription = await this.subscriptionService.validateSubscription(
-      //   token.id
-      // );
-      // let payment = await this.paymentService.getPaymentDetailBySource(
-      //   processId,
-      //   token.id
-      // );
+
 
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
       let currentTaskData: any = await this.tasksModel.findOne({
@@ -103,7 +97,6 @@ export class ProcessService {
       }
       let subscription = await this.subscriptionService.validateSubscription(
         token.id,
-        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
         [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let payment = await this.paymentService.getPaymentDetailBySource(
