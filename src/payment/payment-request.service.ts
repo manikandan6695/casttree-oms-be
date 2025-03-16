@@ -357,6 +357,7 @@ export class PaymentRequestService {
 
   async getPaymentDetailBySource(sourceId: string, userId: string, type?: string) {
     try {
+      console.log("sanjana:",sourceId,userId)
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
         $match: { user_id: new ObjectId(userId) },

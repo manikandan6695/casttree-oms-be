@@ -41,7 +41,7 @@ export class ProcessService {
       //   processId,
       //   token.id
       // );
-      
+
       let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyProcessId(processId);
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
@@ -221,7 +221,7 @@ export class ProcessService {
             await this.processInstancesModel.updateOne(
               { _id: checkInstanceHistory._id },
               { $set: { currentTask: taskId, updated_at: currentTimeIso } }
-          
+
             );
           let processInstanceDetailBody = {
             processInstanceId: checkInstanceHistory._id,
@@ -283,7 +283,7 @@ export class ProcessService {
             currentTime.getTime() + parseInt(body.timeDurationInMin) * 60000
           );
           const endAt = newTime.toISOString();
-     
+
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
@@ -442,15 +442,22 @@ export class ProcessService {
 
   async getAllTasks(processId, token: UserToken) {
     try {
-      let subscription = await this.subscriptionService.validateSubscription(
-        token.id,
-        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
-        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
-      );
+
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
         .find({ processId: processId, createdBy: token.id })
         .lean();
+        let payment;
+        let subscription = await this.subscriptionService.validateSubscription(
 
+          token.id,
+          [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
+        );
+        if(!subscription){
+           payment = await this.paymentService.getPaymentDetailBySource(
+            userProcessInstanceData[0].processInstanceId,
+            token.id
+          );
+        }
       let allTaskdata: any = await this.tasksModel
         .find({
           processId: processId,
@@ -458,21 +465,15 @@ export class ProcessService {
         .sort({ taskNumber: 1 })
         .lean();
       let createdInstanceTasks = [];
-      for (let i = 0; i < userProcessInstanceData.length; i++) {
-        createdInstanceTasks.push(userProcessInstanceData[i].taskId.toString());
-        let payment = await this.paymentService.getPaymentDetailBySource(
-          userProcessInstanceData[i].processInstanceId,
-          token.id
-        );
-
-        if (subscription || payment?.paymentData?.length) {
-          allTaskdata.forEach((task) => {
-            task.isLocked = false;
-          });
-        }
-      }
+      userProcessInstanceData.map((data)=>{
+        createdInstanceTasks.push(data.taskId.toString());
+      });
+      
 
       allTaskdata.forEach((task) => {
+        if(subscription || payment.paymentData.lenght > 0){
+          task.isLocked = false;
+        }
         if (createdInstanceTasks.includes(task._id.toString())) {
           task.isCompleted = true;
         } else {
