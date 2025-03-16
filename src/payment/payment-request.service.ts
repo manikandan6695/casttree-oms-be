@@ -364,22 +364,19 @@ export class PaymentRequestService {
             foreignField: "_id",
             as: "salesDocument",
           },
-        },
-       {
-          $match: sourceId ? { "salesDocument.source_id": new ObjectId(sourceId) }:{},
-        },
-        {
-          $unwind: {
-            path: "$salesDocument",
-            preserveNullAndEmptyArrays: true,
-          },
-        }
-      );
-      if (type == EPaymentSourceType.processInstance) {
-        aggregation_pipeline.push({
-          $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
         });
+      sourceId != "" ? aggregation_pipeline.push({
+        $match: { "salesDocument.source_id": new ObjectId(sourceId),  "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+      }) : aggregation_pipeline.push({
+        $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+      });
+      aggregation_pipeline.push({
+        $unwind: {
+          path: "$salesDocument",
+          preserveNullAndEmptyArrays: true,
+        },
       }
+      );
       let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
       return { paymentData };
