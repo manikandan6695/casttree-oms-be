@@ -1,10 +1,10 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import axios from 'axios';
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
-import axios from 'axios'
 @Injectable()
 export class HelperService {
   constructor(
@@ -77,8 +77,8 @@ export class HelperService {
   async updateUserIpById(country_code, user_id) {
     try {
       let data = await this.http_service
-        .post(
-          `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
+        .patch(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/${user_id}`,
           { userId: user_id, country_code: country_code },)
         .toPromise();
       return data;
@@ -340,7 +340,7 @@ export class HelperService {
       const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
       const response = await axios.get(url);
       console.log("API Response:", response.data);
-      const conversionRate = response.data?.conversion_result;
+      const conversionRate = response.data?.conversion_rate;
       console.log(`Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`);
       return conversionRate;
     } catch (error: any) {

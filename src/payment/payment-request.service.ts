@@ -65,14 +65,14 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
-     
+
 
         body["serviceRequest"] = {
           ...body.serviceRequest,
           sourceId: invoiceData._id,
           sourceType: EDocument.sales_document,
         };
-   
+
 
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
@@ -80,7 +80,7 @@ export class PaymentRequestService {
         );
       }
 
- 
+
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
@@ -177,7 +177,7 @@ export class PaymentRequestService {
     currency = null,
     orderDetail = null
   ) {
- 
+
 
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
@@ -210,24 +210,16 @@ export class PaymentRequestService {
   async updatePaymentRequest(body, @Req() req) {
     try {
       let paymentData = await this.paymentModel.findOne({ _id: body.id });
-      console.log("paymentData", paymentData);
-
-
-
       if (paymentData.currencyCode !== "INR") {
-        const fromCurrency = paymentData.currencyCode;
-        const conversionRate = await this.helperService.getConversionRate(paymentData.currencyCode,paymentData.amount);
-        console.log("Conversion Rate:", conversionRate);
-
-
-
+        const conversionRate = await this.helperService.getConversionRate(paymentData.currencyCode, paymentData.amount);
+        let amt = parseInt((paymentData.amount * conversionRate).toString())
         await this.paymentModel.updateOne(
           { _id: paymentData._id },
           {
             $set: {
               conversionRate: conversionRate,
               baseCurrency: "INR",
-              baseAmount: paymentData.amount,
+              baseAmount: amt,
             },
           }
         );
@@ -249,7 +241,7 @@ export class PaymentRequestService {
   async getPaymentDetail(id: string) {
     try {
       let payment = await this.paymentModel.findOne({ _id: id });
-  
+
       return { payment };
     } catch (err) {
       throw err;
@@ -357,6 +349,7 @@ export class PaymentRequestService {
 
   async getPaymentDetailBySource(sourceId: string, userId: string, type?: string) {
     try {
+      console.log("sanjana:",sourceId,userId)
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
         $match: { user_id: new ObjectId(userId) },
@@ -382,16 +375,17 @@ export class PaymentRequestService {
       );
       if (type == EPaymentSourceType.processInstance) {
         aggregation_pipeline.push({
-          $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status" : EPaymentStatus.completed }
+          $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
         });
-      if(sourceId != "") {
-        aggregation_pipeline.push({
-          $match: { "salesDocument.source_id": new ObjectId(sourceId) },
-        });
-      }}
- let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
+        if (sourceId != "") {
+          aggregation_pipeline.push({
+            $match: { "salesDocument.source_id": new ObjectId(sourceId) },
+          });
+        }
+      }
+      let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
-   return { paymentData };
+      return { paymentData };
     } catch (err) {
       throw err;
     }
