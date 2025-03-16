@@ -855,8 +855,8 @@ export class ServiceItemService {
       if (country_code) {
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, plandata);
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data.itemId._id]) {
-            data = itemListObjectWithUpdatedPrice[data.itemId._id];
+          if (itemListObjectWithUpdatedPrice[data._id]) {
+            data = itemListObjectWithUpdatedPrice[data._id];
           }
         });
 

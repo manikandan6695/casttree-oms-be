@@ -347,9 +347,8 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(sourceId: string, userId: string, type?: string) {
+  async getPaymentDetailBySource(userId: string,sourceId?: string,  type?: string) {
     try {
-      console.log("sanjana:",sourceId,userId)
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
         $match: { user_id: new ObjectId(userId) },
@@ -365,24 +364,19 @@ export class PaymentRequestService {
             foreignField: "_id",
             as: "salesDocument",
           },
-        },
-        {
-          $unwind: {
-            path: "$salesDocument",
-            preserveNullAndEmptyArrays: true,
-          },
-        }
-      );
-      if (type == EPaymentSourceType.processInstance) {
-        aggregation_pipeline.push({
-          $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
         });
-        if (sourceId != "") {
-          aggregation_pipeline.push({
-            $match: { "salesDocument.source_id": new ObjectId(sourceId) },
-          });
-        }
+      sourceId ? aggregation_pipeline.push({
+        $match: { "salesDocument.source_id": new ObjectId(sourceId),  "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+      }) : aggregation_pipeline.push({
+        $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+      });
+      aggregation_pipeline.push({
+        $unwind: {
+          path: "$salesDocument",
+          preserveNullAndEmptyArrays: true,
+        },
       }
+      );
       let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
       return { paymentData };
