@@ -285,12 +285,10 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
-
-
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/${body.userId}`,
-
+          // `http://localhost:3000/casttree/user/${body.userId}`,
           body
         )
         .toPromise();
@@ -301,17 +299,17 @@ export class HelperService {
     }
   }
   async updateUsers(body: any) {
-    try {
 
+    try {
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/remove-membership`,
-          //`http://localhost:3000/casttree/user/update-users`,
+          // `http://localhost:3000/casttree/user/remove-membership`,
 
           body
         )
         .toPromise();
-
+        
       return JSON.stringify(data.data);
     } catch (err) {
       throw err;
