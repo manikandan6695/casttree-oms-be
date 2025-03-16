@@ -9,6 +9,7 @@ import { SharedModule } from "src/shared/shared.module";
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
+import { SubscriptionFactory } from "./subscription.factory";
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { SubscriptionService } from "./subscription.service";
     forwardRef(() =>  ItemModule),
   ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService],
+  providers: [SubscriptionService,SubscriptionFactory],
   exports: [SubscriptionService],
 })
 export class SubscriptionModule {}

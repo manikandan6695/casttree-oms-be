@@ -332,7 +332,39 @@ export class HelperService {
     }
   }
 
-  async createSubscription(body) {
+  async getPlanDetails(planId: string) {
+    try {
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}pg/plans/${planId}`;
+
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .get(requestURL, { headers: headers })
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createSubscription(body, token) {
     try {
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
 
