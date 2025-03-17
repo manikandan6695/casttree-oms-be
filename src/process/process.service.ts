@@ -100,8 +100,9 @@ export class ProcessService {
         [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
       );
       let payment = await this.paymentService.getPaymentDetailBySource(
-        createProcessInstanceData.instanceDetails._id,
-        token.id
+        token.id,
+        createProcessInstanceData.instanceDetails._id
+    
       );
       finalResponse["isLocked"] = (subscription || payment.paymentData.length)
         ? false
@@ -343,8 +344,8 @@ export class ProcessService {
       let paidInstances = [];
       if (!subscription) {
         let payment = await this.paymentService.getPaymentDetailBySource(
-          "",
           userId,
+          null,
           EPaymentSourceType.processInstance
         );
 
@@ -447,8 +448,9 @@ export class ProcessService {
         );
         if(!subscription){
            payment = await this.paymentService.getPaymentDetailBySource(
-            userProcessInstanceData[0].processInstanceId,
-            token.id
+           
+            token.id,
+            userProcessInstanceData[0].processInstanceId
           );
         }
       let allTaskdata: any = await this.tasksModel
@@ -489,8 +491,9 @@ export class ProcessService {
       let paidInstances = [];
       if (!subscription) {
         let payment = await this.paymentService.getPaymentDetailBySource(
-          "",
+
           userId,
+          null,
           EPaymentSourceType.processInstance
         );
         payment.paymentData.map((data) => {
