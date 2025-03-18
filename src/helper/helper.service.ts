@@ -1,10 +1,10 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import axios from 'axios';
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
-
 @Injectable()
 export class HelperService {
   constructor(
@@ -77,8 +77,8 @@ export class HelperService {
   async updateUserIpById(country_code, user_id) {
     try {
       let data = await this.http_service
-        .post(
-          `${this.configService.get("CASTTREE_BASE_URL")}/helper/updateUserCountryCode`,
+        .patch(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/${user_id}`,
           { userId: user_id, country_code: country_code },)
         .toPromise();
       return data;
@@ -299,12 +299,10 @@ export class HelperService {
   }
   async updateUser(body: any) {
     try {
-
-
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/${body.userId}`,
-
+          // `http://localhost:3000/casttree/user/${body.userId}`,
           body
         )
         .toPromise();
@@ -315,22 +313,23 @@ export class HelperService {
     }
   }
   async updateUsers(body: any) {
-    try {
 
+    try {
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/remove-membership`,
-          //`http://localhost:3000/casttree/user/update-users`,
+          // `http://localhost:3000/casttree/user/remove-membership`,
 
           body
         )
         .toPromise();
-
+        
       return JSON.stringify(data.data);
     } catch (err) {
       throw err;
     }
   }
+
 
   async mixPanel(body: any) {
     try {
@@ -346,6 +345,23 @@ export class HelperService {
       throw err;
     }
   }
+  async getConversionRate(fromCurrency: string, amount: number): Promise<number> {
+    try {
+      const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
+      let toCurrency = "INR"
+      const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
+      const response = await axios.get(url);
+      console.log("API Response:", response.data);
+      const conversionRate = response.data?.conversion_rate;
+      console.log(`Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`);
+      return conversionRate;
+    } catch (error: any) {
+      console.error("Failed to fetch conversion rate:", error.message);
+      return null;
+    }
+  }
+
+
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {

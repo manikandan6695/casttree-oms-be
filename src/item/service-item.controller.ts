@@ -37,6 +37,7 @@ export class ServiceItemController {
     //,@GetToken() token: UserToken,
   ) {
     try {
+      console.log("countrycode: ", req.headers["x-country-code"],req.headers["x-userid"]);
       let data = await this.serviceItemService.getPromotionDetails(processId,
         req.headers["x-country-code"] ?? "", req.headers["x-userid"]);
       return data;
@@ -71,13 +72,11 @@ export class ServiceItemController {
     //@GetToken() token: UserToken
   ) {
     try {
-
-
       let data = await this.serviceItemService.getServiceItems(
         query,
         skip,
         limit,
-        req.headers["x-country-code"], req.headers["x-userid"]
+        req.headers["x-country-code"]
       );
       return data;
     } catch (err) {
@@ -138,8 +137,9 @@ export class ServiceItemController {
 
   @UseGuards(JwtAuthGuard)
   @Get("courses/home-screen-data")
-  async getCourseHomeScreenData(@GetToken() token: UserToken) {
+  async getCourseHomeScreenData(@GetToken() token: UserToken, @Req() req) {
     try {
+     console.log("countrycode is :" + req.headers["x-country-code"])
       let data = await this.serviceItemService.getCourseHomeScreenData(
         token.id
       );
