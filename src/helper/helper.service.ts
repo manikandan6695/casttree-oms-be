@@ -303,7 +303,7 @@ export class HelperService {
 
   async createAuth(body) {
     try {
-      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}pg/subscriptions/pay`;
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/pay`;
       const headers = {
         "x-api-version": "2025-01-01",
         "Content-Type": "application/json",
@@ -334,7 +334,7 @@ export class HelperService {
 
   async getPlanDetails(planId: string) {
     try {
-      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}pg/plans/${planId}`;
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/plans/${planId}`;
 
       const headers = {
         "x-api-version": "2025-01-01",

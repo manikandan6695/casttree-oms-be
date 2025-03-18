@@ -42,6 +42,10 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   authDays: string;
+
+  @IsOptional()
+  @IsNumber()
+  subscriptionExpiry: number;
 }
 
 export class AddSubscriptionDTO {
