@@ -281,7 +281,7 @@ export class PaymentRequestService {
 
 
   async extractPaymentDetails(body) {
-   
+
     const itemId = new ObjectId(
       body?.payload?.payment?.entity?.notes.itemId
     );
@@ -339,7 +339,7 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(userId: string,sourceId?: string,  type?: string) {
+  async getPaymentDetailBySource(userId: string, sourceId?: string, type?: string) {
     try {
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
@@ -358,7 +358,7 @@ export class PaymentRequestService {
           },
         });
       sourceId ? aggregation_pipeline.push({
-        $match: { "salesDocument.source_id": new ObjectId(sourceId),  "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+        $match: { "salesDocument.source_id": new ObjectId(sourceId), "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
       }) : aggregation_pipeline.push({
         $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
       });
