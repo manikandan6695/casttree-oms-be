@@ -113,7 +113,7 @@ export class PaymentRequestService {
       if (body.couponCode != null) {
         body.amount = body.amount - body.discount;
       }
-      let requesId = serviceRequest?.request?._id.toString()
+      let requestId = serviceRequest?.request?._id.toString()
         ? serviceRequest?.request?._id.toString()
         : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
@@ -121,13 +121,14 @@ export class PaymentRequestService {
         body.currencyCode,
         body.currency,
         body.amount,
-        requesId,
+        requestId,
         accessToken,
         {
           invoiceId: invoiceData._id,
           itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
           userId: body.userId
+
         }
       );
 
@@ -232,7 +233,6 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in updatePaymentRequest:", err.message);
       throw err;
     }
   }
@@ -250,7 +250,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("payment webhook", req.body);
+
 
       const { invoiceId, status, payment, serviceRequest, itemId, amount, currency, userId } =
         await this.extractPaymentDetails(req.body);
@@ -272,7 +272,7 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in paymentWebhook:", err);
+
       return { message: "Failed to update payment status", error: err.message };
     }
   }
@@ -281,12 +281,7 @@ export class PaymentRequestService {
 
 
   async extractPaymentDetails(body) {
-    console.log(
-      "extrat payment invoice id",
-      body,
-      body?.payload?.payment?.entity?.notes.invoiceId,
-      body?.payload?.payment?.entity?.notes
-    );
+   
     const itemId = new ObjectId(
       body?.payload?.payment?.entity?.notes.itemId
     );
@@ -301,16 +296,13 @@ export class PaymentRequestService {
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
-    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-    console.log("payment", payment);
 
-    console.log("amount", amount);
 
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
@@ -386,15 +378,17 @@ export class PaymentRequestService {
   }
 
   async completePayment(ids) {
+
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
-      EDocumentStatus.completed
+      EDocumentStatus.completed,
+      ids.serviceRequestId
     );
     await this.updatePaymentRequest({
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     }, Req);
-    console.log("ids is ==>", ids);
+
 
 
     if (ids?.serviceRequestId) {
@@ -435,11 +429,11 @@ export class PaymentRequestService {
   //     );
 
   //     // Return the response data
-  //     console.log("current status  :  " + PaymentStatusResponse.data.status);
+
   //     this.updatePaymentRequest(PaymentStatusResponse.data);
   //   } catch (error) {
   //     // Handle errors
-  //     console.error("Error fetching data", error);
+
   //     throw error;
   //   }
   // }
@@ -453,7 +447,7 @@ export class PaymentRequestService {
   //       .createHmac("sha1", "casttree@2024")
   //       .update(JSON.stringify({ name: "pavan" }))
   //       .digest("hex");
-  //     console.log(hash);
+
   //   }
   // }
   // function hmac(arg0: string, message: any, key: any) {
