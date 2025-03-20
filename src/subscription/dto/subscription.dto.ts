@@ -1,4 +1,12 @@
-import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import {
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from "class-validator";
+import { EProvider } from "../enums/provider.enum";
 
 export class CreateSubscriptionDTO {
   @IsNotEmpty()
@@ -13,11 +21,31 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   @IsMongoId()
-  sourceId : string;
+  sourceId: string;
 
   @IsOptional()
   @IsString()
-  sourceType : string;
+  sourceType: string;
+
+  @IsNotEmpty()
+  @IsEnum(EProvider)
+  provider: EProvider;
+
+  @IsOptional()
+  @IsNumber()
+  authAmount: number;
+
+  @IsOptional()
+  @IsString()
+  redirectionUrl: string;
+
+  @IsOptional()
+  @IsString()
+  authDays: string;
+
+  @IsOptional()
+  @IsNumber()
+  subscriptionExpiry: number;
 }
 
 export class AddSubscriptionDTO {
@@ -27,24 +55,22 @@ export class AddSubscriptionDTO {
 
   @IsNotEmpty()
   @IsString()
-  currency : string;
+  currency: string;
 
   @IsNotEmpty()
   @IsNumber()
-  amount : number;
+  amount: number;
 
   @IsOptional()
   @IsNumber()
-  validity: number
+  validity: number;
 
   @IsOptional()
   @IsString()
-  validityType: string
+  validityType: string;
 }
 
 export class ValidateSubscriptionDTO {
-  
-
   @IsOptional()
-  status: string[]
+  status: string[];
 }

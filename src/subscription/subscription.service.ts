@@ -15,6 +15,7 @@ import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
+import { SubscriptionFactory } from "./subscription.factory";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 
 @Injectable()
@@ -22,6 +23,7 @@ export class SubscriptionService {
   constructor(
     @InjectModel("subscription")
     private readonly subscriptionModel: Model<ISubscriptionModel>,
+    private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
@@ -29,26 +31,95 @@ export class SubscriptionService {
     private itemService: ItemService
   ) { }
 
-  async createSubscription(body: CreateSubscriptionDTO, token: UserToken) {
+  async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
-      let fv = {
-        plan_id: body.planId,
-        total_count: 10,
-        quantity: 1,
-        notes: {
-          userId: token.id,
-          sourceId: body.sourceId,
-          sourceType: body.sourceType,
-          itemId: body.itemId,
-        },
-      };
+      let subscriptionData;
 
-      let data = await this.helperService.addSubscription(fv, token);
+      switch (body.provider) {
+        case "razorpay":
+          subscriptionData = {
+            plan_id: body.planId,
+            total_count: 10,
+            quantity: 1,
+            notes: {
+              userId: token.id,
+              sourceId: body.sourceId,
+              sourceType: body.sourceType,
+              itemId: body.itemId,
+            },
+          };
+          break;
+
+        case "cashfree":
+          const match = body.authDays.match(/(\d+)\s*days?/i);
+          let result = match ? match[1] : null;
+          let planData = await this.helperService.getPlanDetails(body.planId);
+          const subscriptionSequence = await this.sharedService.getNextNumber(
+            "cashfree-subscription",
+            "CSH-SUB",
+            5,
+            null
+          );
+
+          const subscriptionNumber = subscriptionSequence
+            .toString()
+            .padStart(5, "0");
+          subscriptionData = {
+            subscription_id: subscriptionNumber,
+            customer_details: {
+              customer_name: token.userName,
+              customer_email: "mani@gmail.com",
+              customer_phone: token.phoneNumber,
+            },
+            plan_details: {
+              plan_name: planData.plan_name,
+              plan_id: planData.plan_id,
+              plan_type: planData.plan_type,
+              plan_amount: planData.plan_recurring_amount,
+              plan_max_amount: planData.plan_max_amount,
+              plan_max_cycles: planData.plan_max_cycles,
+              plan_intervals: planData.plan_intervals,
+              plan_interval_type: planData.plan_interval_type,
+              plan_currency: planData.plan_currency,
+            },
+            authorization_details: {
+              authorization_amount: body.authAmount,
+              authorization_amount_refund: false,
+              payment_methods: ["upi"],
+            },
+            subscription_meta: {
+              return_url: body.redirectionUrl,
+            },
+            subscription_expiry_time: this.getExpiry(body.subscriptionExpiry),
+            subscription_first_charge_time: this.getFutureDateISO(result),
+          };
+          break;
+
+        default:
+          throw new Error(`Unsupported provider: ${body.provider}`);
+      }
+
+      const provider = this.subscriptionFactory.getProvider(body.provider);
+      const data = await provider.createSubscription(subscriptionData, token);
 
       return { data };
     } catch (err) {
       throw err;
     }
+  }
+
+  getFutureDateISO(days) {
+    console.log("days is", typeof days);
+
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + parseInt(days));
+    return futureDate.toISOString();
+  }
+
+  getExpiry(years) {
+    const currentDate = new Date();
+    currentDate.setFullYear(currentDate.getFullYear() + years);
+    return currentDate.toISOString();
   }
 
   async subscriptionWebhook(@Req() req) {
@@ -142,6 +213,27 @@ export class SubscriptionService {
         subscriptionStatus: { $nin: status },
         status: Estatus.Active,
       });
+      return subscription;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async subscription(body, token) {
+    try {
+      let subscriptionData = {
+        userId: token.id,
+        planId: body.planId,
+        startAt: body.startAt,
+        endAt: body.endAt,
+        notes: body.notes,
+        subscriptionStatus: body.subscriptionStatus,
+        metaData: body.metaData,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      };
+      let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
     } catch (err) {
       throw err;
