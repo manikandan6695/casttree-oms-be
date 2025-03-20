@@ -466,7 +466,7 @@ export class ProcessService {
       
 
       allTaskdata.forEach((task) => {
-        if(subscription || payment.paymentData.lenght > 0){
+        if(subscription || payment.paymentData.length > 0){
           task.isLocked = false;
         }
         if (createdInstanceTasks.includes(task._id.toString())) {
