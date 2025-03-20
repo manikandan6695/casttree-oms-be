@@ -110,7 +110,7 @@ export class ServiceItemService {
       if (country_code) {
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
         serviceItemData.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data.itemId._id]) {
+          if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
             data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
             data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
@@ -148,6 +148,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
+    
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
@@ -178,15 +179,18 @@ export class ServiceItemService {
       data["itemSold"] =
         parseInt(profileInfo[0]?.phoneNumber[9]) + 10 + totalFeedbacks?.count;
       data["ratingsData"] = ratingInfo.data;
-
+      
       if (country_code) {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        if(itemListObjectWithUpdatedPrice[data.itemId._id.toString()]){
         data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
         data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
         data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+        }
       }
+   
       let newQuery = {
         skillId: data.skill.skillId,
         type: EserviceItemType.feedback,
@@ -197,21 +201,23 @@ export class ServiceItemService {
         500,
         country_code
       );
+      
       const updatedMoreExpertsData = [];
-      for (let i = 0; i < moreExpertsData.data.length; i++) {
-        if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
+      if(moreExpertsData.data.length>0){
+      for (let i = 0; i < moreExpertsData?.data?.length; i++) {
+        if (moreExpertsData?.data[i]?._id?.toString() != data?._id?.toString()) {
           updatedMoreExpertsData.push({
-            _id: moreExpertsData.data[i]._id,
-            languages: moreExpertsData.data[i].language,
-            name: moreExpertsData.data[i].profileData.userName,
-            media: moreExpertsData.data[i].profileData.media,
-            is_verified: moreExpertsData.data[i].profileData.is_verified,
-            about: moreExpertsData.data[i].profileData.about,
-            tags: moreExpertsData.data[i].profileData.tags,
-            ratings: moreExpertsData.data[i].ratingData,
+            _id: moreExpertsData?.data[i]?._id,
+            languages: moreExpertsData?.data[i]?.language,
+            name: moreExpertsData?.data[i]?.profileData?.userName,
+            media: moreExpertsData?.data[i]?.profileData?.media,
+            is_verified: moreExpertsData?.data[i]?.profileData?.is_verified,
+            about: moreExpertsData?.data[i]?.profileData?.about,
+            tags: moreExpertsData?.data[i]?.profileData?.tags,
+            ratings: moreExpertsData?.data[i]?.ratingData,
           });
         }
-      }
+      }}
       if (data.type == EserviceItemType.feedback) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
@@ -219,7 +225,7 @@ export class ServiceItemService {
         mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
         await this.helperService.mixPanel(mixPanelBody);
       }
-      data["similarExperts"] = updatedMoreExpertsData;
+      data["similarExperts"] = updatedMoreExpertsData ;
       return data;
     } catch (err) {
       throw err;
@@ -283,10 +289,14 @@ export class ServiceItemService {
       filter["status"] = Estatus.Active;
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
-        .populate(
-          "itemId",
-          " itemName itemDescription additionalDetail price comparePrice orgId currency"
-        )
+        .populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        })
         .sort({ priorityOrder: 1 })
         .skip(skip)
         .limit(limit)
@@ -317,7 +327,7 @@ export class ServiceItemService {
 
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
         serviceItemData.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data.itemId._id]) {
+          if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
             data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
             data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
@@ -341,7 +351,7 @@ export class ServiceItemService {
         .findOne({ _id: id })
         .populate(
           "itemId",
-          " itemName itemDescription additionalDetail price comparePrice orgId currency"
+          "itemName itemDescription additionalDetail price comparePrice orgId currency"
         )
         .lean();
 
@@ -354,9 +364,11 @@ export class ServiceItemService {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        if(itemListObjectWithUpdatedPrice[data.itemId._id.toString()]){
         data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
         data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
         data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+        }
       }
       data["profileData"] = profileInfo[0];
       return data;
@@ -709,25 +721,6 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-
-      /*if (country_code) {
-
-         ids.push(new ObjectId(processPricingData.itemId._id));
-         let priceListData = await this.getPriceListItems(ids, country_code);
-         plandata.forEach((e) => {
-           let currData = priceListData[e._id.toString()];
-           if (currData) {
-             e["price"] = currData["price"];
-             e["comparePrice"] = currData["comparePrice"];
-             e["currency"] = currData["currency"];
-           }
-         });
-         let processPrice = priceListData[processPricingData.itemId._id];
-         processPricingData.itemId["price"] = processPrice["price"];
-         processPricingData.itemId["comparePrice"] =
-           processPrice["comparePrice"];
-         processPricingData.itemId["currency"] = processPrice["currency"];
-       }*/
       if (country_code) {
         ids.push(new ObjectId(processPricingData.itemId._id));
         let priceListData = await this.getPriceListItems(ids, country_code);
@@ -854,7 +847,7 @@ export class ServiceItemService {
       if (country_code) {
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data._id]) {
+          if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
             data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
             data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -961,7 +954,7 @@ export class ServiceItemService {
       if (country_code) {
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data._id]) {
+          if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
             data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
             data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1041,18 +1034,6 @@ export class ServiceItemService {
         uniqueArray,
         country_code
       );
-      /*itemIds.forEach((e) => {
-        let currData = priceListData[e["_id"].toString()];
-        if (currData) {
-          e["price"] = currData["price"];
-          e["comparePrice"] = currData["comparePrice"];
-          e["currency"] = currData["currency"];
-        }
-      });
-      let updatedItemObject = priceListData.reduce((a, c) => {
-        a[c["_id"]] = c;
-        return a;
-      }, {});*/
       return priceListData;
     }
 
