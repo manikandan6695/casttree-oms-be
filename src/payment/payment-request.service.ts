@@ -262,7 +262,6 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("payment webhook", req.body);
 
       // console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
       // var crypto = require("crypto");
@@ -308,12 +307,7 @@ export class PaymentRequestService {
 
 
   async extractPaymentDetails(body) {
-    console.log(
-      "extrat payment invoice id",
-      body,
-      body?.payload?.payment?.entity?.notes.invoiceId,
-      body?.payload?.payment?.entity?.notes
-    );
+ 
     const itemId = new ObjectId(body?.payload?.payment?.entity?.notes.itemId);
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
@@ -321,16 +315,13 @@ export class PaymentRequestService {
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
-    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-    console.log("payment", payment);
-
-    console.log("amount", amount);
+ 
 
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
@@ -431,7 +422,6 @@ export class PaymentRequestService {
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     }, Req);
-    console.log("ids is ==>", ids);
 
 
     if (ids?.serviceRequestId) {
