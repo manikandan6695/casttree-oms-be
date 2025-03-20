@@ -263,6 +263,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
+      console.log("payment webhook", req.body);
 
       // console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
       // var crypto = require("crypto");
@@ -316,6 +317,7 @@ export class PaymentRequestService {
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
+    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
@@ -423,6 +425,7 @@ export class PaymentRequestService {
       id: ids.paymentId,
       document_status: EDocumentStatus.completed,
     }, Req);
+    console.log("ids is ==>", ids);
 
 
     if (ids?.serviceRequestId) {
