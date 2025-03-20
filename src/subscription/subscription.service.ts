@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
@@ -15,7 +16,6 @@ import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 
 @Injectable()
 export class SubscriptionService {
@@ -151,7 +151,7 @@ export class SubscriptionService {
   async subscriptionComparision(token: UserToken) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: token.id,
+        userId: token.id,status:Estatus.Active
       });
 
       let item = await this.itemService.getItemDetail(

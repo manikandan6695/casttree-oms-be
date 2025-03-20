@@ -60,7 +60,7 @@ export class ProcessService {
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
       mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": currentTaskData.title, "task_number": currentTaskData.taskNumber,  "isLocked": currentTaskData.isLocked};
+      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": currentTaskData.title, "task_number": currentTaskData.taskNumber, "isLocked": currentTaskData.isLocked };
       await this.helperService.mixPanel(mixPanelBody);
       let nextTask = {};
       if (nextTaskData) {
@@ -102,7 +102,7 @@ export class ProcessService {
       let payment = await this.paymentService.getPaymentDetailBySource(
         token.id,
         createProcessInstanceData.instanceDetails._id
-    
+
       );
       finalResponse["isLocked"] = (subscription || payment.paymentData.length)
         ? false
@@ -295,7 +295,7 @@ export class ProcessService {
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
       mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber ,  "isLocked": taskDetail.isLocked};
+      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "task_name": taskDetail.title, "task_number": taskDetail.taskNumber, "isLocked": taskDetail.isLocked };
       await this.helperService.mixPanel(mixPanelBody);
       if (totalTasks == taskDetail.taskNumber) {
 
@@ -391,11 +391,35 @@ export class ProcessService {
 
   async getMySeries(userId, status) {
     try {
+      let subscription = await this.subscriptionService.validateSubscription(
+        userId,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
+      );
+      let paidInstances = [];
+      if (!subscription) {
+        let payment = await this.paymentService.getPaymentDetailBySource(
+
+          userId,
+          null,
+          EPaymentSourceType.processInstance
+        );
+        payment.paymentData.map((data) => {
+          paidInstances.push(data.salesDocument.source_id.toString())
+        })
+      }
       const mySeries: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: status })
         .populate("currentTask")
         .lean();
       for (let i = 0; i < mySeries.length; i++) {
+        if (subscription) {
+          mySeries[i].currentTask.isLocked = false;
+
+        } if (paidInstances.length > 0) {
+          if (paidInstances.includes(mySeries[i]._id.toString())) {
+            mySeries[i].currentTask.isLocked = false;
+          }
+        }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: mySeries[i].processId,
         });
@@ -440,19 +464,19 @@ export class ProcessService {
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
         .find({ processId: processId, createdBy: token.id })
         .lean();
-        let payment;
-        let subscription = await this.subscriptionService.validateSubscription(
+      let payment;
+      let subscription = await this.subscriptionService.validateSubscription(
+
+        token.id,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
+      );
+      if (!subscription) {
+        payment = await this.paymentService.getPaymentDetailBySource(
 
           token.id,
-          [EsubscriptionStatus.initiated, EsubscriptionStatus.expired]
+          userProcessInstanceData[0].processInstanceId
         );
-        if(!subscription){
-           payment = await this.paymentService.getPaymentDetailBySource(
-           
-            token.id,
-            userProcessInstanceData[0].processInstanceId
-          );
-        }
+      }
       let allTaskdata: any = await this.tasksModel
         .find({
           processId: processId,
@@ -460,13 +484,13 @@ export class ProcessService {
         .sort({ taskNumber: 1 })
         .lean();
       let createdInstanceTasks = [];
-      userProcessInstanceData.map((data)=>{
+      userProcessInstanceData.map((data) => {
         createdInstanceTasks.push(data.taskId.toString());
       });
-      
+
 
       allTaskdata.forEach((task) => {
-        if(subscription || payment.paymentData.lenght > 0){
+        if (subscription || payment.paymentData.lenght > 0) {
           task.isLocked = false;
         }
         if (createdInstanceTasks.includes(task._id.toString())) {

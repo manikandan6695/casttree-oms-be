@@ -955,6 +955,7 @@ export class ServiceItemService {
         .sort({ _id: 1 });
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      ids.push(new ObjectId(processPricingData.itemId._id))
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
       ids.push(new ObjectId(processPricingData.itemId._id))
@@ -968,6 +969,7 @@ export class ServiceItemService {
           }
         });
         let processPrice = itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
+        console.log({ids,processPrice});
         if (processPrice) {
           processPricingData.itemId["price"] = processPrice["price"];
           processPricingData.itemId["comparePrice"] =
