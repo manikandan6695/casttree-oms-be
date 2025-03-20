@@ -75,8 +75,10 @@ export class PaymentRequestController {
   ) {
     try {
       let data: any = await this.paymentRequestService.getPaymentDetailBySource(
-        sourceId,
-        userId
+        
+        userId,
+        sourceId
+
       );
 
       return res.json(data);

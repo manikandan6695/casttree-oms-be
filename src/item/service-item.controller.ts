@@ -71,13 +71,11 @@ export class ServiceItemController {
     //@GetToken() token: UserToken
   ) {
     try {
-
-
       let data = await this.serviceItemService.getServiceItems(
         query,
         skip,
         limit,
-        req.headers["x-country-code"], req.headers["x-userid"]
+        req.headers["x-country-code"]
       );
       return data;
     } catch (err) {
@@ -129,7 +127,7 @@ export class ServiceItemController {
   async getworkShopServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {
       let data =
-        await this.serviceItemService.getworkShopServiceItemDetails(_id);
+        await this.serviceItemService.getworkShopServiceItemDetails(_id, req.headers["x-userid"], req.headers["x-country-code"]);
       return data;
     } catch (err) {
       return err;
@@ -138,7 +136,7 @@ export class ServiceItemController {
 
   @UseGuards(JwtAuthGuard)
   @Get("courses/home-screen-data")
-  async getCourseHomeScreenData(@GetToken() token: UserToken) {
+  async getCourseHomeScreenData(@GetToken() token: UserToken, @Req() req) {
     try {
       let data = await this.serviceItemService.getCourseHomeScreenData(
         token.id

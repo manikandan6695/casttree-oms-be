@@ -19,7 +19,9 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
 import { ERazorpayPaymentStatus, ESourceType } from "./enum/payment.enum";
+import { EPaymentSourceType, EPaymentStatus } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
+
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -59,14 +61,11 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
-        console.log("inside service request iss ==>", invoiceData._id);
-
         body["serviceRequest"] = {
           ...body.serviceRequest,
           sourceId: invoiceData._id,
           sourceType: EDocument.sales_document,
         };
-        // console.log("service request body is", body.serviceRequest);
 
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
@@ -74,13 +73,10 @@ export class PaymentRequestService {
         );
       }
 
-      // console.log("service request is", serviceRequest.request._id);
-
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
       });
-      // console.log("existingPayment", existingPayment);
 
       if (existingPayment) {
         return { paymentData: existingPayment, serviceRequest };
@@ -158,7 +154,6 @@ export class PaymentRequestService {
     if (body.couponCode != null) {
       grand_total = body.amount - body.discount;
     }
-
     return await this.invoiceService.createInvoice({
       itemId: body.itemId,
       source_id: body?.invoiceDetail?.sourceId,
@@ -178,8 +173,6 @@ export class PaymentRequestService {
     currency = null,
     orderDetail = null
   ) {
-    // console.log("payment body is ===>", body);
-
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
       "PMT",
@@ -208,16 +201,35 @@ export class PaymentRequestService {
     return await this.paymentModel.create(paymentData);
   }
 
-  async updatePaymentRequest(body) {
+  async updatePaymentRequest(body, @Req() req) {
     try {
+      let paymentData = await this.paymentModel.findOne({ _id: body.id });
+      if (paymentData.currencyCode !== "INR") {
+        const conversionRate = await this.helperService.getConversionRate(
+          paymentData.currencyCode,
+          paymentData.amount
+        );
+        let amt = parseInt((paymentData.amount * conversionRate).toString());
+        await this.paymentModel.updateOne(
+          { _id: paymentData._id },
+          {
+            $set: {
+              conversionRate: conversionRate,
+              baseCurrency: "INR",
+              baseAmount: amt,
+            },
+          }
+        );
+      }
+
       await this.paymentModel.updateOne(
         { _id: body.id },
-        {
-          $set: { document_status: body.document_status },
-        }
+        { $set: { document_status: body.document_status } }
       );
+
       return { message: "Updated Successfully" };
     } catch (err) {
+      console.error("Error in updatePaymentRequest:", err.message);
       throw err;
     }
   }
@@ -225,46 +237,21 @@ export class PaymentRequestService {
   async getPaymentDetail(id: string) {
     try {
       let payment = await this.paymentModel.findOne({ _id: id });
-      console.log(payment);
+
       return { payment };
     } catch (err) {
       throw err;
     }
   }
-  // async validateWebhookSignature(body) {
-  //   try {
-  //     const key = this.configService.get("RAZORPAY_SECRET_KEY");
-  //     const message = body; // raw webhook request body
-  //     const received_signature = this.configService.get("RAZORPAY_SECRET_KEY");
 
-  //     const expected_signature = hmac("sha256", message, key);
-
-  //     if (expected_signature != received_signature) throw SecurityError;
-  //     end;
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // }
   async paymentWebhook(@Req() req) {
     try {
-      // console.log(
-      //   "Razorpay request:",
-      //   JSON.stringify(req.body),
-      //   req["headers"]["x-razorpay-signature"],
-      //  // req["headers"]["x-razorpay-event-id"]
-      // );
+      console.log("payment webhook", req.body);
 
-      // console.log("recieved: "+req["headers"]["x-razorpay-signature"]);
-      // var crypto = require("crypto");
-      // var mbody = req.body.toString();
-      // var expectedSignature = crypto.createHmac('sha256', "casttree@123").update(mbody).digest('hex');
-      // console.log("generated: "+expectedSignature);
-      // if(req["headers"]["x-razorpay-signature"] === expectedSignature){
       const {
         invoiceId,
         status,
         payment,
-        invoice,
         serviceRequest,
         itemId,
         amount,
@@ -276,17 +263,18 @@ export class PaymentRequestService {
         invoiceId,
         serviceRequestId: serviceRequest?.data?._id,
         paymentId: payment?._id,
-        itemId: itemId,
-        currency: currency,
-        amount: amount,
-        userId: userId,
+        itemId,
+        currency,
+        amount,
+        userId,
       };
-      // console.log("ids is", ids, serviceRequest.data["_id"]);
+
       await this.updatePaymentStatus(status, ids);
+
       return { message: "Updated Successfully" };
-      //  }
     } catch (err) {
-      throw err;
+      console.error("Error in paymentWebhook:", err);
+      return { message: "Failed to update payment status", error: err.message };
     }
   }
 
@@ -301,22 +289,27 @@ export class PaymentRequestService {
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
     const currency = body?.payload?.payment?.entity?.currency;
+
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
+    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
+    console.log("payment", payment);
+
+    console.log("amount", amount);
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
     // let serviceRequest;
     // if (invoice.source_type == EPaymentSourceType.serviceRequest) {
     let serviceRequest =
       await this.serviceRequestService.getServiceRequestDetail(invoiceId);
-    console.log("service request payment", serviceRequest);
+
     // }
 
     return {
@@ -362,7 +355,11 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(sourceId: string, userId: string) {
+  async getPaymentDetailBySource(
+    userId: string,
+    sourceId?: string,
+    type?: string
+  ) {
     try {
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
@@ -371,27 +368,34 @@ export class PaymentRequestService {
       aggregation_pipeline.push({
         $match: { document_status: EDocumentStatus.completed },
       });
-      aggregation_pipeline.push(
-        {
-          $lookup: {
-            from: "salesDocument",
-            localField: "source_id",
-            foreignField: "_id",
-            as: "salesDocument",
-          },
-        },
-        {
-          $unwind: {
-            path: "$salesDocument",
-            preserveNullAndEmptyArrays: true,
-          },
-        }
-      );
-
       aggregation_pipeline.push({
-        $match: { "salesDocument.source_id": new ObjectId(sourceId) },
+        $lookup: {
+          from: "salesDocument",
+          localField: "source_id",
+          foreignField: "_id",
+          as: "salesDocument",
+        },
       });
-
+      sourceId
+        ? aggregation_pipeline.push({
+            $match: {
+              "salesDocument.source_id": new ObjectId(sourceId),
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          })
+        : aggregation_pipeline.push({
+            $match: {
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          });
+      aggregation_pipeline.push({
+        $unwind: {
+          path: "$salesDocument",
+          preserveNullAndEmptyArrays: true,
+        },
+      });
       let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
       return { paymentData };
@@ -405,10 +409,13 @@ export class PaymentRequestService {
       ids.invoiceId,
       EDocumentStatus.completed
     );
-    await this.updatePaymentRequest({
-      id: ids.paymentId,
-      document_status: EDocumentStatus.completed,
-    });
+    await this.updatePaymentRequest(
+      {
+        id: ids.paymentId,
+        document_status: EDocumentStatus.completed,
+      },
+      Req
+    );
     console.log("ids is ==>", ids);
 
     if (ids?.serviceRequestId) {

@@ -16,6 +16,7 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 
 @Injectable()
 export class SubscriptionService {
@@ -296,20 +297,53 @@ export class SubscriptionService {
     }
   }
 
-  @Cron("*/10 * * * *")
+  @Cron("0 * * * *")
   async handleCron() {
     try {
       const now = new Date();
       let currentDate = now.toISOString();
       console.log("updating subscription entries : " + currentDate);
-      let updateSubscriptionData = await this.subscriptionModel.updateMany(
-        {
-          subscriptionStatus: EsubscriptionStatus.active,
-          currentEnd: { $lte: currentDate },
-          status: Estatus.Active,
-        },
-        { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
-      );
+      let expiredSubscriptionsList = await this.subscriptionModel.find({
+        subscriptionStatus: EsubscriptionStatus.active,
+        currentEnd: { $lte: currentDate },
+        status: Estatus.Active,
+      });
+      if (expiredSubscriptionsList.length > 0) {
+        await this.subscriptionModel.updateMany(
+          {
+            subscriptionStatus: EsubscriptionStatus.active,
+            currentEnd: { $lte: currentDate },
+            status: Estatus.Active,
+          },
+          { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
+        );
+        for (let i in expiredSubscriptionsList) {
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_end;
+          mixPanelBody.distinctId = expiredSubscriptionsList[i].userId;
+          mixPanelBody.properties = {
+            start_date: expiredSubscriptionsList[i].currentStart,
+            end_date: expiredSubscriptionsList[i].currentEnd,
+            amount: expiredSubscriptionsList[i]?.notes?.amount,
+            subscription_id: expiredSubscriptionsList[i]._id,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+        }
+
+        let userIds = [];
+
+        expiredSubscriptionsList.map((data) => {
+          userIds.push(data.userId);
+        });
+        console.log(userIds);
+        let updateBody = {
+          userId: userIds,
+          membership: "",
+          badge: "",
+        };
+        console.log(updateBody);
+        await this.helperService.updateUsers(updateBody);
+      }
     } catch (err) {
       throw err;
     }
