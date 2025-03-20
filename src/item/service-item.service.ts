@@ -107,12 +107,13 @@ export class ServiceItemService {
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
-      const itemsList = serviceItemData.map((e) => e.itemId);
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, itemsList);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
         serviceItemData.map((data) => {
           if (itemListObjectWithUpdatedPrice[data.itemId._id]) {
-            data.itemId = itemListObjectWithUpdatedPrice[data.itemId._id];
+            data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+            data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+            data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
           }
         });
       }
@@ -159,9 +160,9 @@ export class ServiceItemService {
         })
         .lean();
 
+      
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
-
         EprofileType.Expert
       );
       const ratingInfo = await this.helperService.getRatingsSummary(
@@ -173,22 +174,19 @@ export class ServiceItemService {
           data.userId,
           data.itemId.orgId._id
         );
-
       data["profileData"] = profileInfo[0];
-
       data["itemSold"] =
         parseInt(profileInfo[0]?.phoneNumber[9]) + 10 + totalFeedbacks?.count;
-
       data["ratingsData"] = ratingInfo.data;
 
-
       if (country_code) {
-        let itemsList = [];
-        itemsList.push(data.itemId);
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, itemsList);
-        data["itemId"] = itemListObjectWithUpdatedPrice[data["itemId"]._id];
+        let sourceIds = [];
+        sourceIds.push(data.itemId._id);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+        data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+        data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
       }
-
       let newQuery = {
         skillId: data.skill.skillId,
         type: EserviceItemType.feedback,
@@ -199,7 +197,6 @@ export class ServiceItemService {
         500,
         country_code
       );
-
       const updatedMoreExpertsData = [];
       for (let i = 0; i < moreExpertsData.data.length; i++) {
         if (moreExpertsData.data[i]._id.toString() != data._id.toString()) {
@@ -215,7 +212,6 @@ export class ServiceItemService {
           });
         }
       }
-
       if (data.type == EserviceItemType.feedback) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
@@ -319,11 +315,12 @@ export class ServiceItemService {
       const itemsList = serviceItemData.map((e) => e.itemId);
       if (country_code) {
 
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, itemsList);
-
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
         serviceItemData.map((data) => {
           if (itemListObjectWithUpdatedPrice[data.itemId._id]) {
-            data.itemId = itemListObjectWithUpdatedPrice[data.itemId._id];
+            data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+            data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+            data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
           }
         });
       }
@@ -354,10 +351,12 @@ export class ServiceItemService {
         EprofileType.Expert
       );
       if (country_code) {
-        let itemsList = [];
-        itemsList.push(data.itemId);
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, itemsList);
-        data["itemId"] = itemListObjectWithUpdatedPrice[data["itemId"]._id];
+        let sourceIds = [];
+        sourceIds.push(data.itemId._id);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+        data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+        data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
       }
       data["profileData"] = profileInfo[0];
       return data;
@@ -853,15 +852,15 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, plandata);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data._id]) {
-            data = itemListObjectWithUpdatedPrice[data._id];
+            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
+            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
-
       }
-
       let finalResponse = {};
       let featuresArray = [];
       featuresArray.push({
@@ -958,16 +957,16 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
+      ids.push(new ObjectId(processPricingData.itemId._id))
       if (country_code) {
-       let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, plandata);
-
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
         plandata.map((data) => {
-
           if (itemListObjectWithUpdatedPrice[data._id]) {
-            data = itemListObjectWithUpdatedPrice[data._id.toString()];
+            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
+            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
-
         let processPrice = itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
         if (processPrice) {
           processPricingData.itemId["price"] = processPrice["price"];
@@ -975,12 +974,6 @@ export class ServiceItemService {
             processPrice["comparePrice"];
           processPricingData.itemId["currency"] = processPrice["currency"];
         }
-
-
-
-
-
-
       }
       processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.itemName = processPricingData.itemId.itemName;
@@ -998,7 +991,6 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
         data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData ? false : true;
-
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1017,18 +1009,16 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
-        let priceListData = await this.getPriceListItems(ids, country_code);
-        plandata.forEach((e) => {
-          let currData = priceListData[e._id.toString()];
-          if (currData) {
-            e["price"] = currData["price"];
-            e["comparePrice"] = currData["comparePrice"];
-            e["currency"] = currData["currency"];
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
+        plandata.map((data) => {
+          if (itemListObjectWithUpdatedPrice[data._id]) {
+            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
+            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
 
       }
-
       let finalResponse = [];
       plandata.map((data) => { finalResponse.push(data.additionalDetail.premiumPage) });
       for (let i = 0; i < finalResponse.length; i++) {
@@ -1042,10 +1032,8 @@ export class ServiceItemService {
       throw err;
     }
   }
-  async getUpdatePrice(country_code: string, itemsList) {
+  async getUpdatePrice(country_code: string, itemIds: string[]) {
     try {
-
-      const itemIds = itemsList.map((e) => e._id.toString());
       const uniqueArray = [
         ...new Set(itemIds.map((id) => new mongoose.Types.ObjectId(id))),
       ];
@@ -1053,7 +1041,7 @@ export class ServiceItemService {
         uniqueArray,
         country_code
       );
-      itemsList.forEach((e) => {
+      /*itemIds.forEach((e) => {
         let currData = priceListData[e["_id"].toString()];
         if (currData) {
           e["price"] = currData["price"];
@@ -1061,11 +1049,11 @@ export class ServiceItemService {
           e["currency"] = currData["currency"];
         }
       });
-      let updatedItemObject = itemsList.reduce((a, c) => {
+      let updatedItemObject = priceListData.reduce((a, c) => {
         a[c["_id"]] = c;
         return a;
-      }, {});
-      return updatedItemObject;
+      }, {});*/
+      return priceListData;
     }
 
 
