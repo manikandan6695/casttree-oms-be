@@ -50,8 +50,6 @@ export class SubscriptionService {
           break;
 
         case "cashfree":
-          const match = body.authDays.match(/(\d+)\s*days?/i);
-          let result = match ? match[1] : null;
           let planData = await this.helperService.getPlanDetails(body.planId);
           const subscriptionSequence = await this.sharedService.getNextNumber(
             "cashfree-subscription",
@@ -59,7 +57,6 @@ export class SubscriptionService {
             5,
             null
           );
-
           const subscriptionNumber = subscriptionSequence
             .toString()
             .padStart(5, "0");
@@ -67,7 +64,7 @@ export class SubscriptionService {
             subscription_id: subscriptionNumber,
             customer_details: {
               customer_name: token.userName,
-              customer_email: "mani@gmail.com",
+              customer_email: token.phoneNumber + "@casttree.com",
               customer_phone: token.phoneNumber,
             },
             plan_details: {
@@ -82,15 +79,18 @@ export class SubscriptionService {
               plan_currency: planData.plan_currency,
             },
             authorization_details: {
-              authorization_amount: body.authAmount,
-              authorization_amount_refund: false,
+              authorization_amount: body.authAmount == 0 ? 1 : body.authAmount,
+              authorization_amount_refund: body.authAmount == 0 ? true : false,
               payment_methods: ["upi"],
             },
             subscription_meta: {
               return_url: body.redirectionUrl,
             },
-            subscription_expiry_time: this.getExpiry(body.subscriptionExpiry),
-            subscription_first_charge_time: this.getFutureDateISO(result),
+            subscription_expiry_time: this.sharedService.getFutureYearISO(5),
+            subscription_first_charge_time:
+              body.validityType == "day"
+                ? this.sharedService.getFutureDateISO(body.validity)
+                : this.sharedService.getFutureMonthISO(body.validity),
           };
           break;
 
@@ -105,20 +105,6 @@ export class SubscriptionService {
     } catch (err) {
       throw err;
     }
-  }
-
-  getFutureDateISO(days) {
-    console.log("days is", typeof days);
-
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + parseInt(days));
-    return futureDate.toISOString();
-  }
-
-  getExpiry(years) {
-    const currentDate = new Date();
-    currentDate.setFullYear(currentDate.getFullYear() + years);
-    return currentDate.toISOString();
   }
 
   async subscriptionWebhook(@Req() req) {
