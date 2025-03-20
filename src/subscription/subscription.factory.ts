@@ -16,7 +16,7 @@ export class SubscriptionFactory {
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
     private readonly mandateService: MandatesService,
-    private readonly subscriptionService: SubscriptionService,
+    // private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
   ) {}
@@ -73,50 +73,50 @@ export class SubscriptionFactory {
               subscriptionStatus: data.subscriptionStatus,
               metaData: subscription,
             };
-            let subscriptionCreated =
-              await this.subscriptionService.subscription(
-                subscriptionData,
-                token
-              );
-            let mandateData = {
-              sourceId: subscriptionCreated._id,
-              userId: token.id,
-              paymentMethod: "UPI",
-              amount: data.amount,
-              currency: "INR",
-              frequency: subscription.plan_details.plan_type,
-              mandateStatus: data.mandateStatus,
-              status: EStatus.Active,
-              metaData: auth,
-              startDate: data.startDate,
-              endDate: data.endDate,
-            };
-            let createdMandate = await this.mandateService.addMandate(
-              mandateData,
-              token
-            );
-            let invoiceData = {
-              itemId: data.itemId,
-              source_id: data?.sourceId,
-              source_type: data?.sourceType,
-              sub_total: data?.amount,
-              currencyCode: data.currencyCode,
-              document_status: EDocumentStatus.pending,
-              grand_total: data?.amount,
-            };
-            let invoice = await this.invoiceService.createInvoice(invoiceData);
-            let paymentData: any = {
-              amount: data?.amount,
-              currencyCode: "INR",
-              document_status: EDocumentStatus.pending,
-            };
-            let payment = await this.paymentService.createPaymentRecord(
-              paymentData,
-              null,
-              invoice,
-              null,
-              null
-            );
+            // let subscriptionCreated =
+            //   await this.subscriptionService.subscription(
+            //     subscriptionData,
+            //     token
+            //   );
+            // let mandateData = {
+            //   sourceId: subscriptionCreated._id,
+            //   userId: token.id,
+            //   paymentMethod: "UPI",
+            //   amount: data.amount,
+            //   currency: "INR",
+            //   frequency: subscription.plan_details.plan_type,
+            //   mandateStatus: data.mandateStatus,
+            //   status: EStatus.Active,
+            //   metaData: auth,
+            //   startDate: data.startDate,
+            //   endDate: data.endDate,
+            // };
+            // let createdMandate = await this.mandateService.addMandate(
+            //   mandateData,
+            //   token
+            // );
+            // let invoiceData = {
+            //   itemId: data.itemId,
+            //   source_id: data?.sourceId,
+            //   source_type: data?.sourceType,
+            //   sub_total: data?.amount,
+            //   currencyCode: data.currencyCode,
+            //   document_status: EDocumentStatus.pending,
+            //   grand_total: data?.amount,
+            // };
+            // let invoice = await this.invoiceService.createInvoice(invoiceData);
+            // let paymentData: any = {
+            //   amount: data?.amount,
+            //   currencyCode: "INR",
+            //   document_status: EDocumentStatus.pending,
+            // };
+            // let payment = await this.paymentService.createPaymentRecord(
+            //   paymentData,
+            //   null,
+            //   invoice,
+            //   null,
+            //   null
+            // );
             let response = {
               subscriptionDetails: subscription,
               authorizationDetails: auth,

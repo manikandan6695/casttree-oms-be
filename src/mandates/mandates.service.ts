@@ -34,4 +34,13 @@ export class MandatesService {
       throw new Error(error);
     }
   }
+    async fetchMandates(token: UserToken) {
+      try {
+        let filter = { userId: token.id, status: "Active" }
+        let mandatesData = await this.mandateModel.find(filter)
+        return mandatesData
+      } catch (error) {
+        throw error;
+      }
+    }
 }

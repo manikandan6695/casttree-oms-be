@@ -7,14 +7,16 @@ import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SharedModule } from "src/shared/shared.module";
 import { subscriptionSchema } from "./schema/subscription.schema";
+import { Mandate, MandateSchema } from "../mandates/schema/mandates.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
 import { SubscriptionFactory } from "./subscription.factory";
-
+import { MandatesModule } from "src/mandates/mandates.module";
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "subscription", schema: subscriptionSchema },
+      { name: Mandate.name, schema: MandateSchema }
     ]),
     SharedModule,
     AuthModule,
@@ -22,6 +24,7 @@ import { SubscriptionFactory } from "./subscription.factory";
     InvoiceModule,
     PaymentRequestModule,
     forwardRef(() => ItemModule),
+    MandatesModule,
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService, SubscriptionFactory],

@@ -20,7 +20,6 @@ import {
   ValidateSubscriptionDTO,
 } from "./dto/subscription.dto";
 import { SubscriptionService } from "./subscription.service";
-
 @Controller("subscription")
 export class SubscriptionController {
   constructor(
@@ -137,7 +136,6 @@ export class SubscriptionController {
       if (!subscriptions) {
         return res.json({ message: "No active subscriptions found" });
       }
-
       return res.json({ data: { subscriptions: subscriptions.subscriptionData, mandates: subscriptions.mandatesData } });
     } catch (err) {
       const { code, response } = await this.sservice.processError(
