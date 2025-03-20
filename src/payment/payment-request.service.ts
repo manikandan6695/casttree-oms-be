@@ -44,7 +44,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -225,6 +225,18 @@ export class PaymentRequestService {
           }
         );
       }
+      else {
+        await this.paymentModel.updateOne(
+          { _id: paymentData._id },
+          {
+            $set: {
+              conversionRate: 1,
+              baseCurrency: "INR",
+              baseAmount: paymentData.amount,
+            },
+          }
+        );
+      }
 
       await this.paymentModel.updateOne(
         { _id: body.id },
@@ -296,7 +308,7 @@ export class PaymentRequestService {
 
 
   async extractPaymentDetails(body) {
- 
+
     const itemId = new ObjectId(body?.payload?.payment?.entity?.notes.itemId);
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
@@ -310,7 +322,7 @@ export class PaymentRequestService {
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
- 
+
 
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
@@ -364,7 +376,7 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(userId: string,sourceId?: string,  type?: string) {
+  async getPaymentDetailBySource(userId: string, sourceId?: string, type?: string) {
     try {
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
@@ -383,7 +395,7 @@ export class PaymentRequestService {
           },
         });
       sourceId ? aggregation_pipeline.push({
-        $match: { "salesDocument.source_id": new ObjectId(sourceId),  "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+        $match: { "salesDocument.source_id": new ObjectId(sourceId), "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
       }) : aggregation_pipeline.push({
         $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
       });
