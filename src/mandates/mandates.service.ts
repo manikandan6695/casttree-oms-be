@@ -13,6 +13,8 @@ export class MandatesService {
 
   async addMandate(body: any, token: UserToken): Promise<MandateDocument> {
     try {
+      console.log("body", body);
+
       const mandatePayload = {
         sourceId: body.sourceId,
         userId: body.userId,

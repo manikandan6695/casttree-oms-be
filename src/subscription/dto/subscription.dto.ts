@@ -40,8 +40,8 @@ export class CreateSubscriptionDTO {
   redirectionUrl: string;
 
   @IsOptional()
-  @IsString()
-  validity: string;
+  @IsNumber()
+  validity: number;
 
   @IsOptional()
   @IsString()

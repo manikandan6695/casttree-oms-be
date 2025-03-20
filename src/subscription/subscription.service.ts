@@ -99,7 +99,11 @@ export class SubscriptionService {
       }
 
       const provider = this.subscriptionFactory.getProvider(body.provider);
-      const data = await provider.createSubscription(subscriptionData, token);
+      const data = await provider.createSubscription(
+        subscriptionData,
+        body,
+        token
+      );
 
       return { data };
     } catch (err) {
