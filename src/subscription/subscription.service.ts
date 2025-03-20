@@ -59,7 +59,7 @@ export class SubscriptionService {
             5,
             null
           );
-          
+
           const subscriptionNumber = subscriptionSequence
             .toString()
             .padStart(5, "0");
@@ -89,8 +89,8 @@ export class SubscriptionService {
             subscription_meta: {
               return_url: body.redirectionUrl,
             },
-            subscription_expiry_time:  this.getExpiry(body.subscriptionExpiry),
-            subscription_first_charge_time:  this.getFutureDateISO(result),
+            subscription_expiry_time: this.getExpiry(body.subscriptionExpiry),
+            subscription_first_charge_time: this.getFutureDateISO(result),
           };
           break;
 
@@ -100,22 +100,22 @@ export class SubscriptionService {
 
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(subscriptionData, token);
-      
+
       return { data };
     } catch (err) {
       throw err;
     }
   }
 
-   getFutureDateISO(days) {
+  getFutureDateISO(days) {
     console.log("days is", typeof days);
-    
+
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + parseInt(days));
     return futureDate.toISOString();
   }
 
-   getExpiry(years) {
+  getExpiry(years) {
     const currentDate = new Date();
     currentDate.setFullYear(currentDate.getFullYear() + years);
     return currentDate.toISOString();
@@ -212,6 +212,27 @@ export class SubscriptionService {
         subscriptionStatus: { $nin: status },
         status: Estatus.Active,
       });
+      return subscription;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async subscription(body, token) {
+    try {
+      let subscriptionData = {
+        userId: token.id,
+        planId: body.planId,
+        startAt: body.startAt,
+        endAt: body.endAt,
+        notes: body.notes,
+        subscriptionStatus: body.subscriptionStatus,
+        metaData: body.metaData,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      };
+      let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
     } catch (err) {
       throw err;

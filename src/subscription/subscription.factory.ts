@@ -1,15 +1,19 @@
+import { MandatesService } from "./../mandates/mandates.service";
 import { Injectable } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { HttpService } from "@nestjs/axios";
 import { SubscriptionProvider } from "./subscription.interface";
 import { HelperService } from "src/helper/helper.service";
 import { SharedService } from "src/shared/shared.service";
+import { SubscriptionService } from "./subscription.service";
 
 @Injectable()
 export class SubscriptionFactory {
   constructor(
     private readonly helperService: HelperService,
-    private readonly sharedService: SharedService
+    private readonly sharedService: SharedService,
+    private readonly mandateService: MandatesService,
+    private readonly subscriptionService: SubscriptionService
   ) {}
 
   getProvider(providerName: string): SubscriptionProvider {
@@ -54,6 +58,35 @@ export class SubscriptionFactory {
               },
             };
             const auth = await this.helperService.createAuth(authData);
+            let subscriptionData = {
+              userId: token.id,
+              planId: subscription.plan_details.plan_id,
+              startAt: data.startAt,
+              endAt: data.endAt,
+              notes: data.notes,
+              subscriptionStatus: data.subscriptionStatus,
+              metaData: subscription,
+            };
+            let subscriptionCreated =
+              await this.subscriptionService.subscription(
+                subscriptionData,
+                token
+              );
+            let mandateData = {
+              sourceId: subscriptionCreated._id,
+              userId: token.id,
+              paymentMethod: "UPI",
+              amount: body.amount,
+              currency: body.currency,
+              frequency: body.frequency,
+              mandateStatus: body.mandateStatus,
+              status: body.status,
+              metaData: body.metaData,
+              startDate: body.startDate,
+              endDate: body.endDate,
+            };
+            await this.mandateService.addMandate(mandateData, token);
+
             let response = {
               subscriptionDetails: subscription,
               authorizationDetails: auth,

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MandatesController } from './mandates.controller';
+import { MandatesService } from './mandates.service';
 
 @Module({
-  controllers: [MandatesController]
+  controllers: [MandatesController],
+  providers: [MandatesService]
 })
 export class MandatesModule {}
