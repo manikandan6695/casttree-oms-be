@@ -14,7 +14,11 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { AddSubscriptionDTO, CreateSubscriptionDTO, ValidateSubscriptionDTO } from "./dto/subscription.dto";
+import {
+  AddSubscriptionDTO,
+  CreateSubscriptionDTO,
+  ValidateSubscriptionDTO,
+} from "./dto/subscription.dto";
 import { SubscriptionService } from "./subscription.service";
 
 @Controller("subscription")
@@ -22,7 +26,7 @@ export class SubscriptionController {
   constructor(
     private readonly subscriptionService: SubscriptionService,
     private sservice: SharedService
-  ) { }
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -82,24 +86,11 @@ export class SubscriptionController {
   async addSubscription(
     @Body(new ValidationPipe({ whitelist: true })) body: AddSubscriptionDTO,
     @GetToken() token: UserToken,
+    @Res() res: Response
   ) {
     try {
       let data = await this.subscriptionService.addSubscription(body, token);
       return data;
-    } catch (err) { }
-  }
-
-
-
-  @Post("validate-subscription/:userId")
-  async validateSubscription(
-    @Param("userId") userId: string,
-    @Body(new ValidationPipe({ whitelist: true })) body: ValidateSubscriptionDTO,
-    @Res() res: Response
-  ) {
-    try {
-      let data = await this.subscriptionService.validateSubscription(userId,body.status);
-      return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,
@@ -109,4 +100,25 @@ export class SubscriptionController {
     }
   }
 
+  @Post("validate-subscription/:userId")
+  async validateSubscription(
+    @Param("userId") userId: string,
+    @Body(new ValidationPipe({ whitelist: true }))
+    body: ValidateSubscriptionDTO,
+    @Res() res: Response
+  ) {
+    try {
+      let data = await this.subscriptionService.validateSubscription(
+        userId,
+        body.status
+      );
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
 }
