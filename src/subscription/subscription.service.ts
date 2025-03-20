@@ -248,4 +248,14 @@ export class SubscriptionService {
       throw err;
     }
   }
+  async fetchSubscriptions(token: UserToken) {
+    try {
+      let filter = { userId: token.id, status: "Active" }
+      let subscriptionData = await this.subscriptionModel.find(filter)
+      let mandatesData = await this.manDatesModel.find(filter)
+      return {subscriptionData,mandatesData}
+    } catch (error) {
+      throw error;
+    }
+  }
 }
