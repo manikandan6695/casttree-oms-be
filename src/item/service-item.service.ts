@@ -148,7 +148,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
-      console.log(country_code);
+    
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
