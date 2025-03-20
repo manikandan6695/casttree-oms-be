@@ -29,7 +29,7 @@ export class SubscriptionService {
     private helperService: HelperService,
     private sharedService: SharedService,
     private itemService: ItemService,
-    private mandateService : MandatesService,
+    private mandatesService: MandatesService
   ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
@@ -331,7 +331,7 @@ export class SubscriptionService {
     try {
       let filter = { userId: token.id, status: "Active" }
       let subscriptionData = await this.subscriptionModel.find(filter)
-      let mandatesData = await this.mandateService.fetchMandates(token)
+      let mandatesData = await this.mandatesService.fetchMandates(token)
       return {subscriptionData,mandatesData}
     } catch (error) {
       throw error;

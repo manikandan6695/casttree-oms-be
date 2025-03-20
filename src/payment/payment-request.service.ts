@@ -18,7 +18,7 @@ import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
-import { ERazorpayPaymentStatus, ESourceType, EPaymentSourceType, EPaymentStatus } from "./enum/payment.enum"
+import { ERazorpayPaymentStatus, ESourceType, EPaymentSourceType, EPaymentStatus } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 
 const { ObjectId } = require("mongodb");
@@ -221,17 +221,6 @@ export class PaymentRequestService {
               conversionRate: conversionRate,
               baseCurrency: "INR",
               baseAmount: amt,
-            },
-          }
-        );
-      } else {
-        await this.paymentModel.updateOne(
-          { _id: paymentData._id },
-          {
-            $set: {
-              conversionRate: 1,
-              baseCurrency: "INR",
-              baseAmount: paymentData.amount,
             },
           }
         );
