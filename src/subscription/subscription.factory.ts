@@ -1,11 +1,14 @@
+import { EStatus } from "src/shared/enum/privacy.enum";
 import { MandatesService } from "./../mandates/mandates.service";
 import { Injectable } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { HttpService } from "@nestjs/axios";
 import { SubscriptionProvider } from "./subscription.interface";
 import { HelperService } from "src/helper/helper.service";
 import { SharedService } from "src/shared/shared.service";
 import { SubscriptionService } from "./subscription.service";
+import { InvoiceService } from "src/invoice/invoice.service";
+import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { PaymentRequestService } from "src/payment/payment-request.service";
 
 @Injectable()
 export class SubscriptionFactory {
@@ -13,7 +16,9 @@ export class SubscriptionFactory {
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
     private readonly mandateService: MandatesService,
-    private readonly subscriptionService: SubscriptionService
+    private readonly subscriptionService: SubscriptionService,
+    private readonly invoiceService: InvoiceService,
+    private readonly paymentService: PaymentRequestService
   ) {}
 
   getProvider(providerName: string): SubscriptionProvider {
@@ -63,6 +68,7 @@ export class SubscriptionFactory {
               planId: subscription.plan_details.plan_id,
               startAt: data.startAt,
               endAt: data.endAt,
+              amount: data.amount,
               notes: data.notes,
               subscriptionStatus: data.subscriptionStatus,
               metaData: subscription,
@@ -76,17 +82,41 @@ export class SubscriptionFactory {
               sourceId: subscriptionCreated._id,
               userId: token.id,
               paymentMethod: "UPI",
-              amount: body.amount,
-              currency: body.currency,
-              frequency: body.frequency,
-              mandateStatus: body.mandateStatus,
-              status: body.status,
-              metaData: body.metaData,
-              startDate: body.startDate,
-              endDate: body.endDate,
+              amount: data.amount,
+              currency: "INR",
+              frequency: subscription.plan_details.plan_type,
+              mandateStatus: data.mandateStatus,
+              status: EStatus.Active,
+              metaData: auth,
+              startDate: data.startDate,
+              endDate: data.endDate,
             };
-            await this.mandateService.addMandate(mandateData, token);
-
+            let createdMandate = await this.mandateService.addMandate(
+              mandateData,
+              token
+            );
+            let invoiceData = {
+              itemId: data.itemId,
+              source_id: data?.sourceId,
+              source_type: data?.sourceType,
+              sub_total: data?.amount,
+              currencyCode: data.currencyCode,
+              document_status: EDocumentStatus.pending,
+              grand_total: data?.amount,
+            };
+            let invoice = await this.invoiceService.createInvoice(invoiceData);
+            let paymentData: any = {
+              amount: data?.amount,
+              currencyCode: "INR",
+              document_status: EDocumentStatus.pending,
+            };
+            let payment = await this.paymentService.createPaymentRecord(
+              paymentData,
+              null,
+              invoice,
+              null,
+              null
+            );
             let response = {
               subscriptionDetails: subscription,
               authorizationDetails: auth,

@@ -21,10 +21,10 @@ import { SubscriptionFactory } from "./subscription.factory";
     HelperModule,
     InvoiceModule,
     PaymentRequestModule,
-    forwardRef(() =>  ItemModule),
+    forwardRef(() => ItemModule),
   ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService,SubscriptionFactory],
+  providers: [SubscriptionService, SubscriptionFactory],
   exports: [SubscriptionService],
 })
 export class SubscriptionModule {}
