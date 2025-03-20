@@ -223,6 +223,17 @@ export class PaymentRequestService {
             },
           }
         );
+      } else {
+        await this.paymentModel.updateOne(
+          { _id: paymentData._id },
+          {
+            $set: {
+              conversionRate: 1,
+              baseCurrency: "INR",
+              baseAmount: paymentData.amount,
+            },
+          }
+        );
       }
 
       await this.paymentModel.updateOne(

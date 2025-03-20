@@ -108,5 +108,31 @@ export class SubscriptionController {
       return res.status(code).json(response);
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("fetch-subscriptions")
+  async fetchSubscriptions(
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
+    try {
+      if (!token.id) {
+        return res.json({ message: "User ID is required" });
+      }
+
+      const subscriptions = await this.subscriptionService.fetchSubscriptions(token);
+
+      if (!subscriptions) {
+        return res.json({ message: "No active subscriptions found" });
+      }
+      return res.json({ data: { subscriptions: subscriptions.subscriptionData, mandates: subscriptions.mandatesData } });
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+
 
 }
