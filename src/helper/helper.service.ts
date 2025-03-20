@@ -387,7 +387,7 @@ export class HelperService {
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
 
       const headers = {
-        "x-api-version": "2023-08-01",
+        "x-api-version": "2022-09-01",
         "Content-Type": "application/json",
         "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
