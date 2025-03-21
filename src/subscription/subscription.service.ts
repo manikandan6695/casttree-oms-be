@@ -15,6 +15,7 @@ import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
+import { SubscriptionFactory } from "./subscription.factory";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { MandatesService } from "src/mandates/mandates.service";
 @Injectable()
@@ -22,29 +23,91 @@ export class SubscriptionService {
   constructor(
     @InjectModel("subscription")
     private readonly subscriptionModel: Model<ISubscriptionModel>,
+    private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
+
     private itemService: ItemService,
     private mandatesService: MandatesService
   ) { }
 
-  async createSubscription(body: CreateSubscriptionDTO, token: UserToken) {
-    try {
-      let fv = {
-        plan_id: body.planId,
-        total_count: 10,
-        quantity: 1,
-        notes: {
-          userId: token.id,
-          sourceId: body.sourceId,
-          sourceType: body.sourceType,
-          itemId: body.itemId,
-        },
-      };
 
-      let data = await this.helperService.addSubscription(fv, token);
+  async createSubscription(body: CreateSubscriptionDTO, token: any) {
+    try {
+      let subscriptionData;
+
+      switch (body.provider) {
+        case "razorpay":
+          subscriptionData = {
+            plan_id: body.planId,
+            total_count: 10,
+            quantity: 1,
+            notes: {
+              userId: token.id,
+              sourceId: body.sourceId,
+              sourceType: body.sourceType,
+              itemId: body.itemId,
+            },
+          };
+          break;
+
+        case "cashfree":
+          let planData = await this.helperService.getPlanDetails(body.planId);
+          const subscriptionSequence = await this.sharedService.getNextNumber(
+            "cashfree-subscription",
+            "CSH-SUB",
+            5,
+            null
+          );
+          const subscriptionNumber = subscriptionSequence
+            .toString()
+            .padStart(5, "0");
+          subscriptionData = {
+            subscription_id: subscriptionNumber,
+            customer_details: {
+              customer_name: token.userName,
+              customer_email: token.phoneNumber + "@casttree.com",
+              customer_phone: token.phoneNumber,
+            },
+            plan_details: {
+              plan_name: planData.plan_name,
+              plan_id: planData.plan_id,
+              plan_type: planData.plan_type,
+              plan_amount: planData.plan_recurring_amount,
+              plan_max_amount: planData.plan_max_amount,
+              plan_max_cycles: planData.plan_max_cycles,
+              plan_intervals: planData.plan_intervals,
+              plan_interval_type: planData.plan_interval_type,
+              plan_currency: planData.plan_currency,
+            },
+            authorization_details: {
+              authorization_amount: body.authAmount == 0 ? 1 : body.authAmount,
+              authorization_amount_refund: body.authAmount == 0 ? true : false,
+              payment_methods: ["upi"],
+            },
+            subscription_meta: {
+              return_url: body.redirectionUrl,
+            },
+            subscription_expiry_time: this.sharedService.getFutureYearISO(5),
+            subscription_first_charge_time:
+              body.validityType == "day"
+                ? this.sharedService.getFutureDateISO(body.validity)
+                : this.sharedService.getFutureMonthISO(body.validity),
+          };
+          break;
+
+        default:
+          throw new Error(`Unsupported provider: ${body.provider}`);
+      }
+
+      const provider = this.subscriptionFactory.getProvider(body.provider);
+      const data = await provider.createSubscription(
+        subscriptionData,
+        body,
+        token
+      );
 
       return { data };
     } catch (err) {
@@ -149,6 +212,27 @@ export class SubscriptionService {
     }
   }
 
+  async subscription(body, token) {
+    try {
+      let subscriptionData = {
+        userId: token.id,
+        planId: body.planId,
+        startAt: body.startAt,
+        endAt: body.endAt,
+        notes: body.notes,
+        subscriptionStatus: body.subscriptionStatus,
+        metaData: body.metaData,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      };
+      let subscription = await this.subscriptionModel.create(subscriptionData);
+      return subscription;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async subscriptionComparision(token: UserToken) {
     try {
       let subscription = await this.subscriptionModel.findOne({
@@ -216,31 +300,49 @@ export class SubscriptionService {
     }
   }
 
-  @Cron('0 * * * *')
+  @Cron("0 * * * *")
   async handleCron() {
     try {
       const now = new Date();
       let currentDate = now.toISOString();
       console.log("updating subscription entries : " + currentDate);
-      let expiredSubscriptionsList = await this.subscriptionModel.find({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active });
+      let expiredSubscriptionsList = await this.subscriptionModel.find({
+        subscriptionStatus: EsubscriptionStatus.active,
+        currentEnd: { $lte: currentDate },
+        status: Estatus.Active,
+      });
       if (expiredSubscriptionsList.length > 0) {
-        await this.subscriptionModel.updateMany({ subscriptionStatus: EsubscriptionStatus.active, currentEnd: { $lte: currentDate }, status: Estatus.Active }, { $set: { subscriptionStatus: EsubscriptionStatus.expired } });
+        await this.subscriptionModel.updateMany(
+          {
+            subscriptionStatus: EsubscriptionStatus.active,
+            currentEnd: { $lte: currentDate },
+            status: Estatus.Active,
+          },
+          { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
+        );
         for (let i in expiredSubscriptionsList) {
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_end;
           mixPanelBody.distinctId = expiredSubscriptionsList[i].userId;
-          mixPanelBody.properties = { "start_date": expiredSubscriptionsList[i].currentStart, "end_date": expiredSubscriptionsList[i].currentEnd, "amount": expiredSubscriptionsList[i]?.notes?.amount, "subscription_id": expiredSubscriptionsList[i]._id };
+          mixPanelBody.properties = {
+            start_date: expiredSubscriptionsList[i].currentStart,
+            end_date: expiredSubscriptionsList[i].currentEnd,
+            amount: expiredSubscriptionsList[i]?.notes?.amount,
+            subscription_id: expiredSubscriptionsList[i]._id,
+          };
           await this.helperService.mixPanel(mixPanelBody);
         }
 
         let userIds = [];
 
-        expiredSubscriptionsList.map((data) => { userIds.push(data.userId) });
+        expiredSubscriptionsList.map((data) => {
+          userIds.push(data.userId);
+        });
         console.log(userIds);
         let updateBody = {
           userId: userIds,
           membership: "",
-          badge: ""
+          badge: "",
         };
         console.log(updateBody);
         await this.helperService.updateUsers(updateBody);

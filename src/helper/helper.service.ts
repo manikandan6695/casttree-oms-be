@@ -1,17 +1,19 @@
 import { HttpService } from "@nestjs/axios";
-import { Injectable, Req } from "@nestjs/common";
+import { BadRequestException, Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import axios from 'axios';
+import axios from "axios";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
+import { catchError, lastValueFrom, map } from "rxjs";
+
 @Injectable()
 export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) { }
+  ) {}
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -66,7 +68,8 @@ export class HelperService {
       let data = await this.http_service
         .post(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/get-user-detail`,
-          { user_id: user_id },)
+          { user_id: user_id }
+        )
         .toPromise();
       return data;
     } catch (err) {
@@ -79,7 +82,8 @@ export class HelperService {
       let data = await this.http_service
         .patch(
           `${this.configService.get("CASTTREE_BASE_URL")}/user/${user_id}`,
-          { userId: user_id, country_code: country_code },)
+          { userId: user_id, country_code: country_code }
+        )
         .toPromise();
       return data;
     } catch (err) {
@@ -299,7 +303,6 @@ export class HelperService {
     }
   }
   async updateUsers(body: any) {
-
     try {
       let data = await this.http_service
         .patch(
@@ -309,13 +312,107 @@ export class HelperService {
           body
         )
         .toPromise();
-        
+
       return JSON.stringify(data.data);
     } catch (err) {
       throw err;
     }
   }
 
+  async createAuth(body) {
+    try {
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/pay`;
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getPlanDetails(planId: string) {
+    try {
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/plans/${planId}`;
+
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .get(requestURL, { headers: headers })
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createSubscription(body, token) {
+    try {
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
+
+      const headers = {
+        "x-api-version": "2022-09-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
 
   async mixPanel(body: any) {
     try {
@@ -331,22 +428,26 @@ export class HelperService {
       throw err;
     }
   }
-  async getConversionRate(fromCurrency: string, amount: number): Promise<number> {
+  async getConversionRate(
+    fromCurrency: string,
+    amount: number
+  ): Promise<number> {
     try {
       const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
-      let toCurrency = "INR"
+      let toCurrency = "INR";
       const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
       const response = await axios.get(url);
       console.log("API Response:", response.data);
       const conversionRate = response.data?.conversion_rate;
-      console.log(`Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`);
+      console.log(
+        `Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`
+      );
       return conversionRate;
     } catch (error: any) {
       console.error("Failed to fetch conversion rate:", error.message);
       return null;
     }
   }
-
 
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {

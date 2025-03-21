@@ -13,6 +13,9 @@ export class MandatesService {
 
   async addMandate(body: any, token: UserToken): Promise<MandateDocument> {
     try {
+
+      console.log("body", body);
+
       const mandatePayload = {
         sourceId: body.sourceId,
         userId: body.userId,
@@ -34,6 +37,7 @@ export class MandatesService {
       throw new Error(error);
     }
   }
+
     async fetchMandates(token: UserToken) {
       try {
         let filter = { userId: token.id, status: "Active" }
@@ -43,4 +47,5 @@ export class MandatesService {
         throw error;
       }
     }
+
 }
