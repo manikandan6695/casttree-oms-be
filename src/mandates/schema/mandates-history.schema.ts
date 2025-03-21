@@ -8,11 +8,14 @@ export class MandateHistory {
   @Prop({ required: true, index: true })
   mandateId: string; // Reference to the mandate
 
-  @Prop({ required: true })
+  @Prop()
   provider: string; // e.g., "Cashfree" or "Razorpay"
 
   @Prop({ required: true, enum: ["Pending", "Active", "Failed", "Cancelled"] })
-  status: string; // Latest status
+  mandateStatus: string; // Latest status
+
+  @Prop()
+  status: string;
 
   @Prop({ type: Date, default: Date.now })
   createdAt: Date;
