@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Document, Schema as MongooseSchema } from "mongoose";
 
 export type MandateHistoryDocument = MandateHistory & Document;
 
@@ -8,14 +8,17 @@ export class MandateHistory {
   @Prop({ required: true, index: true })
   mandateId: string; // Reference to the mandate
 
-  @Prop()
-  provider: string; // e.g., "Cashfree" or "Razorpay"
-
   @Prop({ required: true, enum: ["Pending", "Active", "Failed", "Cancelled"] })
   mandateStatus: string; // Latest status
 
   @Prop()
   status: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User" })
+  createdBy: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User" })
+  updatedBy: string;
 
   @Prop({ type: Date, default: Date.now })
   createdAt: Date;

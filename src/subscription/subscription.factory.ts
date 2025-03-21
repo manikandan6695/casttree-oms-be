@@ -10,6 +10,7 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 
 @Injectable()
 export class SubscriptionFactory {
@@ -17,6 +18,7 @@ export class SubscriptionFactory {
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
     private readonly mandateService: MandatesService,
+    private readonly mandateHistoryService: MandateHistoryService,
     @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
@@ -104,7 +106,15 @@ export class SubscriptionFactory {
           ? this.sharedService.getFutureDateISO(bodyData.validity)
           : this.sharedService.getFutureMonthISO(bodyData.validity),
     };
-    await this.mandateService.addMandate(mandateData, token);
+    let mandate = await this.mandateService.addMandate(mandateData, token);
+
+    await this.mandateHistoryService.createMandateHistory({
+      mandateId: mandate._id,
+      mandateStatus: EsubscriptionStatus.pending,
+      status: EStatus.Active,
+      createdBy: token.id,
+      updatedBy: token.id,
+    });
 
     const invoiceData = {
       itemId: bodyData.itemId,
