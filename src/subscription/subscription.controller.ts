@@ -49,11 +49,11 @@ export class SubscriptionController {
   @Post("webhook/provider/:providerId")
   async subscriptionWebhook(
     @Req() req,
-    @Param("providerId") providerId: string,
+    @Param("providerId") providerId: number,
     @Res() res: Response
   ) {
     try {
-      let data = await this.subscriptionService.subscriptionWebhook(req);
+      let data = await this.subscriptionService.subscriptionWebhook(req,providerId);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(

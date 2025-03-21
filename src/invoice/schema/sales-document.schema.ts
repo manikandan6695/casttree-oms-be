@@ -5,6 +5,7 @@ export interface ISalesDocumentModel extends mongoose.Document {
   source_id?: string;
   source_type?: string;
   document_id: any;
+  user_id : any;
   document_type_name: EDocumentTypeName;
   doc_id_gen_type: string;
   sales_doc_id_prefix: string;
@@ -22,7 +23,6 @@ export interface ISalesDocumentModel extends mongoose.Document {
   discount_type: string;
   discount_level: string;
   discount: number;
-
   discount_amount: number;
   adjustments: number;
   grand_total: number;
@@ -79,6 +79,10 @@ export const SalesDocumentSchema = new mongoose.Schema(
     },
     document_status: {
       type: String,
+    },
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
     },
     acknowledgement_status: {
       type: String,

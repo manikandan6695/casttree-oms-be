@@ -37,4 +37,15 @@ export class MandatesService {
       throw new Error(error);
     }
   }
+
+  async getMandate(subscriptionId) {
+    try {
+      let data = await this.mandateModel.findOne({
+        "metaData.subscription_id": subscriptionId,
+      });
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

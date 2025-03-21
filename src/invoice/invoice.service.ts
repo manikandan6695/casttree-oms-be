@@ -43,6 +43,9 @@ export class InvoiceService {
           item_id: body.itemId,
           amount: data.sub_total,
           quantity: data.item_count,
+          user_id: body.user_id,
+          created_by: body.created_by,
+          updated_by: body.updated_by,
         },
       ]);
       return data;
@@ -51,19 +54,18 @@ export class InvoiceService {
     }
   }
 
-  async updateInvoice(id: any, status,serviceRequestId?) {
+  async updateInvoice(id: any, status, serviceRequestId?) {
     try {
-      let updateBody : any = {};
+      let updateBody: any = {};
       updateBody.document_status = status;
-      if(serviceRequestId){
+      if (serviceRequestId) {
         updateBody.source_id = serviceRequestId;
-        updateBody.source_type = ESourceType.serviceRequest
+        updateBody.source_type = ESourceType.serviceRequest;
       }
       await this.salesDocumentModel.updateOne(
         { _id: id },
         { $set: { document_status: status } }
       );
-
       return { message: "Updated successfully" };
     } catch (err) {
       throw err;
