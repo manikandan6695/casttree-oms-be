@@ -10,6 +10,9 @@ import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import Man
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
+
+import { MandatesModule } from "src/mandates/mandates.module";
+
 import { SubscriptionFactory } from "./subscription.factory";
 
 @Module({
@@ -22,8 +25,10 @@ import { SubscriptionFactory } from "./subscription.factory";
     HelperModule,
     InvoiceModule,
     PaymentRequestModule,
-    MandatesModule,
-    forwardRef(() => ItemModule),
+
+    forwardRef(() =>  ItemModule),
+    MandatesModule
+
   ],
   controllers: [SubscriptionController],
   providers: [

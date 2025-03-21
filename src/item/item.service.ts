@@ -63,4 +63,15 @@ export class ItemService {
       throw err;
     }
   }
+  async getItemNamesByIds(itemIds: string[]) {
+    try {
+      const items = await this.itemModel.find({ _id: { $in: itemIds } }, { _id: 1, itemName: 1 }).lean();
+      return items.reduce((acc, item) => {
+        acc[item._id.toString()] = item.itemName;
+        return acc;
+      }, {});
+    } catch (err) {
+      throw err;
+    }
+  }
 }

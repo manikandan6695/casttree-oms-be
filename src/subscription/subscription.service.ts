@@ -17,7 +17,7 @@ import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
-
+import { MandatesService } from "src/mandates/mandates.service";
 @Injectable()
 export class SubscriptionService {
   constructor(
@@ -28,8 +28,11 @@ export class SubscriptionService {
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
-    private itemService: ItemService
-  ) {}
+
+    private itemService: ItemService,
+    private mandatesService: MandatesService
+  ) { }
+
 
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
@@ -346,6 +349,50 @@ export class SubscriptionService {
       }
     } catch (err) {
       throw err;
+    }
+  }
+  async fetchSubscriptions(token: UserToken) {
+    try {
+      let filter = { userId: token.id, status: "Active" };
+      let subscriptionData = await this.subscriptionModel.find(filter);
+      let mandatesData = await this.mandatesService.fetchMandates(token);
+      let itemIds = subscriptionData.map(sub => sub.notes?.itemId).filter(id => id);
+      let itemNamesMap = await this.itemService.getItemNamesByIds(itemIds);
+      let enhancedSubscriptions = [];
+      for (let sub of subscriptionData) {
+        enhancedSubscriptions.push({
+          ...sub.toObject(),
+          itemName: itemNamesMap[sub.notes?.itemId?.toString()]
+        });
+      }
+      console.log(enhancedSubscriptions);
+
+      return { subscriptionData: enhancedSubscriptions, mandatesData };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async cancelSubscriptionStatus(token: UserToken) {
+    try {
+      let subReferenceIds = await this.mandatesService.getUserMandates(token.id);
+  
+
+      for (const subRefId of subReferenceIds) {
+        try {
+          const data = await this.helperService.cancelSubscription(subRefId);
+          return {
+            subRefId, 
+            status: "Subscription canceled",
+            subscriptionId: data.subscription_id, 
+            subscriptionStatus: data.subscription_status 
+          };
+        } catch (error) {
+          return { subRefId, status: "FAILED", error: error.message };
+        }
+      }
+    } catch (error) {
+      console.error("Error in cancelSubscriptionStatus:", error);
+      throw error;
     }
   }
 }

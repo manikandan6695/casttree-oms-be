@@ -13,6 +13,7 @@ export class MandatesService {
 
   async addMandate(body: any, token: UserToken): Promise<MandateDocument> {
     try {
+
       console.log("body", body);
 
       const mandatePayload = {
@@ -35,5 +36,29 @@ export class MandatesService {
     } catch (error) {
       throw new Error(error);
     }
+  }
+
+    async fetchMandates(token: UserToken) {
+      try {
+        let filter = { userId: token.id, status: "Active" }
+        let mandatesData = await this.mandateModel.find(filter)
+        return mandatesData
+      } catch (error) {
+        throw error;
+      }
+    }
+    async getUserMandates(userId: string): Promise<string[]> {
+      try {
+        let filter = { userId };
+        
+        let mandates = await this.mandateModel.find(filter, { "metaData.subscription_id": 1 });
+    
+        return mandates
+          .map(mandate => mandate.metaData?.subscription_id)
+          .filter(id => id); 
+      }
+      catch (error) {
+       throw error  
+      }
   }
 }
