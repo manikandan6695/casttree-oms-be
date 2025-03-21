@@ -50,8 +50,8 @@ export class SubscriptionFactory {
     bodyData,
     token: UserToken
   ) {
-    console.log("inside handle cashfree", data);
-    console.log("bodyData", bodyData);
+    // console.log("inside handle cashfree", data);
+    // console.log("bodyData", bodyData);
 
     const subscription = await this.helperService.createSubscription(
       data,

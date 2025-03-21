@@ -431,7 +431,7 @@ export class SubscriptionService {
     try {
       const now = new Date();
       let currentDate = now.toISOString();
-      console.log("updating subscription entries : " + currentDate);
+      // console.log("updating subscription entries : " + currentDate);
       let expiredSubscriptionsList = await this.subscriptionModel.find({
         subscriptionStatus: EsubscriptionStatus.active,
         currentEnd: { $lte: currentDate },
@@ -464,13 +464,13 @@ export class SubscriptionService {
         expiredSubscriptionsList.map((data) => {
           userIds.push(data.userId);
         });
-        console.log(userIds);
+        // console.log(userIds);
         let updateBody = {
           userId: userIds,
           membership: "",
           badge: "",
         };
-        console.log(updateBody);
+        // console.log(updateBody);
         await this.helperService.updateUsers(updateBody);
       }
     } catch (err) {

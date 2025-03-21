@@ -186,7 +186,7 @@ export class SharedService {
   }
 
   getFutureDateISO(days) {
-    console.log("days is", typeof days);
+    // console.log("days is", typeof days);
 
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
