@@ -448,6 +448,35 @@ export class HelperService {
       return null;
     }
   }
+  async cancelSubscription(subReferenceId: string) {
+    try {
+      const requestURL = `${this.configService.get('CASHFREE_BASE_URL')}/pg/subscriptions/${subReferenceId}/manage`;
+
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "X-Client-Id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "X-Client-Secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+
+      const requestBody = { subscription_id: subReferenceId, action: "CANCEL" };
+
+      const response = await lastValueFrom(
+        this.http_service.post(requestURL, requestBody, { headers }).pipe(
+          map((res) => res?.data),
+          catchError((err) => {
+            throw new BadRequestException(
+              `Failed to cancel subscription: ${err.response?.data?.message || err.message}`
+            );
+          })
+        )
+      );
+      return response;
+    } catch (err) {
+      // console.error("Final Catch Error:", err);
+      throw new BadRequestException('Unexpected error while canceling subscription');
+    }
+  }
 
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {

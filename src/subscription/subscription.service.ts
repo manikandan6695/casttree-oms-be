@@ -477,4 +477,48 @@ export class SubscriptionService {
       throw err;
     }
   }
+  async fetchSubscriptions(token: UserToken) {
+    try {
+      let filter = { userId: token.id, status: "Active" };
+      let subscriptionData = await this.subscriptionModel.find(filter).sort({_id : -1});
+      let mandatesData = await this.mandateService.fetchMandates(token);
+      let itemIds = subscriptionData.map(sub => sub.notes?.itemId).filter(id => id);
+      let itemNamesMap = await this.itemService.getItemNamesByIds(itemIds);
+      let enhancedSubscriptions = [];
+      for (let sub of subscriptionData) {
+        enhancedSubscriptions.push({
+          ...sub.toObject(),
+          itemName: itemNamesMap[sub.notes?.itemId?.toString()]
+        });
+      }
+      console.log(enhancedSubscriptions);
+
+      return { subscriptionData: enhancedSubscriptions, mandatesData };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async cancelSubscriptionStatus(token: UserToken) {
+    try {
+      let subReferenceIds = await this.mandateService.getUserMandates(token.id);
+  
+
+      for (const subRefId of subReferenceIds) {
+        try {
+          const data = await this.helperService.cancelSubscription(subRefId);
+          return {
+            subRefId, 
+            status: "Subscription canceled",
+            subscriptionId: data.subscription_id, 
+            subscriptionStatus: data.subscription_status 
+          };
+        } catch (error) {
+          return { subRefId, status: "FAILED", error: error.message };
+        }
+      }
+    } catch (error) {
+      console.error("Error in cancelSubscriptionStatus:", error);
+      throw error;
+    }
+  }
 }
