@@ -9,7 +9,7 @@ import { SharedModule } from "src/shared/shared.module";
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
-
+import { MandatesModule } from "src/mandates/mandates.module";
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -21,6 +21,7 @@ import { SubscriptionService } from "./subscription.service";
     InvoiceModule,
     PaymentRequestModule,
     forwardRef(() =>  ItemModule),
+    MandatesModule
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService],

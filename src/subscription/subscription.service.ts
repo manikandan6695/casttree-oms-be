@@ -251,10 +251,21 @@ export class SubscriptionService {
   }
   async fetchSubscriptions(token: UserToken) {
     try {
-      let filter = { userId: token.id, status: "Active" }
-      let subscriptionData = await this.subscriptionModel.find(filter)
-      let mandatesData = await this.mandatesService.fetchMandates(token)
-      return {subscriptionData,mandatesData}
+      let filter = { userId: token.id, status: "Active" };
+      let subscriptionData = await this.subscriptionModel.find(filter);
+      let mandatesData = await this.mandatesService.fetchMandates(token);
+      let itemIds = subscriptionData.map(sub => sub.notes?.itemId).filter(id => id);
+      let itemNamesMap = await this.itemService.getItemNamesByIds(itemIds);
+      let enhancedSubscriptions = [];
+      for (let sub of subscriptionData) {
+        enhancedSubscriptions.push({
+          ...sub.toObject(),
+          itemName: itemNamesMap[sub.notes?.itemId?.toString()]
+        });
+      }
+      console.log(enhancedSubscriptions);
+
+      return { subscriptionData: enhancedSubscriptions, mandatesData };
     } catch (error) {
       throw error;
     }
