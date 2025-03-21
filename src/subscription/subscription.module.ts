@@ -6,10 +6,15 @@ import { InvoiceModule } from "src/invoice/invoice.module";
 import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SharedModule } from "src/shared/shared.module";
+import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import MandatesModule
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
+
 import { MandatesModule } from "src/mandates/mandates.module";
+
+import { SubscriptionFactory } from "./subscription.factory";
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -20,11 +25,19 @@ import { MandatesModule } from "src/mandates/mandates.module";
     HelperModule,
     InvoiceModule,
     PaymentRequestModule,
+
     forwardRef(() =>  ItemModule),
     MandatesModule
+
   ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService],
-  exports: [SubscriptionService],
+  providers: [
+    {
+      provide: SubscriptionService,
+      useClass: SubscriptionService,
+    },
+    SubscriptionFactory,
+  ],
+  exports: [SubscriptionService, SubscriptionFactory],
 })
 export class SubscriptionModule {}
