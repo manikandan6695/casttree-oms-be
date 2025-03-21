@@ -11,7 +11,6 @@ import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
 
-import { MandatesModule } from "src/mandates/mandates.module";
 
 import { SubscriptionFactory } from "./subscription.factory";
 
