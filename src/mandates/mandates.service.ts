@@ -13,14 +13,14 @@ export class MandatesService {
 
   async addMandate(body: any, token: UserToken): Promise<MandateDocument> {
     try {
-
-      console.log("body", body);
+      // console.log("body", body);
 
       const mandatePayload = {
         sourceId: body.sourceId,
         userId: body.userId,
         paymentMethod: body.paymentMethod,
         amount: body.amount,
+        planId: body.planId,
         currency: body.currency,
         frequency: body.frequency,
         mandateStatus: body.mandateStatus,
@@ -38,27 +38,38 @@ export class MandatesService {
     }
   }
 
-    async fetchMandates(token: UserToken) {
-      try {
-        let filter = { userId: token.id, status: "Active" }
-        let mandatesData = await this.mandateModel.find(filter)
-        return mandatesData
-      } catch (error) {
-        throw error;
-      }
+  async getMandate(subscriptionId) {
+    try {
+      let data = await this.mandateModel.findOne({
+        "metaData.subscription_id": subscriptionId,
+      });
+      return data;
+    } catch (err) {
+      throw err;
     }
-    async getUserMandates(userId: string): Promise<string[]> {
-      try {
-        let filter = { userId };
-        
-        let mandates = await this.mandateModel.find(filter, { "metaData.subscription_id": 1 });
-    
-        return mandates
-          .map(mandate => mandate.metaData?.subscription_id)
-          .filter(id => id); 
-      }
-      catch (error) {
-       throw error  
-      }
+  }
+  async fetchMandates(token: UserToken) {
+    try {
+      let filter = { userId: token.id, status: "Active" };
+      let mandatesData = await this.mandateModel.find(filter).sort({ _id: -1 });
+      return mandatesData;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserMandates(userId: string): Promise<string[]> {
+    try {
+      let filter = { userId };
+
+      let mandates = await this.mandateModel.find(filter, {
+        "metaData.subscription_id": 1,
+      });
+
+      return mandates
+        .map((mandate) => mandate.metaData?.subscription_id)
+        .filter((id) => id);
+    } catch (error) {
+      throw error;
+    }
   }
 }

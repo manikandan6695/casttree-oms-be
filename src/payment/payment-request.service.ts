@@ -440,6 +440,15 @@ export class PaymentRequestService {
     }
   }
 
+  async fetchPaymentByOrderId(cfPaymentId : string) {
+    try {
+      let payment = await this.paymentModel.findOne({payment_order_id : cfPaymentId})
+      return payment
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

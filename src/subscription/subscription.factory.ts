@@ -10,6 +10,8 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 
 @Injectable()
 export class SubscriptionFactory {
@@ -17,6 +19,7 @@ export class SubscriptionFactory {
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
     private readonly mandateService: MandatesService,
+    private readonly mandateHistoryService: MandateHistoryService,
     @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
@@ -47,8 +50,8 @@ export class SubscriptionFactory {
     bodyData,
     token: UserToken
   ) {
-    console.log("inside handle cashfree", data);
-    console.log("bodyData", bodyData);
+    // console.log("inside handle cashfree", data);
+    // console.log("bodyData", bodyData);
 
     const subscription = await this.helperService.createSubscription(
       data,
@@ -79,7 +82,7 @@ export class SubscriptionFactory {
       endAt: data.subscription_expiry_time,
       amount: data.authorization_details.authorization_amount,
       notes: { itemId: bodyData.itemId },
-      subscriptionStatus: EsubscriptionStatus.pending,
+      subscriptionStatus: EsubscriptionStatus.initiated,
       metaData: subscription,
     };
     const subscriptionCreated = await this.subscriptionService.subscription(
@@ -93,8 +96,9 @@ export class SubscriptionFactory {
       paymentMethod: "UPI",
       amount: bodyData.authAmount,
       currency: "INR",
+      planId: subscription.plan_details.plan_id,
       frequency: subscription.plan_details.plan_type,
-      mandateStatus: EsubscriptionStatus.pending,
+      mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
       startDate: data.subscription_first_charge_time,
@@ -103,7 +107,15 @@ export class SubscriptionFactory {
           ? this.sharedService.getFutureDateISO(bodyData.validity)
           : this.sharedService.getFutureMonthISO(bodyData.validity),
     };
-    await this.mandateService.addMandate(mandateData, token);
+    let mandate = await this.mandateService.addMandate(mandateData, token);
+
+    await this.mandateHistoryService.createMandateHistory({
+      mandateId: mandate._id,
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      createdBy: token.id,
+      updatedBy: token.id,
+    });
 
     const invoiceData = {
       itemId: bodyData.itemId,
@@ -113,6 +125,9 @@ export class SubscriptionFactory {
       currencyCode: "INR",
       document_status: EDocumentStatus.pending,
       grand_total: bodyData.authAmount,
+      user_id: token.id,
+      created_by: token.id,
+      updated_by: token.id,
     };
     const invoice = await this.invoiceService.createInvoice(invoiceData);
 
@@ -126,7 +141,7 @@ export class SubscriptionFactory {
       token,
       invoice,
       "INR",
-      null
+      { order_id: auth.cf_payment_id }
     );
 
     return {
