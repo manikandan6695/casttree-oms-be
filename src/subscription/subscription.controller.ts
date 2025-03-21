@@ -133,6 +133,19 @@ export class SubscriptionController {
       return res.status(code).json(response);
     }
   }
-
+  @UseGuards(JwtAuthGuard)
+  @Post("cancel-subscriptions")
+  async findCancelledSubscriptions(
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
+    try {
+      const subData = await this.subscriptionService.cancelSubscriptionStatus(token);
+      return res.json(subData);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(err, this.constructor.name);
+      return res.status(code).json(response);
+    }
+  }
 
 }

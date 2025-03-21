@@ -270,5 +270,26 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async cancelSubscriptionStatus(token: UserToken) {
+    try {
+      let subReferenceIds = await this.mandatesService.getUserMandates(token.id);
 
+      let results = [];
+      for (const subRefId of subReferenceIds) {
+        try {
+          const data = await this.helperService.cancelSubscription(subRefId);
+          console.log("data", data);
+          results.push({ subRefId, status: "Subscription canceld" });
+        } catch (error) {
+          // console.error(`Error canceling subscription ${subRefId}:`, error);
+          results.push({ subRefId, status: "FAILED", error: error.message });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error("Error in cancelSubscriptionStatus:", error);
+      throw error;
+    }
+  }
 }

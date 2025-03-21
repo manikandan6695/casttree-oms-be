@@ -43,4 +43,18 @@ export class MandatesService {
         throw error;
       }
     }
+    async getUserMandates(userId: string): Promise<string[]> {
+      try {
+        let filter = { userId };
+        
+        let mandates = await this.mandateModel.find(filter, { "metaData.subscription_id": 1 });
+    
+        return mandates
+          .map(mandate => mandate.metaData?.subscription_id)
+          .filter(id => id); 
+      }
+      catch (error) {
+       throw error  
+      }
+  }
 }
