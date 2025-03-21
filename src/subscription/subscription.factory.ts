@@ -93,6 +93,7 @@ export class SubscriptionFactory {
       paymentMethod: "UPI",
       amount: bodyData.authAmount,
       currency: "INR",
+      planId: subscription.plan_details.plan_id,
       frequency: subscription.plan_details.plan_type,
       mandateStatus: EsubscriptionStatus.pending,
       status: EStatus.Active,

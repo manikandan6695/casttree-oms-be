@@ -56,6 +56,9 @@ export class Mandate {
   @Prop()
   cancelReason: Date;
 
+  @Prop()
+  planId: string;
+
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User" })
   createdBy: string;
 

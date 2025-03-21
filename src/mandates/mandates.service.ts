@@ -20,6 +20,7 @@ export class MandatesService {
         userId: body.userId,
         paymentMethod: body.paymentMethod,
         amount: body.amount,
+        planId: body.planId,
         currency: body.currency,
         frequency: body.frequency,
         mandateStatus: body.mandateStatus,
