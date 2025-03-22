@@ -11,7 +11,7 @@ export class ItemDocumentService {
   ) {}
   async createItemDocuments(input: any[]) {
     try {
-      console.log("input is", input);
+      // console.log("input is", input);
 
       let data = await this.item_document_model.insertMany(input);
       return data;
@@ -22,7 +22,7 @@ export class ItemDocumentService {
 
   async updateItemDocumentBySourceId(sourceId : string,status : string){
     try {
-      
+      await this.item_document_model.updateMany({source_id:sourceId},{$set:{}})
     } catch (err) {
       throw err;
     }

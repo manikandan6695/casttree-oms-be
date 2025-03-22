@@ -93,9 +93,13 @@ export class SubscriptionService {
             },
             subscription_expiry_time: this.sharedService.getFutureYearISO(5),
             subscription_first_charge_time:
-              body.validityType == "day"
+              body.validityType === "day"
                 ? this.sharedService.getFutureDateISO(body.validity)
-                : this.sharedService.getFutureMonthISO(body.validity),
+                : body.validityType === "month"
+                  ? this.sharedService.getFutureMonthISO(body.validity)
+                  : body.validityType === "year"
+                    ? this.sharedService.getFutureYearISO(body.validity)
+                    : null,
           };
           break;
 
@@ -309,18 +313,30 @@ export class SubscriptionService {
       // console.log("paymentId is ==>", paymentRequest._id);
 
       let updatedStatus = await this.paymentService.completePayment({
-        invoiceId: paymentRequest.source_id,
-        paymentId: paymentRequest._id,
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
       });
       let invoice = await this.invoiceService.getInvoiceDetail(
-        paymentRequest.source_id
+        paymentRequest?.source_id
       );
       let subscription = await this.subscriptionModel.findOne({
-        _id: invoice.source_id,
+        _id: invoice?.source_id,
       });
       if (subscription) {
         subscription.subscriptionStatus = "Active";
         await subscription.save();
+
+        let item = await this.itemService.getItemDetail(
+          subscription?.notes?.itemId
+        );
+
+        let userBody = {
+          userId: subscription?.userId,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
+        };
+
+        await this.helperService.updateUser(userBody);
       }
     }
   }
@@ -480,15 +496,19 @@ export class SubscriptionService {
   async fetchSubscriptions(token: UserToken) {
     try {
       let filter = { userId: token.id, status: "Active" };
-      let subscriptionData = await this.subscriptionModel.find(filter).sort({_id : -1});
+      let subscriptionData = await this.subscriptionModel
+        .find(filter)
+        .sort({ _id: -1 });
       let mandatesData = await this.mandateService.fetchMandates(token);
-      let itemIds = subscriptionData.map(sub => sub.notes?.itemId).filter(id => id);
+      let itemIds = subscriptionData
+        .map((sub) => sub.notes?.itemId)
+        .filter((id) => id);
       let itemNamesMap = await this.itemService.getItemNamesByIds(itemIds);
       let enhancedSubscriptions = [];
       for (let sub of subscriptionData) {
         enhancedSubscriptions.push({
           ...sub.toObject(),
-          itemName: itemNamesMap[sub.notes?.itemId?.toString()]
+          itemName: itemNamesMap[sub.notes?.itemId?.toString()],
         });
       }
       console.log(enhancedSubscriptions);
@@ -501,16 +521,15 @@ export class SubscriptionService {
   async cancelSubscriptionStatus(token: UserToken) {
     try {
       let subReferenceIds = await this.mandateService.getUserMandates(token.id);
-  
 
       for (const subRefId of subReferenceIds) {
         try {
           const data = await this.helperService.cancelSubscription(subRefId);
           return {
-            subRefId, 
+            subRefId,
             status: "Subscription canceled",
-            subscriptionId: data.subscription_id, 
-            subscriptionStatus: data.subscription_status 
+            subscriptionId: data.subscription_id,
+            subscriptionStatus: data.subscription_status,
           };
         } catch (error) {
           return { subRefId, status: "FAILED", error: error.message };
