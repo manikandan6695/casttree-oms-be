@@ -19,12 +19,4 @@ export class ItemDocumentService {
       throw err;
     }
   }
-
-  async updateItemDocumentBySourceId(sourceId : string,status : string){
-    try {
-      await this.item_document_model.updateMany({source_id:sourceId},{$set:{}})
-    } catch (err) {
-      throw err;
-    }
-  }
 }
