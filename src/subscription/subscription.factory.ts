@@ -79,7 +79,7 @@ export class SubscriptionFactory {
       userId: token.id,
       planId: subscription.plan_details.plan_id,
       startAt: new Date().toISOString(),
-      endAt: data.subscription_expiry_time,
+      endAt: data.subscription_first_charge_time,
       amount: data.authorization_details.authorization_amount,
       notes: { itemId: bodyData.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
@@ -101,11 +101,14 @@ export class SubscriptionFactory {
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
-      startDate: data.subscription_first_charge_time,
-      endDate:
-        bodyData.validityType == "day"
-          ? this.sharedService.getFutureDateISO(bodyData.validity)
-          : this.sharedService.getFutureMonthISO(bodyData.validity),
+      startDate: new Date().toISOString(),
+      endDate: data.subscription_expiry_time,
+
+      // startDate: data.subscription_first_charge_time,
+      // endDate:
+      //   bodyData.validityType == "day"
+      //     ? this.sharedService.getFutureDateISO(bodyData.validity)
+      //     : this.sharedService.getFutureMonthISO(bodyData.validity),
     };
     let mandate = await this.mandateService.addMandate(mandateData, token);
 
