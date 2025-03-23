@@ -392,6 +392,7 @@ export class HelperService {
         "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
       };
+      delete body.subscription_first_charge_time;
       const request = this.http_service
         .post(requestURL, body, { headers: headers })
         .pipe(
