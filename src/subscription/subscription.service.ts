@@ -65,6 +65,19 @@ export class SubscriptionService {
           const subscriptionNumber = subscriptionSequence
             .toString()
             .padStart(5, "0");
+          // console.log("inside subscription service", subscriptionNumber);
+          let expiryTime = this.sharedService.getFutureYearISO(5);
+          let firstCharge =
+            body.validityType === "day"
+              ? this.sharedService.getFutureDateISO(body.validity)
+              : body.validityType === "month"
+                ? this.sharedService.getFutureMonthISO(body.validity)
+                : body.validityType === "year"
+                  ? this.sharedService.getFutureYearISO(body.validity)
+                  : null;
+
+          body["expiryTime"] = expiryTime;
+          body["firstCharge"] = firstCharge;
           subscriptionData = {
             subscription_id: subscriptionNumber,
             customer_details: {
@@ -91,15 +104,8 @@ export class SubscriptionService {
             subscription_meta: {
               return_url: body.redirectionUrl,
             },
-            subscription_expiry_time: this.sharedService.getFutureYearISO(5),
-            subscription_first_charge_time:
-              body.validityType === "day"
-                ? this.sharedService.getFutureDateISO(body.validity)
-                : body.validityType === "month"
-                  ? this.sharedService.getFutureMonthISO(body.validity)
-                  : body.validityType === "year"
-                    ? this.sharedService.getFutureYearISO(body.validity)
-                    : null,
+            subscription_expiry_time: expiryTime,
+            subscription_first_charge_time: firstCharge,
           };
           break;
 
@@ -356,6 +362,8 @@ export class SubscriptionService {
 
   async subscription(body, token) {
     try {
+      // console.log("subscription data", body);
+
       let subscriptionData = {
         userId: token.id,
         planId: body.planId,

@@ -79,12 +79,14 @@ export class SubscriptionFactory {
       userId: token.id,
       planId: subscription.plan_details.plan_id,
       startAt: new Date().toISOString(),
-      endAt: data.subscription_first_charge_time,
+      endAt: bodyData.firstCharge,
       amount: data.authorization_details.authorization_amount,
       notes: { itemId: bodyData.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
       metaData: subscription,
     };
+    // console.log("subscription data", subscriptionData);
+
     const subscriptionCreated = await this.subscriptionService.subscription(
       subscriptionData,
       token
@@ -101,8 +103,8 @@ export class SubscriptionFactory {
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
-      startDate: data.subscription_first_charge_time,
-      endDate: data.subscription_expiry_time,
+      startDate: bodyData.firstCharge,
+      endDate: bodyData.expiryTime,
 
       // startDate: data.subscription_first_charge_time,
       // endDate:
@@ -110,6 +112,7 @@ export class SubscriptionFactory {
       //     ? this.sharedService.getFutureDateISO(bodyData.validity)
       //     : this.sharedService.getFutureMonthISO(bodyData.validity),
     };
+    // console.log("mandate data", mandateData);
     let mandate = await this.mandateService.addMandate(mandateData, token);
 
     await this.mandateHistoryService.createMandateHistory({
@@ -146,6 +149,7 @@ export class SubscriptionFactory {
       "INR",
       { order_id: auth.cf_payment_id }
     );
+    // console.log("returning data");
 
     return {
       subscriptionDetails: subscription,
