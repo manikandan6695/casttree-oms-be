@@ -101,7 +101,7 @@ export class SubscriptionFactory {
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
-      startDate: new Date().toISOString(),
+      startDate: data.subscription_first_charge_time,
       endDate: data.subscription_expiry_time,
 
       // startDate: data.subscription_first_charge_time,
