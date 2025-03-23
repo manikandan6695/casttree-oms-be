@@ -42,7 +42,7 @@ export const EStaskStatus = [
 ];
 
 export enum EsubscriptionStatus {
-  initiated = "initiated",
+  initiated = "Initiated",
   expired = "Expired",
   active = "Active",
   pending = "Pending",

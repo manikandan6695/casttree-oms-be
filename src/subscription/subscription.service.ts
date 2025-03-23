@@ -394,15 +394,21 @@ export class SubscriptionService {
   async addSubscription(body, token) {
     try {
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
+      let subscriptionDetails =
+        itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetails;
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
-      if (body.validity) {
-        body.validityType == EvalidityType.day
-          ? duedate.setDate(now.getDate() + body.validity)
-          : body.validityType == EvalidityType.month
-            ? duedate.setMonth(duedate.getMonth() + body.validity)
-            : duedate.setFullYear(duedate.getFullYear() + body.validity);
+      if (subscriptionDetails?.validity) {
+        subscriptionDetails.validityType == EvalidityType.day
+          ? duedate.setDate(now.getDate() + subscriptionDetails.validity)
+          : subscriptionDetails.validityType == EvalidityType.month
+            ? duedate.setMonth(
+                duedate.getMonth() + subscriptionDetails.validity
+              )
+            : duedate.setFullYear(
+                duedate.getFullYear() + subscriptionDetails.validity
+              );
       } else {
         duedate.setFullYear(duedate.getFullYear() + 1);
       }
