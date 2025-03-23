@@ -53,7 +53,10 @@ export class SubscriptionController {
     @Res() res: Response
   ) {
     try {
-      let data = await this.subscriptionService.subscriptionWebhook(req,providerId);
+      let data = await this.subscriptionService.subscriptionWebhook(
+        req,
+        providerId
+      );
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
@@ -101,21 +104,24 @@ export class SubscriptionController {
   }
   @UseGuards(JwtAuthGuard)
   @Get("fetch-subscriptions")
-  async fetchSubscriptions(
-    @GetToken() token: UserToken,
-    @Res() res: Response
-  ) {
+  async fetchSubscriptions(@GetToken() token: UserToken, @Res() res: Response) {
     try {
       if (!token.id) {
         return res.json({ message: "User ID is required" });
       }
 
-      const subscriptions = await this.subscriptionService.fetchSubscriptions(token);
+      const subscriptions =
+        await this.subscriptionService.fetchSubscriptions(token);
 
       if (!subscriptions) {
         return res.json({ message: "No active subscriptions found" });
       }
-      return res.json({ data: { subscriptions: subscriptions.subscriptionData, mandates: subscriptions.mandatesData } });
+      return res.json({
+        data: {
+          subscriptions: subscriptions.subscriptionData,
+          mandates: subscriptions.mandatesData,
+        },
+      });
     } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,
@@ -126,15 +132,22 @@ export class SubscriptionController {
   }
   @UseGuards(JwtAuthGuard)
   @Post("cancel-subscriptions")
-  async findCancelledSubscriptions(
+  async cancelSubscriptionStatus(
+    @Body() body: any,
     @GetToken() token: UserToken,
     @Res() res: Response
   ) {
     try {
-      const subData = await this.subscriptionService.cancelSubscriptionStatus(token);
+      const subData = await this.subscriptionService.cancelSubscriptionStatus(
+        token,
+        body
+      );
       return res.json(subData);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(err, this.constructor.name);
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
       return res.status(code).json(response);
     }
   }
