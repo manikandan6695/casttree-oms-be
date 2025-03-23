@@ -57,17 +57,23 @@ export class MandatesService {
       throw error;
     }
   }
-  async getUserMandates(userId: string): Promise<string[]> {
+  async getUserMandates(userId: string) {
     try {
-      let filter = { userId };
+      let filter = { userId, status: "Active" };
 
-      let mandates = await this.mandateModel.find(filter, {
-        "metaData.subscription_id": 1,
-      });
+      let mandates = await this.mandateModel.find(filter).sort({ _id: -1 });
 
-      return mandates
-        .map((mandate) => mandate.metaData?.subscription_id)
-        .filter((id) => id);
+      return mandates;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateMandate(_id: any, body: any) {
+    try {
+      let mandate = await this.mandateModel.updateOne({ _id: _id }, body);
+
+      return { message: "Updated Successfully" };
     } catch (error) {
       throw error;
     }

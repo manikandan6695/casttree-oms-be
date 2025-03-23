@@ -450,7 +450,7 @@ export class HelperService {
   }
   async cancelSubscription(subReferenceId: string) {
     try {
-      const requestURL = `${this.configService.get('CASHFREE_BASE_URL')}/pg/subscriptions/${subReferenceId}/manage`;
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/${subReferenceId}/manage`;
 
       const headers = {
         "x-api-version": "2025-01-01",
@@ -460,6 +460,7 @@ export class HelperService {
       };
 
       const requestBody = { subscription_id: subReferenceId, action: "CANCEL" };
+      // console.log("requestBody", requestBody);
 
       const response = await lastValueFrom(
         this.http_service.post(requestURL, requestBody, { headers }).pipe(
@@ -474,7 +475,9 @@ export class HelperService {
       return response;
     } catch (err) {
       // console.error("Final Catch Error:", err);
-      throw new BadRequestException('Unexpected error while canceling subscription');
+      throw new BadRequestException(
+        "Unexpected error while canceling subscription"
+      );
     }
   }
 

@@ -396,6 +396,8 @@ export class SubscriptionService {
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
       let subscriptionDetails =
         itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetails;
+      // console.log("subscriptionDetails", subscriptionDetails);
+
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
@@ -524,23 +526,31 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async cancelSubscriptionStatus(token: UserToken) {
+  async cancelSubscriptionStatus(token: UserToken, body: any) {
     try {
-      let subReferenceIds = await this.mandateService.getUserMandates(token.id);
+      // console.log("user id is", token.id);
 
-      for (const subRefId of subReferenceIds) {
-        try {
-          const data = await this.helperService.cancelSubscription(subRefId);
-          return {
-            subRefId,
-            status: "Subscription canceled",
-            subscriptionId: data.subscription_id,
-            subscriptionStatus: data.subscription_status,
-          };
-        } catch (error) {
-          return { subRefId, status: "FAILED", error: error.message };
-        }
+      let mandates = await this.mandateService.getUserMandates(token.id);
+      // console.log("subReferenceIds", subReferenceIds);
+      // for (const subRefId of subReferenceIds) {
+      const subRefId = mandates[0]?.metaData?.subscription_id;
+      // console.log("subRefId", subRefId);
+      try {
+        const data = await this.helperService.cancelSubscription(subRefId);
+        await this.mandateService.updateMandate(mandates[0]._id, {
+          cancelDate: new Date().toISOString(),
+          cancelReason: body?.reason,
+        });
+        return {
+          subRefId,
+          status: "Subscription canceled",
+          subscriptionId: data.subscription_id,
+          subscriptionStatus: data.subscription_status,
+        };
+      } catch (error) {
+        return { subRefId, status: "FAILED", error: error.message };
       }
+      // }
     } catch (error) {
       console.error("Error in cancelSubscriptionStatus:", error);
       throw error;

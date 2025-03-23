@@ -54,7 +54,7 @@ export class Mandate {
   cancelDate: Date;
 
   @Prop()
-  cancelReason: Date;
+  cancelReason: string;
 
   @Prop()
   planId: string;
