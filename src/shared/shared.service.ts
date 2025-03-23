@@ -30,8 +30,6 @@ export class SharedService {
     private currency_service: CurrencyService
   ) {}
 
- 
-
   fetchName(nameArr, lang) {
     try {
       if (!nameArr || nameArr.length <= 0) {
@@ -185,6 +183,26 @@ export class SharedService {
       }
     }
     return o;
+  }
+
+  getFutureDateISO(days) {
+    // console.log("days is", typeof days);
+
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
+    return futureDate.toISOString();
+  }
+
+  getFutureYearISO(years) {
+    const currentDate = new Date();
+    currentDate.setFullYear(currentDate.getFullYear() + years);
+    return currentDate.toISOString();
+  }
+
+  getFutureMonthISO(month) {
+    const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + month);
+    return currentDate.toISOString();
   }
 
   formatText(input_string: string, linkby: string) {
