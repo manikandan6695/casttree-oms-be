@@ -93,7 +93,7 @@ export class SubscriptionController {
   ) {
     try {
       let data = await this.subscriptionService.addSubscription(body, token);
-      return data;
+      return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,
