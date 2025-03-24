@@ -3,11 +3,14 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { MandatesService } from "src/mandates/mandates.service";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
@@ -16,9 +19,6 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
-import { MandatesService } from "src/mandates/mandates.service";
-import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 
 @Injectable()
 export class SubscriptionService {
@@ -33,7 +33,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) {}
+  ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
@@ -401,28 +401,27 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
-      let itemDetails = await this.itemService.getItemDetail(body.itemId);
-      let subscriptionDetails =
-        itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetails;
-      // console.log("subscriptionDetails", subscriptionDetails);
 
+      let subscriptionData = await this.validateSubscription(token.id, [EsubscriptionStatus.initiated]);
+      let itemDetails = await this.itemService.getItemDetail(body.itemId);
+      let subscriptionDetailsData = subscriptionData ?
+        itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetail : itemDetails?.additionalDetail?.promotionDetails?.authDetail;
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
-      if (subscriptionDetails?.validity) {
-        subscriptionDetails.validityType == EvalidityType.day
-          ? duedate.setDate(now.getDate() + subscriptionDetails.validity)
-          : subscriptionDetails.validityType == EvalidityType.month
+      if (subscriptionDetailsData?.validity) {
+        subscriptionDetailsData.validityType == EvalidityType.day
+          ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
+          : subscriptionDetailsData.validityType == EvalidityType.month
             ? duedate.setMonth(
-                duedate.getMonth() + subscriptionDetails.validity
-              )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
             : duedate.setFullYear(
-                duedate.getFullYear() + subscriptionDetails.validity
-              );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       } else {
         duedate.setFullYear(duedate.getFullYear() + 1);
       }
-
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -442,16 +441,14 @@ export class SubscriptionService {
       };
       let subscription = await this.subscriptionModel.create(fv);
 
-      let item = await this.itemService.getItemDetail(body.itemId);
-
       let userBody = {
         userId: token.id,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
+        membership: itemDetails?.itemName,
+        badge: itemDetails?.additionalDetail?.badge,
       };
 
       await this.helperService.updateUser(userBody);
-
+      console.log("done");
       return subscription;
     } catch (err) {
       throw err;
