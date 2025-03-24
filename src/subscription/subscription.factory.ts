@@ -24,7 +24,7 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) {}
+  ) { }
 
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
@@ -50,9 +50,7 @@ export class SubscriptionFactory {
     bodyData,
     token: UserToken
   ) {
-    // console.log("inside handle cashfree", data);
-    // console.log("bodyData", bodyData);
-
+    const firstChargeTime = data.subscription_first_charge_time;
     const subscription = await this.helperService.createSubscription(
       data,
       token
@@ -79,7 +77,7 @@ export class SubscriptionFactory {
       userId: token.id,
       planId: subscription.plan_details.plan_id,
       startAt: new Date().toISOString(),
-      endAt: bodyData.firstCharge,
+      endAt: firstChargeTime,
       amount: data.authorization_details.authorization_amount,
       notes: { itemId: bodyData.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
@@ -91,7 +89,6 @@ export class SubscriptionFactory {
       subscriptionData,
       token
     );
-
     const mandateData = {
       sourceId: subscriptionCreated._id,
       userId: token.id,
@@ -103,18 +100,10 @@ export class SubscriptionFactory {
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
-      startDate: bodyData.firstCharge,
-      endDate: bodyData.expiryTime,
-
-      // startDate: data.subscription_first_charge_time,
-      // endDate:
-      //   bodyData.validityType == "day"
-      //     ? this.sharedService.getFutureDateISO(bodyData.validity)
-      //     : this.sharedService.getFutureMonthISO(bodyData.validity),
+      startDate: firstChargeTime,
+      endDate: data.subscription_expiry_time,
     };
-    // console.log("mandate data", mandateData);
     let mandate = await this.mandateService.addMandate(mandateData, token);
-
     await this.mandateHistoryService.createMandateHistory({
       mandateId: mandate._id,
       mandateStatus: EMandateStatus.initiated,
@@ -136,7 +125,6 @@ export class SubscriptionFactory {
       updated_by: token.id,
     };
     const invoice = await this.invoiceService.createInvoice(invoiceData);
-
     const paymentData = {
       amount: bodyData.authAmount,
       currencyCode: "INR",
