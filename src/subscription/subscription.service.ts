@@ -76,8 +76,6 @@ export class SubscriptionService {
                   ? this.sharedService.getFutureYearISO(body.validity)
                   : null;
 
-          body["expiryTime"] = expiryTime;
-          body["firstCharge"] = firstCharge;
           subscriptionData = {
             subscription_id: subscriptionNumber,
             customer_details: {
