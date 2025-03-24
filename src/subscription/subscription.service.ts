@@ -448,7 +448,6 @@ export class SubscriptionService {
       };
 
       await this.helperService.updateUser(userBody);
-      console.log("done");
       return subscription;
     } catch (err) {
       throw err;
@@ -524,7 +523,7 @@ export class SubscriptionService {
           itemName: itemNamesMap[sub.notes?.itemId?.toString()],
         });
       }
-      console.log(enhancedSubscriptions);
+      //console.log(enhancedSubscriptions);
 
       return { subscriptionData: enhancedSubscriptions, mandatesData };
     } catch (error) {
@@ -557,7 +556,7 @@ export class SubscriptionService {
       }
       // }
     } catch (error) {
-      console.error("Error in cancelSubscriptionStatus:", error);
+     // console.error("Error in cancelSubscriptionStatus:", error);
       throw error;
     }
   }
