@@ -409,8 +409,7 @@ export class SubscriptionService {
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
-      if (subscriptionDetailsData?.validity) {
-        subscriptionDetailsData.validityType == EvalidityType.day
+      subscriptionDetailsData.validityType == EvalidityType.day
           ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
           : subscriptionDetailsData.validityType == EvalidityType.month
             ? duedate.setMonth(
@@ -419,9 +418,6 @@ export class SubscriptionService {
             : duedate.setFullYear(
               duedate.getFullYear() + subscriptionDetailsData.validity
             );
-      } else {
-        duedate.setFullYear(duedate.getFullYear() + 1);
-      }
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
