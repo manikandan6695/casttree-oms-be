@@ -75,11 +75,11 @@ export class SubscriptionService {
                 : body.validityType === "year"
                   ? this.sharedService.getFutureYearISO(body.validity)
                   : null;
-
+          let subscriptionNewNumber = `${subscriptionNumber}-${Date.now()}`;
           body["expiryTime"] = expiryTime;
           body["firstCharge"] = firstCharge;
           subscriptionData = {
-            subscription_id: subscriptionNumber,
+            subscription_id: subscriptionNewNumber.toString(),
             customer_details: {
               customer_name: token.userName,
               customer_email: token.phoneNumber + "@casttree.com",
@@ -370,6 +370,8 @@ export class SubscriptionService {
         startAt: body.startAt,
         endAt: body.endAt,
         notes: body.notes,
+        amount: body.amount,
+        providerId: body.providerId,
         subscriptionStatus: body.subscriptionStatus,
         metaData: body.metaData,
         status: EStatus.Active,
