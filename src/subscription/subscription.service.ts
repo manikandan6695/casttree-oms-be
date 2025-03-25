@@ -410,14 +410,14 @@ export class SubscriptionService {
       let currentDate = now.toISOString();
       var duedate = new Date(now);
       subscriptionDetailsData.validityType == EvalidityType.day
-          ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
-          : subscriptionDetailsData.validityType == EvalidityType.month
-            ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
-            : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+        ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
+        : subscriptionDetailsData.validityType == EvalidityType.month
+          ? duedate.setMonth(
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
+          : duedate.setFullYear(
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -552,8 +552,153 @@ export class SubscriptionService {
       }
       // }
     } catch (error) {
-     // console.error("Error in cancelSubscriptionStatus:", error);
+      // console.error("Error in cancelSubscriptionStatus:", error);
       throw error;
     }
   }
+
+
+  @Cron("0/20 * * * * *")
+  async createCharge() {
+    try {
+
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+      let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
+        {
+          $group: {
+            _id: '$userId',
+            subscriptions: { $push: '$$ROOT' }, 
+            hasInitiated: {
+              $sum: {
+                $cond: [{ $eq: ['$subscriptionStatus', 'Initiated'] }, 1, 0],
+              },
+            }, 
+          },
+        },
+        {
+          $match: {
+            hasInitiated: 0, 
+          },
+        },
+        {
+          $unwind: '$subscriptions',
+        },
+        {
+          $match: {
+            'subscriptions.endAt': { $lt: tomorrow },
+            'subscriptions.status': Estatus.Active,
+          },
+        },
+        {
+          $sort: {
+            'subscriptions.createdAt': -1,
+          },
+        },
+        {
+          $group: {
+            _id: '$_id',
+            latestSubscription: { $first: '$subscriptions' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: '$_id',
+            latestSubscription: 1,
+          },
+        },
+      ]);
+      console.log(".............", expiringSubscriptionsList.length);
+       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+          const paymentSequence = await this.sharedService.getNextNumber(
+            "cashfree-payment",
+            "CSH-PMT",
+            5,
+            null
+          );
+          const paymentNumber = paymentSequence.toString().padStart(5, "0");
+          let body = {
+              "subscription_id": expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
+              "payment_id": paymentNumber,
+              "payment_amount": 99,
+              "payment_type": "CHARGE",
+              "payment_schedule_date":"2025-03-27T12:26:49.038+00:00"
+          }
+         let chargeReponse =  await this.helperService.createAuth(body);
+         console.log(i,chargeReponse);
+         let updatedBody = {
+          "subscriptionId" : expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
+          "paymentId" : paymentNumber,
+          "amount": 99,
+          "userId": expiringSubscriptionsList[i].latestSubscription.userId,
+          "planId": expiringSubscriptionsList[i].latestSubscription.planId,
+          "itemId": expiringSubscriptionsList[i].latestSubscription.notes.itemId
+         }
+         await this.createChargeData(updatedBody);
+        
+        }
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+
+  async createChargeData(body) {
+    try {
+      let fv = {
+        userId: body.userId,
+        planId: body.planId,
+        metaData: {
+          subscription_id: body.subscriptionId
+        },
+        notes: {
+          itemId: body.itemId,
+          userId: body.userId,
+          amount: body.amount,
+        },
+        subscriptionStatus: Estatus.Initiated,
+        status: EStatus.Active,
+        createdBy: body.userId,
+        updatedBy: body.userId,
+      };
+      let subscription = await this.subscriptionModel.create(fv);
+      const invoiceData = {
+        itemId: body.itemId,
+        source_id: subscription._id,
+        source_type: "subscription",
+        sub_total: body.amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: body.amount,
+        user_id: body.userId,
+        created_by: body.userId,
+        updated_by: body.userId,
+      };
+      console.log("creating invoice");
+      const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+      const paymentData = {
+        amount: body.amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+      };
+
+      console.log("creating payment");
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: body.paymentId }
+      );
+      // console.log("returning data");
+
+
+
+    } catch (err) { throw err }
+  }
+
 }

@@ -1,17 +1,17 @@
-import { EsubscriptionStatus } from "./../process/enums/process.enum";
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { SubscriptionProvider } from "./subscription.interface";
 import { HelperService } from "src/helper/helper.service";
-import { SharedService } from "src/shared/shared.service";
-import { SubscriptionService } from "./subscription.service";
-import { InvoiceService } from "src/invoice/invoice.service";
-import { PaymentRequestService } from "src/payment/payment-request.service";
-import { MandatesService } from "../mandates/mandates.service";
-import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { InvoiceService } from "src/invoice/invoice.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { PaymentRequestService } from "src/payment/payment-request.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { SharedService } from "src/shared/shared.service";
+import { MandatesService } from "../mandates/mandates.service";
+import { EsubscriptionStatus } from "./../process/enums/process.enum";
+import { SubscriptionProvider } from "./subscription.interface";
+import { SubscriptionService } from "./subscription.service";
 
 @Injectable()
 export class SubscriptionFactory {
@@ -24,7 +24,7 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) {}
+  ) { }
 
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
@@ -156,4 +156,6 @@ export class SubscriptionFactory {
       authorizationDetails: auth,
     };
   }
+
+  
 }

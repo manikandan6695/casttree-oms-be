@@ -18,8 +18,7 @@ import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
-import { ERazorpayPaymentStatus, ESourceType } from "./enum/payment.enum";
-import { EPaymentSourceType, EPaymentStatus } from "./enum/payment.enum";
+import { EPaymentSourceType, EPaymentStatus, ERazorpayPaymentStatus, ESourceType } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 
 const { ObjectId } = require("mongodb");
@@ -171,7 +170,8 @@ export class PaymentRequestService {
     token: UserToken,
     invoiceData = null,
     currency = null,
-    orderDetail = null
+    orderDetail = null,
+    userId? :String
   ) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
@@ -189,8 +189,8 @@ export class PaymentRequestService {
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token?.id,
-      user_id: token?.id,
+      created_by: token?.id ?? userId,
+      user_id: token?.id ?? userId,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
