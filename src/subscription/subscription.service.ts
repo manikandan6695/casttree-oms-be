@@ -569,17 +569,17 @@ export class SubscriptionService {
         {
           $group: {
             _id: '$userId',
-            subscriptions: { $push: '$$ROOT' }, 
+            subscriptions: { $push: '$$ROOT' },
             hasInitiated: {
               $sum: {
                 $cond: [{ $eq: ['$subscriptionStatus', 'Initiated'] }, 1, 0],
               },
-            }, 
+            },
           },
         },
         {
           $match: {
-            hasInitiated: 0, 
+            hasInitiated: 0,
           },
         },
         {
@@ -611,34 +611,38 @@ export class SubscriptionService {
         },
       ]);
       console.log(".............", expiringSubscriptionsList.length);
-       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-          const paymentSequence = await this.sharedService.getNextNumber(
-            "cashfree-payment",
-            "CSH-PMT",
-            5,
-            null
-          );
-          const paymentNumber = paymentSequence.toString().padStart(5, "0");
-          let body = {
-              "subscription_id": expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
-              "payment_id": paymentNumber,
-              "payment_amount": 99,
-              "payment_type": "CHARGE",
-              "payment_schedule_date":"2025-03-27T12:26:49.038+00:00"
-          }
-         let chargeReponse =  await this.helperService.createAuth(body);
-         console.log(i,chargeReponse);
-         let updatedBody = {
-          "subscriptionId" : expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
-          "paymentId" : paymentNumber,
-          "amount": 99,
-          "userId": expiringSubscriptionsList[i].latestSubscription.userId,
-          "planId": expiringSubscriptionsList[i].latestSubscription.planId,
-          "itemId": expiringSubscriptionsList[i].latestSubscription.notes.itemId
-         }
-         await this.createChargeData(updatedBody);
-        
+      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+        const paymentSequence = await this.sharedService.getNextNumber(
+          "cashfree-payment",
+          "CSH-PMT",
+          5,
+          null
+        );
+        const paymentNumber = paymentSequence.toString().padStart(5, "0");
+        let body = {
+          "subscription_id": expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
+          "payment_id": paymentNumber,
+          "payment_amount": 99,
+          "payment_type": "CHARGE",
+          "payment_schedule_date": "2025-03-27T12:26:49.038+00:00"
         }
+        let chargeReponse = await this.helperService.createAuth(body);
+        console.log(i, chargeReponse);
+        if(chargeReponse.payment_status == "INITIALIZED"){
+          
+          let updatedBody = {
+            "subscriptionId": expiringSubscriptionsList[i].latestSubscription.metaData.subscription_id,
+            "paymentId": paymentNumber,
+            "amount": 99,
+            "userId": expiringSubscriptionsList[i].latestSubscription.userId,
+            "planId": expiringSubscriptionsList[i].latestSubscription.planId,
+            "itemId": expiringSubscriptionsList[i].latestSubscription.notes.itemId
+          }
+          await this.createChargeData(updatedBody);
+        }
+        
+
+      }
 
     } catch (error) {
       throw error;
@@ -694,10 +698,6 @@ export class SubscriptionService {
         "INR",
         { order_id: body.paymentId }
       );
-      // console.log("returning data");
-
-
-
     } catch (err) { throw err }
   }
 
