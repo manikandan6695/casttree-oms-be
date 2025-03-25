@@ -64,10 +64,10 @@ export class SubscriptionFactory {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-
+    let paymentNewNumber = `${paymentNumber}-${Date.now()}`;
     const authData = {
       subscription_id: subscription?.subscription_id,
-      payment_id: paymentNumber,
+      payment_id: paymentNewNumber.toString(),
       payment_amount: subscription?.authorization_details?.authorization_amount,
       payment_schedule_date: new Date().toISOString(),
       payment_type: "AUTH",
@@ -77,11 +77,12 @@ export class SubscriptionFactory {
 
     const subscriptionData = {
       userId: token.id,
-      planId: subscription.plan_details.plan_id,
+      planId: subscription?.plan_details?.plan_id,
       startAt: new Date().toISOString(),
-      endAt: bodyData.firstCharge,
-      amount: data.authorization_details.authorization_amount,
-      notes: { itemId: bodyData.itemId },
+      endAt: bodyData?.firstCharge,
+      providerId: 2,
+      amount: parseInt(data?.authorization_details?.authorization_amount),
+      notes: { itemId: bodyData?.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
       metaData: subscription,
     };
@@ -96,10 +97,11 @@ export class SubscriptionFactory {
       sourceId: subscriptionCreated._id,
       userId: token.id,
       paymentMethod: "UPI",
-      amount: bodyData.authAmount,
+      amount: bodyData?.authAmount,
+      providerId: 2,
       currency: "INR",
-      planId: subscription.plan_details.plan_id,
-      frequency: subscription.plan_details.plan_type,
+      planId: subscription?.plan_details?.plan_id,
+      frequency: subscription?.plan_details?.plan_type,
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,
