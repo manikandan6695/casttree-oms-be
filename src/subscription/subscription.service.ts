@@ -603,7 +603,7 @@ export class SubscriptionService {
   }
 
 
-  @Cron(" 0 * * * *")
+  @Cron("0/20 * * * * *")
   async createCharge() {
     try {
 
