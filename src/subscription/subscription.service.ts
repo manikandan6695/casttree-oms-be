@@ -202,9 +202,11 @@ export class SubscriptionService {
       //   // );
       // }
       const provider = providerId == 2 ? "cashfree" : "razorpay";
-      // console.log("provider", provider);
+
+      console.log("provider", provider);
       if (provider === "razorpay" && req.body?.payload?.subscription) {
         await this.handleRazorpaySubscription(req.body.payload);
+
       } else if (provider === "cashfree") {
         const eventType = req.body?.type; // Identify Cashfree event type
         // console.log("event type is", eventType);
@@ -215,6 +217,7 @@ export class SubscriptionService {
           await this.handleCashfreeNewPayment(req.body);
         }
         else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
+          console.log("provider", "failed");
           await this.reschedulePayment(req.body);
         }
       }
@@ -367,17 +370,27 @@ export class SubscriptionService {
 
   async reschedulePayment(payload) {
     try {
-      let newDate = new Date(payload?.data?.payment_schedule_date);
-      newDate.setDate(newDate.getDate() + 1);
+      console.log("called");
+      const now = new Date();
+      let currentDate = new Date(now);
+      let paymentId = payload?.data?.payment_id;
+      let subscriptionId = payload?.data?.cf_subscription_id;
       let body = {
-        nextSchedule: newDate,
-        subscriptionId: payload?.data?.subscription_id,
-        paymentId: payload?.data?.payment_id
-        
+        subscriptionStatus: "Expired",
+        paymentStatus: "Failed"
       }
-      console.log(body);
-     let result = await this.helperService.updateCharge(body);
-      console.log(result);
+      console.log("updating subs");
+      await this.subscriptionModel.updateOne({ "metaData.subscription_id": subscriptionId, "notes.paymentId": paymentId, subscriptionStatus: EsubscriptionStatus.initiated }, { $set: { subscriptionStatus: EsubscriptionStatus.expired, status: Estatus.Inactive } })
+      console.log("updating sales");
+      await this.updatePaymentRecords(paymentId, body);
+      let subscriptionData = await this.subscriptionModel.find({ "metaData.subscription_id": subscriptionId, subscriptionStatus: EsubscriptionStatus.active }).sort({ _id: -1 }).lean();
+      console.log(subscriptionData[0]);
+      let subscription: any = subscriptionData[0];
+      subscription.endAt = currentDate;
+      subscription["latestSubscription"] = subscription;
+      const planDetail = await this.itemService.getItemDetailByName("PRO");
+      console.log("creatingh new");
+      await this.createChargeData(subscription, planDetail,true);
     } catch (err) {
       throw err;
     }
@@ -612,6 +625,7 @@ export class SubscriptionService {
         {
           $match: {
             'subscriptions.endAt': { $lt: tomorrow },
+            'subscriptions.subscriptionStatus': Estatus.Active,
             'subscriptions.status': Estatus.Active,
           },
         },
@@ -634,8 +648,10 @@ export class SubscriptionService {
           },
         },
       ]);
-      console.log(".............", expiringSubscriptionsList.length);
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+      
+      
+      console.log(".............", expiringSubscriptionsList.length, expiringSubscriptionsList);
+     for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
 
@@ -645,7 +661,7 @@ export class SubscriptionService {
   }
 
 
-  async createChargeData(subscriptionData, planDetail) {
+  async createChargeData(subscriptionData, planDetail,retry?: boolean) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
       "CSH-PMT",
@@ -656,13 +672,14 @@ export class SubscriptionService {
     let paymentSchedule = subscriptionData.latestSubscription.endAt;
     paymentSchedule = new Date(paymentSchedule);
     paymentSchedule.setDate(paymentSchedule.getDate());
-    paymentSchedule.setHours(paymentSchedule.getHours() - 2);
+    retry ? paymentSchedule.setDate(paymentSchedule.getDate() + 2) : paymentSchedule;
+    paymentSchedule.setHours(0, 0, 0, 0);
     let authBody = {
       "subscription_id": subscriptionData.latestSubscription.metaData.subscription_id,
       "payment_id": paymentNumber,
       "payment_amount": planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
       "payment_type": "CHARGE",
-      "payment_schedule_date": paymentSchedule
+      "payment_schedule_date":paymentSchedule 
     }
     let endAt = new Date(subscriptionData.latestSubscription.endAt);
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType == EvalidityType.day
@@ -678,16 +695,7 @@ export class SubscriptionService {
     if (chargeReponse.payment_status == "INITIALIZED") {
 
       console.log(paymentSchedule, subscriptionData.latestSubscription.endAt, endAt)
-      let updatedBody = {
-        "subscriptionId": subscriptionData.latestSubscription.metaData.subscription_id,
-        "paymentId": paymentNumber,
-        "amount": planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
-        "userId": subscriptionData.latestSubscription.userId,
-        "planId": subscriptionData.latestSubscription.planId,
-        "itemId": subscriptionData.latestSubscription.notes.itemId,
-        "startAt": subscriptionData.latestSubscription.endAt,
-        "endAt": endAt
-      };
+
     }
     let fv = {
       userId: subscriptionData.latestSubscription.userId,
@@ -704,7 +712,7 @@ export class SubscriptionService {
         paymentScheduledAt: paymentSchedule,
         paymentId: paymentNumber
       },
-      subscriptionStatus: Estatus.Initiated,
+      subscriptionStatus: EsubscriptionStatus.initiated,
       status: EStatus.Active,
       createdBy: subscriptionData.latestSubscription.userId,
       updatedBy: subscriptionData.latestSubscription.userId,
@@ -740,6 +748,18 @@ export class SubscriptionService {
       { order_id: paymentNumber }
     );
 
+  }
+
+  async updatePaymentRecords(
+    paymentId: string, body: any
+  ) {
+    try {
+      let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
+      await this.invoiceService.updateInvoice(payment.source_id, body.paymentStatus);
+      await this.paymentService.updateStatus(paymentId, body.paymentStatus);
+      return { message: "Success" }
+
+    } catch (err) { throw err }
   }
 
 }

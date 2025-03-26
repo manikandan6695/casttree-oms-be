@@ -255,6 +255,15 @@ export class PaymentRequestService {
     }
   }
 
+
+  async getPaymentDataBtOrderId(paymentId){
+    try{
+      let payment = await this.paymentModel.findOne({payment_order_id : paymentId});
+      return payment;
+
+    }catch(err){throw err}
+  }
+
   async paymentWebhook(@Req() req) {
     try {
       console.log("payment webhook", req.body);
@@ -447,6 +456,13 @@ export class PaymentRequestService {
     } catch (err) {
       throw err;
     }
+  }
+
+  async updateStatus(paymentId, status){
+    try{
+    let updateData =  await this.paymentModel.updateOne({payment_order_id: paymentId},{$set:{document_status: status}});
+      return updateData;
+    }catch(err){throw err}
   }
 
   // Uncomment and implement if handling other statuses like failed
