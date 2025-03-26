@@ -489,19 +489,28 @@ export class SubscriptionService {
   @Cron("0 * * * *")
   async handleCron() {
     try {
+      console.log("update expire status cron");
       const now = new Date();
       let currentDate = now.toISOString();
       // console.log("updating subscription entries : " + currentDate);
       let expiredSubscriptionsList = await this.subscriptionModel.find({
         subscriptionStatus: EsubscriptionStatus.active,
-        currentEnd: { $lte: currentDate },
         status: Estatus.Active,
+        $or: [
+          { currentEnd: { $lte: currentDate } },
+          { endAt: { $lte: currentDate } }
+        ]
       });
+
+      console.log(expiredSubscriptionsList);
       if (expiredSubscriptionsList.length > 0) {
         await this.subscriptionModel.updateMany(
           {
             subscriptionStatus: EsubscriptionStatus.active,
-            currentEnd: { $lte: currentDate },
+            $or: [
+              { currentEnd: { $lte: currentDate } },
+              { endAt: { $lte: currentDate } }
+            ],
             status: Estatus.Active,
           },
           { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
@@ -594,7 +603,7 @@ export class SubscriptionService {
   }
 
 
-  @Cron("0/20 * * * * *")
+  @Cron(" 0 * * * *")
   async createCharge() {
     try {
 
