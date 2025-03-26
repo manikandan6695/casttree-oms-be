@@ -128,6 +128,7 @@ export class SubscriptionService {
 
   async subscriptionWebhook(@Req() req, providerId: number) {
     try {
+      console.log(providerId);
       // console.log("provider id is ===>", providerId);
 
       // await this.extractSubscriptionDetails(req.body);
@@ -212,6 +213,9 @@ export class SubscriptionService {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
           await this.handleCashfreeNewPayment(req.body);
+        }
+        else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
+          await this.reschedulePayment(req.body);
         }
       }
     } catch (err) {
@@ -308,56 +312,42 @@ export class SubscriptionService {
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: any) {
-    if (payload?.data?.payment_status == "SUCCESS") {
-      const cfPaymentId = payload?.data?.cf_payment_id;
-      // console.log("inside handleCashfreeNewPayment is ===>", payload);
-      // console.log("cfPaymentId", cfPaymentId);
 
-      let paymentRequest =
-        await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
-      if (paymentRequest) {
-        // console.log("invoice id is ==>", paymentRequest.source_id);
-        // console.log("paymentId is ==>", paymentRequest._id);
+    const cfPaymentId = payload?.data?.cf_payment_id;
+    // console.log("inside handleCashfreeNewPayment is ===>", payload);
+    // console.log("cfPaymentId", cfPaymentId);
 
-        let updatedStatus = await this.paymentService.completePayment({
-          invoiceId: paymentRequest?.source_id,
-          paymentId: paymentRequest?._id,
-        });
-        let invoice = await this.invoiceService.getInvoiceDetail(
-          paymentRequest?.source_id
+    let paymentRequest =
+      await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
+    if (paymentRequest) {
+      // console.log("invoice id is ==>", paymentRequest.source_id);
+      // console.log("paymentId is ==>", paymentRequest._id);
+
+      let updatedStatus = await this.paymentService.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+      let invoice = await this.invoiceService.getInvoiceDetail(
+        paymentRequest?.source_id
+      );
+      let subscription = await this.subscriptionModel.findOne({
+        _id: invoice?.source_id,
+      });
+      if (subscription) {
+        subscription.subscriptionStatus = "Active";
+        await subscription.save();
+
+        let item = await this.itemService.getItemDetail(
+          subscription?.notes?.itemId
         );
-        let subscription = await this.subscriptionModel.findOne({
-          _id: invoice?.source_id,
-        });
-        if (subscription) {
-          subscription.subscriptionStatus = "Active";
-          await subscription.save();
 
-          let item = await this.itemService.getItemDetail(
-            subscription?.notes?.itemId
-          );
+        let userBody = {
+          userId: subscription?.userId,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
+        };
 
-          let userBody = {
-            userId: subscription?.userId,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
-          };
-
-          await this.helperService.updateUser(userBody);
-        }
-      }
-      else {
-        let newDate = new Date(payload?.data?.payment_schedule_date);
-        newDate.setDate(newDate.getDate() + 1);
-        let body = {
-          nextSchedule: newDate,
-          subscriptionId: payload?.data?.subscription_id,
-          paymentId: payload?.data?.payment_id
-          
-        }
-       let result = await this.helperService.updateCharge(body);
-        console.log(result);
-
+        await this.helperService.updateUser(userBody);
       }
     }
   }
@@ -370,6 +360,24 @@ export class SubscriptionService {
         status: Estatus.Active,
       });
       return subscription;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async reschedulePayment(payload) {
+    try {
+      let newDate = new Date(payload?.data?.payment_schedule_date);
+      newDate.setDate(newDate.getDate() + 1);
+      let body = {
+        nextSchedule: newDate,
+        subscriptionId: payload?.data?.subscription_id,
+        paymentId: payload?.data?.payment_id
+        
+      }
+      console.log(body);
+     let result = await this.helperService.updateCharge(body);
+      console.log(result);
     } catch (err) {
       throw err;
     }
