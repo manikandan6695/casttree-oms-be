@@ -18,7 +18,12 @@ import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
-import { EPaymentSourceType, EPaymentStatus, ERazorpayPaymentStatus, ESourceType } from "./enum/payment.enum";
+import {
+  EPaymentSourceType,
+  EPaymentStatus,
+  ERazorpayPaymentStatus,
+  ESourceType,
+} from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 
 const { ObjectId } = require("mongodb");
@@ -171,7 +176,7 @@ export class PaymentRequestService {
     invoiceData = null,
     currency = null,
     orderDetail = null,
-    userId? :String
+    userId?: String
   ) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
@@ -255,13 +260,15 @@ export class PaymentRequestService {
     }
   }
 
-
-  async getPaymentDataBtOrderId(paymentId){
-    try{
-      let payment = await this.paymentModel.findOne({payment_order_id : paymentId});
+  async getPaymentDataBtOrderId(paymentId) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        payment_order_id: paymentId,
+      });
       return payment;
-
-    }catch(err){throw err}
+    } catch (err) {
+      throw err;
+    }
   }
 
   async paymentWebhook(@Req() req) {
@@ -449,20 +456,27 @@ export class PaymentRequestService {
     }
   }
 
-  async fetchPaymentByOrderId(cfPaymentId : string) {
+  async fetchPaymentByOrderId(cfPaymentId: string) {
     try {
-      let payment = await this.paymentModel.findOne({payment_order_id : cfPaymentId})
-      return payment
+      let payment = await this.paymentModel.findOne({
+        payment_order_id: cfPaymentId,
+      });
+      return payment;
     } catch (err) {
       throw err;
     }
   }
 
-  async updateStatus(paymentId, status){
-    try{
-    let updateData =  await this.paymentModel.updateOne({payment_order_id: paymentId},{$set:{document_status: status}});
+  async updateStatus(paymentId, body) {
+    try {
+      let updateData = await this.paymentModel.updateOne(
+        { payment_order_id: paymentId },
+        { $set: body }
+      );
       return updateData;
-    }catch(err){throw err}
+    } catch (err) {
+      throw err;
+    }
   }
 
   // Uncomment and implement if handling other statuses like failed
