@@ -46,10 +46,12 @@ export enum EsubscriptionStatus {
   expired = "Expired",
   active = "Active",
   pending = "Pending",
+  failed = "Failed",
 }
 export const ESsubscriptionStatus = [
   EsubscriptionStatus.initiated,
   EsubscriptionStatus.expired,
   EsubscriptionStatus.active,
   EsubscriptionStatus.pending,
+  EsubscriptionStatus.failed,
 ];

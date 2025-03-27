@@ -1,13 +1,18 @@
+import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { MandatesService } from "src/mandates/mandates.service";
+import { EPaymentStatus } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
@@ -16,9 +21,8 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
-import { MandatesService } from "src/mandates/mandates.service";
-import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+// var ObjectId = require("mongodb").ObjectID;
+const { ObjectId } = require("mongodb");
 
 @Injectable()
 export class SubscriptionService {
@@ -128,6 +132,7 @@ export class SubscriptionService {
 
   async subscriptionWebhook(@Req() req, providerId: number) {
     try {
+      console.log(providerId);
       // console.log("provider id is ===>", providerId);
 
       // await this.extractSubscriptionDetails(req.body);
@@ -201,7 +206,8 @@ export class SubscriptionService {
       //   // );
       // }
       const provider = providerId == 2 ? "cashfree" : "razorpay";
-      // console.log("provider", provider);
+
+      console.log("provider", provider);
       if (provider === "razorpay" && req.body?.payload?.subscription) {
         await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === "cashfree") {
@@ -212,8 +218,51 @@ export class SubscriptionService {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
           await this.handleCashfreeNewPayment(req.body);
+        } else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
+          console.log("provider", "failed");
+          await this.handleCashfreeFailedPayment(req.body);
         }
       }
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleCashfreeFailedPayment(payload: any) {
+    try {
+      console.log("inside handleCashfreeFailedPayment is ===>", payload);
+
+      const cfPaymentId = payload?.data?.cf_payment_id;
+      let subscriptionId = payload?.data?.subscription_id;
+      let failedReason = payload?.data?.failureDetails;
+      let body = {
+        document_status: EPaymentStatus.failed,
+        reason: failedReason,
+      };
+      await this.subscriptionModel.updateOne(
+        {
+          "metaData.subscription_id": subscriptionId,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+        },
+        {
+          $set: {
+            subscriptionStatus: EsubscriptionStatus.failed,
+          },
+        }
+      );
+      await this.updatePaymentRecords(cfPaymentId, body);
+      // let subscriptionData = await this.subscriptionModel
+      //   .find({
+      //     "metaData.subscription_id": subscriptionId,
+      //     subscriptionStatus: EsubscriptionStatus.active,
+      //   })
+      //   .sort({ _id: -1 })
+      //   .lean();
+      // console.log(subscriptionData[0]);
+      // let subscription: any = subscriptionData[0];
+      // subscription.endAt = currentDate;
+      // subscription["latestSubscription"] = subscription;
+      // const planDetail = await this.itemService.getItemDetailByName("PRO");
     } catch (err) {
       throw err;
     }
@@ -403,28 +452,25 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
+      let subscriptionData = await this.validateSubscription(token.id, [
+        EsubscriptionStatus.initiated,
+      ]);
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
-      let subscriptionDetails =
-        itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetails;
-      // console.log("subscriptionDetails", subscriptionDetails);
-
+      let subscriptionDetailsData = subscriptionData
+        ? itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetail
+        : itemDetails?.additionalDetail?.promotionDetails?.authDetail;
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
-      if (subscriptionDetails?.validity) {
-        subscriptionDetails.validityType == EvalidityType.day
-          ? duedate.setDate(now.getDate() + subscriptionDetails.validity)
-          : subscriptionDetails.validityType == EvalidityType.month
-            ? duedate.setMonth(
-                duedate.getMonth() + subscriptionDetails.validity
-              )
-            : duedate.setFullYear(
-                duedate.getFullYear() + subscriptionDetails.validity
-              );
-      } else {
-        duedate.setFullYear(duedate.getFullYear() + 1);
-      }
-
+      subscriptionDetailsData.validityType == EvalidityType.day
+        ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
+        : subscriptionDetailsData.validityType == EvalidityType.month
+          ? duedate.setMonth(
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
+          : duedate.setFullYear(
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -444,16 +490,13 @@ export class SubscriptionService {
       };
       let subscription = await this.subscriptionModel.create(fv);
 
-      let item = await this.itemService.getItemDetail(body.itemId);
-
       let userBody = {
         userId: token.id,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
+        membership: itemDetails?.itemName,
+        badge: itemDetails?.additionalDetail?.badge,
       };
 
       await this.helperService.updateUser(userBody);
-
       return subscription;
     } catch (err) {
       throw err;
@@ -468,14 +511,14 @@ export class SubscriptionService {
       // console.log("updating subscription entries : " + currentDate);
       let expiredSubscriptionsList = await this.subscriptionModel.find({
         subscriptionStatus: EsubscriptionStatus.active,
-        currentEnd: { $lte: currentDate },
+        endAt: { $lte: currentDate },
         status: Estatus.Active,
       });
       if (expiredSubscriptionsList.length > 0) {
         await this.subscriptionModel.updateMany(
           {
             subscriptionStatus: EsubscriptionStatus.active,
-            currentEnd: { $lte: currentDate },
+            endAt: { $lte: currentDate },
             status: Estatus.Active,
           },
           { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
@@ -486,7 +529,7 @@ export class SubscriptionService {
           mixPanelBody.distinctId = expiredSubscriptionsList[i].userId;
           mixPanelBody.properties = {
             start_date: expiredSubscriptionsList[i].currentStart,
-            end_date: expiredSubscriptionsList[i].currentEnd,
+            end_date: expiredSubscriptionsList[i].endAt,
             amount: expiredSubscriptionsList[i]?.notes?.amount,
             subscription_id: expiredSubscriptionsList[i]._id,
           };
@@ -529,7 +572,7 @@ export class SubscriptionService {
           itemName: itemNamesMap[sub.notes?.itemId?.toString()],
         });
       }
-      console.log(enhancedSubscriptions);
+      //console.log(enhancedSubscriptions);
 
       return { subscriptionData: enhancedSubscriptions, mandatesData };
     } catch (error) {
@@ -562,8 +605,249 @@ export class SubscriptionService {
       }
       // }
     } catch (error) {
-      console.error("Error in cancelSubscriptionStatus:", error);
+      // console.error("Error in cancelSubscriptionStatus:", error);
       throw error;
+    }
+  }
+
+  @Cron("0 6 * * *")
+  async createCharge() {
+    try {
+      const planDetail = await this.itemService.getItemDetailByName("PRO");
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+      tomorrow.setHours(23, 59, 59, 999);
+
+      let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
+        {
+          $sort: {
+            _id: -1,
+          },
+        },
+        {
+          $group: {
+            _id: "$userId",
+            latestDocument: { $first: "$$ROOT" },
+          },
+        },
+        {
+          $match: {
+            "latestDocument.subscriptionStatus": {
+              $ne: EsubscriptionStatus.initiated,
+            },
+          },
+        },
+        {
+          $match: {
+            $or: [
+              {
+                "latestDocument.subscriptionStatus": {
+                  $in: [
+                    EsubscriptionStatus.failed,
+                    EsubscriptionStatus.expired,
+                  ],
+                },
+              },
+              {
+                $and: [
+                  {
+                    "latestDocument.subscriptionStatus":
+                      EsubscriptionStatus.active,
+                  },
+                  { "latestDocument.endAt": { $lte: tomorrow } },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          $lookup: {
+            from: "mandates",
+            localField: "latestDocument.userId",
+            foreignField: "userId",
+            as: "mandates",
+          },
+        },
+        {
+          $match: {
+            "mandates.mandateStatus": {
+              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
+            },
+          },
+        },
+      ]);
+
+      console.log(
+        "expiring list ==>",
+        expiringSubscriptionsList.length
+        // expiringSubscriptionsList
+      );
+      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+        await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createChargeData(subscriptionData, planDetail) {
+    // console.log(
+    //   "subscription data is ==>",
+    //   subscriptionData?.latestDocument?.metaData?.subscription_id
+    // );
+
+    const paymentSequence = await this.sharedService.getNextNumber(
+      "cashfree-payment",
+      "CSH-PMT",
+      5,
+      null
+    );
+    const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+    let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+    let now = new Date();
+    let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+
+    let authBody = {
+      subscription_id:
+        subscriptionData?.latestDocument?.metaData?.subscription_id,
+      payment_id: paymentNumber,
+      payment_amount:
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount,
+      payment_type: "CHARGE",
+      payment_schedule_date: paymentSchedule.toISOString(),
+    };
+    // console.log("auth body is ==>", authBody);
+
+    const today = new Date();
+    const startAt = new Date();
+    startAt.setDate(today.getDate() + 1);
+    startAt.setHours(0, 0, 0, 0);
+    // console.log("startAt", startAt);
+
+    let endAt = new Date();
+    // console.log("endAt", endAt);
+
+    planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+      ?.validityType == EvalidityType.day
+      ? endAt.setDate(
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
+        )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
+        : endAt.setFullYear(
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
+    let chargeResponse = await this.helperService.createAuth(authBody);
+    console.log("charge Reponse ===>", chargeResponse);
+
+    if (chargeResponse) {
+      endAt.setDate(endAt.getDate());
+      endAt.setHours(0, 0, 0, 0);
+      // console.log("start at ==>", startAt);
+      // console.log("end at ==>", endAt);
+      // console.log(
+      //   "check user id is ==>",
+      //   subscriptionData?.latestDocument?.userId
+      // );
+
+      let fv = {
+        userId: subscriptionData?.latestDocument?.userId,
+        planId: subscriptionData?.latestDocument?.planId,
+        startAt: startAt,
+        amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
+        providerId: 2,
+        endAt: endAt,
+        metaData: {
+          subscription_id:
+            subscriptionData?.latestDocument?.metaData?.subscription_id,
+          cf_subscription_id:
+            subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
+          customer_details:
+            subscriptionData?.latestDocument?.metaData?.customer_details,
+        },
+        notes: {
+          itemId: subscriptionData.latestDocument.notes.itemId,
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          paymentScheduledAt: paymentSchedule,
+          paymentId: paymentNumber,
+        },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        status: EStatus.Active,
+        createdBy: subscriptionData?.latestDocument?.userId,
+        updatedBy: subscriptionData?.latestDocument?.userId,
+      };
+      // console.log("creating subscription", fv);
+
+      let subscription = await this.subscriptionModel.create(fv);
+      console.log("subscription created ===>", subscription._id);
+
+      const invoiceData = {
+        itemId: subscriptionData.latestDocument.notes.itemId,
+        source_id: subscription._id,
+        source_type: "subscription",
+        sub_total:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
+        user_id: subscriptionData.latestDocument.userId,
+        created_by: subscriptionData.latestDocument.userId,
+        updated_by: subscriptionData.latestDocument.userId,
+      };
+      // console.log("creating invoice", invoiceData);
+      const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+      const paymentData = {
+        amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+      };
+
+      // console.log("creating payment", paymentData);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: chargeResponse?.cf_payment_id }
+      );
+    }
+  }
+
+  async updatePaymentRecords(paymentId: string, body: any) {
+    try {
+      // console.log("payment records ==>", paymentId, body);
+
+      let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
+      await this.invoiceService.updateInvoice(
+        payment.source_id,
+        body.document_status
+      );
+      await this.paymentService.updateStatus(paymentId, body);
+      return { message: "Success" };
+    } catch (err) {
+      throw err;
     }
   }
 }

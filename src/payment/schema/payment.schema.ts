@@ -16,6 +16,7 @@ export interface IPaymentModel extends mongoose.Document {
   payment_order_id: string;
   document_id: any;
   document_type_name: any;
+  reason: any;
   doc_id_gen_type: string;
   payment_doc_id_prefix: string;
   payment_doc_id: number;
@@ -85,6 +86,7 @@ export const PaymentSchema = new mongoose.Schema(
     document_number: {
       type: String,
     },
+    reason: { type: mongoose.Schema.Types.Mixed },
     source_id: { type: mongoose.Schema.Types.ObjectId, refPath: "source_type" },
     source_type: { type: String, enum: ESPaymentSourceType },
     place_of_supply: {
