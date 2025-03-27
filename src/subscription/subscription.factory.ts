@@ -1,17 +1,17 @@
-import { EsubscriptionStatus } from "./../process/enums/process.enum";
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { SubscriptionProvider } from "./subscription.interface";
 import { HelperService } from "src/helper/helper.service";
-import { SharedService } from "src/shared/shared.service";
-import { SubscriptionService } from "./subscription.service";
-import { InvoiceService } from "src/invoice/invoice.service";
-import { PaymentRequestService } from "src/payment/payment-request.service";
-import { MandatesService } from "../mandates/mandates.service";
-import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { InvoiceService } from "src/invoice/invoice.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
+import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { PaymentRequestService } from "src/payment/payment-request.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { SharedService } from "src/shared/shared.service";
+import { MandatesService } from "../mandates/mandates.service";
+import { EsubscriptionStatus } from "./../process/enums/process.enum";
+import { SubscriptionProvider } from "./subscription.interface";
+import { SubscriptionService } from "./subscription.service";
 
 @Injectable()
 export class SubscriptionFactory {
@@ -64,24 +64,26 @@ export class SubscriptionFactory {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-
+    let paymentNewNumber = `${paymentNumber}-${Date.now()}`;
     const authData = {
       subscription_id: subscription?.subscription_id,
-      payment_id: paymentNumber,
+      payment_id: paymentNewNumber.toString(),
       payment_amount: subscription?.authorization_details?.authorization_amount,
       payment_schedule_date: new Date().toISOString(),
       payment_type: "AUTH",
       payment_method: { upi: { channel: "link" } },
     };
     const auth = await this.helperService.createAuth(authData);
-
+    let endDate = new Date(bodyData?.firstCharge);
+    let endAt = endDate.setHours(23, 59, 59, 999);
     const subscriptionData = {
       userId: token.id,
-      planId: subscription.plan_details.plan_id,
+      planId: subscription?.plan_details?.plan_id,
       startAt: new Date().toISOString(),
-      endAt: bodyData.firstCharge,
-      amount: data.authorization_details.authorization_amount,
-      notes: { itemId: bodyData.itemId },
+      endAt: endAt,
+      providerId: 2,
+      amount: parseInt(data?.authorization_details?.authorization_amount),
+      notes: { itemId: bodyData?.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
       metaData: subscription,
     };
@@ -96,10 +98,11 @@ export class SubscriptionFactory {
       sourceId: subscriptionCreated._id,
       userId: token.id,
       paymentMethod: "UPI",
-      amount: bodyData.authAmount,
+      amount: bodyData?.authAmount,
+      providerId: 2,
       currency: "INR",
-      planId: subscription.plan_details.plan_id,
-      frequency: subscription.plan_details.plan_type,
+      planId: subscription?.plan_details?.plan_id,
+      frequency: subscription?.plan_details?.plan_type,
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
       metaData: auth,

@@ -2,10 +2,10 @@ import { HttpService } from "@nestjs/axios";
 import { BadRequestException, Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
+import { catchError, lastValueFrom, map } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
-import { catchError, lastValueFrom, map } from "rxjs";
 
 @Injectable()
 export class HelperService {
@@ -193,6 +193,20 @@ export class HelperService {
     }
   }
 
+  async trackEvent(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/track-event`,
+          body
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async sendWhastappMessage(body) {
     try {
       let data = await this.http_service
@@ -321,9 +335,11 @@ export class HelperService {
 
   async createAuth(body) {
     try {
+      console.log("auth body is", body);
+
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/pay`;
       const headers = {
-        "x-api-version": "2025-01-01",
+        "x-api-version": "2023-08-01",
         "Content-Type": "application/json",
         "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
@@ -355,7 +371,7 @@ export class HelperService {
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/plans/${planId}`;
 
       const headers = {
-        "x-api-version": "2025-01-01",
+        "x-api-version": "2023-08-01",
         "Content-Type": "application/json",
         "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
@@ -384,10 +400,11 @@ export class HelperService {
 
   async createSubscription(body, token) {
     try {
+      console.log("subscription body is", body);
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
 
       const headers = {
-        "x-api-version": "2022-09-01",
+        "x-api-version": "2023-08-01",
         "Content-Type": "application/json",
         "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
@@ -479,6 +496,43 @@ export class HelperService {
       throw new BadRequestException(
         "Unexpected error while canceling subscription"
       );
+    }
+  }
+
+  async updateCharge(body) {
+    try {
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/${body.subscriptionId}/payments/${body.paymentId}/manage`;
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .post(requestURL, {
+          "payment_id": body.paymentId,
+          "action": "RETRY",
+          "action_details": {
+            "next_scheduled_time": body.nextSchedule
+          }
+        }, { headers: headers })
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
     }
   }
 

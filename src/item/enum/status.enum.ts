@@ -1,6 +1,7 @@
 export enum Estatus {
-    Active = "Active"
+    Active = "Active",
+    Inactive = "Inactive"
    
   }
   
-  export const ESstatus = [Estatus.Active];
+  export const ESstatus = [Estatus.Active,Estatus.Inactive];
