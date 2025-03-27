@@ -469,6 +469,8 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
+      console.log("paymentId", paymentId, body);
+
       let updateData = await this.paymentModel.updateOne(
         { payment_order_id: paymentId },
         { $set: body }

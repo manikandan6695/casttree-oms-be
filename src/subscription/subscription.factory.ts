@@ -24,7 +24,7 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) { }
+  ) {}
 
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
@@ -74,12 +74,13 @@ export class SubscriptionFactory {
       payment_method: { upi: { channel: "link" } },
     };
     const auth = await this.helperService.createAuth(authData);
-
+    let endDate = new Date(bodyData?.firstCharge);
+    let endAt = endDate.setHours(23, 59, 59, 999);
     const subscriptionData = {
       userId: token.id,
       planId: subscription?.plan_details?.plan_id,
       startAt: new Date().toISOString(),
-      endAt: bodyData?.firstCharge,
+      endAt: endAt,
       providerId: 2,
       amount: parseInt(data?.authorization_details?.authorization_amount),
       notes: { itemId: bodyData?.itemId },
@@ -158,6 +159,4 @@ export class SubscriptionFactory {
       authorizationDetails: auth,
     };
   }
-
-  
 }
