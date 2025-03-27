@@ -8,6 +8,7 @@ export interface ISubscriptionModel extends mongoose.Document {
   currentEnd: Date;
   startAt: Date;
   amount: number;
+  providerId: number;
   scheduleChangeAt: string;
   endAt: Date;
   paidCount: number;
@@ -35,6 +36,9 @@ export const subscriptionSchema = new mongoose.Schema(
       type: Date,
     },
     quantity: {
+      type: Number,
+    },
+    providerId: {
       type: Number,
     },
     currentEnd: { type: Date },

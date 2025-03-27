@@ -77,11 +77,11 @@ export class SubscriptionService {
                 : body.validityType === "year"
                   ? this.sharedService.getFutureYearISO(body.validity)
                   : null;
-
+          let subscriptionNewNumber = `${subscriptionNumber}-${Date.now()}`;
           body["expiryTime"] = expiryTime;
           body["firstCharge"] = firstCharge;
           subscriptionData = {
-            subscription_id: subscriptionNumber,
+            subscription_id: subscriptionNewNumber.toString(),
             customer_details: {
               customer_name: token.userName,
               customer_email: token.phoneNumber + "@casttree.com",
@@ -415,6 +415,8 @@ export class SubscriptionService {
         startAt: body.startAt,
         endAt: body.endAt,
         notes: body.notes,
+        amount: body.amount,
+        providerId: body.providerId,
         subscriptionStatus: body.subscriptionStatus,
         metaData: body.metaData,
         status: EStatus.Active,
@@ -656,7 +658,7 @@ export class SubscriptionService {
       //   // expiringSubscriptionsList
       // );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        await this.createChargeData(expiringSubscriptionsList[0], planDetail);
+        await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
     } catch (error) {
       throw error;
@@ -664,7 +666,10 @@ export class SubscriptionService {
   }
 
   async createChargeData(subscriptionData, planDetail) {
-    // console.log("subscription data is ==>", subscriptionData);
+    console.log(
+      "subscription data is ==>",
+      subscriptionData?.latestDocument?.metaData?.subscription_id
+    );
 
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
@@ -672,12 +677,15 @@ export class SubscriptionService {
       5,
       null
     );
-    const paymentNumber = paymentSequence.toString().padStart(5, "0");
+    const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+    let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
     let now = new Date();
     let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
     let authBody = {
-      subscription_id: subscriptionData.latestDocument.metaData.subscription_id,
+      subscription_id:
+        subscriptionData?.latestDocument?.metaData?.subscription_id,
       payment_id: paymentNumber,
       payment_amount:
         planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -685,7 +693,7 @@ export class SubscriptionService {
       payment_type: "CHARGE",
       payment_schedule_date: paymentSchedule.toISOString(),
     };
-    console.log("auth body is ==>", authBody);
+    // console.log("auth body is ==>", authBody);
 
     const today = new Date();
     const startAt = new Date();
@@ -722,7 +730,7 @@ export class SubscriptionService {
       endAt.setDate(endAt.getDate() + 1);
       endAt.setHours(23, 59, 59, 999);
       // console.log("start at ==>", startAt);
-      console.log("end at ==>", endAt);
+      // console.log("end at ==>", endAt);
       // console.log(
       //   "check user id is ==>",
       //   subscriptionData?.latestDocument?.userId
@@ -757,6 +765,8 @@ export class SubscriptionService {
       // console.log("creating subscription", fv);
 
       let subscription = await this.subscriptionModel.create(fv);
+      console.log("subscription created ===>", subscription._id);
+
       const invoiceData = {
         itemId: subscriptionData.latestDocument.notes.itemId,
         source_id: subscription._id,
@@ -790,7 +800,7 @@ export class SubscriptionService {
         null,
         invoice,
         "INR",
-        { order_id: paymentNumber }
+        { order_id: chargeResponse?.cf_payment_id }
       );
     }
   }
