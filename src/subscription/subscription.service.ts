@@ -33,7 +33,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) { }
+  ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
@@ -206,7 +206,6 @@ export class SubscriptionService {
       console.log("provider", provider);
       if (provider === "razorpay" && req.body?.payload?.subscription) {
         await this.handleRazorpaySubscription(req.body.payload);
-
       } else if (provider === "cashfree") {
         const eventType = req.body?.type; // Identify Cashfree event type
         // console.log("event type is", eventType);
@@ -215,8 +214,7 @@ export class SubscriptionService {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
           await this.handleCashfreeNewPayment(req.body);
-        }
-        else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
+        } else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
           console.log("provider", "failed");
           await this.reschedulePayment(req.body);
         }
@@ -315,7 +313,6 @@ export class SubscriptionService {
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: any) {
-
     const cfPaymentId = payload?.data?.cf_payment_id;
     // console.log("inside handleCashfreeNewPayment is ===>", payload);
     // console.log("cfPaymentId", cfPaymentId);
@@ -377,20 +374,38 @@ export class SubscriptionService {
       let subscriptionId = payload?.data?.cf_subscription_id;
       let body = {
         subscriptionStatus: "Expired",
-        paymentStatus: "Failed"
-      }
+        paymentStatus: "Failed",
+      };
       console.log("updating subs");
-      await this.subscriptionModel.updateOne({ "metaData.subscription_id": subscriptionId, "notes.paymentId": paymentId, subscriptionStatus: EsubscriptionStatus.initiated }, { $set: { subscriptionStatus: EsubscriptionStatus.expired, status: Estatus.Inactive } })
+      await this.subscriptionModel.updateOne(
+        {
+          "metaData.subscription_id": subscriptionId,
+          "notes.paymentId": paymentId,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+        },
+        {
+          $set: {
+            subscriptionStatus: EsubscriptionStatus.expired,
+            status: Estatus.Inactive,
+          },
+        }
+      );
       console.log("updating sales");
       await this.updatePaymentRecords(paymentId, body);
-      let subscriptionData = await this.subscriptionModel.find({ "metaData.subscription_id": subscriptionId, subscriptionStatus: EsubscriptionStatus.active }).sort({ _id: -1 }).lean();
+      let subscriptionData = await this.subscriptionModel
+        .find({
+          "metaData.subscription_id": subscriptionId,
+          subscriptionStatus: EsubscriptionStatus.active,
+        })
+        .sort({ _id: -1 })
+        .lean();
       console.log(subscriptionData[0]);
       let subscription: any = subscriptionData[0];
       subscription.endAt = currentDate;
       subscription["latestSubscription"] = subscription;
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       console.log("creatingh new");
-      await this.createChargeData(subscription, planDetail,true);
+      await this.createChargeData(subscription, planDetail, true);
     } catch (err) {
       throw err;
     }
@@ -437,11 +452,13 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
-
-      let subscriptionData = await this.validateSubscription(token.id, [EsubscriptionStatus.initiated]);
+      let subscriptionData = await this.validateSubscription(token.id, [
+        EsubscriptionStatus.initiated,
+      ]);
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
-      let subscriptionDetailsData = subscriptionData ?
-        itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetail : itemDetails?.additionalDetail?.promotionDetails?.authDetail;
+      let subscriptionDetailsData = subscriptionData
+        ? itemDetails?.additionalDetail?.promotionDetails?.subscriptionDetail
+        : itemDetails?.additionalDetail?.promotionDetails?.authDetail;
       const now = new Date();
       let currentDate = now.toISOString();
       var duedate = new Date(now);
@@ -449,11 +466,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -593,75 +610,59 @@ export class SubscriptionService {
     }
   }
 
-
   @Cron("0/20 * * * * *")
   async createCharge() {
     try {
-
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 2);
+      tomorrow.setDate(today.getDate() + 1);
+      tomorrow.setHours(23, 59, 59, 999);
+      console.log("today is", today);
+      console.log("tomorrow is", tomorrow);
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
         {
-          $group: {
-            _id: '$userId',
-            subscriptions: { $push: '$$ROOT' },
-            hasInitiated: {
-              $sum: {
-                $cond: [{ $eq: ['$subscriptionStatus', 'Initiated'] }, 1, 0],
-              },
-            },
+          $match: {
+            endAt: { $lte: tomorrow },
+            subscriptionStatus: EsubscriptionStatus.active,
+            status: Estatus.Active,
           },
         },
         {
-          $match: {
-            hasInitiated: 0,
-          },
-        },
-        {
-          $unwind: '$subscriptions',
-        },
-        {
-          $match: {
-            'subscriptions.endAt': { $lt: tomorrow },
-            'subscriptions.subscriptionStatus': Estatus.Active,
-            'subscriptions.status': Estatus.Active,
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            as: "user",
           },
         },
         {
           $sort: {
-            'subscriptions.createdAt': -1,
+            createdAt: -1,
           },
         },
         {
           $group: {
-            _id: '$_id',
-            latestSubscription: { $first: '$subscriptions' },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            userId: '$_id',
-            latestSubscription: 1,
+            _id: "$userId",
+            latestDocument: { $first: "$$ROOT" },
           },
         },
       ]);
-      
-      
-      console.log(".............", expiringSubscriptionsList.length, expiringSubscriptionsList);
-     for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+
+      console.log(
+        ".............",
+        expiringSubscriptionsList.length,
+        expiringSubscriptionsList
+      );
+      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
-
     } catch (error) {
       throw error;
     }
   }
 
-
-  async createChargeData(subscriptionData, planDetail,retry?: boolean) {
+  async createChargeData(subscriptionData, planDetail, retry?: boolean) {
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
       "CSH-PMT",
@@ -670,47 +671,68 @@ export class SubscriptionService {
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
     let paymentSchedule = subscriptionData.latestSubscription.endAt;
-    paymentSchedule = new Date(paymentSchedule);
-    paymentSchedule.setDate(paymentSchedule.getDate());
-    retry ? paymentSchedule.setDate(paymentSchedule.getDate() + 2) : paymentSchedule;
-    paymentSchedule.setHours(0, 0, 0, 0);
+    // paymentSchedule = new Date(paymentSchedule);
+    // paymentSchedule.setDate(paymentSchedule.getDate());
     let authBody = {
-      "subscription_id": subscriptionData.latestSubscription.metaData.subscription_id,
-      "payment_id": paymentNumber,
-      "payment_amount": planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
-      "payment_type": "CHARGE",
-      "payment_schedule_date":paymentSchedule 
-    }
-    let endAt = new Date(subscriptionData.latestSubscription.endAt);
-    planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType == EvalidityType.day
-      ? endAt.setDate(endAt.getDate() + planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity)
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() + planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
+      subscription_id:
+        subscriptionData.latestSubscription.metaData.subscription_id,
+      payment_id: paymentNumber,
+      payment_amount:
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount,
+      payment_type: "CHARGE",
+      payment_schedule_date: new Date().toISOString(),
+    };
+    const today = new Date();
+    const startAt = new Date();
+    startAt.setDate(today.getDate() + 1);
+    startAt.setHours(0, 0, 0, 0);
+    let endAt = startAt;
+    planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+      ?.validityType == EvalidityType.day
+      ? endAt.setDate(
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() + planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeReponse = await this.helperService.createAuth(authBody);
     if (chargeReponse.payment_status == "INITIALIZED") {
-
-      console.log(paymentSchedule, subscriptionData.latestSubscription.endAt, endAt)
-
+      console.log(
+        paymentSchedule,
+        subscriptionData.latestSubscription.endAt,
+        endAt
+      );
     }
+    endAt.setHours(23, 59, 59, 999);
     let fv = {
       userId: subscriptionData.latestSubscription.userId,
       planId: subscriptionData.latestSubscription.planId,
-      startAt: subscriptionData.latestSubscription.endAt,
+      startAt: startAt,
       endAt: endAt,
       metaData: {
-        subscription_id: subscriptionData.latestSubscription.metaData.subscription_id
+        subscription_id:
+          subscriptionData.latestSubscription.metaData.subscription_id,
       },
       notes: {
         itemId: subscriptionData.latestSubscription.notes.itemId,
         userId: subscriptionData.latestSubscription.userId,
-        amount: planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+        amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
         paymentScheduledAt: paymentSchedule,
-        paymentId: paymentNumber
+        paymentId: paymentNumber,
       },
       subscriptionStatus: EsubscriptionStatus.initiated,
       status: EStatus.Active,
@@ -722,10 +744,14 @@ export class SubscriptionService {
       itemId: subscriptionData.latestSubscription.notes.itemId,
       source_id: subscription._id,
       source_type: "subscription",
-      sub_total: planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+      sub_total:
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount,
       currencyCode: "INR",
       document_status: EDocumentStatus.pending,
-      grand_total: planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+      grand_total:
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount,
       user_id: subscriptionData.latestSubscription.userId,
       created_by: subscriptionData.latestSubscription.userId,
       updated_by: subscriptionData.latestSubscription.userId,
@@ -734,7 +760,9 @@ export class SubscriptionService {
     const invoice = await this.invoiceService.createInvoice(invoiceData);
 
     const paymentData = {
-      amount: planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+      amount:
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount,
       currencyCode: "INR",
       document_status: EDocumentStatus.pending,
     };
@@ -747,19 +775,19 @@ export class SubscriptionService {
       "INR",
       { order_id: paymentNumber }
     );
-
   }
 
-  async updatePaymentRecords(
-    paymentId: string, body: any
-  ) {
+  async updatePaymentRecords(paymentId: string, body: any) {
     try {
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
-      await this.invoiceService.updateInvoice(payment.source_id, body.paymentStatus);
+      await this.invoiceService.updateInvoice(
+        payment.source_id,
+        body.paymentStatus
+      );
       await this.paymentService.updateStatus(paymentId, body.paymentStatus);
-      return { message: "Success" }
-
-    } catch (err) { throw err }
+      return { message: "Success" };
+    } catch (err) {
+      throw err;
+    }
   }
-
 }
