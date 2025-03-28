@@ -8,7 +8,7 @@ export class MandateHistory {
   @Prop({ required: true, index: true })
   mandateId: string; // Reference to the mandate
 
-  @Prop({ required: true, enum: ["Pending", "Active", "Failed", "Cancelled","Initiated"] })
+  @Prop()
   mandateStatus: string; // Latest status
 
   @Prop()
