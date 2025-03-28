@@ -12,7 +12,10 @@ import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 import { MandatesService } from "src/mandates/mandates.service";
-import { EPaymentStatus } from "src/payment/enum/payment.enum";
+import {
+  EPaymentSourceType,
+  EPaymentStatus,
+} from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
@@ -610,7 +613,7 @@ export class SubscriptionService {
     }
   }
 
-  @Cron("0 6 * * *")
+  @Cron("0 1 * * *")
   async createCharge() {
     try {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
@@ -678,11 +681,11 @@ export class SubscriptionService {
         },
       ]);
 
-      console.log(
-        "expiring list ==>",
-        expiringSubscriptionsList.length
-        // expiringSubscriptionsList
-      );
+      // console.log(
+      //   "expiring list ==>",
+      //   expiringSubscriptionsList.length
+      //   // expiringSubscriptionsList
+      // );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
@@ -821,6 +824,9 @@ export class SubscriptionService {
           planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
             ?.amount,
         currencyCode: "INR",
+        source_id: invoice._id,
+        source_type: EPaymentSourceType.invoice,
+        user_id: subscriptionData?.latestDocument?.userId,
         document_status: EDocumentStatus.pending,
       };
 
