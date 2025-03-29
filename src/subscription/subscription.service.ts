@@ -611,6 +611,8 @@ export class SubscriptionService {
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 2);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+      console.log("dates",today,tomorrow);
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
         {
           $group: {
