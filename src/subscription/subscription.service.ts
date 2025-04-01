@@ -1,4 +1,3 @@
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
@@ -19,13 +18,11 @@ import {
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
+import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
-import { SubscriptionFactory } from "./subscription.factory";
-// var ObjectId = require("mongodb").ObjectID;
-const { ObjectId } = require("mongodb");
 
 @Injectable()
 export class SubscriptionService {
@@ -440,7 +437,7 @@ export class SubscriptionService {
   async subscriptionComparision(token: UserToken) {
     try {
       let subscription = await this.subscriptionModel.findOne({
-        userId: token.id,
+        userId: token.id,status:Estatus.Active
       });
 
       let item = await this.itemService.getItemDetail(

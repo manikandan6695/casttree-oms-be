@@ -56,7 +56,8 @@ export class InvoiceService {
     }
   }
 
-  async updateInvoice(id: any, status, serviceRequestId?) {
+  async updateInvoice(id: any, status,serviceRequestId?) {
+
     try {
       let updateBody: any = {};
       updateBody.document_status = status;
@@ -66,7 +67,7 @@ export class InvoiceService {
       }
       await this.salesDocumentModel.updateOne(
         { _id: id },
-        { $set: { document_status: status } }
+        { $set:  updateBody  }
       );
       return { message: "Updated successfully" };
     } catch (err) {
