@@ -22,7 +22,7 @@ import {
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
-  ESourceType
+  ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 
@@ -49,7 +49,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async initiatePayment(
     body: paymentDTO,
@@ -65,14 +65,11 @@ export class PaymentRequestService {
       const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
-
-
         body["serviceRequest"] = {
           ...body.serviceRequest,
           sourceId: invoiceData._id,
           sourceType: EDocument.sales_document,
         };
-
 
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
@@ -80,13 +77,10 @@ export class PaymentRequestService {
         );
       }
 
-
-
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
       });
-
 
       if (existingPayment) {
         return { paymentData: existingPayment, serviceRequest };
@@ -140,11 +134,17 @@ export class PaymentRequestService {
         orderDetail
       );
 
-      let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
+      let serviceItemDetail: any =
+        await this.serviceItemService.getServiceItemDetailbyItemId(body.itemId);
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.initiate_payment;
       mixPanelBody.distinctId = body.userId;
-      mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": body.amount, "cuurency_code": body.currencyCode, "serviceItemType": serviceItemDetail.type };
+      mixPanelBody.properties = {
+        itemname: serviceItemDetail.itemId.itemName,
+        amount: body.amount,
+        cuurency_code: body.currencyCode,
+        serviceItemType: serviceItemDetail.type,
+      };
 
       await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
@@ -176,10 +176,9 @@ export class PaymentRequestService {
     token: UserToken,
     invoiceData = null,
     currency = null,
-    orderDetail = null
+    orderDetail = null,
+    userId?: String
   ) {
-
-
     const paymentSequence = await this.sharedService.getNextNumber(
       "payment",
       "PMT",
@@ -196,8 +195,8 @@ export class PaymentRequestService {
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token?.id,
-      user_id: token?.id,
+      created_by: token?.id ?? userId,
+      user_id: token?.id ?? userId,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
@@ -212,8 +211,11 @@ export class PaymentRequestService {
     try {
       let paymentData = await this.paymentModel.findOne({ _id: body.id });
       if (paymentData.currencyCode !== "INR") {
-        const conversionRate = await this.helperService.getConversionRate(paymentData.currencyCode, paymentData.amount);
-        let amt = parseInt((paymentData.amount * conversionRate).toString())
+        const conversionRate = await this.helperService.getConversionRate(
+          paymentData.currencyCode,
+          paymentData.amount
+        );
+        let amt = parseInt((paymentData.amount * conversionRate).toString());
         await this.paymentModel.updateOne(
           { _id: paymentData._id },
           {
@@ -221,6 +223,17 @@ export class PaymentRequestService {
               conversionRate: conversionRate,
               baseCurrency: "INR",
               baseAmount: amt,
+            },
+          }
+        );
+      } else {
+        await this.paymentModel.updateOne(
+          { _id: paymentData._id },
+          {
+            $set: {
+              conversionRate: 1,
+              baseCurrency: "INR",
+              baseAmount: paymentData.amount,
             },
           }
         );
@@ -237,7 +250,6 @@ export class PaymentRequestService {
     }
   }
 
-
   async getPaymentDetail(id: string) {
     try {
       let payment = await this.paymentModel.findOne({ _id: id });
@@ -248,12 +260,31 @@ export class PaymentRequestService {
     }
   }
 
+  async getPaymentDataBtOrderId(paymentId) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        payment_order_id: paymentId,
+      });
+      return payment;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async paymentWebhook(@Req() req) {
     try {
 
 
-      const { invoiceId, status, payment, serviceRequest, itemId, amount, currency, userId } =
-        await this.extractPaymentDetails(req.body);
+      const {
+        invoiceId,
+        status,
+        payment,
+        serviceRequest,
+        itemId,
+        amount,
+        currency,
+        userId,
+      } = await this.extractPaymentDetails(req.body);
 
       const ids = {
         invoiceId,
@@ -267,9 +298,6 @@ export class PaymentRequestService {
 
       await this.updatePaymentStatus(status, ids);
 
-
-
-
       return { message: "Updated Successfully" };
     } catch (err) {
 
@@ -277,21 +305,14 @@ export class PaymentRequestService {
     }
   }
 
-
-
-
   async extractPaymentDetails(body) {
 
     const itemId = new ObjectId(
       body?.payload?.payment?.entity?.notes.itemId
     );
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
-    const userId = new ObjectId(
-      body?.payload?.payment?.entity?.notes.userId
-    );
-    const currency =
-
-      body?.payload?.payment?.entity?.currency;
+    const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
+    const currency = body?.payload?.payment?.entity?.currency;
 
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
@@ -313,20 +334,37 @@ export class PaymentRequestService {
 
     // }
 
-    return { invoiceId, status, payment, invoice, serviceRequest, itemId, amount, currency, userId };
+    return {
+      invoiceId,
+      status,
+      payment,
+      invoice,
+      serviceRequest,
+      itemId,
+      amount,
+      currency,
+      userId,
+    };
   }
 
   async updatePaymentStatus(status, ids) {
     try {
       if (status === ERazorpayPaymentStatus.captured) {
-        let serviceItemDetail: any = await this.serviceItemService.getServiceItemDetailbyItemId(ids.itemId);
+        let serviceItemDetail: any =
+          await this.serviceItemService.getServiceItemDetailbyItemId(
+            ids.itemId
+          );
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.payment_success;
         mixPanelBody.distinctId = ids.userId;
-        mixPanelBody.properties = { "itemname": serviceItemDetail.itemId.itemName, "amount": ids.amount, "currency_code": ids.currency, "serviceItemType": serviceItemDetail.type };
+        mixPanelBody.properties = {
+          itemname: serviceItemDetail.itemId.itemName,
+          amount: ids.amount,
+          currency_code: ids.currency,
+          serviceItemType: serviceItemDetail.type,
+        };
         await this.helperService.mixPanel(mixPanelBody);
         await this.completePayment(ids);
-
       }
 
       // if (status === ERazorpayPaymentStatus.failed) {
@@ -367,8 +405,7 @@ export class PaymentRequestService {
           path: "$salesDocument",
           preserveNullAndEmptyArrays: true,
         },
-      }
-      );
+      });
       let paymentData = await this.paymentModel.aggregate(aggregation_pipeline);
 
       return { paymentData };
@@ -399,6 +436,31 @@ export class PaymentRequestService {
           requestStatus: EServiceRequestStatus.pending,
         }
       );
+    }
+  }
+
+  async fetchPaymentByOrderId(cfPaymentId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        payment_order_id: cfPaymentId,
+      });
+      return payment;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updateStatus(paymentId, body) {
+    try {
+      console.log("paymentId", paymentId, body);
+
+      let updateData = await this.paymentModel.updateOne(
+        { payment_order_id: paymentId },
+        { $set: body }
+      );
+      return updateData;
+    } catch (err) {
+      throw err;
     }
   }
 

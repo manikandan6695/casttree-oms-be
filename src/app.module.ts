@@ -19,6 +19,7 @@ import { ServiceResponseModule } from "./service-response/service-response.modul
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
 import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
+import { MandatesModule } from './mandates/mandates.module';
 
 @Module({
   imports: [
@@ -58,7 +59,8 @@ import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.mid
     InvoiceModule,
     ProcessModule,
     SubscriptionModule,
-    ScheduleModule.forRoot()
+    ScheduleModule.forRoot(),
+    MandatesModule
   ],
   controllers: [],
   providers: [
