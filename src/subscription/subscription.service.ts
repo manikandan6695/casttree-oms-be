@@ -23,6 +23,7 @@ import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
+import { SubscriptionFactory } from "./subscription.factory";
 
 @Injectable()
 export class SubscriptionService {
