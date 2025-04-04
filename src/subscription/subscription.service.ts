@@ -19,7 +19,7 @@ import {
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
-import { CreateSubscriptionDTO } from "./dto/subscription.dto";
+import { CancelSubscriptionBody, CashfreeFailedPaymentPayload, CashfreeNewPaymentPayload,  CashfreeStatusChangePayload,  CreateSubscriptionDTO, InvoiceData, PaymentRecordData, RazorpaySubscriptionPayload, SubscriptionData, UpdatePaymentBody, UserUpdateData } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -231,7 +231,7 @@ export class SubscriptionService {
     }
   }
 
-  async handleCashfreeFailedPayment(payload: any) {
+  async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
       console.log("inside handleCashfreeFailedPayment is ===>", payload);
 
@@ -253,7 +253,14 @@ export class SubscriptionService {
           },
         }
       );
-      await this.updatePaymentRecords(cfPaymentId, body);
+     await this.updatePaymentRecords(cfPaymentId, body);
+     const paymentRecord = await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
+     if (!paymentRecord) {
+         console.error(`Payment record not found for cfPaymentId: ${cfPaymentId}`);
+         return;
+     }
+
+     await this.paymentService.updateMetaDataForPayment(paymentRecord._id as string, payload);
       // let subscriptionData = await this.subscriptionModel
       //   .find({
       //     "metaData.subscription_id": subscriptionId,
@@ -272,16 +279,15 @@ export class SubscriptionService {
   }
 
   // Handles Razorpay subscription logic
-  private async handleRazorpaySubscription(payload: any) {
+  private async handleRazorpaySubscription(payload: RazorpaySubscriptionPayload) {
     let existingSubscription = await this.subscriptionModel.findOne({
       userId: payload.subscription?.entity?.notes?.userId,
     });
-
     if (!existingSubscription) {
-      let fv = {
+      let fv: SubscriptionData = {
         userId: payload.subscription?.entity?.notes?.userId,
         planId: payload.subscription?.entity?.plan_id,
-        totalCount: payload.subscription?.total_count,
+        totalCount: payload.subscription?.entity?.total_count,
         currentStart: payload.subscription?.entity?.current_start,
         quantity: payload.subscription?.entity?.quantity,
         currentEnd: payload.subscription?.entity?.current_end,
@@ -296,9 +302,7 @@ export class SubscriptionService {
         createdBy: payload.subscription?.entity?.notes?.userId,
         updatedBy: payload.subscription?.entity?.notes?.userId,
       };
-
       let subscription = await this.subscriptionModel.create(fv);
-
       let invoice = await this.invoiceService.createInvoice({
         source_id: payload.subscription?.entity?.notes?.sourceId,
         source_type: "process",
@@ -306,13 +310,13 @@ export class SubscriptionService {
         document_status: EDocumentStatus.completed,
         grand_total: payload.payment?.entity?.amount,
       });
-
-      let invoiceFV: any = {
+  
+      let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
-        invoiceDetail: { sourceId: invoice._id },
+        invoiceDetail: { sourceId: invoice._id.toString() },
         document_status: EDocumentStatus.completed,
       };
-
+  
       await this.paymentService.createPaymentRecord(
         invoiceFV,
         null,
@@ -320,49 +324,68 @@ export class SubscriptionService {
         null,
         null
       );
-
+  
       let item = await this.itemService.getItemDetail(
         payload.subscription?.entity?.notes?.itemId
       );
-
-      let userBody = {
+  
+      let userBody: UserUpdateData = {
         userId: payload.subscription?.entity?.notes?.userId,
         membership: item?.itemName,
         badge: item?.additionalDetail?.badge,
       };
-
+  
       await this.helperService.updateUser(userBody);
     }
   }
+  
 
   // Handles Cashfree status change event
-  private async handleCashfreeStatusChange(payload: any) {
+  private async handleCashfreeStatusChange(payload: CashfreeStatusChangePayload) {
     // console.log("inside handleCashfreeStatusChange is ===>", payload);
-    const cfSubId = payload?.data?.subscription_details?.subscription_id;
-    // console.log("cfSubId", cfSubId);
+    const cfSubId = payload?.data?.subscription_id; 
 
-    let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
-    const newStatus = statusChange(
-      payload?.data?.subscription_details?.subscription_status
-    );
+
+    let statusChange = (str: string) => str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : '';
+
+    const newStatus = statusChange(payload?.data?.subscription_status);
     // console.log("newStatus", newStatus);
-    let mandate = await this.mandateService.getMandate(cfSubId);
-    if (mandate) {
-      mandate.mandateStatus = newStatus;
-      await mandate.save();
 
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
-        mandateStatus: newStatus,
-      });
+    let mandate = await this.mandateService.getMandate(cfSubId);
+    // console.log("mandate!!!!!!", mandate);
+    if (mandate) {
+        mandate.mandateStatus = newStatus;
+        await mandate.save();
+
+       await this.mandateHistoryService.createMandateHistory({
+            mandateId: mandate._id,
+            mandateStatus: newStatus,
+        });
+        await this.updateSubscriptionMetadata(cfSubId, payload);
     }
-  }
+}
+
+
+private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
+ try {
+  let response = await this.subscriptionModel.updateOne(
+    { "metaData.subscription_id": subscriptionId },
+    { $set: { "metaData.webhookResponse": metaData } }
+  );
+  return response;
+
+ } catch (err) {
+    throw err
+ }
+}
+
+
+
 
   // Handles Cashfree new payment event
-  private async handleCashfreeNewPayment(payload: any) {
+  private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
     const cfPaymentId = payload?.data?.cf_payment_id;
-    // console.log("inside handleCashfreeNewPayment is ===>", payload);
-    // console.log("cfPaymentId", cfPaymentId);
+    // console.log("inside handleCashfreeNewPayment is ===>", cfPaymentId);
 
     let paymentRequest =
       await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
@@ -395,6 +418,11 @@ export class SubscriptionService {
         };
 
         await this.helperService.updateUser(userBody);
+      }
+      await this.paymentService.updateMetaDataForPayment(paymentRequest._id as string, payload);
+      if (!paymentRequest.transactionDate){
+        let transactionDate = new Date()
+        await this.paymentService.updateTransactionDate(paymentRequest._id,transactionDate)
       }
     }
   }
@@ -582,7 +610,7 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async cancelSubscriptionStatus(token: UserToken, body: any) {
+  async cancelSubscriptionStatus(token: UserToken, body: CancelSubscriptionBody) {
     try {
       // console.log("user id is", token.id);
 
@@ -826,7 +854,7 @@ export class SubscriptionService {
         currencyCode: "INR",
         source_id: invoice._id,
         source_type: EPaymentSourceType.invoice,
-        user_id: subscriptionData?.latestDocument?.userId,
+        userId: subscriptionData?.latestDocument?.userId,
         document_status: EDocumentStatus.pending,
       };
 
@@ -841,9 +869,9 @@ export class SubscriptionService {
     }
   }
 
-  async updatePaymentRecords(paymentId: string, body: any) {
+  async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
-      // console.log("payment records ==>", paymentId, body);
+      // console.log("payment records ==>",body.document_status );
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
       await this.invoiceService.updateInvoice(

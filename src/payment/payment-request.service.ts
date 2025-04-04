@@ -49,7 +49,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -194,8 +194,8 @@ export class PaymentRequestService {
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token?.id ?? userId,
-      user_id: token?.id ?? userId,
+      created_by: body.userId,
+      user_id: body.userId,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
@@ -473,13 +473,45 @@ export class PaymentRequestService {
 
       let updateData = await this.paymentModel.updateOne(
         { payment_order_id: paymentId },
-        { $set: body }
+        { $set: { reason: body.reason.failureReason } }
       );
       return updateData;
     } catch (err) {
       throw err;
     }
   }
+  async updateTransactionDate(transactionId, transactionDate) {
+    try {
+      let updateDate = await this.paymentModel.updateOne({ _id: transactionId }, { $set: { transactionDate } })
+      return updateDate;
+    } catch (err) {
+      throw err;
+
+    }
+  }
+  async updateMetaDataForPayment(paymentId: string, metaData) {
+    try {
+      console.log("metaData", metaData);
+
+      let response = await this.paymentModel.updateOne(
+        { _id: paymentId },
+        {
+          $set: { "metaData.webhookResponse": metaData }
+        }
+      );
+      // 
+      if (response.modifiedCount === 0) {
+        console.warn(`No update performed for paymentId: ${paymentId}`);
+      } else {
+        console.log(`Webhook response added for paymentId: ${paymentId}`);
+      }
+
+      return response
+    } catch (err) {
+      throw err;
+    }
+  }
+
 
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
