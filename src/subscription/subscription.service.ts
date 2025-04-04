@@ -42,7 +42,7 @@ export class SubscriptionService {
     private readonly mandateHistoryService: MandateHistoryService
   ) {}
 
-  async createSubscription(body: CreateSubscriptionDTO, token: any) {
+  async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
       let subscriptionData;
 
@@ -233,7 +233,6 @@ export class SubscriptionService {
 
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
-      console.log("inside handleCashfreeFailedPayment is ===>", payload);
 
       const cfPaymentId = payload?.data?.cf_payment_id;
       let subscriptionId = payload?.data?.subscription_id;
@@ -255,10 +254,7 @@ export class SubscriptionService {
       );
      await this.updatePaymentRecords(cfPaymentId, body);
      const paymentRecord = await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
-     if (!paymentRecord) {
-         console.error(`Payment record not found for cfPaymentId: ${cfPaymentId}`);
-         return;
-     }
+   
 
      await this.paymentService.updateMetaDataForPayment(paymentRecord._id as string, payload);
       // let subscriptionData = await this.subscriptionModel
@@ -419,11 +415,8 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
 
         await this.helperService.updateUser(userBody);
       }
-      await this.paymentService.updateMetaDataForPayment(paymentRequest._id as string, payload);
-      if (!paymentRequest.transactionDate){
-        let transactionDate = new Date()
-        await this.paymentService.updateTransactionDate(paymentRequest._id,transactionDate)
-      }
+      await this.paymentService.updateMetaDataForPayment(paymentRequest, payload);
+      
     }
   }
 
@@ -781,7 +774,6 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
                 ?.validity
           );
     let chargeResponse = await this.helperService.createAuth(authBody);
-    console.log("charge Reponse ===>", chargeResponse);
 
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
@@ -826,7 +818,6 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
       // console.log("creating subscription", fv);
 
       let subscription = await this.subscriptionModel.create(fv);
-      console.log("subscription created ===>", subscription._id);
 
       const invoiceData = {
         itemId: subscriptionData.latestDocument.notes.itemId,

@@ -194,8 +194,8 @@ export class PaymentRequestService {
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: body.userId,
-      user_id: body.userId,
+      created_by: body?.userId,
+      user_id: body?.userId,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
@@ -480,31 +480,22 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async updateTransactionDate(transactionId, transactionDate) {
+  async updateMetaDataForPayment(paymentId, metaData) {
     try {
-      let updateDate = await this.paymentModel.updateOne({ _id: transactionId }, { $set: { transactionDate } })
-      return updateDate;
-    } catch (err) {
-      throw err;
-
-    }
-  }
-  async updateMetaDataForPayment(paymentId: string, metaData) {
-    try {
-      console.log("metaData", metaData);
-
-      let response = await this.paymentModel.updateOne(
-        { _id: paymentId },
-        {
-          $set: { "metaData.webhookResponse": metaData }
-        }
-      );
-      // 
-      if (response.modifiedCount === 0) {
-        console.warn(`No update performed for paymentId: ${paymentId}`);
-      } else {
-        console.log(`Webhook response added for paymentId: ${paymentId}`);
+      // console.log("paymentId", paymentId);
+      
+      let updateFields:any = {}
+      if (metaData) {
+        updateFields["metaData.webhookResponse"] = metaData;
       }
+      let date = new Date();
+      if(!paymentId.transactionDate){
+        updateFields.transactionDate = date;
+      }
+      let response = await this.paymentModel.updateOne(
+        { _id: paymentId?._id },
+        { $set: updateFields }
+    );
 
       return response
     } catch (err) {
