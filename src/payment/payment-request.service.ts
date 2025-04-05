@@ -49,7 +49,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async initiatePayment(
     body: paymentDTO,
@@ -199,6 +199,10 @@ export class PaymentRequestService {
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
+      paymentType: body?.paymentType,
+      transactionDate: body.transactionDate ? body.transactionDate : new Date(),
+      providerId: body?.providerId,
+      providerName: body?.providerName,
     };
     if (body.document_status) {
       paymentData["paymentData"] = body.document_status;
@@ -483,26 +487,25 @@ export class PaymentRequestService {
   async updateMetaData(paymentId, metaData) {
     try {
       // console.log("paymentId", paymentId);
-      
-      let updateFields:any = {}
+
+      let updateFields: any = {};
       if (metaData) {
         updateFields["metaData.webhookResponse"] = metaData;
       }
       let existingPayment = await this.paymentModel.findById(paymentId);
-      if(!existingPayment.transactionDate){
+      if (!existingPayment.transactionDate) {
         updateFields.transactionDate = new Date();
       }
       let response = await this.paymentModel.updateOne(
         { _id: paymentId },
         { $set: updateFields }
-    );
+      );
 
-      return response
+      return response;
     } catch (err) {
       throw err;
     }
   }
-
 
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
