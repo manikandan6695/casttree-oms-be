@@ -256,7 +256,7 @@ export class SubscriptionService {
      const paymentRecord = await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
    
 
-     await this.paymentService.updateMetaDataForPayment(paymentRecord._id as string, payload);
+     await this.paymentService.updateMetaData(paymentRecord._id as string, payload);
       // let subscriptionData = await this.subscriptionModel
       //   .find({
       //     "metaData.subscription_id": subscriptionId,
@@ -415,7 +415,7 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
 
         await this.helperService.updateUser(userBody);
       }
-      await this.paymentService.updateMetaDataForPayment(paymentRequest, payload);
+      await this.paymentService.updateMetaData(paymentRequest?.id, payload);
       
     }
   }

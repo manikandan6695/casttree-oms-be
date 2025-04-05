@@ -480,7 +480,7 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async updateMetaDataForPayment(paymentId, metaData) {
+  async updateMetaData(paymentId, metaData) {
     try {
       // console.log("paymentId", paymentId);
       
@@ -488,12 +488,12 @@ export class PaymentRequestService {
       if (metaData) {
         updateFields["metaData.webhookResponse"] = metaData;
       }
-      let date = new Date();
-      if(!paymentId.transactionDate){
-        updateFields.transactionDate = date;
+      let existingPayment = await this.paymentModel.findById(paymentId);
+      if(!existingPayment.transactionDate){
+        updateFields.transactionDate = new Date();
       }
       let response = await this.paymentModel.updateOne(
-        { _id: paymentId?._id },
+        { _id: paymentId },
         { $set: updateFields }
     );
 
