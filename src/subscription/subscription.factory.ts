@@ -5,11 +5,13 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
+import { EPaymentType } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
+import { EProvider } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 
@@ -144,6 +146,9 @@ export class SubscriptionFactory {
       amount: bodyData.authAmount,
       currencyCode: "INR",
       document_status: EDocumentStatus.pending,
+      paymentType: EPaymentType.auth,
+      providerId: 2,
+      providerName: EProvider.cashfree,
     };
     await this.paymentService.createPaymentRecord(
       paymentData,
