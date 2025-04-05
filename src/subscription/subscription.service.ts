@@ -15,15 +15,29 @@ import { MandatesService } from "src/mandates/mandates.service";
 import {
   EPaymentSourceType,
   EPaymentStatus,
+  EPaymentType,
 } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
-import { CancelSubscriptionBody, CashfreeFailedPaymentPayload, CashfreeNewPaymentPayload,  CashfreeStatusChangePayload,  CreateSubscriptionDTO, InvoiceData, PaymentRecordData, RazorpaySubscriptionPayload, SubscriptionData, UpdatePaymentBody, UserUpdateData } from "./dto/subscription.dto";
+import {
+  CancelSubscriptionBody,
+  CashfreeFailedPaymentPayload,
+  CashfreeNewPaymentPayload,
+  CashfreeStatusChangePayload,
+  CreateSubscriptionDTO,
+  InvoiceData,
+  PaymentRecordData,
+  RazorpaySubscriptionPayload,
+  SubscriptionData,
+  UpdatePaymentBody,
+  UserUpdateData,
+} from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+import { EProvider } from "./enums/provider.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -233,7 +247,6 @@ export class SubscriptionService {
 
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
-
       const cfPaymentId = payload?.data?.cf_payment_id;
       let subscriptionId = payload?.data?.subscription_id;
       let failedReason = payload?.data?.failureDetails;
@@ -252,11 +265,14 @@ export class SubscriptionService {
           },
         }
       );
-     await this.updatePaymentRecords(cfPaymentId, body);
-     const paymentRecord = await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
-   
+      await this.updatePaymentRecords(cfPaymentId, body);
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
 
-     await this.paymentService.updateMetaData(paymentRecord._id as string, payload);
+      await this.paymentService.updateMetaData(
+        paymentRecord._id as string,
+        payload
+      );
       // let subscriptionData = await this.subscriptionModel
       //   .find({
       //     "metaData.subscription_id": subscriptionId,
@@ -275,7 +291,9 @@ export class SubscriptionService {
   }
 
   // Handles Razorpay subscription logic
-  private async handleRazorpaySubscription(payload: RazorpaySubscriptionPayload) {
+  private async handleRazorpaySubscription(
+    payload: RazorpaySubscriptionPayload
+  ) {
     let existingSubscription = await this.subscriptionModel.findOne({
       userId: payload.subscription?.entity?.notes?.userId,
     });
@@ -306,13 +324,13 @@ export class SubscriptionService {
         document_status: EDocumentStatus.completed,
         grand_total: payload.payment?.entity?.amount,
       });
-  
+
       let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
         invoiceDetail: { sourceId: invoice._id.toString() },
         document_status: EDocumentStatus.completed,
       };
-  
+
       await this.paymentService.createPaymentRecord(
         invoiceFV,
         null,
@@ -320,29 +338,30 @@ export class SubscriptionService {
         null,
         null
       );
-  
+
       let item = await this.itemService.getItemDetail(
         payload.subscription?.entity?.notes?.itemId
       );
-  
+
       let userBody: UserUpdateData = {
         userId: payload.subscription?.entity?.notes?.userId,
         membership: item?.itemName,
         badge: item?.additionalDetail?.badge,
       };
-  
+
       await this.helperService.updateUser(userBody);
     }
   }
-  
 
   // Handles Cashfree status change event
-  private async handleCashfreeStatusChange(payload: CashfreeStatusChangePayload) {
+  private async handleCashfreeStatusChange(
+    payload: CashfreeStatusChangePayload
+  ) {
     // console.log("inside handleCashfreeStatusChange is ===>", payload);
-    const cfSubId = payload?.data?.subscription_id; 
+    const cfSubId = payload?.data?.subscription_id;
 
-
-    let statusChange = (str: string) => str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : '';
+    let statusChange = (str: string) =>
+      str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
 
     const newStatus = statusChange(payload?.data?.subscription_status);
     // console.log("newStatus", newStatus);
@@ -350,33 +369,28 @@ export class SubscriptionService {
     let mandate = await this.mandateService.getMandate(cfSubId);
     // console.log("mandate!!!!!!", mandate);
     if (mandate) {
-        mandate.mandateStatus = newStatus;
-        await mandate.save();
+      mandate.mandateStatus = newStatus;
+      await mandate.save();
 
-       await this.mandateHistoryService.createMandateHistory({
-            mandateId: mandate._id,
-            mandateStatus: newStatus,
-        });
-        await this.updateSubscriptionMetadata(cfSubId, payload);
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: newStatus,
+      });
+      await this.updateSubscriptionMetadata(cfSubId, payload);
     }
-}
+  }
 
-
-private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
- try {
-  let response = await this.subscriptionModel.updateOne(
-    { "metaData.subscription_id": subscriptionId },
-    { $set: { "metaData.webhookResponse": metaData } }
-  );
-  return response;
-
- } catch (err) {
-    throw err
- }
-}
-
-
-
+  private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
+    try {
+      let response = await this.subscriptionModel.updateOne(
+        { "metaData.subscription_id": subscriptionId },
+        { $set: { "metaData.webhookResponse": metaData } }
+      );
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
@@ -416,7 +430,6 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
         await this.helperService.updateUser(userBody);
       }
       await this.paymentService.updateMetaData(paymentRequest?.id, payload);
-      
     }
   }
 
@@ -603,7 +616,10 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
       throw error;
     }
   }
-  async cancelSubscriptionStatus(token: UserToken, body: CancelSubscriptionBody) {
+  async cancelSubscriptionStatus(
+    token: UserToken,
+    body: CancelSubscriptionBody
+  ) {
     try {
       // console.log("user id is", token.id);
 
@@ -847,6 +863,9 @@ private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
         source_type: EPaymentSourceType.invoice,
         userId: subscriptionData?.latestDocument?.userId,
         document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: 2,
+        providerName: EProvider.cashfree,
       };
 
       // console.log("creating payment", paymentData);
