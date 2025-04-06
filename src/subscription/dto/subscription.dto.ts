@@ -84,6 +84,7 @@ export interface CashfreeFailedPaymentPayload {
     cf_payment_id: string;
     subscription_id: string;
     failureDetails: string;
+    cf_order_id: string;
   };
 }
 
@@ -164,6 +165,7 @@ export interface CashfreeStatusChangePayload {
 }
 export interface CashfreeNewPaymentPayloadData {
   cf_payment_id: string;
+  cf_order_id: string;
 }
 
 export interface CashfreeNewPaymentPayload {

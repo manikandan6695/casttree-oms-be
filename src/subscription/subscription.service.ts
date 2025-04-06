@@ -247,7 +247,7 @@ export class SubscriptionService {
 
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
-      const cfPaymentId = payload?.data?.cf_payment_id;
+      const cfPaymentId = payload?.data?.cf_order_id;
       let subscriptionId = payload?.data?.subscription_id;
       let failedReason = payload?.data?.failureDetails;
       let body = {
@@ -357,7 +357,6 @@ export class SubscriptionService {
   private async handleCashfreeStatusChange(
     payload: CashfreeStatusChangePayload
   ) {
-    // console.log("inside handleCashfreeStatusChange is ===>", payload);
     const cfSubId = payload?.data?.subscription_id;
 
     let statusChange = (str: string) =>
@@ -367,7 +366,6 @@ export class SubscriptionService {
     // console.log("newStatus", newStatus);
 
     let mandate = await this.mandateService.getMandate(cfSubId);
-    // console.log("mandate!!!!!!", mandate);
     if (mandate) {
       mandate.mandateStatus = newStatus;
       await mandate.save();
@@ -376,8 +374,9 @@ export class SubscriptionService {
         mandateId: mandate._id,
         mandateStatus: newStatus,
       });
-      await this.updateSubscriptionMetadata(cfSubId, payload);
     }
+    await this.updateSubscriptionMetadata(cfSubId, payload);
+
   }
 
   private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
@@ -394,8 +393,7 @@ export class SubscriptionService {
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
-    const cfPaymentId = payload?.data?.cf_payment_id;
-    // console.log("inside handleCashfreeNewPayment is ===>", cfPaymentId);
+    const cfPaymentId = payload?.data?.cf_order_id;
 
     let paymentRequest =
       await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
