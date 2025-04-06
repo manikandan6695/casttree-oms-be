@@ -78,3 +78,8 @@ export class ValidateSubscriptionDTO {
   @IsOptional()
   status: string[];
 }
+
+export class RaiseChargeDTO {
+  @IsOptional()
+  status: string[];
+}

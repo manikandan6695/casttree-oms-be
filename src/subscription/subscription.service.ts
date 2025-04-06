@@ -1,5 +1,5 @@
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
-import { Injectable, Req } from "@nestjs/common";
+import { Injectable, Logger, Req } from "@nestjs/common";
+import { OnEvent } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
@@ -17,11 +17,15 @@ import {
   EPaymentStatus,
 } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
+import { EVENT_RAISE_CHARGE } from "src/shared/app.constants";
+import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
+import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
+import { IRaiseChargeEvent } from "./events/subscription.events";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 // var ObjectId = require("mongodb").ObjectID;
@@ -40,8 +44,10 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) {}
+    
+  ) { }
 
+  private readonly logger = new Logger(SubscriptionService.name);
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
       let subscriptionData;
@@ -469,11 +475,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -613,14 +619,34 @@ export class SubscriptionService {
     }
   }
 
-  @Cron("0 1 * * *")
+  @Cron("0/30 * * * * *")
   async createCharge() {
     try {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
+      const expiringSubscriptionsList = await this.getExpiringSubscriptionsList();
+      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+        // await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+        await this.sharedService.trackAndEmitEvent(
+          EVENT_RAISE_CHARGE,
+          { subscriptionData: expiringSubscriptionsList[i], planDetail },
+          true,
+          {}
+        );
+      }
+    } catch (error) {
+      this.logger.error('Task failed, retrying...');
+      this.retryTask(2, 60 * 60 * 1000); 
+      throw error;
+    }
+  }
+
+  async getExpiringSubscriptionsList() {
+    try {
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
+      console.log(tomorrow);
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
         {
@@ -643,10 +669,10 @@ export class SubscriptionService {
         },
         {
           $match: {
-            $or: [
+            $and: [
               {
                 "latestDocument.subscriptionStatus": {
-                  $in: [
+                  $nin: [
                     EsubscriptionStatus.failed,
                     EsubscriptionStatus.expired,
                   ],
@@ -680,26 +706,40 @@ export class SubscriptionService {
           },
         },
       ]);
+      console.log(expiringSubscriptionsList.length,".....",expiringSubscriptionsList);
+      return expiringSubscriptionsList;
+    } catch (err) { throw err }
+  }
 
-      // console.log(
-      //   "expiring list ==>",
-      //   expiringSubscriptionsList.length
-      //   // expiringSubscriptionsList
-      // );
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        await this.createChargeData(expiringSubscriptionsList[i], planDetail);
-      }
-    } catch (error) {
-      throw error;
+  @OnEvent(EVENT_RAISE_CHARGE)
+  async createChargeEvent(
+    body: IRaiseChargeEvent
+  ): Promise<any> {
+    try {
+      await this.sharedService.updateEventProcessingStatus(
+        body?.commandSource,
+        ECommandProcessingStatus.InProgress
+      );
+      await this.createChargeData(
+        body?.subscriptionData,
+        body?.planDetail
+      );
+
+      await this.sharedService.updateEventProcessingStatus(
+        body?.commandSource,
+        ECommandProcessingStatus.Complete
+      );
+    } catch (err) {
+      await this.sharedService.updateEventProcessingStatus(
+        body?.commandSource,
+        ECommandProcessingStatus.Failed
+      );
     }
   }
 
   async createChargeData(subscriptionData, planDetail) {
-    // console.log(
-    //   "subscription data is ==>",
-    //   subscriptionData?.latestDocument?.metaData?.subscription_id
-    // );
 
+try{
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
       "CSH-PMT",
@@ -736,22 +776,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
     console.log("charge Reponse ===>", chargeResponse);
 
@@ -838,6 +878,24 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
+    }}catch(error){
+      await this.helperService.sendMail({
+        "recipients": [
+          {
+            "to": [
+              {
+                "email": "pavankumarkbletters@gmail.com",
+                "name": "Aswin Dhananjai"
+              }
+            ]
+          }
+        ],
+        "from": {
+          "email": "charge-failure@mail.casttree.in"
+        },
+        "domain": "mail.casttree.in",
+        "template_id": "global_otp"
+      })
     }
   }
 
@@ -854,6 +912,24 @@ export class SubscriptionService {
       return { message: "Success" };
     } catch (err) {
       throw err;
+    }
+  }
+
+
+
+  private retryTask(retries: number, delay: number) {
+    if (retries > 0) {
+      setTimeout(async () => {
+        try {
+          this.logger.log(`Retrying task... Attempts left: ${retries}`);
+          await this.createCharge;
+          this.logger.log('Retry successful!');
+        } catch (error) {
+          this.logger.error(`Retry failed. Attempts left: ${retries - 1}`, error);
+        }
+      }, delay);
+    } else {
+      this.logger.error('Max retries reached. Task failed permanently.');
     }
   }
 }

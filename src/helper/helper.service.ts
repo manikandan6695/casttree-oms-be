@@ -187,6 +187,7 @@ export class HelperService {
           },
         })
         .toPromise();
+        console.log({dara: data.data})
       return data.data;
     } catch (err) {
       throw err;
