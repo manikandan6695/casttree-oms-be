@@ -44,7 +44,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-    
+
   ) { }
 
   private readonly logger = new Logger(SubscriptionService.name);
@@ -635,7 +635,7 @@ export class SubscriptionService {
       }
     } catch (error) {
       this.logger.error('Task failed, retrying...');
-      this.retryTask(2, 60 * 60 * 1000); 
+      this.retryTask(2, 1 * 60 * 1000);
       throw error;
     }
   }
@@ -672,7 +672,7 @@ export class SubscriptionService {
             $and: [
               {
                 "latestDocument.subscriptionStatus": {
-                  $nin: [
+                  $in: [
                     EsubscriptionStatus.failed,
                     EsubscriptionStatus.expired,
                   ],
@@ -706,7 +706,7 @@ export class SubscriptionService {
           },
         },
       ]);
-      console.log(expiringSubscriptionsList.length,".....",expiringSubscriptionsList);
+      console.log(expiringSubscriptionsList.length, ".....", expiringSubscriptionsList);
       return expiringSubscriptionsList;
     } catch (err) { throw err }
   }
@@ -739,147 +739,152 @@ export class SubscriptionService {
 
   async createChargeData(subscriptionData, planDetail) {
 
-try{
-    const paymentSequence = await this.sharedService.getNextNumber(
-      "cashfree-payment",
-      "CSH-PMT",
-      5,
-      null
-    );
-    const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
-    let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+    try {
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "cashfree-payment",
+        "CSH-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
 
-    let now = new Date();
-    let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      let now = new Date();
+      let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
-    let authBody = {
-      subscription_id:
-        subscriptionData?.latestDocument?.metaData?.subscription_id,
-      payment_id: paymentNumber,
-      payment_amount:
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.amount,
-      payment_type: "CHARGE",
-      payment_schedule_date: paymentSchedule.toISOString(),
-    };
-    // console.log("auth body is ==>", authBody);
+      let authBody = {
+        subscription_id:
+          subscriptionData?.latestDocument?.metaData?.subscription_id,
+        payment_id: paymentNumber,
+        payment_amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount,
+        payment_type: "CHARGE",
+        payment_schedule_date: paymentSchedule.toISOString(),
+      };
+      // console.log("auth body is ==>", authBody);
 
-    const today = new Date();
-    const startAt = new Date();
-    startAt.setDate(today.getDate() + 1);
-    startAt.setHours(0, 0, 0, 0);
-    // console.log("startAt", startAt);
+      const today = new Date();
+      const startAt = new Date();
+      startAt.setDate(today.getDate() + 1);
+      startAt.setHours(0, 0, 0, 0);
+      // console.log("startAt", startAt);
 
-    let endAt = new Date();
-    // console.log("endAt", endAt);
+      let endAt = new Date();
+      // console.log("endAt", endAt);
 
-    planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-      ?.validityType == EvalidityType.day
-      ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
+      planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+        ?.validityType == EvalidityType.day
+        ? endAt.setDate(
+          endAt.getDate() +
           planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
             ?.validity
         )
-        : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
-    let chargeResponse = await this.helperService.createAuth(authBody);
-    console.log("charge Reponse ===>", chargeResponse);
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
+          )
+          : endAt.setFullYear(
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
+          );
+      let chargeResponse = await this.helperService.createAuth(authBody);
+      console.log("charge Reponse ===>", chargeResponse);
 
-    if (chargeResponse) {
-      endAt.setDate(endAt.getDate());
-      endAt.setHours(0, 0, 0, 0);
-      // console.log("start at ==>", startAt);
-      // console.log("end at ==>", endAt);
-      // console.log(
-      //   "check user id is ==>",
-      //   subscriptionData?.latestDocument?.userId
-      // );
+      if (chargeResponse) {
+        endAt.setDate(endAt.getDate());
+        endAt.setHours(0, 0, 0, 0);
+        // console.log("start at ==>", startAt);
+        // console.log("end at ==>", endAt);
+        // console.log(
+        //   "check user id is ==>",
+        //   subscriptionData?.latestDocument?.userId
+        // );
 
-      let fv = {
-        userId: subscriptionData?.latestDocument?.userId,
-        planId: subscriptionData?.latestDocument?.planId,
-        startAt: startAt,
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
-        providerId: 2,
-        endAt: endAt,
-        metaData: {
-          subscription_id:
-            subscriptionData?.latestDocument?.metaData?.subscription_id,
-          cf_subscription_id:
-            subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
-          customer_details:
-            subscriptionData?.latestDocument?.metaData?.customer_details,
-        },
-        notes: {
-          itemId: subscriptionData.latestDocument.notes.itemId,
+        let fv = {
+          userId: subscriptionData?.latestDocument?.userId,
+          planId: subscriptionData?.latestDocument?.planId,
+          startAt: startAt,
           amount:
             planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
               ?.amount,
-          paymentScheduledAt: paymentSchedule,
-          paymentId: paymentNumber,
-        },
-        subscriptionStatus: EsubscriptionStatus.initiated,
-        status: EStatus.Active,
-        createdBy: subscriptionData?.latestDocument?.userId,
-        updatedBy: subscriptionData?.latestDocument?.userId,
-      };
-      // console.log("creating subscription", fv);
+          providerId: 2,
+          endAt: endAt,
+          metaData: {
+            subscription_id:
+              subscriptionData?.latestDocument?.metaData?.subscription_id,
+            cf_subscription_id:
+              subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
+            customer_details:
+              subscriptionData?.latestDocument?.metaData?.customer_details,
+          },
+          notes: {
+            itemId: subscriptionData.latestDocument.notes.itemId,
+            amount:
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            paymentScheduledAt: paymentSchedule,
+            paymentId: paymentNumber,
+          },
+          subscriptionStatus: EsubscriptionStatus.initiated,
+          status: EStatus.Active,
+          createdBy: subscriptionData?.latestDocument?.userId,
+          updatedBy: subscriptionData?.latestDocument?.userId,
+        };
+        // console.log("creating subscription", fv);
 
-      let subscription = await this.subscriptionModel.create(fv);
-      console.log("subscription created ===>", subscription._id);
+        let subscription = await this.subscriptionModel.create(fv);
+        console.log("subscription created ===>", subscription._id);
 
-      const invoiceData = {
-        itemId: subscriptionData.latestDocument.notes.itemId,
-        source_id: subscription._id,
-        source_type: "subscription",
-        sub_total:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
-        currencyCode: "INR",
-        document_status: EDocumentStatus.pending,
-        grand_total:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
-        user_id: subscriptionData.latestDocument.userId,
-        created_by: subscriptionData.latestDocument.userId,
-        updated_by: subscriptionData.latestDocument.userId,
-      };
-      // console.log("creating invoice", invoiceData);
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+        const invoiceData = {
+          itemId: subscriptionData.latestDocument.notes.itemId,
+          source_id: subscription._id,
+          source_type: "subscription",
+          sub_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          document_status: EDocumentStatus.pending,
+          grand_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          user_id: subscriptionData.latestDocument.userId,
+          created_by: subscriptionData.latestDocument.userId,
+          updated_by: subscriptionData.latestDocument.userId,
+        };
+        // console.log("creating invoice", invoiceData);
+        const invoice = await this.invoiceService.createInvoice(invoiceData);
 
-      const paymentData = {
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
-        currencyCode: "INR",
-        source_id: invoice._id,
-        source_type: EPaymentSourceType.invoice,
-        user_id: subscriptionData?.latestDocument?.userId,
-        document_status: EDocumentStatus.pending,
-      };
+        const paymentData = {
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          source_id: invoice._id,
+          source_type: EPaymentSourceType.invoice,
+          user_id: subscriptionData?.latestDocument?.userId,
+          document_status: EDocumentStatus.pending,
+        };
 
-      // console.log("creating payment", paymentData);
-      await this.paymentService.createPaymentRecord(
-        paymentData,
-        null,
-        invoice,
-        "INR",
-        { order_id: chargeResponse?.cf_payment_id }
-      );
-    }}catch(error){
-      await this.helperService.sendMail({
+        // console.log("creating payment", paymentData);
+        await this.paymentService.createPaymentRecord(
+          paymentData,
+          null,
+          invoice,
+          "INR",
+          { order_id: chargeResponse?.cf_payment_id }
+        );
+      }
+    } catch (error) {
+
+
+
+
+     /* await this.helperService.sendMail({
         "recipients": [
           {
             "to": [
@@ -895,7 +900,7 @@ try{
         },
         "domain": "mail.casttree.in",
         "template_id": "global_otp"
-      })
+      })*/
     }
   }
 
@@ -922,7 +927,7 @@ try{
       setTimeout(async () => {
         try {
           this.logger.log(`Retrying task... Attempts left: ${retries}`);
-          await this.createCharge;
+          await this.getFailedEvents;
           this.logger.log('Retry successful!');
         } catch (error) {
           this.logger.error(`Retry failed. Attempts left: ${retries - 1}`, error);
@@ -931,5 +936,12 @@ try{
     } else {
       this.logger.error('Max retries reached. Task failed permanently.');
     }
+  }
+
+  async getFailedEvents() {
+    try {
+     let failedEvents = await this.sharedService.getFailedEvents("Casttree.Events.Raise.Charge");
+     console.log({failedEvents});
+    } catch (err) { throw err }
   }
 }

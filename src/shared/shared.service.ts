@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { CustomLogger } from "src/logger/customlogger.service";
@@ -11,7 +12,6 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
-import { EventEmitter2 } from "@nestjs/event-emitter";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
 @Injectable()
@@ -29,6 +29,19 @@ export class SharedService {
     private readonly eventEmitter: EventEmitter2,
     private currency_service: CurrencyService
   ) {}
+
+  async getFailedEvents(eventType){
+    try{
+      const today = new Date();
+      today.setDate(today.getDate() - 1);
+      today.setHours(23, 59, 59, 999);
+      let data = await this.commandSourceModel.find({aggregateType:eventType,status:ECommandProcessingStatus.Failed,createdAt :{$gte:today }});
+      console.log("failed events",data);
+      return data;
+    }catch(err){throw err}
+
+  }
+
 
   fetchName(nameArr, lang) {
     try {
