@@ -10,6 +10,7 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
+import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 import { MandatesService } from "src/mandates/mandates.service";
 import {
@@ -21,7 +22,6 @@ import { EVENT_RAISE_CHARGE } from "src/shared/app.constants";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -643,10 +643,10 @@ export class SubscriptionService {
   async getExpiringSubscriptionsList() {
     try {
       const today = new Date();
-      const tomorrow = new Date();
+      const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
-      console.log(tomorrow);
+      console.log("in getexpiry: "+tomorrow.toISOString());
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
         {
@@ -684,7 +684,7 @@ export class SubscriptionService {
                     "latestDocument.subscriptionStatus":
                       EsubscriptionStatus.active,
                   },
-                  { "latestDocument.endAt": { $lte: tomorrow } },
+                  { "latestDocument.endAt": { $lte: tomorrow.toISOString() } },
                 ],
               },
             ],
