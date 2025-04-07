@@ -247,9 +247,10 @@ export class SubscriptionService {
 
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
-      const cfPaymentId = payload?.data?.cf_order_id;
+      const cfPaymentId = payload?.data?.cf_payment_id;
       let subscriptionId = payload?.data?.subscription_id;
       let failedReason = payload?.data?.failureDetails;
+      console.log("ids",cfPaymentId,subscriptionId,failedReason);
       let body = {
         document_status: EPaymentStatus.failed,
         reason: failedReason,
@@ -393,7 +394,7 @@ export class SubscriptionService {
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
-    const cfPaymentId = payload?.data?.cf_order_id;
+    const cfPaymentId = payload?.data?.cf_payment_id;
 
     let paymentRequest =
       await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
