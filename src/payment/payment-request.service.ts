@@ -75,6 +75,7 @@ export class PaymentRequestService {
           body.serviceRequest,
           token
         );
+        await this.invoiceService.updateSourceId(serviceRequest.request._id,ESourceType.serviceRequest,invoiceData._id);
       }
 
       const existingPayment = await this.paymentModel.findOne({
@@ -107,7 +108,7 @@ export class PaymentRequestService {
       if (body.couponCode != null) {
         body.amount = body.amount - body.discount;
       }
-      let requesId = serviceRequest?.request?._id.toString()
+      let requestId = serviceRequest?.request?._id.toString()
         ? serviceRequest?.request?._id.toString()
         : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
@@ -115,13 +116,14 @@ export class PaymentRequestService {
         body.currencyCode,
         body.currency,
         body.amount,
-        requesId,
+        requestId,
         accessToken,
         {
           invoiceId: invoiceData._id,
           itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
-          userId: body.userId,
+          userId: body.userId
+
         }
       );
 
@@ -245,7 +247,6 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in updatePaymentRequest:", err.message);
       throw err;
     }
   }
@@ -273,7 +274,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("payment webhook", req.body);
+
 
       const {
         invoiceId,
@@ -300,19 +301,16 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in paymentWebhook:", err);
+
       return { message: "Failed to update payment status", error: err.message };
     }
   }
 
   async extractPaymentDetails(body) {
-    console.log(
-      "extrat payment invoice id",
-      body,
-      body?.payload?.payment?.entity?.notes.invoiceId,
-      body?.payload?.payment?.entity?.notes
+
+    const itemId = new ObjectId(
+      body?.payload?.payment?.entity?.notes.itemId
     );
-    const itemId = new ObjectId(body?.payload?.payment?.entity?.notes.itemId);
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
     const currency = body?.payload?.payment?.entity?.currency;
@@ -320,16 +318,14 @@ export class PaymentRequestService {
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
-    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-    console.log("payment", payment);
 
-    console.log("amount", amount);
+
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
     // let serviceRequest;
@@ -382,11 +378,7 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(
-    userId: string,
-    sourceId?: string,
-    type?: string
-  ) {
+  async getPaymentDetailBySource(userId: string, sourceId?: string, type?: string) {
     try {
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
@@ -395,28 +387,20 @@ export class PaymentRequestService {
       aggregation_pipeline.push({
         $match: { document_status: EDocumentStatus.completed },
       });
-      aggregation_pipeline.push({
-        $lookup: {
-          from: "salesDocument",
-          localField: "source_id",
-          foreignField: "_id",
-          as: "salesDocument",
-        },
+      aggregation_pipeline.push(
+        {
+          $lookup: {
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDocument",
+          },
+        });
+      sourceId ? aggregation_pipeline.push({
+        $match: { "salesDocument.source_id": new ObjectId(sourceId), "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
+      }) : aggregation_pipeline.push({
+        $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
       });
-      sourceId
-        ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
-        : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -432,18 +416,17 @@ export class PaymentRequestService {
   }
 
   async completePayment(ids) {
+
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
       EDocumentStatus.completed
     );
-    await this.updatePaymentRequest(
-      {
-        id: ids.paymentId,
-        document_status: EDocumentStatus.completed,
-      },
-      Req
-    );
-    console.log("ids is ==>", ids);
+    await this.updatePaymentRequest({
+      id: ids.paymentId,
+      document_status: EDocumentStatus.completed,
+    }, Req);
+
+
 
     if (ids?.serviceRequestId) {
       await this.serviceRequestService.updateServiceRequest(
@@ -508,11 +491,11 @@ export class PaymentRequestService {
   //     );
 
   //     // Return the response data
-  //     console.log("current status  :  " + PaymentStatusResponse.data.status);
+
   //     this.updatePaymentRequest(PaymentStatusResponse.data);
   //   } catch (error) {
   //     // Handle errors
-  //     console.error("Error fetching data", error);
+
   //     throw error;
   //   }
   // }
@@ -526,7 +509,7 @@ export class PaymentRequestService {
   //       .createHmac("sha1", "casttree@2024")
   //       .update(JSON.stringify({ name: "pavan" }))
   //       .digest("hex");
-  //     console.log(hash);
+
   //   }
   // }
   // function hmac(arg0: string, message: any, key: any) {
