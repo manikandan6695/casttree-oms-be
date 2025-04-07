@@ -8,3 +8,5 @@ export const UPDATE_NOMINATION_STATUS =
   "Casttree.Events.Update.Nomination.Status";
   export const EVENT_UPDATE_USER =
   "Casttree.Events.Update.USER";   
+  export const EVENT_RAISE_CHARGE =
+  "Casttree.Events.Raise.Charge"; 
