@@ -360,8 +360,7 @@ export class SubscriptionService {
     // console.log("inside handleCashfreeStatusChange is ===>", payload);
     const cfSubId = payload?.data?.subscription_id;
 
-    let statusChange = (str: string) =>
-      str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
+    let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
 
     const newStatus = statusChange(payload?.data?.subscription_status);
     // console.log("newStatus", newStatus);
@@ -375,22 +374,23 @@ export class SubscriptionService {
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate._id,
         mandateStatus: newStatus,
+        metaData:payload,
       });
-      await this.updateSubscriptionMetadata(cfSubId, payload);
+      // await this.updateSubscriptionMetadata(cfSubId, payload);
     }
   }
 
-  private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
-    try {
-      let response = await this.subscriptionModel.updateOne(
-        { "metaData.subscription_id": subscriptionId },
-        { $set: { "metaData.webhookResponse": metaData } }
-      );
-      return response;
-    } catch (err) {
-      throw err;
-    }
-  }
+  // private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
+  //   try {
+  //     let response = await this.subscriptionModel.updateOne(
+  //       { "metaData.subscription_id": subscriptionId },
+  //       { $set: { "metaData.webhookResponse": metaData } }
+  //     );
+  //     return response;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
@@ -866,6 +866,7 @@ export class SubscriptionService {
         paymentType: EPaymentType.charge,
         providerId: 2,
         providerName: EProvider.cashfree,
+        transactionDate:paymentSchedule,
       };
 
       // console.log("creating payment", paymentData);

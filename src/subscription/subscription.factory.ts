@@ -124,6 +124,7 @@ export class SubscriptionFactory {
       mandateId: mandate._id,
       mandateStatus: EMandateStatus.initiated,
       status: EStatus.Active,
+      metaData: auth,
       createdBy: token.id,
       updatedBy: token.id,
     });

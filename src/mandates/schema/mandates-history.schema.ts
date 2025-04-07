@@ -14,6 +14,9 @@ export class MandateHistory {
   @Prop()
   status: string;
 
+  @Prop({type: Object})
+  metaData:Record<string,any>;
+  
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User" })
   createdBy: string;
 
