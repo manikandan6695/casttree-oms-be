@@ -361,8 +361,12 @@ export class SubscriptionService {
     const cfSubId = payload?.data?.subscription_id;
 
     let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
+    let subscriptionStatus =
+      payload?.data?.subscription_status ||
+      payload?.data["subscription_details"]["subscription_status"];
+    console.log("subscriptionStatus", subscriptionStatus);
 
-    const newStatus = statusChange(payload?.data?.subscription_status);
+    const newStatus = statusChange(subscriptionStatus);
     // console.log("newStatus", newStatus);
 
     let mandate = await this.mandateService.getMandate(cfSubId);
