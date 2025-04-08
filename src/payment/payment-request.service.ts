@@ -7,8 +7,7 @@ import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import {
-  EDocument,
-  EDocumentTypeName,
+  EDocumentTypeName
 } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
@@ -62,21 +61,19 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceType
       // );
 
-      const invoiceData = await this.createNewInvoice(body, token);
+      
       let serviceRequest;
       if (body.serviceRequest) {
-        body["serviceRequest"] = {
-          ...body.serviceRequest,
-          sourceId: invoiceData._id,
-          sourceType: EDocument.sales_document,
-        };
-
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
-        await this.invoiceService.updateSourceId(serviceRequest.request._id,ESourceType.serviceRequest,invoiceData._id);
       }
+      console.log(serviceRequest.request._id);
+      body.invoiceDetail = body.invoiceDetail || {};
+      body.invoiceDetail.sourceId = serviceRequest.request._id;
+      body.invoiceDetail.sourceType = EPaymentSourceType.serviceRequest;
+      const invoiceData = await this.createNewInvoice(body, token);
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,

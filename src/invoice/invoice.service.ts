@@ -95,12 +95,5 @@ export class InvoiceService {
     }
   }
 
-  async updateSourceId(
-    source_id,source_type,invoiceId
-  ){
-    try{
-      let updateInvoice = await this.salesDocumentModel.updateOne({_id:invoiceId},{$set:{source_id:source_id,source_type:source_type}});
-      return updateInvoice;
-    }catch(err){throw err}
-  }
+  
 }
