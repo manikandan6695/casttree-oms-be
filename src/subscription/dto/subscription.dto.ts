@@ -153,13 +153,10 @@ export interface UserUpdateData {
   badge: string;
 }
 
-
 export interface CashfreeStatusChangePayload {
   data: {
-   
-      subscription_id: string;
-      subscription_status: string;
-  
+    subscription_id: string;
+    subscription_status: string;
   };
 }
 export interface CashfreeNewPaymentPayloadData {

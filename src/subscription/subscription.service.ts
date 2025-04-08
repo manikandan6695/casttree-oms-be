@@ -354,17 +354,13 @@ export class SubscriptionService {
   }
 
   // Handles Cashfree status change event
-  private async handleCashfreeStatusChange(
-    payload: CashfreeStatusChangePayload
-  ) {
-    console.log("inside handleCashfreeStatusChange is ===>", payload);
-    const cfSubId = payload?.data?.subscription_id;
+  private async handleCashfreeStatusChange(payload: any) {
+    // console.log("inside handleCashfreeStatusChange is ===>", payload);
+    const cfSubId = payload?.data?.subscription_details?.subscription_id;
 
     let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
     let subscriptionStatus =
-      payload?.data?.subscription_status ||
-      payload?.data["subscription_details"]["subscription_status"];
-    console.log("subscriptionStatus", subscriptionStatus);
+      payload?.data?.subscription_details?.subscription_status;
 
     const newStatus = statusChange(subscriptionStatus);
     // console.log("newStatus", newStatus);
