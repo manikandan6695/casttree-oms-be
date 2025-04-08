@@ -1,4 +1,3 @@
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
@@ -10,6 +9,7 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
+import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 import { MandatesService } from "src/mandates/mandates.service";
 import {
@@ -26,18 +26,17 @@ import {
   CashfreeNewPaymentPayload,
   CashfreeStatusChangePayload,
   CreateSubscriptionDTO,
-  InvoiceData,
   PaymentRecordData,
   RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
-  UserUpdateData,
+  UserUpdateData
 } from "./dto/subscription.dto";
+import { EProvider } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
-import { EProvider } from "./enums/provider.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -54,7 +53,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) {}
+  ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
@@ -426,8 +425,10 @@ export class SubscriptionService {
           membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
-
         await this.helperService.updateUser(userBody);
+        let userData = await this.helperService.getUserById(subscription?.userId);
+        await this.helperService.facebookEvents(userData.data.phoneNumber, invoice.currencyCode, invoice.grand_total);
+
       }
       await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
@@ -503,11 +504,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -773,22 +774,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
