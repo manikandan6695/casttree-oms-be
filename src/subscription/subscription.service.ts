@@ -649,7 +649,7 @@ export class SubscriptionService {
     }
   }
 
-  @Cron("0 1 * * *")
+  @Cron("*/1 * * * *")
   async createCharge() {
     try {
       const planDetail = await this.itemService.getItemDetailByName("PRO");

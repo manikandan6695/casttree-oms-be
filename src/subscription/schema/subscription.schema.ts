@@ -17,6 +17,9 @@ export interface ISubscriptionModel extends mongoose.Document {
   subscriptionStatus: string;
   metaData: any;
   status: string;
+  transactionDetails:{
+    externalId: string;
+  }, 
   createdBy: string;
   updatedBy: string;
 }
@@ -71,6 +74,9 @@ export const subscriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
+    },
+    transactionDetails: {
+      externalId: { type: String, unique: true, sparse: true }, 
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

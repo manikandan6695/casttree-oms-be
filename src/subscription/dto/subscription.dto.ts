@@ -3,12 +3,20 @@ import {
   IsMongoId,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
+  ValidateNested,
 } from "class-validator";
 import { EProvider } from "../enums/provider.enum";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { Type } from "class-transformer";
+class TransactionDetailsDTO {
+  @IsNotEmpty()
+  @IsString()
+  externalId: string;
+}
 export class CreateSubscriptionDTO {
   @IsNotEmpty()
   @IsString()
@@ -51,6 +59,16 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsNumber()
   subscriptionExpiry: number;
+
+  @IsOptional()
+  @IsString()
+  providerId: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(()=>TransactionDetailsDTO)
+  transactionDetails:TransactionDetailsDTO
 }
 
 export class AddSubscriptionDTO {
@@ -84,7 +102,6 @@ export interface CashfreeFailedPaymentPayload {
     cf_payment_id: string;
     subscription_id: string;
     failureDetails: string;
-    cf_order_id: string;
   };
 }
 
@@ -165,7 +182,6 @@ export interface CashfreeStatusChangePayload {
 }
 export interface CashfreeNewPaymentPayloadData {
   cf_payment_id: string;
-  cf_order_id: string;
 }
 
 export interface CashfreeNewPaymentPayload {
