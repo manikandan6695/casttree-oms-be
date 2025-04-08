@@ -68,11 +68,11 @@ export class PaymentRequestService {
           body.serviceRequest,
           token
         );
+        body.invoiceDetail = body.invoiceDetail || {};
+        body.invoiceDetail.sourceId = serviceRequest.request._id;
+        body.invoiceDetail.sourceType = EPaymentSourceType.serviceRequest;
       }
-      console.log(serviceRequest.request._id);
-      body.invoiceDetail = body.invoiceDetail || {};
-      body.invoiceDetail.sourceId = serviceRequest.request._id;
-      body.invoiceDetail.sourceType = EPaymentSourceType.serviceRequest;
+
       const invoiceData = await this.createNewInvoice(body, token);
 
       const existingPayment = await this.paymentModel.findOne({
