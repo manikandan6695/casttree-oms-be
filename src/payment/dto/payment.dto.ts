@@ -1,10 +1,11 @@
 import {
   IsEnum,
+  IsISO8601,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsString
+  IsString,
 } from "class-validator";
 import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
 import { EPaymentSourceType } from "../enum/payment.enum";
@@ -63,5 +64,19 @@ export class paymentDTO {
   @IsMongoId()
   itemId?: string;
 
+  @IsOptional()
+  @IsString()
+  paymentType?: string;
 
+  @IsOptional()
+  @IsString()
+  providerName?: string;
+
+  @IsOptional()
+  @IsNumber()
+  providerId?: number;
+
+  @IsOptional()
+  @IsISO8601()
+  transactionDate?: Date;
 }

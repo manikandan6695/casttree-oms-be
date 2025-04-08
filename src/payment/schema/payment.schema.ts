@@ -17,6 +17,10 @@ export interface IPaymentModel extends mongoose.Document {
   document_id: any;
   document_type_name: any;
   reason: any;
+  providerId: number;
+  providerName: string;
+  type: any;
+  paymentType: string;
   doc_id_gen_type: string;
   payment_doc_id_prefix: string;
   payment_doc_id: number;
@@ -29,7 +33,6 @@ export interface IPaymentModel extends mongoose.Document {
   total_tax_amount: number;
   branch: any;
   unused_amount: number;
-  type: any;
   bank_charges: number;
   is_tds_deducted: boolean;
   is_reverese_charge_applied: boolean;
@@ -45,6 +48,8 @@ export interface IPaymentModel extends mongoose.Document {
   baseCurrency: string;
   baseAmount: number;
   conversionRate: number;
+  transactionDate: Date;
+  metaData: any;
   created_by: any;
   updated_by: any;
 }
@@ -83,6 +88,15 @@ export const PaymentSchema = new mongoose.Schema(
     payment_document_number: {
       type: String,
     },
+    providerId: {
+      type: Number,
+    },
+    providerName: {
+      type: String,
+    },
+    type: {
+      type: String,
+    },
     document_number: {
       type: String,
     },
@@ -100,6 +114,9 @@ export const PaymentSchema = new mongoose.Schema(
     tax: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "tax",
+    },
+    paymentType: {
+      type: String,
     },
     description_of_supply: {
       type: String,
@@ -168,6 +185,12 @@ export const PaymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
+    },
+    transactionDate: {
+      type: Date,
+    },
+    metaData: {
+      type: mongoose.Schema.Types.Mixed,
     },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
