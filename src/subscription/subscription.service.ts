@@ -357,7 +357,7 @@ export class SubscriptionService {
   private async handleCashfreeStatusChange(
     payload: CashfreeStatusChangePayload
   ) {
-    // console.log("inside handleCashfreeStatusChange is ===>", payload);
+    console.log("inside handleCashfreeStatusChange is ===>", payload);
     const cfSubId = payload?.data?.subscription_id;
 
     let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
@@ -374,7 +374,7 @@ export class SubscriptionService {
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate._id,
         mandateStatus: newStatus,
-        metaData:payload,
+        metaData: payload,
       });
       // await this.updateSubscriptionMetadata(cfSubId, payload);
     }
@@ -866,7 +866,7 @@ export class SubscriptionService {
         paymentType: EPaymentType.charge,
         providerId: 2,
         providerName: EProvider.cashfree,
-        transactionDate:paymentSchedule,
+        transactionDate: paymentSchedule,
       };
 
       // console.log("creating payment", paymentData);
