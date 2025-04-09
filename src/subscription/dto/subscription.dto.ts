@@ -5,9 +5,16 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsObject,
+  ValidateNested
 } from "class-validator";
 import { EProvider } from "../enums/provider.enum";
-
+import { Type } from "class-transformer";
+class TransactionDetailsDTO{
+  @IsNotEmpty()
+  @IsString()
+  externalId: string;
+}
 export class CreateSubscriptionDTO {
   @IsNotEmpty()
   @IsString()
@@ -50,6 +57,15 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsNumber()
   subscriptionExpiry: number;
+  @IsOptional()
+  @IsString()
+  providerId: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(()=> TransactionDetailsDTO)
+  transactionDetails: TransactionDetailsDTO;
 }
 
 export class AddSubscriptionDTO {
@@ -77,4 +93,11 @@ export class AddSubscriptionDTO {
 export class ValidateSubscriptionDTO {
   @IsOptional()
   status: string[];
+}
+export interface ITransactionHistoryResponse {
+  revision: string;
+  bundleId: string;
+  environment: string;
+  hasMore: boolean;
+  signedTransactions: string[];
 }

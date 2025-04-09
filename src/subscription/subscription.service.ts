@@ -24,6 +24,7 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+import { EProviderId } from "./enums/provider.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -115,7 +116,20 @@ export class SubscriptionService {
             subscription_first_charge_time: firstCharge,
           };
           break;
-
+          case "iap":
+          subscriptionData={
+            userId:token?.id,
+            planId:body?.planId,
+            providerId:body?.providerId,
+            amount:body?.authAmount,
+            status:EStatus.Active,
+            createdBy:token?.id,
+            updatedBy:token?.id,
+            transactionDetails: {
+              externalId: body?.transactionDetails?.externalId,
+            },
+          }
+          break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -208,7 +222,18 @@ export class SubscriptionService {
       //   //   }
       //   // );
       // }
-      const provider = providerId == 2 ? "cashfree" : "razorpay";
+      const getProviderName = (id: number) => {
+        const map = {
+          [EProviderId.razorpay]: "razorpay",
+          [EProviderId.cashfree]: "cashfree",
+          [EProviderId.iap]: "iap",
+        };
+        return map[id];
+      };
+      const provider = getProviderName(providerId);
+console.log("provider:", provider);
+
+      // const provider = providerId == 2 ? "cashfree" : "razorpay";
 
       console.log("provider", provider);
       if (provider === "razorpay" && req.body?.payload?.subscription) {
@@ -226,11 +251,75 @@ export class SubscriptionService {
           await this.handleCashfreeFailedPayment(req.body);
         }
       }
+      else if (provider === "iap") {
+        const eventType = req.body?.notificationType;
+        if (eventType === "DID_RENEW") {
+          await this.handleIapRenew(req.body);
+        } else if (eventType === "DID_CANCEL") {
+          await this.handleIapCancel(req.body);
+        }
+      }
     } catch (err) {
       throw err;
     }
   }
-
+  async handleIapRenew(payload) {
+    // console.log("payload", payload);
+  
+    const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
+    console.log("transactionHistory", transactionHistory);
+  
+    // if (transactionHistory?.isActive) {
+    //   const fv = {
+    //     userId: payload?.data?.appAccountToken, 
+    //     planId: transactionHistory.productId,
+    //     subscriptionStatus: EStatus.Active,
+    //     startDate: new Date(transactionHistory.purchaseDate),
+    //     endDate: new Date(transactionHistory.expiresDate),
+    //     metaData: {
+    //       transaction: transactionHistory.rawTransaction,
+    //       renewal: transactionHistory.rawRenewal,
+    //     },
+    //     provider: "iap",
+    //   };
+  
+    //   await this.subscriptionModel.create(fv);
+    //   console.log(" IAP Subscription Renewed:", fv);
+    // } else {
+    //   console.log(" Subscription is expired or invalid.");
+    // }
+  }
+  
+  
+  async handleIapCancel(payload) {
+    const signedTransactionInfo = payload?.data?.signedTransactionInfo;
+  
+    if (!signedTransactionInfo) {
+      console.log("Missing signedTransactionInfo in cancel payload.");
+      return;
+    }
+  
+    const transaction = this.subscriptionFactory.parseJwt(signedTransactionInfo);
+    if (!transaction?.originalTransactionId) {
+      console.log(" Could not parse originalTransactionId from signedTransactionInfo.");
+      return;
+    }
+  
+    const originalTransactionId = transaction.originalTransactionId;
+    console.log("originalTransactionId", originalTransactionId);
+  
+    await this.subscriptionModel.updateMany(
+      { 'metaData.transaction.originalTransactionId': originalTransactionId },
+      {
+        subscriptionStatus: EStatus.Inactive,
+        updatedAt: new Date(),
+      },
+    );
+  
+    console.log("IAP Subscription Cancelled:", originalTransactionId);
+  }
+  
+  
   async handleCashfreeFailedPayment(payload: any) {
     try {
       console.log("inside handleCashfreeFailedPayment is ===>", payload);
@@ -429,7 +518,12 @@ export class SubscriptionService {
         status: EStatus.Active,
         createdBy: token.id,
         updatedBy: token.id,
+        transactionDetails: {
+          externalId: body?.transactionDetails?.externalId,
+        },
       };
+      console.log("subscription data", subscriptionData);
+      
       let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
     } catch (err) {

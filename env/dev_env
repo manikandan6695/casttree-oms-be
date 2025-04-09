@@ -81,3 +81,10 @@ CASHFREE_CLIENT_SECRET = "cfsk_ma_test_7fe060dcf4a1e50f609ddaa8b2933b09_79bd6d3d
 # amount conversion key
 EXCHANGE_RATE_API_KEY=585a96653a72b35e93c3d052
 CURRENCY_API="https://v6.exchangerate-api.com/v6"
+
+# iap keys
+ISSUER_ID="76c51240-1e94-4468-ac3b-3a82a557ae55"
+KEY_ID="53Y2MPF778"
+BUNDLE_ID="com.billionfaces.casttree"
+FILEPATH="./iap/appkey.p8"
+ENVIRONMENT=SANDBOX

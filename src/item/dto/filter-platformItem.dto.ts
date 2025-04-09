@@ -6,7 +6,9 @@ export class FilterPlatformItemDTO {
     @IsOptional()
     @IsString()
     itemName?: string;
-
+    @IsOptional()
+    @IsString()
+    groupKey?: string;
 
 
 }

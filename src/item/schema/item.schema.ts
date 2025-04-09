@@ -256,6 +256,9 @@ export const ItemSchema = new mongoose.Schema<any>(
     itemGroupId: {
       type: mongoose.Schema.Types.ObjectId,
     },
+    groupKey:{
+      type: String,
+    },
     additionalDetail: itemAdditionalDetailSchema,
     itemCommissionMarkupType: {
       type: String,

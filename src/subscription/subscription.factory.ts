@@ -12,9 +12,24 @@ import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
+import {
+  AppStoreServerAPIClient,
+  Environment,
+  GetTransactionHistoryVersion,
+  Order,
+  ProductType,
 
+} from "@apple/app-store-server-library";
+import { readFile } from "fs";
+import { ITransactionHistoryResponse } from "./dto/subscription.dto";
+const issuerId = process.env.ISSUER_ID;
+const keyId = process.env.KEY_ID;
+const bundleId = process.env.BUNDLE_ID;
+const filePath = process.env.FILEPATH;
+const environment = Environment.SANDBOX;
 @Injectable()
 export class SubscriptionFactory {
+  private client: AppStoreServerAPIClient;
   constructor(
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
@@ -24,8 +39,11 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) {}
-
+  ) { }
+  async onModuleInit() {
+    await this.init()
+  }
+  
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
@@ -36,6 +54,10 @@ export class SubscriptionFactory {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
           this.handleCashfreeSubscription(data, bodyData, token),
       },
+      iap: {
+        createSubscription: async (data: any, bodyData, token: UserToken) =>
+          this.handleIAPSubscription(data, bodyData, token)
+      }
     };
 
     if (!providers[providerName]) {
@@ -158,5 +180,248 @@ export class SubscriptionFactory {
       subscriptionDetails: subscription,
       authorizationDetails: auth,
     };
+  }
+  private async handleIAPSubscription(data: any, bodyData, token: UserToken) {
+    // const transactionId = bodyData.transactionDetails?.externalId;
+
+
+    // const transactions = await this.getTransactionHistory(transactionId);
+
+    // const decoded = await Promise.all(
+    //   transactions.map(async (signedTxn) => {
+    //     return await this.validatePurchase(signedTxn); 
+    //   })
+    // );
+
+    // const original = decoded.find(
+    //   (t: any) => t.originalTransactionId === transactionId && t.expiresDate
+    // );
+
+    // if (!original) {
+    //   throw new Error("Original valid subscription transaction not found");
+    // }
+
+    // Continue with subscription creation...
+    const subscriptionCreated = await this.subscriptionService.subscription(data, token);
+
+    const invoiceData = {
+      itemId: bodyData.itemId,
+      source_id: subscriptionCreated._id,
+      source_type: "subscription",
+      sub_total: bodyData.authAmount,
+      currencyCode: "INR",
+      document_status: EDocumentStatus.completed,
+      grand_total: bodyData.authAmount,
+      user_id: token.id,
+      created_by: token.id,
+      updated_by: token.id,
+    };
+
+    const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+    const paymentData = {
+      amount: bodyData.authAmount,
+      currencyCode: "INR",
+      document_status: EDocumentStatus.completed,
+    };
+
+    await this.paymentService.createPaymentRecord(
+      paymentData,
+      token,
+      invoice,
+      "INR",
+
+    );
+
+    return {
+      subscriptionDetails: subscriptionCreated,
+
+    };
+  }
+
+
+  private async init() {
+
+    const encodedKey = await new Promise<string>((res, rej) => {
+      readFile(filePath, (err, data) => {
+        if (err) return rej(err);
+        res(data.toString());
+      });
+    });
+    console.log("encodedKey",encodedKey);
+    console.log("env",issuerId,keyId,bundleId,filePath,environment)
+  //  let val= this.client= new AppStoreServerAPIClient(
+  //     encodedKey,
+  //     keyId,
+  //     issuerId,
+  //     bundleId,
+  //     environment
+  // );
+  // console.log("val==>",val)
+  const client = new AppStoreServerAPIClient(
+      encodedKey,
+      keyId,
+      issuerId,
+      bundleId,
+      environment
+  );
+  const transactionId = "2000000889069745";
+  if (transactionId != null) {
+    const transactionHistoryRequest = {
+      sort: Order.ASCENDING,
+      revoked: false,
+      productTypes: [ProductType.AUTO_RENEWABLE],
+    };
+    let response = null;
+    let transactions = [];
+    do {
+      const revisionToken =
+        response !== null && response.revision !== null
+          ? response.revision
+          : null;
+      response = await this.client.getTransactionHistory(
+        transactionId,
+        revisionToken,
+        transactionHistoryRequest,
+        GetTransactionHistoryVersion.V2
+      );
+      console.log("response is", response)
+      if (response.signedTransactions) {
+        transactions = transactions.concat(response.signedTransactions);
+      }
+    } while (response.hasMore);
+    console.log(transactions);
+  }
+
+  }
+
+  // async getTransactionHistory(bodyData) {
+  //   // const request = {
+  //   //   sort: Order.ASCENDING,
+  //   //   revoked: false,
+  //   //   productTypes: [ProductType.AUTO_RENEWABLE],
+  //   // };
+  //   //  let transactionId = "2000000888157489";
+
+  // //  let transactionData= await this.client.getTransactionInfo(transactionId);
+  // //  console.log("transactionData",transactionData);
+  //   const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
+  // console.log("validatePurchase", validatePurchase);
+  // const signedRenewalInfo = await this.validatePurchase(bodyData.data.signedRenewalInfo)
+  // console.log("signedRenewalInfo", signedRenewalInfo);
+
+  // if (validatePurchase) {
+  //   let activeTransaction= validatePurchase?.parsed?.expiresDate
+  //   let active = activeTransaction==new Date(activeTransaction).getTime() > Date.now()
+  //   console.log("activeTransaction",activeTransaction,active);
+  // }
+  // // const activeTransaction = validatePurchase.map((t) => {
+  // //       return t.expirationDate && new Date(t.expirationDate).getTime() > Date.now();
+  // //     });
+  // //     console.log("activeTransaction",activeTransaction);
+
+  //   // const transactions = [];
+  //   // let response = null;
+  //   // let revision = undefined;
+  //   // let transactionId = validatePurchase?.parsed?.originalTransactionId; 
+
+  //   // do {
+  //   //   response = await this.client.getTransactionHistory(
+  //   //     transactionId,
+  //   //     revision,
+  //   //     request,
+  //   //     GetTransactionHistoryVersion.V2
+  //   //   );
+
+  //   //   transactions.push(...(response.signedTransactions || []));
+  //   //   revision = response.revision;
+  //   //   console.log("response", response);
+  //   // } while (response.hasMore);
+
+  //   return validatePurchase;
+  // }
+  async getTransactionHistory(bodyData) {
+    try {
+
+
+      const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
+      console.log("validatePurchase", validatePurchase);
+
+      const signedRenewalInfo = await this.validatePurchase(bodyData.data.signedRenewalInfo);
+      console.log("signedRenewalInfo", signedRenewalInfo);
+
+      // if (!validatePurchase?.parsed) {
+      //   return {
+      //     success: false,
+      //     message: "Invalid transaction data",
+      //   };
+      // }
+
+      // const active = validatePurchase.parsed.expiresDate > Date.now();
+
+      // return {
+      //   success: validatePurchase.success,
+      //   isActive: active,
+      //   productId: validatePurchase.parsed.productId,
+      //   originalTransactionId: validatePurchase.parsed.originalTransactionId,
+      //   purchaseDate: validatePurchase.parsed.purchaseDate,
+      //   expiresDate: validatePurchase.parsed.expiresDate,
+      //   renewalDate: signedRenewalInfo?.parsed?.renewalDate,
+      //   rawTransaction: validatePurchase.parsed,
+      //   rawRenewal: signedRenewalInfo?.parsed,
+      // };
+    } catch (err) {
+      throw err
+    }
+  }
+
+  parseJwt(token) {
+
+    // console.log("iap ids", issuerId, keyId, bundleId, filePath, environment);
+
+    try {
+      const base64Url = token.split(".")[1];
+
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+
+      return JSON.parse(jsonPayload);
+    } catch (err) {
+      console.error("Error while parsing JWT:", err, token);
+      return null;
+    }
+  }
+
+
+  async validatePurchase(signedTransactionInfo) {
+   try {
+    // console.log("inside validatePurchase", signedTransactionInfo);
+    
+      let data= await this.client.getTransactionInfo("2000000889069745");
+      console.log("signedTransactionInfo", data);
+    // const parsed = this.parseJwt(signedTransactionInfo);
+    // console.log("parsed", parsed);
+
+    // if (!parsed) {
+    //   return {
+    //     status: 'error',
+    //     message: 'Failed to parse or decode JWT.',
+    //   };
+    // }
+    // return {
+    //   success: parsed.expiresDate > Date.now(),
+    //   parsed,
+    // };
+
+  
+   } catch (error) {
+    console.log("error in validatePurchase", error);
+    throw error
+   }
   }
 }
