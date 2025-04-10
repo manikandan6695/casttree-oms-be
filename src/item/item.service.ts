@@ -74,4 +74,17 @@ export class ItemService {
       throw err;
     }
   }
+  // async getItemByGroupId(groupKey: string, id?: string,skip: number,limit: number){
+    //   try{
+    //     let filter: any = {groupKey};
+    //     if(id){
+    //       filter._id ={ $gt: id };
+    //     }
+    //     const data = await this.itemModel.find(filter).sort({_id: 1}).skip(skip).limit(limit).lean();
+    //     return data;
+    //   }
+    //   catch(err){
+    //     throw err;
+    //   }
+    // }
 }

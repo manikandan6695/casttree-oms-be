@@ -120,8 +120,10 @@ export class SubscriptionService {
           subscriptionData={
             userId:token?.id,
             planId:body?.planId,
-            providerId:body?.providerId,
+            providerId:3,
+            startAt:new Date().toISOString(),
             amount:body?.authAmount,
+            // subscriptionStatus:
             status:EStatus.Active,
             createdBy:token?.id,
             updatedBy:token?.id,
@@ -263,60 +265,128 @@ console.log("provider:", provider);
       throw err;
     }
   }
+  // async handleIapRenew(payload) {
+  //   // console.log("payload", payload);
+  
+  //   const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
+  //   console.log("transactionHistory", transactionHistory);
+  
+  //   // if (transactionHistory?.isActive) {
+  //   //   const fv = {
+  //   //     userId: payload?.data?.appAccountToken, 
+  //   //     planId: transactionHistory.productId,
+  //   //     subscriptionStatus: EStatus.Active,
+  //   //     startDate: new Date(transactionHistory.purchaseDate),
+  //   //     endDate: new Date(transactionHistory.expiresDate),
+  //   //     metaData: {
+  //   //       transaction: transactionHistory.rawTransaction,
+  //   //       renewal: transactionHistory.rawRenewal,
+  //   //     },
+  //   //     provider: "iap",
+  //   //   };
+  
+  //   //   await this.subscriptionModel.create(fv);
+  //   //   console.log(" IAP Subscription Renewed:", fv);
+  //   // } else {
+  //   //   console.log(" Subscription is expired or invalid.");
+  //   // }
+  // }
   async handleIapRenew(payload) {
-    // console.log("payload", payload);
+    try {
+      const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
+      console.log("transactionHistory", transactionHistory);
   
-    const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
-    console.log("transactionHistory", transactionHistory);
+      if (transactionHistory?.isActive) {
+        const subscriptionData = {
+          userId: payload?.data?.appAccountToken,
+          planId: transactionHistory.productId,
+          subscriptionStatus: EStatus.Active,
+          startAt: new Date(transactionHistory.purchaseDate),
+          endAt: new Date(transactionHistory.expiresDate),
+          amount:transactionHistory?.rawTransaction?.price,
+          status: EStatus.Active,
+          createBy:"",
+          updateBy:"",
+          metaData: {
+            transaction: transactionHistory.rawTransaction,
+            renewal: transactionHistory.rawRenewal,
+          },
+          provider: "iap",
+          providerId:3
+        };
   
-    // if (transactionHistory?.isActive) {
-    //   const fv = {
-    //     userId: payload?.data?.appAccountToken, 
-    //     planId: transactionHistory.productId,
-    //     subscriptionStatus: EStatus.Active,
-    //     startDate: new Date(transactionHistory.purchaseDate),
-    //     endDate: new Date(transactionHistory.expiresDate),
-    //     metaData: {
-    //       transaction: transactionHistory.rawTransaction,
-    //       renewal: transactionHistory.rawRenewal,
-    //     },
-    //     provider: "iap",
-    //   };
-  
-    //   await this.subscriptionModel.create(fv);
-    //   console.log(" IAP Subscription Renewed:", fv);
-    // } else {
-    //   console.log(" Subscription is expired or invalid.");
-    // }
+        await this.subscriptionModel.create(subscriptionData);
+        console.log("IAP Subscription Renewed:", subscriptionData);
+      } else {
+        console.log("Subscription is expired or inactive.");
+      }
+    } catch (error) {
+      console.error("Error in handleIapRenew:", error);
+    }
   }
   
   
+  // async handleIapCancel(payload) {
+  //   const signedTransactionInfo = payload?.data?.signedTransactionInfo;
+  
+  //   if (!signedTransactionInfo) {
+  //     console.log("Missing signedTransactionInfo in cancel payload.");
+  //     return;
+  //   }
+  
+  //   const transaction = this.subscriptionFactory.parseJwt(signedTransactionInfo);
+  //   if (!transaction?.originalTransactionId) {
+  //     console.log(" Could not parse originalTransactionId from signedTransactionInfo.");
+  //     return;
+  //   }
+  
+  //   const originalTransactionId = transaction.originalTransactionId;
+  //   console.log("originalTransactionId", originalTransactionId);
+  
+  //   await this.subscriptionModel.updateMany(
+  //     { 'metaData.transaction.originalTransactionId': originalTransactionId },
+  //     {
+  //       subscriptionStatus: EStatus.Inactive,
+  //       updatedAt: new Date(),
+  //     },
+  //   );
+  
+  //   console.log("IAP Subscription Cancelled:", originalTransactionId);
+  // }
   async handleIapCancel(payload) {
-    const signedTransactionInfo = payload?.data?.signedTransactionInfo;
+    try {
+      const signedTransactionInfo = payload?.data?.signedTransactionInfo;
   
-    if (!signedTransactionInfo) {
-      console.log("Missing signedTransactionInfo in cancel payload.");
-      return;
+      if (!signedTransactionInfo) {
+        console.log("Missing signedTransactionInfo in cancel payload.");
+        return;
+      }
+  
+      const transaction = this.subscriptionFactory.parseJwt(signedTransactionInfo);
+      if (!transaction?.originalTransactionId) {
+        console.log("Could not extract originalTransactionId from signedTransactionInfo.");
+        return;
+      }
+  
+      const originalTransactionId = transaction.originalTransactionId;
+      const transactionId = transaction.transactionId;
+      await this.subscriptionModel.updateMany(
+        { 'transactionDetails.externalId': transactionId },
+        {
+          subscriptionStatus: EStatus.Inactive,
+          updatedAt: new Date(),
+        },
+      );
+      let body ={
+        status:EStatus.Inactive,
+        updatedAt:new Date(),
+      }
+      await this.mandateService.updateIapStatus(transactionId,body)
+      await this.mandateHistoryService.updateIapMandateStatus(transactionId,body)
+      console.log("IAP Subscription Cancelled:", originalTransactionId);
+    } catch (error) {
+      console.error("Error in handleIapCancel:", error);
     }
-  
-    const transaction = this.subscriptionFactory.parseJwt(signedTransactionInfo);
-    if (!transaction?.originalTransactionId) {
-      console.log(" Could not parse originalTransactionId from signedTransactionInfo.");
-      return;
-    }
-  
-    const originalTransactionId = transaction.originalTransactionId;
-    console.log("originalTransactionId", originalTransactionId);
-  
-    await this.subscriptionModel.updateMany(
-      { 'metaData.transaction.originalTransactionId': originalTransactionId },
-      {
-        subscriptionStatus: EStatus.Inactive,
-        updatedAt: new Date(),
-      },
-    );
-  
-    console.log("IAP Subscription Cancelled:", originalTransactionId);
   }
   
   
@@ -503,7 +573,7 @@ console.log("provider:", provider);
 
   async subscription(body, token) {
     try {
-      // console.log("subscription data", body);
+      console.log("subscription data", body);
 
       let subscriptionData = {
         userId: token.id,
@@ -518,9 +588,7 @@ console.log("provider:", provider);
         status: EStatus.Active,
         createdBy: token.id,
         updatedBy: token.id,
-        transactionDetails: {
-          externalId: body?.transactionDetails?.externalId,
-        },
+        transactionDetails: body.transactionDetails,
       };
       console.log("subscription data", subscriptionData);
       

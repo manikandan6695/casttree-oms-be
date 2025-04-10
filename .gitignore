@@ -46,6 +46,8 @@ bower_components
 # node-waf configuration
 .lock-wscript
 
+# p8
+appkey.p8
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
 

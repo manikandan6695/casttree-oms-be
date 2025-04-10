@@ -79,4 +79,16 @@ export class MandatesService {
       throw error;
     }
   }
+  async updateIapStatus(id,data){
+    try{
+      let updateStatus = await this.mandateModel.updateMany(
+        { "metaData.transactionDetails.externalId": id },
+        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
+      );
+      return updateStatus;
+    }
+    catch(err){
+      throw err;
+    }
+  }
 }

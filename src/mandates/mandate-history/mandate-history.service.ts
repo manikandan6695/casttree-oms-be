@@ -21,4 +21,16 @@ export class MandateHistoryService {
       throw new Error(error);
     }
   }
+  async updateIapMandateStatus(id,data){
+    try{
+      let updateStatus = await this.mandateHistoryModel.updateMany(
+        { "metaData.transactionDetails.externalId": id },
+        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
+      );
+      return updateStatus;
+    }
+    catch(err){
+      throw err;
+    }
+  }
 }

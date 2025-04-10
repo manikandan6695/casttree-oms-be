@@ -181,7 +181,7 @@ export class SubscriptionFactory {
       authorizationDetails: auth,
     };
   }
-  private async handleIAPSubscription(data: any, bodyData, token: UserToken) {
+  private async handleIAPSubscription(data, bodyData, token: UserToken) {
     // const transactionId = bodyData.transactionDetails?.externalId;
 
 
@@ -202,8 +202,53 @@ export class SubscriptionFactory {
     // }
 
     // Continue with subscription creation...
-    const subscriptionCreated = await this.subscriptionService.subscription(data, token);
-
+    const subscription = await this.helperService.createSubscription(
+      data,
+      token
+    );
+    console.log("subscription", subscription);
+    
+    let subscriptionData={
+      userId: token.id,
+      planId: bodyData.planId,
+      startAt: data.startAt,
+      endAt: bodyData.expiryTime,
+      providerId: 3,
+      amount: parseInt(bodyData.authAmount),
+      notes: { itemId: bodyData.itemId },
+      subscriptionStatus: EsubscriptionStatus.initiated,
+      createdBy:token?.id,
+      updatedBy:token?.id,
+      transactionDetails: data.transactionDetails,
+      // metaData: data,
+    }
+    console.log("subscriptionData", subscriptionData);
+    
+    const subscriptionCreated = await this.subscriptionService.subscription(subscriptionData, token);
+    const mandateData ={
+      sourceId: subscriptionCreated._id,
+      userId: token.id,
+      paymentMethod: "IAP",
+      amount: bodyData.authAmount,
+      providerId: 3,
+      currency: "INR",
+      planId: bodyData.planId,
+      frequency: "yearly",
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      metaData: data.transactionDetails,
+      // startDate: bodyData.firstCharge,
+      // endDate: bodyData.expiryTime,
+    } 
+    let mandate = await this.mandateService.addMandate(mandateData, token);
+    await this.mandateHistoryService.createMandateHistory({
+      mandateId: mandate._id,
+      mandateStatus: EMandateStatus.initiated,
+      metaData: data.transactionDetails,
+      status: EStatus.Active,
+      createdBy: token.id,
+      updatedBy: token.id,
+    });
     const invoiceData = {
       itemId: bodyData.itemId,
       source_id: subscriptionCreated._id,
@@ -233,15 +278,11 @@ export class SubscriptionFactory {
 
     );
 
-    return {
-      subscriptionDetails: subscriptionCreated,
-
-    };
+    return subscriptionCreated
   }
 
 
   private async init() {
-
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
         if (err) return rej(err);
@@ -250,22 +291,14 @@ export class SubscriptionFactory {
     });
     console.log("encodedKey",encodedKey);
     console.log("env",issuerId,keyId,bundleId,filePath,environment)
-  //  let val= this.client= new AppStoreServerAPIClient(
-  //     encodedKey,
-  //     keyId,
-  //     issuerId,
-  //     bundleId,
-  //     environment
-  // );
-  // console.log("val==>",val)
-  const client = new AppStoreServerAPIClient(
-      encodedKey,
-      keyId,
-      issuerId,
-      bundleId,
-      environment
+  this.client = new AppStoreServerAPIClient(
+    encodedKey,
+    keyId,
+    issuerId,
+    bundleId,
+    environment
   );
-  const transactionId = "2000000889069745";
+  const transactionId = "2000000890594891";
   if (transactionId != null) {
     const transactionHistoryRequest = {
       sort: Order.ASCENDING,
@@ -291,7 +324,7 @@ export class SubscriptionFactory {
       }
     } while (response.hasMore);
     console.log(transactions);
-  }
+  }  
 
   }
 
@@ -340,41 +373,130 @@ export class SubscriptionFactory {
 
   //   return validatePurchase;
   // }
+  // async getTransactionHistory(bodyData) {
+  //   try {
+  
+
+  //     const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
+  //     console.log("validatePurchase", validatePurchase);
+
+  //     const signedRenewalInfo = await this.validatePurchase(bodyData.data.signedRenewalInfo);
+  //     console.log("signedRenewalInfo", signedRenewalInfo);
+
+  //     if (!validatePurchase?.parsed) {
+  //       return {
+  //         success: false,
+  //         message: "Invalid transaction data",
+  //       };
+  //     }
+
+  //     const active = validatePurchase.parsed.expiresDate > Date.now();
+
+  //     return {
+  //       success: validatePurchase.success,
+  //       isActive: active,
+  //       productId: validatePurchase.parsed.productId,
+  //       originalTransactionId: validatePurchase.parsed.originalTransactionId,
+  //       purchaseDate: validatePurchase.parsed.purchaseDate,
+  //       expiresDate: validatePurchase.parsed.expiresDate,
+  //       renewalDate: signedRenewalInfo?.parsed?.renewalDate,
+  //       rawTransaction: validatePurchase.parsed,
+  //       rawRenewal: signedRenewalInfo?.parsed,
+  //     };
+  //   } catch (err) {
+  //     console.log("Error in getTransactionHistory", err);
+  //     throw err
+  //   }
+  // }
+  // private async init() {
+  //   const encodedKey = await new Promise<string>((res, rej) => {
+  //     readFile(filePath, (err, data) => {
+  //       if (err) return rej(err);
+  //       res(data.toString());
+  //     });
+  //   });
+  
+  //   console.log("encodedKey", encodedKey);
+  //   console.log("env", issuerId, keyId, bundleId, filePath, environment);
+  
+  //   this.client = new AppStoreServerAPIClient(
+  //     encodedKey,
+  //     keyId,
+  //     issuerId,
+  //     bundleId,
+  //     environment
+  //   );
+  
+  //   const transactionId = "2000000890594891"; 
+  
+  //   if (transactionId != null) {
+  //     try {
+  //       const info = await this.client.getTransactionInfo(transactionId);
+  //       console.log("Transaction Info:", info);
+  //     } catch (err) {
+  //       console.error("Error fetching transaction info:", err);
+  //     }
+  
+  //     /*
+  //     const transactionHistoryRequest = {
+  //       sort: Order.ASCENDING,
+  //       revoked: false,
+  //       productTypes: [ProductType.AUTO_RENEWABLE],
+  //     };
+  
+  //     let response = null;
+  //     let transactions = [];
+  
+  //     do {
+  //       const revisionToken = response?.revision ?? null;
+  //       response = await this.client.getTransactionHistory(
+  //         transactionId,
+  //         revisionToken,
+  //         transactionHistoryRequest,
+  //         GetTransactionHistoryVersion.V2
+  //       );
+  //       console.log("response is", response);
+  //       if (response.signedTransactions) {
+  //         transactions = transactions.concat(response.signedTransactions);
+  //       }
+  //     } while (response.hasMore);
+  
+  //     console.log(transactions);
+  //     */
+  //   }
+  // }
+  
   async getTransactionHistory(bodyData) {
     try {
-
-
       const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
-      console.log("validatePurchase", validatePurchase);
-
       const signedRenewalInfo = await this.validatePurchase(bodyData.data.signedRenewalInfo);
-      console.log("signedRenewalInfo", signedRenewalInfo);
-
-      // if (!validatePurchase?.parsed) {
-      //   return {
-      //     success: false,
-      //     message: "Invalid transaction data",
-      //   };
-      // }
-
-      // const active = validatePurchase.parsed.expiresDate > Date.now();
-
-      // return {
-      //   success: validatePurchase.success,
-      //   isActive: active,
-      //   productId: validatePurchase.parsed.productId,
-      //   originalTransactionId: validatePurchase.parsed.originalTransactionId,
-      //   purchaseDate: validatePurchase.parsed.purchaseDate,
-      //   expiresDate: validatePurchase.parsed.expiresDate,
-      //   renewalDate: signedRenewalInfo?.parsed?.renewalDate,
-      //   rawTransaction: validatePurchase.parsed,
-      //   rawRenewal: signedRenewalInfo?.parsed,
-      // };
+  
+      if (!validatePurchase?.parsed) {
+        return {
+          success: false,
+          message: "Invalid transaction data",
+        };
+      }
+  
+      const active = validatePurchase.parsed.expiresDate > Date.now();
+  
+      return {
+        success: validatePurchase.success,
+        isActive: active,
+        productId: validatePurchase.parsed.productId,
+        originalTransactionId: validatePurchase.parsed.originalTransactionId,
+        purchaseDate: validatePurchase.parsed.purchaseDate,
+        expiresDate: validatePurchase.parsed.expiresDate,
+        renewalDate: signedRenewalInfo?.parsed?.renewalDate,
+        rawTransaction: validatePurchase.parsed,
+        rawRenewal: signedRenewalInfo?.parsed,
+      };
     } catch (err) {
-      throw err
+      console.log("Error in getTransactionHistory", err);
+      throw err;
     }
   }
-
+  
   parseJwt(token) {
 
     // console.log("iap ids", issuerId, keyId, bundleId, filePath, environment);
@@ -397,31 +519,53 @@ export class SubscriptionFactory {
     }
   }
 
-
   async validatePurchase(signedTransactionInfo) {
-   try {
-    // console.log("inside validatePurchase", signedTransactionInfo);
+    try {
+      
+      const parsed = this.parseJwt(signedTransactionInfo);
+      // let data= await this.client.getTransactionInfo("2000000890594891");
+      //     console.log("signedTransactionInfo", data);
+      if (!parsed) {
+        return {
+          success: false,
+          message: 'Failed to parse or decode JWT.',
+        };
+      }
+  
+      return {
+        success: parsed.expiresDate > Date.now(),
+        parsed,
+      };
+    } catch (error) {
+      console.log("Error in validatePurchase", error);
+      throw error;
+    }
+  }
+  
+  // async validatePurchase(signedTransactionInfo) {
+  //  try {
+  //   // console.log("inside validatePurchase", signedTransactionInfo);
     
-      let data= await this.client.getTransactionInfo("2000000889069745");
-      console.log("signedTransactionInfo", data);
-    // const parsed = this.parseJwt(signedTransactionInfo);
-    // console.log("parsed", parsed);
+  //     let data= await this.client.getTransactionInfo("2000000890594891");
+  //     console.log("signedTransactionInfo", data);
+  //   const parsed = this.parseJwt(signedTransactionInfo);
+  //   console.log("parsed", parsed);
 
-    // if (!parsed) {
-    //   return {
-    //     status: 'error',
-    //     message: 'Failed to parse or decode JWT.',
-    //   };
-    // }
-    // return {
-    //   success: parsed.expiresDate > Date.now(),
-    //   parsed,
-    // };
+  //   if (!parsed) {
+  //     return {
+  //       status: 'error',
+  //       message: 'Failed to parse or decode JWT.',
+  //     };
+  //   }
+  //   return {
+  //     success: parsed.expiresDate > Date.now(),
+  //     parsed,
+  //   };
 
   
-   } catch (error) {
-    console.log("error in validatePurchase", error);
-    throw error
-   }
-  }
+  //  } catch (error) {
+  //   console.log("error in validatePurchase", error);
+  //   throw error
+  //  }
+  // }
 }
