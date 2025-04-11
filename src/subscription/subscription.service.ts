@@ -297,16 +297,23 @@ console.log("provider:", provider);
       console.log("transactionHistory", transactionHistory);
   
       if (transactionHistory?.isActive) {
+        const findUser = await this.subscriptionModel.findOne({
+          providerId: 3,
+          provider: "iap",
+          subscriptionStatus: EStatus.Active,
+          "transactionDetails.externalId": transactionHistory.productId,
+        })
+        console.log("findUser", findUser);
         const subscriptionData = {
-          userId: payload?.data?.appAccountToken,
-          planId: transactionHistory.productId,
+          userId: findUser?._id,
+          planId: findUser?.planId,
           subscriptionStatus: EStatus.Active,
           startAt: new Date(transactionHistory.purchaseDate),
           endAt: new Date(transactionHistory.expiresDate),
           amount:transactionHistory?.rawTransaction?.price,
           status: EStatus.Active,
-          createBy:"",
-          updateBy:"",
+          createBy:findUser?._id,
+          updateBy:findUser?._id,
           metaData: {
             transaction: transactionHistory.rawTransaction,
             renewal: transactionHistory.rawRenewal,
@@ -1016,6 +1023,17 @@ console.log("provider:", provider);
       return { message: "Success" };
     } catch (err) {
       throw err;
+    }
+  }
+  async findExternalId (transactionId){
+    try {
+      let externalIdData = await this.subscriptionModel.findOne({
+        'transactionDetails.externalId': transactionId,
+        provider: 'iap',
+      });
+      return externalIdData
+    } catch (error) {
+      throw error
     }
   }
 }

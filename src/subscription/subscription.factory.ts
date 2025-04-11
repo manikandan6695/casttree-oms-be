@@ -182,31 +182,16 @@ export class SubscriptionFactory {
     };
   }
   private async handleIAPSubscription(data, bodyData, token: UserToken) {
-    // const transactionId = bodyData.transactionDetails?.externalId;
+    const transactionId = bodyData.transactionDetails?.externalId;
+
+    const existingSubscription = await this.subscriptionService.findExternalId(transactionId)
+    if(existingSubscription) {
+      console.log("existing subscription", existingSubscription);
+      
+      return existingSubscription
+    }
 
 
-    // const transactions = await this.getTransactionHistory(transactionId);
-
-    // const decoded = await Promise.all(
-    //   transactions.map(async (signedTxn) => {
-    //     return await this.validatePurchase(signedTxn); 
-    //   })
-    // );
-
-    // const original = decoded.find(
-    //   (t: any) => t.originalTransactionId === transactionId && t.expiresDate
-    // );
-
-    // if (!original) {
-    //   throw new Error("Original valid subscription transaction not found");
-    // }
-
-    // Continue with subscription creation...
-    const subscription = await this.helperService.createSubscription(
-      data,
-      token
-    );
-    console.log("subscription", subscription);
     
     let subscriptionData={
       userId: token.id,
@@ -214,6 +199,7 @@ export class SubscriptionFactory {
       startAt: data.startAt,
       endAt: bodyData.expiryTime,
       providerId: 3,
+      provider: "iap",
       amount: parseInt(bodyData.authAmount),
       notes: { itemId: bodyData.itemId },
       subscriptionStatus: EsubscriptionStatus.initiated,
@@ -224,34 +210,34 @@ export class SubscriptionFactory {
     }
     console.log("subscriptionData", subscriptionData);
     
-    const subscriptionCreated = await this.subscriptionService.subscription(subscriptionData, token);
-    const mandateData ={
-      sourceId: subscriptionCreated._id,
-      userId: token.id,
-      paymentMethod: "IAP",
-      amount: bodyData.authAmount,
-      providerId: 3,
-      currency: "INR",
-      planId: bodyData.planId,
-      frequency: "yearly",
-      mandateStatus: EMandateStatus.initiated,
-      status: EStatus.Active,
-      metaData: data.transactionDetails,
-      // startDate: bodyData.firstCharge,
-      // endDate: bodyData.expiryTime,
-    } 
-    let mandate = await this.mandateService.addMandate(mandateData, token);
-    await this.mandateHistoryService.createMandateHistory({
-      mandateId: mandate._id,
-      mandateStatus: EMandateStatus.initiated,
-      metaData: data.transactionDetails,
-      status: EStatus.Active,
-      createdBy: token.id,
-      updatedBy: token.id,
-    });
+    const createdSubscription = await this.subscriptionService.subscription(subscriptionData, token);
+    // const mandateData ={
+    //   sourceId: createdSubscription._id,
+    //   userId: token.id,
+    //   paymentMethod: "IAP",
+    //   amount: bodyData.authAmount,
+    //   providerId: 3,
+    //   currency: "INR",
+    //   planId: bodyData.planId,
+    //   frequency: "yearly",
+    //   mandateStatus: EMandateStatus.initiated,
+    //   status: EStatus.Active,
+    //   metaData: data.transactionDetails,
+    //   // startDate: bodyData.firstCharge,
+    //   // endDate: bodyData.expiryTime,
+    // } 
+    // let mandate = await this.mandateService.addMandate(mandateData, token);
+    // await this.mandateHistoryService.createMandateHistory({
+    //   mandateId: mandate._id,
+    //   mandateStatus: EMandateStatus.initiated,
+    //   metaData: data.transactionDetails,
+    //   status: EStatus.Active,
+    //   createdBy: token.id,
+    //   updatedBy: token.id,
+    // });
     const invoiceData = {
       itemId: bodyData.itemId,
-      source_id: subscriptionCreated._id,
+      source_id: createdSubscription._id,
       source_type: "subscription",
       sub_total: bodyData.authAmount,
       currencyCode: "INR",
@@ -278,55 +264,61 @@ export class SubscriptionFactory {
 
     );
 
-    return subscriptionCreated
+    return createdSubscription
   }
 
 
-  private async init() {
-    const encodedKey = await new Promise<string>((res, rej) => {
-      readFile(filePath, (err, data) => {
-        if (err) return rej(err);
-        res(data.toString());
-      });
-    });
-    console.log("encodedKey",encodedKey);
-    console.log("env",issuerId,keyId,bundleId,filePath,environment)
-  this.client = new AppStoreServerAPIClient(
-    encodedKey,
-    keyId,
-    issuerId,
-    bundleId,
-    environment
-  );
-  const transactionId = "2000000890594891";
-  if (transactionId != null) {
-    const transactionHistoryRequest = {
-      sort: Order.ASCENDING,
-      revoked: false,
-      productTypes: [ProductType.AUTO_RENEWABLE],
-    };
-    let response = null;
-    let transactions = [];
-    do {
-      const revisionToken =
-        response !== null && response.revision !== null
-          ? response.revision
-          : null;
-      response = await this.client.getTransactionHistory(
-        transactionId,
-        revisionToken,
-        transactionHistoryRequest,
-        GetTransactionHistoryVersion.V2
-      );
-      console.log("response is", response)
-      if (response.signedTransactions) {
-        transactions = transactions.concat(response.signedTransactions);
-      }
-    } while (response.hasMore);
-    console.log(transactions);
-  }  
+//   private async init() {
+//  try {
+//   const encodedKey = await new Promise<string>((res, rej) => {
+//     readFile(filePath, (err, data) => {
+//       if (err) return rej(err);
+//       res(data.toString());
+//     });
+//   });
+//   console.log("encodedKey",encodedKey);
+//   console.log("env",issuerId,keyId,bundleId,filePath,environment)
+// this.client = new AppStoreServerAPIClient(
+//   encodedKey,
+//   keyId,
+//   issuerId,
+//   bundleId,
+//   environment
+// );
+// const transactionId = "2000000889069745";
+// if (transactionId != null) {
+//   const transactionHistoryRequest = {
+//     sort: Order.ASCENDING,
+//     revoked: false,
+//     productTypes: [ProductType.AUTO_RENEWABLE],
+//   };
+//   let response = null;
+//   let transactions = [];
+//   do {
+//     const revisionToken =
+//       response !== null && response.revision !== null
+//         ? response.revision
+//         : null;
+//     response = await this.client.getTransactionHistory(
+//       transactionId,
+//       revisionToken,
+//       transactionHistoryRequest,
+//       GetTransactionHistoryVersion.V2
+//     );
+//     console.log("response is", response)
+//     if (response.signedTransactions) {
+//       transactions = transactions.concat(response.signedTransactions);
+//     }
+//   } while (response.hasMore);
+//   console.log(transactions);
+// }  
+//  } catch (error) {
+//   console.log(error);
+//   throw error
+  
+//  }
 
-  }
+//   }
 
   // async getTransactionHistory(bodyData) {
   //   // const request = {
@@ -408,63 +400,63 @@ export class SubscriptionFactory {
   //     throw err
   //   }
   // }
-  // private async init() {
-  //   const encodedKey = await new Promise<string>((res, rej) => {
-  //     readFile(filePath, (err, data) => {
-  //       if (err) return rej(err);
-  //       res(data.toString());
-  //     });
-  //   });
+   async init() {
+    const encodedKey = await new Promise<string>((res, rej) => {
+      readFile(filePath, (err, data) => {
+        if (err) return rej(err);
+        res(data.toString());
+      });
+    });
   
-  //   console.log("encodedKey", encodedKey);
-  //   console.log("env", issuerId, keyId, bundleId, filePath, environment);
+    console.log("encodedKey", encodedKey);
+    console.log("env", issuerId, keyId, bundleId, filePath, environment);
   
-  //   this.client = new AppStoreServerAPIClient(
-  //     encodedKey,
-  //     keyId,
-  //     issuerId,
-  //     bundleId,
-  //     environment
-  //   );
+    this.client = new AppStoreServerAPIClient(
+      encodedKey,
+      keyId,
+      issuerId,
+      bundleId,
+      environment
+    );
   
-  //   const transactionId = "2000000890594891"; 
+    const transactionId = "2000000890594891"; 
   
-  //   if (transactionId != null) {
-  //     try {
-  //       const info = await this.client.getTransactionInfo(transactionId);
-  //       console.log("Transaction Info:", info);
-  //     } catch (err) {
-  //       console.error("Error fetching transaction info:", err);
-  //     }
+    if (transactionId != null) {
+      try {
+        const info = await this.client.getTransactionInfo(transactionId);
+        console.log("Transaction Info:", info);
+      } catch (err) {
+        console.error("Error fetching transaction info:", err);
+      }
   
-  //     /*
-  //     const transactionHistoryRequest = {
-  //       sort: Order.ASCENDING,
-  //       revoked: false,
-  //       productTypes: [ProductType.AUTO_RENEWABLE],
-  //     };
+      
+      const transactionHistoryRequest = {
+        sort: Order.ASCENDING,
+        revoked: false,
+        productTypes: [ProductType.AUTO_RENEWABLE],
+      };
   
-  //     let response = null;
-  //     let transactions = [];
+      let response = null;
+      let transactions = [];
   
-  //     do {
-  //       const revisionToken = response?.revision ?? null;
-  //       response = await this.client.getTransactionHistory(
-  //         transactionId,
-  //         revisionToken,
-  //         transactionHistoryRequest,
-  //         GetTransactionHistoryVersion.V2
-  //       );
-  //       console.log("response is", response);
-  //       if (response.signedTransactions) {
-  //         transactions = transactions.concat(response.signedTransactions);
-  //       }
-  //     } while (response.hasMore);
+      do {
+        const revisionToken = response?.revision ?? null;
+        response = await this.client.getTransactionHistory(
+          transactionId,
+          revisionToken,
+          transactionHistoryRequest,
+          GetTransactionHistoryVersion.V2
+        );
+        console.log("response is", response);
+        if (response.signedTransactions) {
+          transactions = transactions.concat(response.signedTransactions);
+        }
+      } while (response.hasMore);
   
-  //     console.log(transactions);
-  //     */
-  //   }
-  // }
+      console.log(transactions);
+      
+    }
+  }
   
   async getTransactionHistory(bodyData) {
     try {

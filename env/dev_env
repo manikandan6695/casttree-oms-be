@@ -85,6 +85,6 @@ CURRENCY_API="https://v6.exchangerate-api.com/v6"
 # iap keys
 ISSUER_ID="76c51240-1e94-4468-ac3b-3a82a557ae55"
 KEY_ID="53Y2MPF778"
-BUNDLE_ID="com.billionfaces.casttree"
+BUNDLE_ID="com.billionfaces.projects.CtRnIapStarter"
 FILEPATH="./iap/appkey.p8"
 ENVIRONMENT=SANDBOX
