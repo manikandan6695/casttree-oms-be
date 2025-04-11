@@ -1,8 +1,9 @@
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
-import { Injectable, Req } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Injectable, OnModuleInit, Req } from "@nestjs/common";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
-import { Model } from "mongoose";
+import { Queue } from "bullmq";
+import { Connection, Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
@@ -19,16 +20,18 @@ import {
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
+import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
 @Injectable()
-export class SubscriptionService {
+export class SubscriptionService  implements OnModuleInit {
   constructor(
     @InjectModel("subscription")
     private readonly subscriptionModel: Model<ISubscriptionModel>,
@@ -39,9 +42,26 @@ export class SubscriptionService {
     private sharedService: SharedService,
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
-    private readonly mandateHistoryService: MandateHistoryService
+    private readonly mandateHistoryService: MandateHistoryService,
+    @InjectConnection() private readonly connection: Connection,
+    @InjectQueue('subscription-events') private readonly subscriptionQueue: Queue,
   ) {}
 
+  async onModuleInit() {
+    const subscriptionCollection = this.connection.collection('subscription');
+    const subscriptionChangeStream = subscriptionCollection.watch([], { fullDocument: 'updateLookup' });
+    subscriptionChangeStream.on('change', async (change) => {
+      if (change.operationType === 'insert' && change.fullDocument) {
+        await this.subscriptionQueue.add('insert', change.fullDocument);
+      }
+      if (change.operationType === 'update' && change.fullDocument) {
+        await this.subscriptionQueue.add('update', change.fullDocument);
+      }
+      if (change.operationType === 'delete' && change.documentKey._id) {
+        await this.subscriptionQueue.add('delete', change.documentKey._id);
+      }
+    });
+  }
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
     try {
       let subscriptionData;
