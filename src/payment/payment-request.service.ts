@@ -6,9 +6,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import {
-  EDocumentTypeName
-} from "src/invoice/enum/document-type-name.enum";
+import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -61,7 +59,6 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceType
       // );
 
-      
       let serviceRequest;
       if (body.serviceRequest) {
         serviceRequest = await this.serviceRequestService.createServiceRequest(
@@ -119,8 +116,7 @@ export class PaymentRequestService {
           invoiceId: invoiceData._id,
           itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
-          userId: body.userId
-
+          userId: body.userId,
         }
       );
 
@@ -193,13 +189,15 @@ export class PaymentRequestService {
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: body?.userId||token.id,
-      user_id: body?.userId||token.id,
+      created_by: body?.userId || token.id,
+      user_id: body?.userId || token.id,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
       paymentType: body?.paymentType,
-      transactionDate: body.transactionDate ? body.transactionDate.toISOString() : new Date(),
+      transactionDate: body.transactionDate
+        ? body.transactionDate.toISOString()
+        : new Date(),
       providerId: body?.providerId,
       providerName: body?.providerName,
     };
@@ -275,8 +273,6 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-
-
       const {
         invoiceId,
         status,
@@ -302,16 +298,12 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-
       return { message: "Failed to update payment status", error: err.message };
     }
   }
 
   async extractPaymentDetails(body) {
-
-    const itemId = new ObjectId(
-      body?.payload?.payment?.entity?.notes.itemId
-    );
+    const itemId = new ObjectId(body?.payload?.payment?.entity?.notes.itemId);
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
     const currency = body?.payload?.payment?.entity?.currency;
@@ -325,8 +317,6 @@ export class PaymentRequestService {
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-
-
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
     // let serviceRequest;
@@ -379,7 +369,11 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetailBySource(userId: string, sourceId?: string, type?: string) {
+  async getPaymentDetailBySource(
+    userId: string,
+    sourceId?: string,
+    type?: string
+  ) {
     try {
       let aggregation_pipeline = [];
       aggregation_pipeline.push({
@@ -398,18 +392,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_id": new ObjectId(sourceId),
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        })
+            $match: {
+              "salesDocument.source_id": new ObjectId(sourceId),
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          })
         : aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        });
+            $match: {
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -425,17 +419,17 @@ export class PaymentRequestService {
   }
 
   async completePayment(ids) {
-
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
       EDocumentStatus.completed
     );
-    await this.updatePaymentRequest({
-      id: ids.paymentId,
-      document_status: EDocumentStatus.completed,
-    }, Req);
-
-
+    await this.updatePaymentRequest(
+      {
+        id: ids.paymentId,
+        document_status: EDocumentStatus.completed,
+      },
+      Req
+    );
 
     if (ids?.serviceRequestId) {
       await this.serviceRequestService.updateServiceRequest(
@@ -465,7 +459,7 @@ export class PaymentRequestService {
 
       let updateData = await this.paymentModel.updateOne(
         { payment_order_id: paymentId },
-        { $set: { reason: body.reason.failureReason } }
+        { $set: { reason: body?.reason?.failureReason } }
       );
       return updateData;
     } catch (err) {

@@ -30,7 +30,7 @@ import {
   RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
-  UserUpdateData
+  UserUpdateData,
 } from "./dto/subscription.dto";
 import { EProvider } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
@@ -53,7 +53,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) { }
+  ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
@@ -249,6 +249,9 @@ export class SubscriptionService {
       const cfPaymentId = payload?.data?.cf_payment_id;
       let subscriptionId = payload?.data?.subscription_id;
       let failedReason = payload?.data?.failureDetails;
+      console.log("failed reason is", payload?.data);
+      console.log("failure details is", payload?.data?.failureDetails);
+
       let body = {
         document_status: EPaymentStatus.failed,
         reason: failedReason,
@@ -426,9 +429,14 @@ export class SubscriptionService {
           badge: item?.additionalDetail?.badge,
         };
         await this.helperService.updateUser(userBody);
-        let userData = await this.helperService.getUserById(subscription?.userId);
-        await this.helperService.facebookEvents(userData.data.phoneNumber, invoice.currencyCode, invoice.grand_total);
-
+        let userData = await this.helperService.getUserById(
+          subscription?.userId
+        );
+        await this.helperService.facebookEvents(
+          userData.data.phoneNumber,
+          invoice.currencyCode,
+          invoice.grand_total
+        );
       }
       await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
@@ -504,11 +512,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -774,22 +782,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -883,7 +891,7 @@ export class SubscriptionService {
 
   async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
-      // console.log("payment records ==>",body.document_status );
+      console.log("update payment records ==>", body);
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
       await this.invoiceService.updateInvoice(
