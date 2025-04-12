@@ -506,7 +506,26 @@ export class PaymentRequestService {
       throw err
     }
   }
+  async updateMetaData(paymentId, metaData) {
+    try {
+      let updateFields: any = {};
+      if (metaData) {
+        updateFields["metaData.webhookResponse"] = metaData;
+      }
+      let existingPayment = await this.paymentModel.findById(paymentId);
+      if (!existingPayment.transactionDate) {
+        updateFields.transactionDate = new Date();
+      }
+      let response = await this.paymentModel.updateOne(
+        { _id: paymentId },
+        { $set: updateFields }
+      );
 
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
