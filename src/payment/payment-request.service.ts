@@ -49,7 +49,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -405,18 +405,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -478,6 +478,46 @@ export class PaymentRequestService {
       return updateData;
     } catch (err) {
       throw err;
+    }
+  }
+
+  async getLatestSubscriptionPayments(userId) {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      let data =
+        await this.paymentModel.aggregate([
+          {
+            $match: {
+              user_id: new ObjectId(userId),
+              document_status: EPaymentStatus.completed,
+              created_at: { $gte: thirtyDaysAgo }
+            }
+          },
+          {
+            $lookup: {
+              from: "salesDocument",
+              localField: "source_id",
+              foreignField: "_id",
+              as: "salesDocument"
+            }
+          },
+          {
+            $unwind: "$salesDocument"
+          },
+          {
+            $match: {
+              "salesDocument.document_status": EPaymentStatus.completed,
+              "salesDocument.source_type": EPaymentSourceType.subscription
+            }
+          }
+        ]);
+
+      console.log({ data });
+      return data;
+
+    } catch (err) {
+      throw err
     }
   }
 
