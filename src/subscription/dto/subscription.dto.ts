@@ -10,6 +10,8 @@ import {
 } from "class-validator";
 import { EProvider } from "../enums/provider.enum";
 import { Type } from "class-transformer";
+import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { EStatus } from "src/service-request/enum/service-request.enum";
 class TransactionDetailsDTO {
   @IsNotEmpty()
   @IsString()

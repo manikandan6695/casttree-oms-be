@@ -32,7 +32,6 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EProvider } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -207,32 +206,7 @@ export class SubscriptionService {
       throw err;
     }
   }
-  // async handleIapRenew(payload) {
-  //   // console.log("payload", payload);
 
-  //   const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
-  //   console.log("transactionHistory", transactionHistory);
-
-  //   // if (transactionHistory?.isActive) {
-  //   //   const fv = {
-  //   //     userId: payload?.data?.appAccountToken,
-  //   //     planId: transactionHistory.productId,
-  //   //     subscriptionStatus: EStatus.Active,
-  //   //     startDate: new Date(transactionHistory.purchaseDate),
-  //   //     endDate: new Date(transactionHistory.expiresDate),
-  //   //     metaData: {
-  //   //       transaction: transactionHistory.rawTransaction,
-  //   //       renewal: transactionHistory.rawRenewal,
-  //   //     },
-  //   //     provider: "iap",
-  //   //   };
-
-  //   //   await this.subscriptionModel.create(fv);
-  //   //   console.log(" IAP Subscription Renewed:", fv);
-  //   // } else {
-  //   //   console.log(" Subscription is expired or invalid.");
-  //   // }
-  // }
   async handleIapRenew(payload) {
     try {
       const transactionHistory =

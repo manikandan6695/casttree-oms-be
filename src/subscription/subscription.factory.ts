@@ -1,3 +1,4 @@
+import { ESourceType } from "src/service-request/enum/service-request.enum";
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { HelperService } from "src/helper/helper.service";
@@ -5,13 +6,16 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
-import { EPaymentType } from "src/payment/enum/payment.enum";
+import {
+  EPaymentSourceType,
+  EPaymentType,
+} from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
-import { EProvider } from "./enums/provider.enum";
+import { EProvider, EProviderId } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 import {
@@ -218,7 +222,7 @@ export class SubscriptionFactory {
     );
 
     const invoiceData = {
-      itemId: bodyData.itemId,
+      itemId: data.itemId,
       source_id: createdSubscription._id,
       source_type: "subscription",
       sub_total: data.authAmount,
@@ -234,14 +238,12 @@ export class SubscriptionFactory {
     const paymentData = {
       amount: data.authAmount,
       document_status: EDocumentStatus.pending,
+      providerId: EProviderId.apple,
+      providerName: EProvider.apple,
+      transactionDate: new Date(),
     };
 
-    await this.paymentService.createPaymentRecord(
-      paymentData,
-      token,
-      invoice,
-      "INR"
-    );
+    await this.paymentService.createPaymentRecord(paymentData, token, invoice);
 
     return createdSubscription;
   }
