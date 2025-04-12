@@ -48,7 +48,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -388,20 +388,28 @@ export class PaymentRequestService {
       aggregation_pipeline.push({
         $match: { document_status: EDocumentStatus.completed },
       });
-      aggregation_pipeline.push(
-        {
-          $lookup: {
-            from: "salesDocument",
-            localField: "source_id",
-            foreignField: "_id",
-            as: "salesDocument",
+      aggregation_pipeline.push({
+        $lookup: {
+          from: "salesDocument",
+          localField: "source_id",
+          foreignField: "_id",
+          as: "salesDocument",
+        },
+      });
+      sourceId
+        ? aggregation_pipeline.push({
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
+        : aggregation_pipeline.push({
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
           },
         });
-      sourceId ? aggregation_pipeline.push({
-        $match: { "salesDocument.source_id": new ObjectId(sourceId), "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
-      }) : aggregation_pipeline.push({
-        $match: { "salesDocument.source_type": EPaymentSourceType.processInstance, "salesDocument.document_status": EPaymentStatus.completed }
-      });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -464,26 +472,44 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async updateMetaData(paymentId, metaData) {
+
+  async getLatestSubscriptionPayments(userId) {
     try {
-      // console.log("paymentId", paymentId);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      let data =
+        await this.paymentModel.aggregate([
+          {
+            $match: {
+              user_id: new ObjectId(userId),
+              document_status: EPaymentStatus.completed,
+              created_at: { $gte: thirtyDaysAgo }
+            }
+          },
+          {
+            $lookup: {
+              from: "salesDocument",
+              localField: "source_id",
+              foreignField: "_id",
+              as: "salesDocument"
+            }
+          },
+          {
+            $unwind: "$salesDocument"
+          },
+          {
+            $match: {
+              "salesDocument.document_status": EPaymentStatus.completed,
+              "salesDocument.source_type": EPaymentSourceType.subscription
+            }
+          }
+        ]);
 
-      let updateFields: any = {};
-      if (metaData) {
-        updateFields["metaData.webhookResponse"] = metaData;
-      }
-      let existingPayment = await this.paymentModel.findById(paymentId);
-      if (!existingPayment.transactionDate) {
-        updateFields.transactionDate = new Date();
-      }
-      let response = await this.paymentModel.updateOne(
-        { _id: paymentId },
-        { $set: updateFields }
-      );
+      console.log({ data });
+      return data;
 
-      return response;
     } catch (err) {
-      throw err;
+      throw err
     }
   }
 
