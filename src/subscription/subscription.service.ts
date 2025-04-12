@@ -248,9 +248,8 @@ export class SubscriptionService {
     try {
       const cfPaymentId = payload?.data?.cf_payment_id;
       let subscriptionId = payload?.data?.subscription_id;
-      let failedReason = payload?.data?.failureDetails;
-      console.log("failed reason is", payload?.data);
-      console.log("failure details is", payload?.data?.failureDetails);
+      let failedReason = payload?.data?.failure_details;
+      console.log("failure details is", payload?.data?.failure_details);
 
       let body = {
         document_status: EPaymentStatus.failed,
