@@ -18,7 +18,6 @@ import {
   GetTransactionHistoryVersion,
   Order,
   ProductType,
-
 } from "@apple/app-store-server-library";
 import { readFile } from "fs";
 import { ITransactionHistoryResponse } from "./dto/subscription.dto";
@@ -39,11 +38,11 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) { }
+  ) {}
   async onModuleInit() {
-    await this.init()
+    await this.init();
   }
-  
+
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
@@ -54,10 +53,10 @@ export class SubscriptionFactory {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
           this.handleCashfreeSubscription(data, bodyData, token),
       },
-      iap: {
+      apple: {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
-          this.handleIAPSubscription(data, bodyData, token)
-      }
+          this.handleAppleIAPSubscription(data, bodyData, token),
+      },
     };
 
     if (!providers[providerName]) {
@@ -181,68 +180,44 @@ export class SubscriptionFactory {
       authorizationDetails: auth,
     };
   }
-  private async handleIAPSubscription(data, bodyData, token: UserToken) {
+  private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     const transactionId = bodyData.transactionDetails?.externalId;
 
-    const existingSubscription = await this.subscriptionService.findExternalId(transactionId)
-    if(existingSubscription) {
+    const existingSubscription =
+      await this.subscriptionService.findExternalId(transactionId);
+    if (existingSubscription) {
       console.log("existing subscription", existingSubscription);
-      
-      return existingSubscription
+
+      return existingSubscription;
     }
 
-
-    
-    let subscriptionData={
+    let subscriptionData = {
       userId: token.id,
-      planId: bodyData.planId,
+      planId: data.planId,
       startAt: data.startAt,
-      endAt: bodyData.expiryTime,
-      providerId: 3,
-      provider: "iap",
+      endAt: data.endAt,
+      providerId: data.providerId,
+      provider: data.provider,
       amount: parseInt(bodyData.authAmount),
-      notes: { itemId: bodyData.itemId },
-      subscriptionStatus: EsubscriptionStatus.initiated,
-      createdBy:token?.id,
-      updatedBy:token?.id,
-      transactionDetails: data.transactionDetails,
-      // metaData: data,
-    }
-    console.log("subscriptionData", subscriptionData);
-    
-    const createdSubscription = await this.subscriptionService.subscription(subscriptionData, token);
-    // const mandateData ={
-    //   sourceId: createdSubscription._id,
-    //   userId: token.id,
-    //   paymentMethod: "IAP",
-    //   amount: bodyData.authAmount,
-    //   providerId: 3,
-    //   currency: "INR",
-    //   planId: bodyData.planId,
-    //   frequency: "yearly",
-    //   mandateStatus: EMandateStatus.initiated,
-    //   status: EStatus.Active,
-    //   metaData: data.transactionDetails,
-    //   // startDate: bodyData.firstCharge,
-    //   // endDate: bodyData.expiryTime,
-    // } 
-    // let mandate = await this.mandateService.addMandate(mandateData, token);
-    // await this.mandateHistoryService.createMandateHistory({
-    //   mandateId: mandate._id,
-    //   mandateStatus: EMandateStatus.initiated,
-    //   metaData: data.transactionDetails,
-    //   status: EStatus.Active,
-    //   createdBy: token.id,
-    //   updatedBy: token.id,
-    // });
+      notes: data.notes,
+      subscriptionStatus: data.subscriptionStatus,
+      createdBy: token?.id,
+      updatedBy: token?.id,
+      metaData: data.metaData,
+    };
+
+    const createdSubscription = await this.subscriptionService.subscription(
+      subscriptionData,
+      token
+    );
+
     const invoiceData = {
       itemId: bodyData.itemId,
       source_id: createdSubscription._id,
       source_type: "subscription",
-      sub_total: bodyData.authAmount,
-      currencyCode: "INR",
-      document_status: EDocumentStatus.completed,
-      grand_total: bodyData.authAmount,
+      sub_total: data.authAmount,
+      document_status: EDocumentStatus.pending,
+      grand_total: data.authAmount,
       user_id: token.id,
       created_by: token.id,
       updated_by: token.id,
@@ -251,74 +226,71 @@ export class SubscriptionFactory {
     const invoice = await this.invoiceService.createInvoice(invoiceData);
 
     const paymentData = {
-      amount: bodyData.authAmount,
-      currencyCode: "INR",
-      document_status: EDocumentStatus.completed,
+      amount: data.authAmount,
+      document_status: EDocumentStatus.pending,
     };
 
     await this.paymentService.createPaymentRecord(
       paymentData,
       token,
       invoice,
-      "INR",
-
+      "INR"
     );
 
-    return createdSubscription
+    return createdSubscription;
   }
 
+  //   private async init() {
+  //  try {
+  //   const encodedKey = await new Promise<string>((res, rej) => {
+  //     readFile(filePath, (err, data) => {
+  //       if (err) return rej(err);
+  //       res(data.toString());
+  //     });
+  //   });
+  //   console.log("encodedKey",encodedKey);
+  //   console.log("env",issuerId,keyId,bundleId,filePath,environment)
+  // this.client = new AppStoreServerAPIClient(
+  //   encodedKey,
+  //   keyId,
+  //   issuerId,
+  //   bundleId,
+  //   environment
+  // );
+  // const transactionId = "2000000889069745";
+  // if (transactionId != null) {
+  //   const transactionHistoryRequest = {
+  //     sort: Order.ASCENDING,
+  //     revoked: false,
+  //     productTypes: [ProductType.AUTO_RENEWABLE],
+  //   };
+  //   let response = null;
+  //   let transactions = [];
+  //   do {
+  //     const revisionToken =
+  //       response !== null && response.revision !== null
+  //         ? response.revision
+  //         : null;
+  //     response = await this.client.getTransactionHistory(
+  //       transactionId,
+  //       revisionToken,
+  //       transactionHistoryRequest,
+  //       GetTransactionHistoryVersion.V2
+  //     );
+  //     console.log("response is", response)
+  //     if (response.signedTransactions) {
+  //       transactions = transactions.concat(response.signedTransactions);
+  //     }
+  //   } while (response.hasMore);
+  //   console.log(transactions);
+  // }
+  //  } catch (error) {
+  //   console.log(error);
+  //   throw error
 
-//   private async init() {
-//  try {
-//   const encodedKey = await new Promise<string>((res, rej) => {
-//     readFile(filePath, (err, data) => {
-//       if (err) return rej(err);
-//       res(data.toString());
-//     });
-//   });
-//   console.log("encodedKey",encodedKey);
-//   console.log("env",issuerId,keyId,bundleId,filePath,environment)
-// this.client = new AppStoreServerAPIClient(
-//   encodedKey,
-//   keyId,
-//   issuerId,
-//   bundleId,
-//   environment
-// );
-// const transactionId = "2000000889069745";
-// if (transactionId != null) {
-//   const transactionHistoryRequest = {
-//     sort: Order.ASCENDING,
-//     revoked: false,
-//     productTypes: [ProductType.AUTO_RENEWABLE],
-//   };
-//   let response = null;
-//   let transactions = [];
-//   do {
-//     const revisionToken =
-//       response !== null && response.revision !== null
-//         ? response.revision
-//         : null;
-//     response = await this.client.getTransactionHistory(
-//       transactionId,
-//       revisionToken,
-//       transactionHistoryRequest,
-//       GetTransactionHistoryVersion.V2
-//     );
-//     console.log("response is", response)
-//     if (response.signedTransactions) {
-//       transactions = transactions.concat(response.signedTransactions);
-//     }
-//   } while (response.hasMore);
-//   console.log(transactions);
-// }  
-//  } catch (error) {
-//   console.log(error);
-//   throw error
-  
-//  }
+  //  }
 
-//   }
+  //   }
 
   // async getTransactionHistory(bodyData) {
   //   // const request = {
@@ -348,7 +320,7 @@ export class SubscriptionFactory {
   //   // const transactions = [];
   //   // let response = null;
   //   // let revision = undefined;
-  //   // let transactionId = validatePurchase?.parsed?.originalTransactionId; 
+  //   // let transactionId = validatePurchase?.parsed?.originalTransactionId;
 
   //   // do {
   //   //   response = await this.client.getTransactionHistory(
@@ -367,7 +339,6 @@ export class SubscriptionFactory {
   // }
   // async getTransactionHistory(bodyData) {
   //   try {
-  
 
   //     const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
   //     console.log("validatePurchase", validatePurchase);
@@ -400,17 +371,17 @@ export class SubscriptionFactory {
   //     throw err
   //   }
   // }
-   async init() {
+  async init() {
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
         if (err) return rej(err);
         res(data.toString());
       });
     });
-  
+
     console.log("encodedKey", encodedKey);
     console.log("env", issuerId, keyId, bundleId, filePath, environment);
-  
+
     this.client = new AppStoreServerAPIClient(
       encodedKey,
       keyId,
@@ -418,9 +389,9 @@ export class SubscriptionFactory {
       bundleId,
       environment
     );
-  
-    const transactionId = "2000000890594891"; 
-  
+
+    const transactionId = "2000000890594891";
+
     if (transactionId != null) {
       try {
         const info = await this.client.getTransactionInfo(transactionId);
@@ -428,17 +399,16 @@ export class SubscriptionFactory {
       } catch (err) {
         console.error("Error fetching transaction info:", err);
       }
-  
-      
+
       const transactionHistoryRequest = {
         sort: Order.ASCENDING,
         revoked: false,
         productTypes: [ProductType.AUTO_RENEWABLE],
       };
-  
+
       let response = null;
       let transactions = [];
-  
+
       do {
         const revisionToken = response?.revision ?? null;
         response = await this.client.getTransactionHistory(
@@ -452,26 +422,29 @@ export class SubscriptionFactory {
           transactions = transactions.concat(response.signedTransactions);
         }
       } while (response.hasMore);
-  
+
       console.log(transactions);
-      
     }
   }
-  
+
   async getTransactionHistory(bodyData) {
     try {
-      const validatePurchase = await this.validatePurchase(bodyData.data.signedTransactionInfo);
-      const signedRenewalInfo = await this.validatePurchase(bodyData.data.signedRenewalInfo);
-  
+      const validatePurchase = await this.validatePurchase(
+        bodyData.data.signedTransactionInfo
+      );
+      const signedRenewalInfo = await this.validatePurchase(
+        bodyData.data.signedRenewalInfo
+      );
+
       if (!validatePurchase?.parsed) {
         return {
           success: false,
           message: "Invalid transaction data",
         };
       }
-  
+
       const active = validatePurchase.parsed.expiresDate > Date.now();
-  
+
       return {
         success: validatePurchase.success,
         isActive: active,
@@ -488,9 +461,8 @@ export class SubscriptionFactory {
       throw err;
     }
   }
-  
-  parseJwt(token) {
 
+  parseJwt(token) {
     // console.log("iap ids", issuerId, keyId, bundleId, filePath, environment);
 
     try {
@@ -513,17 +485,16 @@ export class SubscriptionFactory {
 
   async validatePurchase(signedTransactionInfo) {
     try {
-      
       const parsed = this.parseJwt(signedTransactionInfo);
       // let data= await this.client.getTransactionInfo("2000000890594891");
       //     console.log("signedTransactionInfo", data);
       if (!parsed) {
         return {
           success: false,
-          message: 'Failed to parse or decode JWT.',
+          message: "Failed to parse or decode JWT.",
         };
       }
-  
+
       return {
         success: parsed.expiresDate > Date.now(),
         parsed,
@@ -533,11 +504,11 @@ export class SubscriptionFactory {
       throw error;
     }
   }
-  
+
   // async validatePurchase(signedTransactionInfo) {
   //  try {
   //   // console.log("inside validatePurchase", signedTransactionInfo);
-    
+
   //     let data= await this.client.getTransactionInfo("2000000890594891");
   //     console.log("signedTransactionInfo", data);
   //   const parsed = this.parseJwt(signedTransactionInfo);
@@ -554,7 +525,6 @@ export class SubscriptionFactory {
   //     parsed,
   //   };
 
-  
   //  } catch (error) {
   //   console.log("error in validatePurchase", error);
   //   throw error

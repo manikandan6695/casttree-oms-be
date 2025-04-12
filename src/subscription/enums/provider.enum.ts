@@ -1,14 +1,26 @@
 export enum EProvider {
   razorpay = "razorpay",
   cashfree = "cashfree",
-  iap = "iap",
+  apple = "apple",
+  google = "google",
 }
 
-export const ESProvider = [EProvider.razorpay, EProvider.cashfree, EProvider.iap];
+export const ESProvider = [
+  EProvider.razorpay,
+  EProvider.cashfree,
+  EProvider.apple,
+  EProvider.google,
+];
 
 export enum EProviderId {
   razorpay = 1,
   cashfree = 2,
-  iap = 3,
+  apple = 3,
+  google = 4,
 }
-export const ESProviderId = [EProviderId.razorpay,EProviderId.cashfree,EProviderId.iap]
+export const ESProviderId = [
+  EProviderId.razorpay,
+  EProviderId.cashfree,
+  EProviderId.apple,
+  EProviderId.google,
+];
