@@ -22,7 +22,7 @@ export class PaymentRequestController {
   constructor(
     private readonly paymentRequestService: PaymentRequestService,
     private sservice: SharedService
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -75,7 +75,7 @@ export class PaymentRequestController {
   ) {
     try {
       let data: any = await this.paymentRequestService.getPaymentDetailBySource(
-        
+
         userId,
         sourceId
 
@@ -109,6 +109,19 @@ export class PaymentRequestController {
     }
   }
 
+  @Get("user/:userId")
+  async getLatestSubscriptionPayments(
+    @Param("userId") userId: string
+  ) {
+    try {
+     let data = await this.paymentRequestService.getLatestSubscriptionPayments(userId);
+     return data;
+    } catch (err) {
+      console.error("Error:", err);
+      throw err;
+    }
+  }
+  
   //   @Get("test/pavan")
   //   async testhmac()
   // {

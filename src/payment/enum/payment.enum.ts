@@ -49,3 +49,10 @@ export const ESRazorpayPaymentStatus = [
   ERazorpayPaymentStatus.refunded,
   ERazorpayPaymentStatus.failed,
 ];
+
+export enum EPaymentType {
+  auth = "Auth",
+  charge = "Charge",
+}
+
+export const ESPaymentType = [EPaymentType.auth, EPaymentType.charge];

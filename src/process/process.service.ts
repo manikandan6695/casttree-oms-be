@@ -414,11 +414,35 @@ export class ProcessService {
 
   async getMySeries(userId, status) {
     try {
+      let subscription = await this.subscriptionService.validateSubscription(
+        userId,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired, EsubscriptionStatus.failed]
+      );
+      let paidInstances = [];
+      if (!subscription) {
+        let payment = await this.paymentService.getPaymentDetailBySource(
+
+          userId,
+          null,
+          EPaymentSourceType.processInstance
+        );
+        payment.paymentData.map((data) => {
+          paidInstances.push(data.salesDocument.source_id.toString())
+        })
+      }
       const mySeries: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: status })
         .populate("currentTask")
         .lean();
       for (let i = 0; i < mySeries.length; i++) {
+        if (subscription) {
+          mySeries[i].currentTask.isLocked = false;
+
+        } if (paidInstances.length > 0) {
+          if (paidInstances.includes(mySeries[i]._id.toString())) {
+            mySeries[i].currentTask.isLocked = false;
+          }
+        }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: mySeries[i].processId,
         });
