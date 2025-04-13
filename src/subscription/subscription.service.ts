@@ -696,6 +696,7 @@ export class SubscriptionService {
                     EsubscriptionStatus.expired,
                   ],
                 },
+                "latestDocument.status": EStatus.Active,
               },
               {
                 $and: [
@@ -726,11 +727,11 @@ export class SubscriptionService {
         },
       ]);
 
-      // console.log(
-      //   "expiring list ==>",
-      //   expiringSubscriptionsList.length
-      //   // expiringSubscriptionsList
-      // );
+      console.log(
+        "expiring list ==>",
+        expiringSubscriptionsList.length,
+        expiringSubscriptionsList
+      );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
