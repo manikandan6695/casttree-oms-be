@@ -3,6 +3,7 @@ export enum EsubscriptionStatus {
   active = "Active",
   expired = "Expired",
   failed = "Failed",
+  cancelled = "Cancelled",
 }
 
 export const ESsubscriptionStatus = [

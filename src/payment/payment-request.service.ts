@@ -456,10 +456,16 @@ export class PaymentRequestService {
   async updateStatus(paymentId, body) {
     try {
       console.log("paymentId", paymentId, body);
-
       let updateData = await this.paymentModel.updateOne(
-        { payment_order_id: paymentId },
-        { $set: { reason: body?.reason?.failureReason } }
+        {
+          $or: [{ sourceId: paymentId }, { payment_order_id: paymentId }],
+        },
+        {
+          $set: {
+            reason: body?.reason?.failureReason,
+            document_status: body.document_status,
+          },
+        }
       );
       return updateData;
     } catch (err) {

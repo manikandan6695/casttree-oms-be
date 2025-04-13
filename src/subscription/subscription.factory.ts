@@ -63,6 +63,10 @@ export class SubscriptionFactory {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
           this.handleAppleIAPSubscription(data, bodyData, token),
       },
+      google: {
+        createSubscription: async (data: any, bodyData, token: UserToken) =>
+          this.hanldeGoogleIAPSubscription(data, bodyData, token),
+      },
     };
 
     if (!providers[providerName]) {
@@ -241,6 +245,63 @@ export class SubscriptionFactory {
       providerId: EProviderId.apple,
       providerName: EProvider.apple,
       transactionDate: new Date(),
+    };
+
+    await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+
+    return createdSubscription;
+  }
+
+  private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
+    const transactionId = bodyData.transactionDetails?.externalId;
+
+    const existingSubscription =
+      await this.subscriptionService.findExternalId(transactionId);
+    if (existingSubscription) {
+      console.log("existing subscription", existingSubscription);
+
+      return existingSubscription;
+    }
+
+    let subscriptionData = {
+      userId: token.id,
+      planId: data.planId,
+      startAt: data.startAt,
+      endAt: data.endAt,
+      providerId: data.providerId,
+      provider: data.provider,
+      amount: parseInt(bodyData.authAmount),
+      notes: data.notes,
+      subscriptionStatus: data.subscriptionStatus,
+      createdBy: token?.id,
+      updatedBy: token?.id,
+      metaData: data.metaData,
+    };
+
+    const createdSubscription = await this.subscriptionService.subscription(
+      subscriptionData,
+      token
+    );
+
+    const invoiceData = {
+      itemId: data.itemId,
+      source_id: createdSubscription._id,
+      source_type: "subscription",
+      sub_total: data.authAmount,
+      document_status: EDocumentStatus.pending,
+      grand_total: data.authAmount,
+      user_id: token.id,
+      created_by: token.id,
+      updated_by: token.id,
+    };
+
+    const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+    const paymentData = {
+      amount: data.authAmount,
+      document_status: EDocumentStatus.pending,
+      providerId: EProviderId.google,
+      providerName: EProvider.google,
     };
 
     await this.paymentService.createPaymentRecord(paymentData, token, invoice);
