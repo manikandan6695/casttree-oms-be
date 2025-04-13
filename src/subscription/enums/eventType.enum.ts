@@ -3,6 +3,8 @@ export enum EEventType {
   subscriptionPaymentSuccess = "SUBSCRIPTION_PAYMENT_SUCCESS",
   subscriptionPaymentFailed = "SUBSCRIPTION_PAYMENT_FAILED",
   didRenew = "DID_RENEW",
+  didCancel = "DID_CANCEL",
+  didPurchase = "DID_PURCHASE",
 }
 
 export const ESEventType = [
@@ -10,4 +12,6 @@ export const ESEventType = [
   EEventType.subscriptionPaymentSuccess,
   EEventType.subscriptionPaymentFailed,
   EEventType.didRenew,
+  EEventType.didCancel,
+  EEventType.didPurchase,
 ];

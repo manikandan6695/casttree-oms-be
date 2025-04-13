@@ -37,6 +37,7 @@ import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 import { EProvider, EProviderId } from "./enums/provider.enum";
+import { EEventType } from "./enums/eventType.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -196,10 +197,12 @@ export class SubscriptionService {
         }
       } else if (provider == EProvider.apple) {
         const eventType = req.body?.notificationType;
-        if (eventType === "DID_RENEW") {
-          await this.handleIapRenew(req.body);
-        } else if (eventType === "DID_CANCEL") {
-          await this.handleIapCancel(req.body);
+        if (eventType === EEventType.didRenew) {
+          await this.handleAppleIAPRenew(req.body);
+        } else if (eventType === EEventType.didCancel) {
+          await this.handleAppleIAPCancel(req.body);
+        } else if (eventType === EEventType.didPurchase) {
+          await this.handleAppleIAPPurchase(req.body);
         }
       }
     } catch (err) {
@@ -207,7 +210,53 @@ export class SubscriptionService {
     }
   }
 
-  async handleIapRenew(payload) {
+  async handleAppleIAPPurchase(payload) {
+    try {
+      const transactionHistory =
+        await this.subscriptionFactory.getTransactionHistory(payload);
+      if (transactionHistory) {
+        let existingSubscription = await this.subscriptionModel.findOne({
+          "metaData.externalId": transactionHistory.transactionId,
+        });
+        console.log("transactionHistory", transactionHistory);
+        let subscription = await this.subscriptionModel.updateOne(
+          {
+            "metaData.externalId": transactionHistory.transactionId,
+            subscriptionStatus: EsubscriptionStatus.initiated,
+            status: EStatus.Active,
+            providerId: EProviderId.apple,
+            provider: EProvider.apple,
+          },
+          {
+            $set: {
+              subscriptionStatus: EsubscriptionStatus.active,
+              metaData: {
+                success: transactionHistory.success,
+                isActive: transactionHistory.isActive,
+                productId: transactionHistory.productId,
+                originalTransactionId: transactionHistory.originalTransactionId,
+                transactionId: transactionHistory.transactionId,
+                purchaseDate: transactionHistory.purchaseDate,
+                expiresDate: transactionHistory.expiresDate,
+                renewalDate: transactionHistory.renewalDate,
+                rawTransaction: transactionHistory.rawTransaction,
+                rawRenewal: transactionHistory.rawRenewal,
+              },
+            },
+          }
+        );
+        let updatedInvoice = await this.invoiceService.updateInvoice(
+          existingSubscription._id,
+          EDocumentStatus.completed
+        );
+        let payment = await this.paymentService;
+      }
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleAppleIAPRenew(payload) {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
@@ -215,10 +264,10 @@ export class SubscriptionService {
 
       if (transactionHistory?.isActive) {
         const findUser = await this.subscriptionModel.findOne({
-          providerId: 3,
-          provider: "iap",
+          providerId: EProviderId.apple,
+          provider: EProvider.apple,
           subscriptionStatus: EStatus.Active,
-          "transactionDetails.externalId": transactionHistory.productId,
+          "metaData.externalId": transactionHistory.productId,
         });
         console.log("findUser", findUser);
         const subscriptionData = {
@@ -276,7 +325,7 @@ export class SubscriptionService {
 
   //   console.log("IAP Subscription Cancelled:", originalTransactionId);
   // }
-  async handleIapCancel(payload) {
+  async handleAppleIAPCancel(payload) {
     try {
       const signedTransactionInfo = payload?.data?.signedTransactionInfo;
 

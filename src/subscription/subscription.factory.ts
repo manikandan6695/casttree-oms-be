@@ -458,6 +458,7 @@ export class SubscriptionFactory {
         isActive: active,
         productId: validatePurchase.parsed.productId,
         originalTransactionId: validatePurchase.parsed.originalTransactionId,
+        transactionId: validatePurchase.parsed.transactionId,
         purchaseDate: validatePurchase.parsed.purchaseDate,
         expiresDate: validatePurchase.parsed.expiresDate,
         renewalDate: signedRenewalInfo?.parsed?.renewalDate,

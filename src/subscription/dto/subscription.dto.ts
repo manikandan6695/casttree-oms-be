@@ -59,6 +59,7 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsNumber()
   subscriptionExpiry: number;
+
   @IsOptional()
   @IsString()
   providerId: number;
