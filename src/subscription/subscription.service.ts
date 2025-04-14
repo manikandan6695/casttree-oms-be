@@ -229,7 +229,6 @@ export class SubscriptionService {
       } else if (provider === "cashfree") {
         const eventType = req.body?.type; // Identify Cashfree event type
         // console.log("event type is", eventType);
-
         if (eventType === "SUBSCRIPTION_STATUS_CHANGED") {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
@@ -247,18 +246,34 @@ export class SubscriptionService {
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
       const cfPaymentId = payload?.data?.cf_payment_id;
-      let subscriptionId = payload?.data?.subscription_id;
-      let failedReason = payload?.data?.failureDetails;
-      console.log("failed reason is", payload?.data);
-      console.log("failure details is", payload?.data?.failureDetails);
+      // console.log("cfPaymentId", cfPaymentId);
 
+      let failedReason = payload?.data?.failure_details?.failure_reason;
+      // console.log("failure details is", payload?.data?.failure_details);
       let body = {
         document_status: EPaymentStatus.failed,
         reason: failedReason,
       };
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
+      // console.log("paymentRecord", paymentRecord);
+
+      await this.paymentService.updateMetaData(
+        paymentRecord._id as string,
+        payload
+      );
+      // console.log("invoice id is", paymentRecord?.source_id);
+
+      await this.paymentService.updateStatus(paymentRecord._id, body);
+      let updatedInvoice = await this.invoiceService.updateInvoice(
+        paymentRecord?.source_id,
+        EPaymentStatus.failed
+      );
+      // console.log("subscription id is", updatedInvoice?.invoice?.source_id);
+
       await this.subscriptionModel.updateOne(
         {
-          "metaData.subscription_id": subscriptionId,
+          _id: updatedInvoice?.invoice?.source_id,
           subscriptionStatus: EsubscriptionStatus.initiated,
         },
         {
@@ -267,26 +282,7 @@ export class SubscriptionService {
           },
         }
       );
-      await this.updatePaymentRecords(cfPaymentId, body);
-      const paymentRecord =
-        await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
-
-      await this.paymentService.updateMetaData(
-        paymentRecord._id as string,
-        payload
-      );
-      // let subscriptionData = await this.subscriptionModel
-      //   .find({
-      //     "metaData.subscription_id": subscriptionId,
-      //     subscriptionStatus: EsubscriptionStatus.active,
-      //   })
-      //   .sort({ _id: -1 })
-      //   .lean();
-      // console.log(subscriptionData[0]);
-      // let subscription: any = subscriptionData[0];
-      // subscription.endAt = currentDate;
-      // subscription["latestSubscription"] = subscription;
-      // const planDetail = await this.itemService.getItemDetailByName("PRO");
+      return { message: "Updated Successfully" };
     } catch (err) {
       throw err;
     }

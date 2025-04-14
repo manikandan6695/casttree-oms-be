@@ -46,7 +46,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async initiatePayment(
     body: paymentDTO,
@@ -455,11 +455,16 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("paymentId", paymentId, body);
+      // console.log("paymentId", paymentId, body);
 
       let updateData = await this.paymentModel.updateOne(
-        { payment_order_id: paymentId },
-        { $set: { reason: body?.reason?.failureReason } }
+        { _id: paymentId },
+        {
+          $set: {
+            reason: body?.reason,
+            document_status: body?.document_status,
+          },
+        }
       );
       return updateData;
     } catch (err) {
@@ -471,39 +476,37 @@ export class PaymentRequestService {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      let data =
-        await this.paymentModel.aggregate([
-          {
-            $match: {
-              user_id: new ObjectId(userId),
-              document_status: EPaymentStatus.completed,
-              created_at: { $gte: thirtyDaysAgo }
-            }
+      let data = await this.paymentModel.aggregate([
+        {
+          $match: {
+            user_id: new ObjectId(userId),
+            document_status: EPaymentStatus.completed,
+            created_at: { $gte: thirtyDaysAgo },
           },
-          {
-            $lookup: {
-              from: "salesDocument",
-              localField: "source_id",
-              foreignField: "_id",
-              as: "salesDocument"
-            }
+        },
+        {
+          $lookup: {
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDocument",
           },
-          {
-            $unwind: "$salesDocument"
+        },
+        {
+          $unwind: "$salesDocument",
+        },
+        {
+          $match: {
+            "salesDocument.document_status": EPaymentStatus.completed,
+            "salesDocument.source_type": EPaymentSourceType.subscription,
           },
-          {
-            $match: {
-              "salesDocument.document_status": EPaymentStatus.completed,
-              "salesDocument.source_type": EPaymentSourceType.subscription
-            }
-          }
-        ]);
+        },
+      ]);
 
       console.log({ data });
       return data;
-
     } catch (err) {
-      throw err
+      throw err;
     }
   }
   async updateMetaData(paymentId, metaData) {
