@@ -461,7 +461,7 @@ export class PaymentRequestService {
         { payment_order_id: paymentId },
         {
           $set: {
-            reason: body?.reason?.failureReason,
+            reason: body?.reason,
             document_status: body?.document_status,
           },
         }
