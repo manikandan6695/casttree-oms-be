@@ -677,6 +677,9 @@ export class SubscriptionService {
           },
         },
         {
+          $match: { "latestDocument.providerId": 2 },
+        },
+        {
           $match: {
             "latestDocument.subscriptionStatus": {
               $ne: EsubscriptionStatus.initiated,
