@@ -60,12 +60,13 @@ export class InvoiceService {
     try {
       let updateBody: any = {};
       updateBody.document_status = status;
-      
+
       await this.salesDocumentModel.updateOne(
         { _id: id },
         { $set: { document_status: status } }
       );
-      return { message: "Updated successfully" };
+      let invoice = await this.salesDocumentModel.findOne({ _id: id });
+      return { message: "Updated successfully", invoice };
     } catch (err) {
       throw err;
     }
@@ -94,6 +95,4 @@ export class InvoiceService {
       throw err;
     }
   }
-
-  
 }
