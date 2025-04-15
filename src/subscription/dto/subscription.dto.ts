@@ -83,7 +83,7 @@ export interface CashfreeFailedPaymentPayload {
   data: {
     cf_payment_id: string;
     subscription_id: string;
-    failureDetails: string;
+    failure_details: any;
   };
 }
 
