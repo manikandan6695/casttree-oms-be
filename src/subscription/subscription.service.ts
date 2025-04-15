@@ -32,7 +32,7 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EProvider } from "./enums/provider.enum";
+import { EProvider, EProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -128,7 +128,46 @@ export class SubscriptionService {
             subscription_first_charge_time: firstCharge,
           };
           break;
-
+          case EProvider.apple:
+            let endDate = this.sharedService.getFutureMonthISO(1);
+            subscriptionData = {
+              userId: token?.id,
+              planId: body?.planId,
+              providerId: EProviderId.apple,
+              provider: EProvider.apple,
+              startAt: new Date(),
+              endAt: endDate,
+              subscriptionStatus: EsubscriptionStatus.initiated,
+              notes: { itemId: body?.itemId },
+              amount: body?.authAmount,
+              status: EStatus.Active,
+              createdBy: token?.id,
+              updatedBy: token?.id,
+              metaData: {
+                externalId: body?.transactionDetails?.externalId,
+              },
+            };
+            break;
+          case EProvider.google:
+            let endAt = this.sharedService.getFutureMonthISO(1);
+            subscriptionData = {
+              userId: token?.id,
+              planId: body?.planId,
+              providerId: EProviderId.google,
+              provider: EProvider.google,
+              startAt: new Date(),
+              endAt: endAt,
+              subscriptionStatus: EsubscriptionStatus.initiated,
+              notes: { itemId: body?.itemId },
+              amount: body?.authAmount,
+              status: EStatus.Active,
+              createdBy: token?.id,
+              updatedBy: token?.id,
+              metaData: {
+                externalId: body?.transactionDetails?.externalId,
+              },
+            };
+            break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -468,6 +507,9 @@ export class SubscriptionService {
         status: EStatus.Active,
         createdBy: token.id,
         updatedBy: token.id,
+        externalId: body.externalId,
+        currencyCode:body.currencyCode,
+        currencyId:body.currencyId
       };
       let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
@@ -902,6 +944,18 @@ export class SubscriptionService {
       return { message: "Success" };
     } catch (err) {
       throw err;
+    }
+  }
+  async findExternalId(transactionId) {
+    try {
+      let externalIdData = await this.subscriptionModel.findOne({
+        "metaData.externalId": transactionId,
+        providerId: { $in: [EProviderId.apple, EProviderId.google] },
+        // provider: EProvider.apple,
+      });
+      return externalIdData;
+    } catch (error) {
+      throw error;
     }
   }
 }

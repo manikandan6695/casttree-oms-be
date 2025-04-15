@@ -11,7 +11,7 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
-import { EProvider } from "./enums/provider.enum";
+import { EProvider, EProviderId } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 
@@ -37,6 +37,14 @@ export class SubscriptionFactory {
       cashfree: {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
           this.handleCashfreeSubscription(data, bodyData, token),
+      },
+      apple: {
+        createSubscription: async (data: any, bodyData, token: UserToken) =>
+          this.handleAppleIAPSubscription(data, bodyData, token),
+      },
+      google: {
+        createSubscription: async (data: any, bodyData, token: UserToken) =>
+          this.hanldeGoogleIAPSubscription(data, bodyData, token),
       },
     };
 
@@ -165,4 +173,193 @@ export class SubscriptionFactory {
       authorizationDetails: auth,
     };
   }
+  private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
+    const transactionId = bodyData.transactionDetails?.externalId;
+    // console.log("handleAppleIapSub", data,bodyData)
+    const existingSubscription =
+      await this.subscriptionService.findExternalId(transactionId);
+    if (existingSubscription) {
+      // console.log("existing subscription", existingSubscription);
+
+      return existingSubscription;
+    }
+    let currencyId = await this.helperService.getCurrencyId(bodyData.currencyCode)
+    // console.log("currencyId", currencyId);
+   let currencyResponse= currencyId?.data?.[0]
+    let subscriptionData = {
+      userId: token.id,
+      planId: data.planId,
+      startAt: data.startAt,
+      endAt: data.endAt,
+      providerId: data.providerId,
+      provider: data.provider,
+      amount: parseInt(bodyData.authAmount),
+      notes: data.notes,
+      subscriptionStatus: data.subscriptionStatus,
+      createdBy: token?.id,
+      updatedBy: token?.id,
+      metaData: data.metaData,
+      externalId: transactionId,
+      currencyCode:currencyResponse.currency_code,
+      currencyId:currencyResponse._id,
+    };
+    // console.log("subscriptionData",subscriptionData);
+
+    const createdSubscription = await this.subscriptionService.subscription(
+      subscriptionData,
+      token
+    );
+
+    const invoiceData = {
+      itemId: data?.notes?.itemId,
+      source_id: createdSubscription._id,
+      source_type: "subscription",
+      sub_total: parseInt(bodyData?.authAmount),
+      document_status: EDocumentStatus.pending,
+      grand_total: parseInt(bodyData?.authAmount),
+      user_id: token.id,
+      created_by: token.id,
+      updated_by: token.id,
+      currencyCode:currencyResponse.currency_code,
+      currency:currencyResponse._id
+    };
+    // console.log("invoiceData",invoiceData);
+    const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+    const paymentData = {
+      amount: bodyData?.authAmount,
+      document_status: EDocumentStatus.pending,
+      providerId: EProviderId.apple,
+      providerName: EProvider.apple,
+      transactionDate: new Date(),
+      metaData: data.metaData,
+      currencyCode:currencyResponse.currency_code,
+      currency:currencyResponse._id
+    };
+    // console.log("paymentData",paymentData);
+    await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+    const mandateData = {
+      sourceId: createdSubscription._id,
+      userId: token.id,
+      paymentMethod: "UPI",
+      amount: bodyData?.authAmount,
+      providerId: EProviderId.apple,
+      currency: currencyResponse.currency_code,
+      planId: data.planId,
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      metaData: data.metaData,
+      startDate: data.startAt,
+      endDate: data.endAt,
+
+    }
+    let mandate = await this.mandateService.addMandate(mandateData, token);
+    // console.log("mandate",mandate);
+    // console.log("mandateData",mandateData);
+    await this.mandateHistoryService.createMandateHistory({
+      mandateId: mandate._id,
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      metaData: data.metaData,
+      createdBy: token.id,
+      updatedBy: token.id,
+    });
+
+    // console.log("mandateHistory",mandateHistory);
+
+    return createdSubscription;
+  }
+
+  private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
+    const transactionId = bodyData.transactionDetails?.externalId;
+ 
+    const existingSubscription =
+      await this.subscriptionService.findExternalId(transactionId);
+    if (existingSubscription) {
+      // console.log("existing subscription", existingSubscription);
+
+      return existingSubscription;
+    }
+    let currencyId = await this.helperService.getCurrencyId(bodyData.currencyCode)
+    // console.log("currencyId", currencyId);
+    let currencyResponse= currencyId?.data?.[0]
+    let subscriptionData = {
+      userId: token.id,
+      planId: data.planId,
+      startAt: data.startAt,
+      endAt: data.endAt,
+      providerId: data.providerId,
+      provider: data.provider,
+      amount: parseInt(bodyData.authAmount),
+      notes: data.notes,
+      subscriptionStatus: data.subscriptionStatus,
+      createdBy: token?.id,
+      updatedBy: token?.id,
+      metaData: data.metaData,
+      externalId: transactionId,
+      currencyCode:currencyResponse.currency_code,
+      currencyId:currencyResponse._id,
+    };
+
+    const createdSubscription = await this.subscriptionService.subscription(
+      subscriptionData,
+      token
+    );
+
+    const invoiceData = {
+      itemId: data?.notes?.itemId,
+      source_id: createdSubscription._id,
+      source_type: "subscription",
+      sub_total: bodyData?.authAmount,
+      document_status: EDocumentStatus.pending,
+      grand_total: bodyData?.authAmount,
+      user_id: token.id,
+      created_by: token.id,
+      updated_by: token.id,
+      currencyCode:currencyResponse.currency_code,
+      currency:currencyResponse._id
+    };
+    // console.log("invoiceData",invoiceData);
+
+    const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+    const paymentData = {
+      amount: bodyData?.authAmount,
+      document_status: EDocumentStatus.pending,
+      providerId: EProviderId.google,
+      providerName: EProvider.google,
+      metaData: data.metaData,
+      transactionDate: new Date(),
+      currencyCode:currencyResponse.currency_code,
+      currency:currencyResponse._id
+    };
+    // console.log("paymentData",paymentData);
+
+    await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+    let mandateData = {
+      sourceId: createdSubscription._id,
+      userId: token.id,
+      paymentMethod: "UPI",
+      amount: bodyData?.authAmount,
+      providerId: EProviderId.google,
+      currency: currencyResponse.currency_code,
+      planId: data.planId,
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      metaData: data.metaData,
+      startDate: data.startAt,
+      endDate: data.endAt,
+    };
+    let mandate = await this.mandateService.addMandate(mandateData, token);
+    await this.mandateHistoryService.createMandateHistory({
+      mandateId: mandate._id,
+      mandateStatus: EMandateStatus.initiated,
+      status: EStatus.Active,
+      metaData: data.metaData,
+      createdBy: token.id,
+      updatedBy: token.id,
+    });
+    return createdSubscription;
+  }
+
 }
