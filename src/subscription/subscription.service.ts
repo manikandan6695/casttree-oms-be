@@ -24,13 +24,12 @@ import {
   CancelSubscriptionBody,
   CashfreeFailedPaymentPayload,
   CashfreeNewPaymentPayload,
-  CashfreeStatusChangePayload,
   CreateSubscriptionDTO,
   PaymentRecordData,
   RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
-  UserUpdateData,
+  UserUpdateData
 } from "./dto/subscription.dto";
 import { EProvider } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
@@ -271,10 +270,10 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
 
-      await this.paymentService.updateMetaData(
+     /* await this.paymentService.updateMetaData(
         paymentRecord._id as string,
         payload
-      );
+      );*/
       // let subscriptionData = await this.subscriptionModel
       //   .find({
       //     "metaData.subscription_id": subscriptionId,
@@ -438,7 +437,7 @@ export class SubscriptionService {
           invoice.grand_total
         );
       }
-      await this.paymentService.updateMetaData(paymentRequest?.id, payload);
+      //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
   }
 

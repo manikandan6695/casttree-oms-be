@@ -48,18 +48,53 @@ export class ServiceItemService {
     } catch (err) { throw err }
   }
 
-  async getServiceItemDetailbyProcessId(processId) {
+  async getServiceItemDetailbyProcessId(processId: string | string[], userId?) {
     try {
-      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
-        path: "itemId",
-        populate: [
-          {
-            path: "platformItemId",
-          },
-        ],
-      }).lean();
-      return data;
 
+      let data;
+      if (Array.isArray(processId)) {
+        data = await this.serviceItemModel.find({ "additionalDetails.processId": { $in: processId } }, { userId: 1, additionalDetails: 1, itemId: 1 }).populate({
+          path: "itemId"
+        }).lean();
+        const userIds = data.map((e) => e.userId);
+        const profileInfo = await this.helperService.getProfileByIdTl(
+          userIds,
+          EprofileType.Expert
+        );
+        const userProfileInfo = profileInfo.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        let firstTasks = await this.processService.getFirstTask(
+          processId,
+          userId
+        );
+
+        const firstTaskObject = firstTasks.reduce((a, c) => {
+          a[c.processId] = c;
+          return a;
+        }, {});
+
+        for (let i = 0; i < data.length; i++) {
+          console.log("lll: "+data[i]["itemId"]?.itemDescription,data[i]["itemId"]?.itemName);
+          data[i]["displayName"] =
+            userProfileInfo[data[i]["userId"]]?.displayName;
+          data[i]["itemDescription"] = data[i]["itemId"]?.itemDescription;
+          data[i]["itemId"] = data[i]["itemId"]?.itemName;
+          data[i]["taskData"] = firstTaskObject[data[i]["additionalDetails"]["processId"]]
+        }
+      } else {
+        data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        }).lean();
+      }
+
+      return data;
     } catch (err) { throw err }
   }
 
@@ -148,7 +183,7 @@ export class ServiceItemService {
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
-    
+
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
@@ -161,7 +196,7 @@ export class ServiceItemService {
         })
         .lean();
 
-      
+
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
         EprofileType.Expert
@@ -179,18 +214,18 @@ export class ServiceItemService {
       data["itemSold"] =
         parseInt(profileInfo[0]?.phoneNumber[9]) + 10 + totalFeedbacks?.count;
       data["ratingsData"] = ratingInfo.data;
-      
+
       if (country_code) {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
-        if(itemListObjectWithUpdatedPrice[data.itemId._id.toString()]){
-        data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-        data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-        data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+        if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
+          data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+          data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+          data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
         }
       }
-   
+
       let newQuery = {
         skillId: data.skill.skillId,
         type: EserviceItemType.feedback,
@@ -201,23 +236,24 @@ export class ServiceItemService {
         500,
         country_code
       );
-      
+
       const updatedMoreExpertsData = [];
-      if(moreExpertsData.data.length>0){
-      for (let i = 0; i < moreExpertsData?.data?.length; i++) {
-        if (moreExpertsData?.data[i]?._id?.toString() != data?._id?.toString()) {
-          updatedMoreExpertsData.push({
-            _id: moreExpertsData?.data[i]?._id,
-            languages: moreExpertsData?.data[i]?.language,
-            name: moreExpertsData?.data[i]?.profileData?.userName,
-            media: moreExpertsData?.data[i]?.profileData?.media,
-            is_verified: moreExpertsData?.data[i]?.profileData?.is_verified,
-            about: moreExpertsData?.data[i]?.profileData?.about,
-            tags: moreExpertsData?.data[i]?.profileData?.tags,
-            ratings: moreExpertsData?.data[i]?.ratingData,
-          });
+      if (moreExpertsData.data.length > 0) {
+        for (let i = 0; i < moreExpertsData?.data?.length; i++) {
+          if (moreExpertsData?.data[i]?._id?.toString() != data?._id?.toString()) {
+            updatedMoreExpertsData.push({
+              _id: moreExpertsData?.data[i]?._id,
+              languages: moreExpertsData?.data[i]?.language,
+              name: moreExpertsData?.data[i]?.profileData?.userName,
+              media: moreExpertsData?.data[i]?.profileData?.media,
+              is_verified: moreExpertsData?.data[i]?.profileData?.is_verified,
+              about: moreExpertsData?.data[i]?.profileData?.about,
+              tags: moreExpertsData?.data[i]?.profileData?.tags,
+              ratings: moreExpertsData?.data[i]?.ratingData,
+            });
+          }
         }
-      }}
+      }
       if (data.type == EserviceItemType.feedback) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
@@ -225,7 +261,7 @@ export class ServiceItemService {
         mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
         await this.helperService.mixPanel(mixPanelBody);
       }
-      data["similarExperts"] = updatedMoreExpertsData ;
+      data["similarExperts"] = updatedMoreExpertsData;
       return data;
     } catch (err) {
       throw err;
@@ -364,10 +400,10 @@ export class ServiceItemService {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
-        if(itemListObjectWithUpdatedPrice[data.itemId._id.toString()]){
-        data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-        data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-        data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+        if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
+          data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+          data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
+          data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
         }
       }
       data["profileData"] = profileInfo[0];
