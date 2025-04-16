@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -12,6 +14,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { processIdListDTO } from "./dto/filter-platformItem.dto";
 import { ServiceItemService } from "./service-item.service";
 
 @Controller("service-item")
@@ -160,6 +163,16 @@ export class ServiceItemController {
     } catch (err) {
       throw err;
     }
+  }
+
+  @Post("service-item-details/process")
+  async getServiceItemDetailsByProcessId(
+    @Body(new ValidationPipe({ whitelist: true })) body: processIdListDTO,
+  ) {
+    try {
+      let data = await this.serviceItemService.getServiceItemDetailbyProcessId(body.processId,body.userId);
+      return data;
+    } catch (err) { throw err }
   }
 
 
