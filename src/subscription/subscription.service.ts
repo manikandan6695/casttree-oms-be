@@ -24,13 +24,12 @@ import {
   CancelSubscriptionBody,
   CashfreeFailedPaymentPayload,
   CashfreeNewPaymentPayload,
-  CashfreeStatusChangePayload,
   CreateSubscriptionDTO,
   PaymentRecordData,
   RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
-  UserUpdateData,
+  UserUpdateData
 } from "./dto/subscription.dto";
 import { EProvider, EProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
@@ -473,7 +472,7 @@ export class SubscriptionService {
           invoice.grand_total
         );
       }
-      await this.paymentService.updateMetaData(paymentRequest?.id, payload);
+      //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
   }
 
