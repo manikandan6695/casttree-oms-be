@@ -75,7 +75,6 @@ export class ServiceItemService {
         }, {});
 
         for (let i = 0; i < data.length; i++) {
-          console.log("lll: "+data[i]["itemId"]?.itemDescription,data[i]["itemId"]?.itemName);
           data[i]["displayName"] =
             userProfileInfo[data[i]["userId"]]?.displayName;
           data[i]["itemDescription"] = data[i]["itemId"]?.itemDescription;
