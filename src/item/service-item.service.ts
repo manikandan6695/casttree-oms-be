@@ -1018,6 +1018,7 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
         data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
         data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData ? false : true;
+        data.additionalDetail.promotionDetails.planConfig = data.additionalDetail?.planConfig;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
