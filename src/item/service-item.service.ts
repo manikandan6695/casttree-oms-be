@@ -48,16 +48,50 @@ export class ServiceItemService {
     } catch (err) { throw err }
   }
 
-  async getServiceItemDetailbyProcessId(processId) {
-    try {
-      let data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
-        path: "itemId",
-        populate: [
-          {
-            path: "platformItemId",
-          },
-        ],
-      }).lean();
+  async getServiceItemDetailbyProcessId(processId,userId?) {
+    try{
+    let data;
+      if (Array.isArray(processId)) {
+        data = await this.serviceItemModel.find({ "additionalDetails.processId": { $in: processId } }, { userId: 1, additionalDetails: 1, itemId: 1 }).populate({
+          path: "itemId"
+        }).lean();
+        const userIds = data.map((e) => e.userId);
+        const profileInfo = await this.helperService.getProfileByIdTl(
+          userIds,
+          EprofileType.Expert
+        );
+        const userProfileInfo = profileInfo.reduce((a, c) => {
+          a[c.userId] = c;
+          return a;
+        }, {});
+        let firstTasks = await this.processService.getFirstTask(
+          processId,
+          userId
+        );
+
+        const firstTaskObject = firstTasks.reduce((a, c) => {
+          a[c.processId] = c;
+          return a;
+        }, {});
+
+        for (let i = 0; i < data.length; i++) {
+          data[i]["displayName"] =
+            userProfileInfo[data[i]["userId"]]?.displayName;
+          data[i]["itemDescription"] = data[i]["itemId"]?.itemDescription;
+          data[i]["itemId"] = data[i]["itemId"]?.itemName;
+          data[i]["taskData"] = firstTaskObject[data[i]["additionalDetails"]["processId"]]
+        }
+      } else {
+        data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        }).lean();
+      }
+
       return data;
 
     } catch (err) { throw err }
@@ -981,9 +1015,10 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.itemId = data._id;
         data.additionalDetail.promotionDetails.itemName = data.itemName;
         data.additionalDetail.promotionDetails.price = data.price;
-        data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
-        data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
+        data.additionalDetail.promotionDetails.currency_code = data.currency?.currency_code;
+        data.additionalDetail.promotionDetails.planId = data.additionalDetail?.planId;
         data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData ? false : true;
+        data.additionalDetail.promotionDetails.planConfig = data.additionalDetail?.planConfig;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
