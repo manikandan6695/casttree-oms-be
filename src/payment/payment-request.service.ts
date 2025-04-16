@@ -184,7 +184,7 @@ export class PaymentRequestService {
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency?._id,
+      currency: currency?._id||body?.currency,
       currencyCode: body?.currencyCode,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,

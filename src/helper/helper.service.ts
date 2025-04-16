@@ -62,7 +62,19 @@ export class HelperService {
       throw err;
     }
   }
-
+  async getCurrencyId(currency,skip=0,limit=1){
+    try {
+        let data = await this.http_service.get(
+           `${this.configService.get("CASTTREE_BASE_URL")}/currency?search=${currency}&skip=${skip}&limit=${limit}`,
+            // `http://localhost:3000/casttree/currency?search=${currency}&skip=${skip}&limit=${limit}`,
+        ).toPromise()
+        // console.log("currency data",data.data);
+        
+        return data.data
+    } catch (err) {
+      throw err;
+    }
+  }
   async getUserById(user_id) {
     try {
       let data = await this.http_service
