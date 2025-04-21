@@ -1,7 +1,9 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
+import { InjectQueue } from "@nestjs/bullmq";
+import { forwardRef, Inject, Injectable, OnModuleInit } from "@nestjs/common";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
+import { Queue } from "bullmq";
 import { ObjectId } from "mongodb";
-import { Model } from "mongoose";
+import { Connection, Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
@@ -21,7 +23,7 @@ import { processInstanceDetailModel } from "./schema/processInstanceDetails.sche
 import { taskModel } from "./schema/task.schema";
 
 @Injectable()
-export class ProcessService {
+export class ProcessService implements OnModuleInit {
   constructor(
     @InjectModel("processInstance")
     private readonly processInstancesModel: Model<processInstanceModel>,
@@ -33,8 +35,96 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
-    private helperService: HelperService
-  ) {}
+    private helperService: HelperService,
+    @InjectConnection() private readonly connection: Connection,
+    @InjectQueue('processInstance-events') private readonly processInstanceQueue: Queue,
+    @InjectQueue('processInstanceDetail-events') private readonly processInstanceDetailQueue: Queue,
+    @InjectQueue('task-events') private readonly taskQueue: Queue,
+    @InjectQueue('process-events') private readonly processQueue: Queue,
+  ) { }
+
+
+  async onModuleInit() {
+    
+    const processInstanceCollection = this.connection.collection('processInstance');
+    const processInstanceToken = await this.helperService.getSystemConfig('processInstance-events');
+    const processInstanceOptions: any = { fullDocument: 'updateLookup' };
+    if (processInstanceToken) {
+      processInstanceOptions.resumeAfter = processInstanceToken;
+    }
+    const processInstanceChangeStream = processInstanceCollection.watch([], processInstanceOptions);
+    processInstanceChangeStream.on('change', async (change) => {
+      if (change.operationType === 'insert' && change.fullDocument) {
+        await this.processInstanceQueue.add('insert', change.fullDocument);
+      } else if (change.operationType === 'update' && change.fullDocument) {
+        await this.processInstanceQueue.add('update', change.fullDocument);
+      } else if (change.operationType === 'delete' && change.documentKey?._id) {
+        await this.processInstanceQueue.add('delete', change.documentKey._id);
+      }
+      await this.helperService.addSysytemConfig("processInstance-events",change._id);
+    });
+
+    const processInstanceDetailCollection = this.connection.collection('processInstanceDetail');
+    const processInstanceDetailToken = await this.helperService.getSystemConfig('processInstanceDetail-events');
+    const processInstanceDetailOptions: any = { fullDocument: 'updateLookup' };
+    if (processInstanceDetailToken) {
+      processInstanceDetailOptions.resumeAfter = processInstanceDetailToken;
+    }
+    const processInstanceDetailChangeStream = processInstanceDetailCollection.watch([], processInstanceDetailOptions);
+    processInstanceDetailChangeStream.on('change', async (change) => {
+      if (change.operationType === 'insert' && change.fullDocument) {
+        await this.processInstanceDetailQueue.add('insert', change.fullDocument);
+      } else if (change.operationType === 'update' && change.fullDocument) {
+        await this.processInstanceDetailQueue.add('update', change.fullDocument);
+      } else if (change.operationType === 'delete' && change.documentKey?._id) {
+        await this.processInstanceDetailQueue.add('delete', change.documentKey._id);
+      }
+      await this.helperService.addSysytemConfig("processInstanceDetail-events",change._id);
+    });
+
+
+    const taskCollection = this.connection.collection('task');
+    const taskToken = await this.helperService.getSystemConfig('task-events');
+    const taskOptions: any = { fullDocument: 'updateLookup' };
+    if (taskToken) {
+      taskOptions.resumeAfter = taskToken;
+    }
+    const taskChangeStream = taskCollection.watch([], taskOptions);
+    taskChangeStream.on('change', async (change) => {
+      if (change.operationType === 'insert' && change.fullDocument) {
+        await this.taskQueue.add('insert', change.fullDocument);
+      } else if (change.operationType === 'update' && change.fullDocument) {
+        await this.taskQueue.add('update', change.fullDocument);
+      } else if (change.operationType === 'delete' && change.documentKey?._id) {
+        await this.taskQueue.add('delete', change.documentKey._id);
+      }
+      await this.helperService.addSysytemConfig("task-events",change._id);
+    });
+
+
+    const processCollection = this.connection.collection('process');
+    const processToken = await this.helperService.getSystemConfig('process-events');
+    const processOptions: any = { fullDocument: 'updateLookup' };
+    if (processToken) {
+      processOptions.resumeAfter = processToken;
+    }
+    const processChangeStream = processCollection.watch([], processOptions);
+    processChangeStream.on('change', async (change) => {
+      if (change.operationType === 'insert' && change.fullDocument) {
+        await this.processQueue.add('insert', change.fullDocument);
+      } else if (change.operationType === 'update' && change.fullDocument) {
+        await this.processQueue.add('update', change.fullDocument);
+      } else if (change.operationType === 'delete' && change.documentKey?._id) {
+        await this.processQueue.add('delete', change.documentKey._id);
+      }
+      await this.helperService.addSysytemConfig("process-events",change._id);
+    });
+
+    
+  }
+
+
+
   async getTaskDetail(processId, taskId, token) {
     try {
       let serviceItemDetail: any =

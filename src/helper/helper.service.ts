@@ -13,7 +13,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -592,6 +592,35 @@ export class HelperService {
     return hashHex;
   }
 
+  async getSystemConfig(key) {
+    try {
+      let data = await this.http_service
+        .get(
+          // `${this.configService.get("CASTTREE_BASE_URL")}/configuration/${key}`,
+          `http://localhost:3000/casttree/configuration?key=${key}`
+        )
+        .toPromise();
+        
+      return data.data.value;
+    } catch (err) { throw err }
+  }
+
+  async addSysytemConfig(key,id) {
+    try {
+      let data = await this.http_service
+        .post(
+          // `${this.configService.get("CASTTREE_BASE_URL")}/configuration/${key}`,
+          `http://localhost:3000/casttree/configuration`,
+          {
+            key : key,
+            token : id
+          }
+        )
+        .toPromise();
+
+      return true;
+    } catch (err) { throw err }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {

@@ -4,14 +4,16 @@ import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
 import { InvoiceModule } from "src/invoice/invoice.module";
 import { ItemModule } from "src/item/item.module";
+import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import MandatesModule
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SharedModule } from "src/shared/shared.module";
-import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import MandatesModule
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
 
 
+import { BullModule } from "@nestjs/bullmq";
+import { subscriptionProcessor } from "src/helper/queue.processor";
 import { SubscriptionFactory } from "./subscription.factory";
 
 @Module({
@@ -26,7 +28,12 @@ import { SubscriptionFactory } from "./subscription.factory";
     PaymentRequestModule,
 
     forwardRef(() =>  ItemModule),
-    MandatesModule
+    MandatesModule,
+    BullModule.registerQueue(
+      {
+        name: 'subscription-events',
+      }
+    ),
 
   ],
   controllers: [SubscriptionController],
@@ -36,6 +43,7 @@ import { SubscriptionFactory } from "./subscription.factory";
       useClass: SubscriptionService,
     },
     SubscriptionFactory,
+    subscriptionProcessor
   ],
   exports: [SubscriptionService, SubscriptionFactory],
 })
