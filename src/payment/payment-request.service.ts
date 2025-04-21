@@ -6,10 +6,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
-import {
-  EDocument,
-  EDocumentTypeName,
-} from "src/invoice/enum/document-type-name.enum";
+import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
@@ -62,20 +59,18 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceType
       // );
 
-      const invoiceData = await this.createNewInvoice(body, token);
       let serviceRequest;
       if (body.serviceRequest) {
-        body["serviceRequest"] = {
-          ...body.serviceRequest,
-          sourceId: invoiceData._id,
-          sourceType: EDocument.sales_document,
-        };
-
         serviceRequest = await this.serviceRequestService.createServiceRequest(
           body.serviceRequest,
           token
         );
+        body.invoiceDetail = body.invoiceDetail || {};
+        body.invoiceDetail.sourceId = serviceRequest.request._id;
+        body.invoiceDetail.sourceType = EPaymentSourceType.serviceRequest;
       }
+
+      const invoiceData = await this.createNewInvoice(body, token);
 
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
@@ -107,7 +102,7 @@ export class PaymentRequestService {
       if (body.couponCode != null) {
         body.amount = body.amount - body.discount;
       }
-      let requesId = serviceRequest?.request?._id.toString()
+      let requestId = serviceRequest?.request?._id.toString()
         ? serviceRequest?.request?._id.toString()
         : body?.invoiceDetail?.sourceId.toString();
       const orderDetail = await this.paymentService.createPGOrder(
@@ -115,7 +110,7 @@ export class PaymentRequestService {
         body.currencyCode,
         body.currency,
         body.amount,
-        requesId,
+        requestId,
         accessToken,
         {
           invoiceId: invoiceData._id,
@@ -189,16 +184,22 @@ export class PaymentRequestService {
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency?._id,
+      currency: currency?._id||body?.currency,
       currencyCode: body?.currencyCode,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
       transaction_type: "OUT",
-      created_by: token?.id ?? userId,
-      user_id: token?.id ?? userId,
+      created_by: body?.userId || token.id,
+      user_id: body?.userId || token.id,
       doc_id_gen_type: "Auto",
       payment_document_number: paymentNumber,
       document_number: paymentNumber,
+      paymentType: body?.paymentType,
+      transactionDate: body.transactionDate
+        ? body.transactionDate.toISOString()
+        : new Date(),
+      providerId: body?.providerId,
+      providerName: body?.providerName,
     };
     if (body.document_status) {
       paymentData["paymentData"] = body.document_status;
@@ -245,7 +246,6 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in updatePaymentRequest:", err.message);
       throw err;
     }
   }
@@ -273,8 +273,6 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("payment webhook", req.body);
-
       const {
         invoiceId,
         status,
@@ -300,18 +298,11 @@ export class PaymentRequestService {
 
       return { message: "Updated Successfully" };
     } catch (err) {
-      console.error("Error in paymentWebhook:", err);
       return { message: "Failed to update payment status", error: err.message };
     }
   }
 
   async extractPaymentDetails(body) {
-    console.log(
-      "extrat payment invoice id",
-      body,
-      body?.payload?.payment?.entity?.notes.invoiceId,
-      body?.payload?.payment?.entity?.notes
-    );
     const itemId = new ObjectId(body?.payload?.payment?.entity?.notes.itemId);
     const amount = parseInt(body?.payload?.payment?.entity?.amount) / 100;
     const userId = new ObjectId(body?.payload?.payment?.entity?.notes.userId);
@@ -320,16 +311,12 @@ export class PaymentRequestService {
     const invoiceId = new ObjectId(
       body?.payload?.payment?.entity?.notes.invoiceId
     );
-    console.log("currency", invoiceId);
     const status = body?.payload?.payment?.entity?.status;
 
     const payment = await this.paymentModel.findOne({
       source_id: invoiceId,
       source_type: EDocumentTypeName.invoice,
     });
-    console.log("payment", payment);
-
-    console.log("amount", amount);
 
     const invoice = await this.invoiceService.getInvoiceDetail(invoiceId);
     // let serviceRequest;
@@ -443,7 +430,6 @@ export class PaymentRequestService {
       },
       Req
     );
-    console.log("ids is ==>", ids);
 
     if (ids?.serviceRequestId) {
       await this.serviceRequestService.updateServiceRequest(
@@ -469,11 +455,16 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("paymentId", paymentId, body);
+      // console.log("paymentId", paymentId, body);
 
       let updateData = await this.paymentModel.updateOne(
-        { payment_order_id: paymentId },
-        { $set: body }
+        { _id: paymentId },
+        {
+          $set: {
+            reason: body?.reason,
+            document_status: body?.document_status,
+          },
+        }
       );
       return updateData;
     } catch (err) {
@@ -481,6 +472,63 @@ export class PaymentRequestService {
     }
   }
 
+  async getLatestSubscriptionPayments(userId) {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      let data = await this.paymentModel.aggregate([
+        {
+          $match: {
+            user_id: new ObjectId(userId),
+            document_status: EPaymentStatus.completed,
+            created_at: { $gte: thirtyDaysAgo },
+          },
+        },
+        {
+          $lookup: {
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDocument",
+          },
+        },
+        {
+          $unwind: "$salesDocument",
+        },
+        {
+          $match: {
+            "salesDocument.document_status": EPaymentStatus.completed,
+            "salesDocument.source_type": EPaymentSourceType.subscription,
+          },
+        },
+      ]);
+
+      console.log({ data });
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async updateMetaData(paymentId, metaData) {
+    try {
+      let updateFields: any = {};
+      if (metaData) {
+        updateFields["metaData.webhookResponse"] = metaData;
+      }
+      let existingPayment = await this.paymentModel.findById(paymentId);
+      if (!existingPayment.transactionDate) {
+        updateFields.transactionDate = new Date();
+      }
+      let response = await this.paymentModel.updateOne(
+        { _id: paymentId },
+        { $set: updateFields }
+      );
+
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
@@ -508,11 +556,11 @@ export class PaymentRequestService {
   //     );
 
   //     // Return the response data
-  //     console.log("current status  :  " + PaymentStatusResponse.data.status);
+
   //     this.updatePaymentRequest(PaymentStatusResponse.data);
   //   } catch (error) {
   //     // Handle errors
-  //     console.error("Error fetching data", error);
+
   //     throw error;
   //   }
   // }
@@ -526,7 +574,7 @@ export class PaymentRequestService {
   //       .createHmac("sha1", "casttree@2024")
   //       .update(JSON.stringify({ name: "pavan" }))
   //       .digest("hex");
-  //     console.log(hash);
+
   //   }
   // }
   // function hmac(arg0: string, message: any, key: any) {

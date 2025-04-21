@@ -62,7 +62,19 @@ export class HelperService {
       throw err;
     }
   }
-
+  async getCurrencyId(currency,skip=0,limit=1){
+    try {
+        let data = await this.http_service.get(
+           `${this.configService.get("CASTTREE_BASE_URL")}/currency?search=${currency}&skip=${skip}&limit=${limit}`,
+            // `http://localhost:3000/casttree/currency?search=${currency}&skip=${skip}&limit=${limit}`,
+        ).toPromise()
+        // console.log("currency data",data.data);
+        
+        return data.data
+    } catch (err) {
+      throw err;
+    }
+  }
   async getUserById(user_id) {
     try {
       let data = await this.http_service
@@ -534,6 +546,50 @@ export class HelperService {
     } catch (err) {
       throw err;
     }
+  }
+
+  async facebookEvents(phoneNumber,currency,amount){
+    try{
+      let hashedPhoneNumber = await this.sha256(phoneNumber);
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("FACEBOOK_EVENT_URL")}`,
+          {
+            "data":[{
+              "event_name": "Purchase",
+              "event_time": Math.floor(Date.now() / 1000),
+              "action_source": "website",
+              "event_id": Math.floor(1000000000 + Math.random() * 9000000000),
+              "attribution_data": {
+                "attribution_share": "0.3"
+              },
+              "original_event_data": {
+                "event_name": "Purchase",
+                "event_time": Math.floor(Date.now() / 1000)
+              },
+              "user_data": {
+                "ph": hashedPhoneNumber
+              },
+              "custom_data": {
+                "currency": currency,
+                "value": amount
+              }
+            }],
+            "access_token": this.configService.get("FACEBOOK_ACCESS_TOKEN")
+          }
+        )
+        .toPromise();
+      return data.data;
+    }catch(err){throw err}
+  }
+
+  async sha256(message) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
   }
 
   async getSystemConfig(key) {

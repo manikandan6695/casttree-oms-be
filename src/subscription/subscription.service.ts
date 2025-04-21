@@ -11,16 +11,17 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
+import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 import { MandatesService } from "src/mandates/mandates.service";
 import {
   EPaymentSourceType,
   EPaymentStatus,
+  EPaymentType,
 } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
-import { EMandateStatus } from "./../mandates/enum/mandate.enum";
 import { CreateSubscriptionDTO } from "./dto/subscription.dto";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -139,7 +140,46 @@ export class SubscriptionService  implements OnModuleInit {
             subscription_first_charge_time: firstCharge,
           };
           break;
-
+          case EProvider.apple:
+            let endDate = this.sharedService.getFutureMonthISO(1);
+            subscriptionData = {
+              userId: token?.id,
+              planId: body?.planId,
+              providerId: EProviderId.apple,
+              provider: EProvider.apple,
+              startAt: new Date(),
+              endAt: endDate,
+              subscriptionStatus: EsubscriptionStatus.initiated,
+              notes: { itemId: body?.itemId },
+              amount: body?.authAmount,
+              status: EStatus.Active,
+              createdBy: token?.id,
+              updatedBy: token?.id,
+              metaData: {
+                externalId: body?.transactionDetails?.externalId,
+              },
+            };
+            break;
+          case EProvider.google:
+            let endAt = this.sharedService.getFutureMonthISO(1);
+            subscriptionData = {
+              userId: token?.id,
+              planId: body?.planId,
+              providerId: EProviderId.google,
+              provider: EProvider.google,
+              startAt: new Date(),
+              endAt: endAt,
+              subscriptionStatus: EsubscriptionStatus.initiated,
+              notes: { itemId: body?.itemId },
+              amount: body?.authAmount,
+              status: EStatus.Active,
+              createdBy: token?.id,
+              updatedBy: token?.id,
+              metaData: {
+                externalId: body?.transactionDetails?.externalId,
+              },
+            };
+            break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -240,7 +280,6 @@ export class SubscriptionService  implements OnModuleInit {
       } else if (provider === "cashfree") {
         const eventType = req.body?.type; // Identify Cashfree event type
         // console.log("event type is", eventType);
-
         if (eventType === "SUBSCRIPTION_STATUS_CHANGED") {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
@@ -255,20 +294,37 @@ export class SubscriptionService  implements OnModuleInit {
     }
   }
 
-  async handleCashfreeFailedPayment(payload: any) {
+  async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
-      console.log("inside handleCashfreeFailedPayment is ===>", payload);
-
       const cfPaymentId = payload?.data?.cf_payment_id;
-      let subscriptionId = payload?.data?.subscription_id;
-      let failedReason = payload?.data?.failureDetails;
+      // console.log("cfPaymentId", cfPaymentId);
+
+      let failedReason = payload?.data?.failure_details?.failure_reason;
+      // console.log("failure details is", payload?.data?.failure_details);
       let body = {
         document_status: EPaymentStatus.failed,
         reason: failedReason,
       };
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
+      // console.log("paymentRecord", paymentRecord);
+
+      await this.paymentService.updateMetaData(
+        paymentRecord._id as string,
+        payload
+      );
+      // console.log("invoice id is", paymentRecord?.source_id);
+
+      await this.paymentService.updateStatus(paymentRecord._id, body);
+      let updatedInvoice = await this.invoiceService.updateInvoice(
+        paymentRecord?.source_id,
+        EPaymentStatus.failed
+      );
+      // console.log("subscription id is", updatedInvoice?.invoice?.source_id);
+
       await this.subscriptionModel.updateOne(
         {
-          "metaData.subscription_id": subscriptionId,
+          _id: updatedInvoice?.invoice?.source_id,
           subscriptionStatus: EsubscriptionStatus.initiated,
         },
         {
@@ -277,35 +333,24 @@ export class SubscriptionService  implements OnModuleInit {
           },
         }
       );
-      await this.updatePaymentRecords(cfPaymentId, body);
-      // let subscriptionData = await this.subscriptionModel
-      //   .find({
-      //     "metaData.subscription_id": subscriptionId,
-      //     subscriptionStatus: EsubscriptionStatus.active,
-      //   })
-      //   .sort({ _id: -1 })
-      //   .lean();
-      // console.log(subscriptionData[0]);
-      // let subscription: any = subscriptionData[0];
-      // subscription.endAt = currentDate;
-      // subscription["latestSubscription"] = subscription;
-      // const planDetail = await this.itemService.getItemDetailByName("PRO");
+      return { message: "Updated Successfully" };
     } catch (err) {
       throw err;
     }
   }
 
   // Handles Razorpay subscription logic
-  private async handleRazorpaySubscription(payload: any) {
+  private async handleRazorpaySubscription(
+    payload: RazorpaySubscriptionPayload
+  ) {
     let existingSubscription = await this.subscriptionModel.findOne({
       userId: payload.subscription?.entity?.notes?.userId,
     });
-
     if (!existingSubscription) {
-      let fv = {
+      let fv: SubscriptionData = {
         userId: payload.subscription?.entity?.notes?.userId,
         planId: payload.subscription?.entity?.plan_id,
-        totalCount: payload.subscription?.total_count,
+        totalCount: payload.subscription?.entity?.total_count,
         currentStart: payload.subscription?.entity?.current_start,
         quantity: payload.subscription?.entity?.quantity,
         currentEnd: payload.subscription?.entity?.current_end,
@@ -320,9 +365,7 @@ export class SubscriptionService  implements OnModuleInit {
         createdBy: payload.subscription?.entity?.notes?.userId,
         updatedBy: payload.subscription?.entity?.notes?.userId,
       };
-
       let subscription = await this.subscriptionModel.create(fv);
-
       let invoice = await this.invoiceService.createInvoice({
         source_id: payload.subscription?.entity?.notes?.sourceId,
         source_type: "process",
@@ -331,9 +374,9 @@ export class SubscriptionService  implements OnModuleInit {
         grand_total: payload.payment?.entity?.amount,
       });
 
-      let invoiceFV: any = {
+      let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
-        invoiceDetail: { sourceId: invoice._id },
+        invoiceDetail: { sourceId: invoice._id.toString() },
         document_status: EDocumentStatus.completed,
       };
 
@@ -349,7 +392,7 @@ export class SubscriptionService  implements OnModuleInit {
         payload.subscription?.entity?.notes?.itemId
       );
 
-      let userBody = {
+      let userBody: UserUpdateData = {
         userId: payload.subscription?.entity?.notes?.userId,
         membership: item?.itemName,
         badge: item?.additionalDetail?.badge,
@@ -363,14 +406,16 @@ export class SubscriptionService  implements OnModuleInit {
   private async handleCashfreeStatusChange(payload: any) {
     // console.log("inside handleCashfreeStatusChange is ===>", payload);
     const cfSubId = payload?.data?.subscription_details?.subscription_id;
-    // console.log("cfSubId", cfSubId);
 
     let statusChange = (str) => str.charAt(0) + str.slice(1).toLowerCase();
-    const newStatus = statusChange(
-      payload?.data?.subscription_details?.subscription_status
-    );
+    let subscriptionStatus =
+      payload?.data?.subscription_details?.subscription_status;
+
+    const newStatus = statusChange(subscriptionStatus);
     // console.log("newStatus", newStatus);
+
     let mandate = await this.mandateService.getMandate(cfSubId);
+    // console.log("mandate!!!!!!", mandate);
     if (mandate) {
       mandate.mandateStatus = newStatus;
       await mandate.save();
@@ -378,15 +423,28 @@ export class SubscriptionService  implements OnModuleInit {
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate._id,
         mandateStatus: newStatus,
+        metaData: payload,
       });
+      // await this.updateSubscriptionMetadata(cfSubId, payload);
     }
   }
 
+  // private async updateSubscriptionMetadata(subscriptionId: string, metaData) {
+  //   try {
+  //     let response = await this.subscriptionModel.updateOne(
+  //       { "metaData.subscription_id": subscriptionId },
+  //       { $set: { "metaData.webhookResponse": metaData } }
+  //     );
+  //     return response;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
+
   // Handles Cashfree new payment event
-  private async handleCashfreeNewPayment(payload: any) {
+  private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
     const cfPaymentId = payload?.data?.cf_payment_id;
-    // console.log("inside handleCashfreeNewPayment is ===>", payload);
-    // console.log("cfPaymentId", cfPaymentId);
+    // console.log("inside handleCashfreeNewPayment is ===>", cfPaymentId);
 
     let paymentRequest =
       await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
@@ -417,9 +475,17 @@ export class SubscriptionService  implements OnModuleInit {
           membership: item?.itemName,
           badge: item?.additionalDetail?.badge,
         };
-
         await this.helperService.updateUser(userBody);
+        let userData = await this.helperService.getUserById(
+          subscription?.userId
+        );
+        await this.helperService.facebookEvents(
+          userData.data.phoneNumber,
+          invoice.currencyCode,
+          invoice.grand_total
+        );
       }
+      //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
   }
 
@@ -453,6 +519,9 @@ export class SubscriptionService  implements OnModuleInit {
         status: EStatus.Active,
         createdBy: token.id,
         updatedBy: token.id,
+        externalId: body.externalId,
+        currencyCode:body.currencyCode,
+        currencyId:body.currencyId
       };
       let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
@@ -606,7 +675,10 @@ export class SubscriptionService  implements OnModuleInit {
       throw error;
     }
   }
-  async cancelSubscriptionStatus(token: UserToken, body: any) {
+  async cancelSubscriptionStatus(
+    token: UserToken,
+    body: CancelSubscriptionBody
+  ) {
     try {
       // console.log("user id is", token.id);
 
@@ -659,6 +731,9 @@ export class SubscriptionService  implements OnModuleInit {
           },
         },
         {
+          $match: { "latestDocument.providerId": 2 },
+        },
+        {
           $match: {
             "latestDocument.subscriptionStatus": {
               $ne: EsubscriptionStatus.initiated,
@@ -675,6 +750,7 @@ export class SubscriptionService  implements OnModuleInit {
                     EsubscriptionStatus.expired,
                   ],
                 },
+                "latestDocument.status": EStatus.Active,
               },
               {
                 $and: [
@@ -705,11 +781,11 @@ export class SubscriptionService  implements OnModuleInit {
         },
       ]);
 
-      // console.log(
-      //   "expiring list ==>",
-      //   expiringSubscriptionsList.length
-      //   // expiringSubscriptionsList
-      // );
+      console.log(
+        "expiring list ==>",
+        expiringSubscriptionsList.length,
+        expiringSubscriptionsList
+      );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
@@ -777,7 +853,6 @@ export class SubscriptionService  implements OnModuleInit {
                 ?.validity
           );
     let chargeResponse = await this.helperService.createAuth(authBody);
-    console.log("charge Reponse ===>", chargeResponse);
 
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
@@ -822,7 +897,6 @@ export class SubscriptionService  implements OnModuleInit {
       // console.log("creating subscription", fv);
 
       let subscription = await this.subscriptionModel.create(fv);
-      console.log("subscription created ===>", subscription._id);
 
       const invoiceData = {
         itemId: subscriptionData.latestDocument.notes.itemId,
@@ -850,8 +924,12 @@ export class SubscriptionService  implements OnModuleInit {
         currencyCode: "INR",
         source_id: invoice._id,
         source_type: EPaymentSourceType.invoice,
-        user_id: subscriptionData?.latestDocument?.userId,
+        userId: subscriptionData?.latestDocument?.userId,
         document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: 2,
+        providerName: EProvider.cashfree,
+        transactionDate: paymentSchedule,
       };
 
       // console.log("creating payment", paymentData);
@@ -865,9 +943,9 @@ export class SubscriptionService  implements OnModuleInit {
     }
   }
 
-  async updatePaymentRecords(paymentId: string, body: any) {
+  async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
-      // console.log("payment records ==>", paymentId, body);
+      console.log("update payment records ==>", body);
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
       await this.invoiceService.updateInvoice(
@@ -878,6 +956,18 @@ export class SubscriptionService  implements OnModuleInit {
       return { message: "Success" };
     } catch (err) {
       throw err;
+    }
+  }
+  async findExternalId(transactionId) {
+    try {
+      let externalIdData = await this.subscriptionModel.findOne({
+        "metaData.externalId": transactionId,
+        providerId: { $in: [EProviderId.apple, EProviderId.google] },
+        // provider: EProvider.apple,
+      });
+      return externalIdData;
+    } catch (error) {
+      throw error;
     }
   }
 }
