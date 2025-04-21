@@ -49,17 +49,21 @@ export class SubscriptionService  implements OnModuleInit {
 
   async onModuleInit() {
     const subscriptionCollection = this.connection.collection('subscription');
-    const subscriptionChangeStream = subscriptionCollection.watch([], { fullDocument: 'updateLookup' });
+    const subscriptionToken = await this.helperService.getSystemConfig('subscription-events');
+    const subscriptionOptions: any = { fullDocument: 'updateLookup' };
+    if (subscriptionToken) {
+      subscriptionOptions.resumeAfter = subscriptionToken;
+    }
+    const subscriptionChangeStream = subscriptionCollection.watch([], subscriptionOptions);
     subscriptionChangeStream.on('change', async (change) => {
       if (change.operationType === 'insert' && change.fullDocument) {
         await this.subscriptionQueue.add('insert', change.fullDocument);
-      }
-      if (change.operationType === 'update' && change.fullDocument) {
+      } else if (change.operationType === 'update' && change.fullDocument) {
         await this.subscriptionQueue.add('update', change.fullDocument);
-      }
-      if (change.operationType === 'delete' && change.documentKey._id) {
+      } else if (change.operationType === 'delete' && change.documentKey?._id) {
         await this.subscriptionQueue.add('delete', change.documentKey._id);
       }
+      await this.helperService.addSysytemConfig("subscription-events",change._id);
     });
   }
   async createSubscription(body: CreateSubscriptionDTO, token: any) {
