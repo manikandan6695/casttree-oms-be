@@ -14,9 +14,23 @@ import { EsubscriptionStatus } from "./../process/enums/process.enum";
 import { EProvider, EProviderId } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
-
+import { readFile } from "fs";
+import * as path from "path";
+import {
+  AppStoreServerAPIClient,
+  Environment,
+  GetTransactionHistoryVersion,
+  Order,
+  ProductType,
+} from "@apple/app-store-server-library";
+const issuerId = process.env.ISSUER_ID;
+const keyId = process.env.KEY_ID;
+const bundleId = process.env.BUNDLE_ID;
+const filePath = process.env.FILEPATH;
+const environment = Environment.SANDBOX;
 @Injectable()
 export class SubscriptionFactory {
+  private client: AppStoreServerAPIClient;
   constructor(
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
@@ -361,5 +375,256 @@ export class SubscriptionFactory {
     });
     return createdSubscription;
   }
+    async init() {
+    const encodedKey = await new Promise<string>((res, rej) => {
+      readFile(filePath, (err, data) => {
+        if (err) return rej(err);
+        res(data.toString());
+      });
+    });
+    try {
+      const serviceAccountPath = path.join(
+        "./json",
+        "/casttree-d50d2cec9329.json"
+        // process.env.GOOGLE_FILE_PATH
+      );
+      console.log("serviceAccountPath", serviceAccountPath);
 
+    } catch (err) {
+      console.error("Failed to initialize androidpublisher", err);
+    }
+    // console.log("encodedKey", encodedKey);
+    // console.log("env", issuerId, keyId, bundleId, filePath, environment);
+
+    this.client = new AppStoreServerAPIClient(
+      encodedKey,
+      keyId,
+      issuerId,
+      bundleId,
+      environment
+    );
+  }
+
+  async getTransactionHistory(bodyData) {
+    try {
+      // const transactionId = "2000000889069745";
+      // let response = null;
+      // let transactions = [];
+      // if (transactionId != null) {
+      //   // try {
+      //   //   const info = await this.client.getTransactionInfo(transactionId);
+      //   //   console.log("Transaction Info:", info);
+      //   // } catch (err) {
+      //   //   console.error("Error fetching transaction info:", err);
+      //   // }
+
+      //   const transactionHistoryRequest = {
+      //     sort: Order.ASCENDING,
+      //     revoked: false,
+      //     productTypes: [ProductType.AUTO_RENEWABLE],
+      //   };
+
+      //   do {
+      //     const revisionToken = response?.revision ?? null;
+      //     response = await this.client.getTransactionHistory(
+      //       transactionId,
+      //       revisionToken,
+      //       transactionHistoryRequest,
+      //       GetTransactionHistoryVersion.V2
+      //     );
+      //     console.log("response is", response);
+      //     if (response.signedTransactions) {
+      //       transactions = transactions.concat(response.signedTransactions);
+      //     }
+      //   } while (response.hasMore);
+
+      //   // console.log("transactions",transactions);
+      // }
+      // if (transactions.length >= 0) {
+
+      //   if (response.signedTransactions) {
+      //     for (let token of response.signedTransactions) {
+      //       const parsedTransaction = this.parseJwt(token);
+
+      //       if (parsedTransaction) {
+      //         // console.log("Decoded Transaction:", parsedTransaction);
+
+      //         const transactionData = {
+      //           transactionId: parsedTransaction.transactionId,
+      //           productId: parsedTransaction.productId,
+      //           expiresDate: parsedTransaction.expiresDate,
+      //           purchaseDate: parsedTransaction.purchaseDate,
+      //           isActive: new Date(parsedTransaction.expiresDate).getTime() > Date.now(),
+      //           rawTransaction: parsedTransaction,
+      //         };
+
+      //         // transactions.push(transactionData);
+      //       } else {
+      //         console.error("Invalid JWT token:", token);
+      //       }
+      //     }
+      //   }
+
+      //   // console.log("All Transactions:", transactions);
+      //   // return transactions;
+      // }
+
+      if (bodyData.notificationType == "DID_PURCHASE") {
+        const purchaseInfo = await this.validatePurchase(bodyData.data.signedTransactionInfo);
+        console.log("purchaseInfo", purchaseInfo);
+
+        if (!purchaseInfo?.parsed) {
+          return {
+            success: false,
+            message: "Invalid purchase transaction data",
+          };
+        }
+        const parsed = purchaseInfo.parsed;
+        return {
+          success: true,
+          isActive: new Date(parsed.expiresDate).getTime() > Date.now(),
+          productId: parsed.productId,
+          transactionId: parsed.transactionId,
+          originalTransactionId: parsed.originalTransactionId,
+          purchaseDate: new Date(parsed.purchaseDate).toISOString(),
+          originalPurchaseDate:new Date( parsed.originalPurchaseDate).toISOString(),
+          expiresDate: new Date(parsed.expiresDate).toISOString(),
+          quantity: parsed.quantity,
+          signedDate:parsed.signedDate,
+          type:parsed.type,
+          transactionReason:parsed.transactionReason,
+          inAppOwnershipType: parsed.inAppOwnershipType,
+          price: parsed.price,
+          appAccountToken: parsed.appAccountToken,
+          storefront: parsed.storefront,
+          currency:parsed.currency,
+          appTransactionId:parsed.appTransactionId,
+          storefrontId: parsed.storefrontId,
+          subscriptionGroupIdentifier: parsed.subscriptionGroupIdentifier,
+          webOrderLineItemId: parsed.webOrderLineItemId,
+          rawTransaction: parsed,
+        };
+      }
+      else if (bodyData.notificationType == "DID_CANCEL") {
+        const transaction = await this.validatePurchase(bodyData.data.signedTransactionInfo);
+        const renewal = await this.validatePurchase(bodyData.data.signedRenewalInfo);
+        console.log("transaction", transaction);
+        console.log("renewal", renewal);
+        const parsed = transaction.parsed;
+
+        return {
+          success: transaction.success,
+          isActive: false,
+          productId: parsed.productId,
+          transactionId: parsed.transactionId,
+          originalTransactionId: parsed.originalTransactionId,
+          purchaseDate: new Date(parsed.purchaseDate).toISOString(),
+          originalPurchaseDate: new Date(parsed.originalPurchaseDate).toISOString(),
+          expiresDate: new Date(parsed.expiresDate).toISOString(),
+          cancellationDate: new Date(parsed.cancellationDate).toISOString(),
+          cancellationReason: parsed.cancellationReason,
+          inAppOwnershipType: parsed.inAppOwnershipType,
+          price: parsed.price,
+          currency:parsed.currency,
+          quantity:parsed.quantity,
+          appTransactionId:parsed.appTransactionId,
+          subscriptionGroupIdentifier: parsed.subscriptionGroupIdentifier,
+          webOrderLineItemId: parsed.webOrderLineItemId,
+          appAccountToken: parsed.appAccountToken,
+          storefront: parsed.storefront,
+          storefrontId: parsed.storefrontId,
+          autoRenewStatus: renewal?.parsed?.autoRenewStatus,
+          isInBillingRetryPeriod: renewal?.parsed?.isInBillingRetryPeriod,
+          renewalProductId: renewal?.parsed?.renewalProductId,
+          gracePeriodExpiresDate: new Date(renewal?.parsed?.gracePeriodExpiresDate).toISOString(),
+          rawTransaction: parsed,
+          rawRenewal: renewal?.parsed,
+        };
+      }
+      else if(bodyData.notificationType==="DID_RENEW") {
+        const validatePurchase = await this.validatePurchase(
+          bodyData.data.signedTransactionInfo
+        );
+        console.log("validatePurchase", validatePurchase);
+        const signedRenewalInfo = await this.validatePurchase(
+          bodyData.data.signedRenewalInfo
+        );
+        console.log("signedRenewalInfo", validatePurchase);
+
+        if (!validatePurchase?.parsed) {
+          return {
+            success: false,
+            message: "Invalid transaction data",
+          };
+        }
+
+        // const active = validatePurchase.parsed.expiresDate > Date.now();
+        const parsed = validatePurchase.parsed;
+
+        return {
+
+          success: true,
+          isActive: new Date(parsed.expiresDate).getTime() > Date.now(),
+          productId: parsed.productId,
+          transactionId: parsed.transactionId,
+          originalTransactionId: parsed.originalTransactionId,
+          purchaseDate: new Date(parsed.purchaseDate).toISOString(),
+          originalPurchaseDate: new Date(parsed.originalPurchaseDate).toISOString(),
+          expiresDate: new Date(parsed.expiresDate).toISOString(),
+          renewalDate: new Date(signedRenewalInfo?.parsed?.renewalDate).toISOString(),
+          inAppOwnershipType: parsed.inAppOwnershipType,
+          price: parsed.price,
+          subscriptionGroupIdentifier: parsed.subscriptionGroupIdentifier,
+          webOrderLineItemId: parsed.webOrderLineItemId,
+          appAccountToken: parsed.appAccountToken,
+          storefront: parsed.storefront,
+          storefrontId: parsed.storefrontId,
+          rawTransaction: parsed,
+          rawRenewal: signedRenewalInfo?.parsed,
+        };
+      }
+
+    } catch (err) {
+      console.log("Error in getTransactionHistory", err);
+      throw err;
+    }
+  }
+
+  parseJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
+          .join('')
+      );
+      console.log("json payload", JSON.stringify(jsonPayload))
+      return JSON.parse(jsonPayload);
+    } catch (err) {
+      console.error("Error while parsing JWT:", err, token);
+      return null;
+    }
+  }
+
+  async validatePurchase(signedTransactionInfo) {
+    try {
+      const parsed = this.parseJwt(signedTransactionInfo);
+      if (!parsed) {
+        return {
+          success: false,
+          message: "Failed to parse or decode JWT.",
+        };
+      }
+
+      return {
+        success: parsed.expiresDate > Date.now(),
+        parsed,
+      };
+    } catch (error) {
+      console.log("Error in validatePurchase", error);
+      throw error;
+    }
+  }
 }

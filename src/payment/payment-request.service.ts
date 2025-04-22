@@ -455,14 +455,15 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      // console.log("paymentId", paymentId, body);
-
+      console.log("paymentId", paymentId, body);
       let updateData = await this.paymentModel.updateOne(
-        { _id: paymentId },
+        {
+          $or: [{ source_id: paymentId }, { payment_order_id: paymentId }],
+        },
         {
           $set: {
-            reason: body?.reason,
-            document_status: body?.document_status,
+            reason: body?.reason?.failureReason,
+            document_status: body.document_status||body,
           },
         }
       );

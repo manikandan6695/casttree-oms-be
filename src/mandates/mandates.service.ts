@@ -79,4 +79,43 @@ export class MandatesService {
       throw error;
     }
   }
+  async createMandate(body: any): Promise<MandateDocument> {
+    try {
+      // console.log("mandate body is", body);
+
+      const mandatePayload = {
+        sourceId: body.sourceId,
+        userId: body.userId,
+        paymentMethod: body.paymentMethod,
+        amount: body.amount,
+        providerId: body.providerId,
+        planId: body.planId,
+        currency: body.currency,
+        frequency: body.frequency,
+        mandateStatus: body.mandateStatus,
+        status: body.status,
+        metaData: body.metaData,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        createdBy: body.UserId,
+        updatedBy: body.UserId,
+      };
+      const mandates = await this.mandateModel.create(mandatePayload);
+      return mandates;
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+  async updateIapStatus(id,data){
+    try{
+      let updateStatus = await this.mandateModel.updateMany(
+        { "metaData.externalId": id },
+        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
+      );
+      return updateStatus;
+    }
+    catch(err){
+      throw err;
+    }
+  }
 }
