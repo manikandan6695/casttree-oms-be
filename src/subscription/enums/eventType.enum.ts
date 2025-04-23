@@ -3,8 +3,12 @@ export enum EEventType {
   subscriptionPaymentSuccess = "SUBSCRIPTION_PAYMENT_SUCCESS",
   subscriptionPaymentFailed = "SUBSCRIPTION_PAYMENT_FAILED",
   didRenew = "DID_RENEW",
-  didCancel = "DID_CANCEL",
-  didPurchase = "DID_PURCHASE",
+  didCancel = "REVOKE",
+  didPurchase = "SUBSCRIBED",
+  subTypeInitial = "INITIAL_BUY",
+  subTypeReSub="RESUBSCRIBE",
+  subTypeRenew="BILLING_RECOVERY",
+  subTypeCancel="AUTO_RENEW_DISABLED",
   Remew="SUBSCRIPTION_RENEWED",
   Cancel="SUBSCRIPTION_CANCELED",
   Purchase="SUBSCRIPTION_PURCHASED",
@@ -20,6 +24,10 @@ export const ESEventType = [
   EEventType.Remew,
   EEventType.Cancel,
   EEventType.Purchase,
+  EEventType.subTypeInitial,
+  EEventType.subTypeRenew,
+  EEventType.subTypeCancel,
+  EEventType.subTypeReSub,
 ];
 
 export enum EEventId{
