@@ -118,4 +118,18 @@ export class MandatesService {
       throw err;
     }
   }
+  async updateIapStatusCancel(id,data){
+    try{
+      const updatedDoc = await this.mandateModel.findOneAndUpdate(
+        { sourceId: id },
+        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } },
+        { new: true } 
+      ).select('_id');
+      
+      return updatedDoc?._id;
+    }
+    catch(err){
+      throw err;
+    }
+  }
 }

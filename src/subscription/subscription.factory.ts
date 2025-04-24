@@ -401,6 +401,8 @@ export class SubscriptionFactory {
     try {
       // console.log("bodyData",bodyData);
       const purchaseInfo = await this.validatePurchase(bodyData?.data?.signedTransactionInfo);
+      console.log("purchaseInfo:", purchaseInfo);
+
       const transactionId = purchaseInfo?.parsed?.transactionId;
       let response = null;
       let transactions = [];
@@ -429,38 +431,45 @@ export class SubscriptionFactory {
 
         // console.log("transactions",transactions);
       }
-      let decodeData = await this.parseJwt(transactions[0])
+      const latestSignedTransaction = transactions[transactions.length - 1];
+      const decodeData = await this.parseJwt(latestSignedTransaction);
+      console.log("decodeData", decodeData);
+
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
         console.log("signedRenewalInfo", signedRenewalInfo);
+        const priceMicros = purchaseInfo?.parsed?.price;
+        const price = priceMicros / 1000;
         let transactionDetails = {
-          transactionId: decodeData?.transactionId,
-          originalTransactionId: decodeData?.originalTransactionId,
-          webOrderLineItemId: decodeData?.webOrderLineItemId,
-          bundleId: decodeData?.bundleId,
-          productId: decodeData?.productId,
-          subscriptionGroupIdentifier: decodeData?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(decodeData?.purchaseDate).toISOString(),
-          originalPurchaseDate: new Date(decodeData?.originalPurchaseDate).toISOString(),
-          expiresDate: new Date(decodeData?.expiresDate).toISOString(),
-          quantity: decodeData?.quantity,
-          type: decodeData?.type,
-          inAppOwnershipType: decodeData?.inAppOwnershipType,
-          signedDate: new Date(decodeData?.signedDate).toISOString(),
-          environment: decodeData?.environment,
-          transactionReason: decodeData?.transactionReason,
-          storefront: decodeData?.storefront,
-          storefrontId: decodeData?.storefrontId,
-          price: decodeData?.price,
-          currency: decodeData?.currency,
-          appTransactionId: decodeData?.appTransactionId,
+          transactionId: purchaseInfo?.parsed?.transactionId,
+          originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
+          webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
+          bundleId: purchaseInfo?.parsed?.bundleId,
+          productId: purchaseInfo?.parsed?.productId,
+          subscriptionGroupIdentifier: purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(purchaseInfo?.parsed?.purchaseDate).toISOString(),
+          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
+          expiresDate: new Date(purchaseInfo?.parsed?.expiresDate).toISOString(),
+          quantity: purchaseInfo?.parsed?.quantity,
+          type: purchaseInfo?.parsed?.type,
+          inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
+          signedDate: new Date(purchaseInfo?.parsed?.signedDate).toISOString(),
+          environment: purchaseInfo?.parsed?.environment,
+          transactionReason: purchaseInfo?.parsed?.transactionReason,
+          storefront: purchaseInfo?.parsed?.storefront,
+          storefrontId: purchaseInfo?.parsed?.storefrontId,
+          price: price,
+          currency: purchaseInfo?.parsed?.currency,
+          appTransactionId: purchaseInfo?.parsed?.appTransactionId,
         }
+        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+        const renewalPrice = renewalPriceMicros / 1000;
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
           productId: signedRenewalInfo?.productId,
           autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: signedRenewalInfo?.renewalPrice,
+          renewalPrice: renewalPrice,
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
@@ -476,6 +485,8 @@ export class SubscriptionFactory {
       else if (bodyData.notificationType === EEventType.didCancel) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
         console.log("signedRenewalInfo", signedRenewalInfo);
+        const priceMicros = decodeData?.price;
+        const price = priceMicros / 1000;
         let transactionDetails = {
           transactionId: decodeData?.transactionId,
           originalTransactionId: decodeData?.originalTransactionId,
@@ -494,18 +505,21 @@ export class SubscriptionFactory {
           transactionReason: decodeData?.transactionReason,
           storefront: decodeData?.storefront,
           storefrontId: decodeData?.storefrontId,
-          price: decodeData?.price,
+          price: price,
           currency: decodeData?.currency,
           appTransactionId: decodeData?.appTransactionId,
           appAccountToken: decodeData?.appAccountToken,
           isUpgraded: decodeData?.isUpgraded,
         }
+        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+        const renewalPrice = renewalPriceMicros / 1000;
+        // console.log("renewalPrice",renewalPrice.toFixed(2));
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
           productId: signedRenewalInfo?.productId,
           autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: signedRenewalInfo?.renewalPrice,
+          renewalPrice: renewalPrice,
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
@@ -522,7 +536,8 @@ export class SubscriptionFactory {
       else if (bodyData.notificationType === EEventType.didRenew) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
         console.log("signedRenewalInfo", signedRenewalInfo);
-        const isActive = new Date(decodeData?.expiresDate).getTime() > Date.now();
+        const priceMicros = decodeData?.price;
+        const price = priceMicros / 1000;
         let transactionDetails = {
           transactionId: decodeData?.transactionId,
           originalTransactionId: decodeData?.originalTransactionId,
@@ -540,44 +555,76 @@ export class SubscriptionFactory {
           transactionReason: decodeData?.transactionReason,
           storefront: decodeData?.storefront,
           storefrontId: decodeData?.storefrontId,
-          isUpgraded: decodeData?.isUpgraded,
-          price: decodeData?.price,
+          price: price,
           currency: decodeData?.currency,
           appTransactionId: decodeData?.appTransactionId,
-          offerIdentifier: decodeData?.offerIdentifier,
-          offerType: decodeData?.offerType,
-          appAccountToken: decodeData?.appAccountToken,
         }
+        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+        const renewalPrice = renewalPriceMicros / 1000;
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
           productId: signedRenewalInfo?.productId,
           autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: signedRenewalInfo?.renewalPrice,
+          renewalPrice: renewalPrice,
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
           recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
           renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
           appTransactionId: signedRenewalInfo?.appTransactionId,
-          eligibilityForWinBackOffer: signedRenewalInfo?.eligibilityForWinBackOffer,
-          gracePeriodExpiresDate:new Date(signedRenewalInfo?.gracePeriodExpiresDate).toISOString() ,
-          isInBillingRetryPeriod: signedRenewalInfo?.isInBillingRetryPeriod,
-          offerDiscountType: signedRenewalInfo?.offerDiscountType,
-          offerIdentifier: signedRenewalInfo?.offerIdentifier,
-          offerPeriod: signedRenewalInfo?.offerPeriod,
-          offerType: signedRenewalInfo?.offerType,
-          priceIncreaseStatus: signedRenewalInfo?.priceIncreaseStatus,
-          expirationIntent: signedRenewalInfo?.expirationIntent,
-          appAccountToken: signedRenewalInfo?.appAccountToken,
         };
         return {
-          isActive,
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
       }
+      else if (bodyData.notificationType === EEventType.expired) {
+        let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
+        console.log("signedRenewalInfo", signedRenewalInfo);
+        const renewalPriceMicros = decodeData?.price;
+        const renewalPrice = renewalPriceMicros / 1000;
+        let transactionDetails = {
+          transactionId: decodeData?.transactionId,
+          originalTransactionId: decodeData?.originalTransactionId,
+          webOrderLineItemId: decodeData?.webOrderLineItemId,
+          bundleId: decodeData?.bundleId,
+          productId: decodeData?.productId,
+          subscriptionGroupIdentifier: decodeData?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(decodeData?.purchaseDate).toISOString(),
+          originalPurchaseDate: new Date(decodeData?.originalPurchaseDate).toISOString(),
+          expiresDate: new Date(decodeData?.expiresDate).toISOString(),
+          quantity: decodeData?.quantity,
+          type: decodeData?.type,
+          inAppOwnershipType: decodeData?.inAppOwnershipType,
+          signedDate: new Date(decodeData?.signedDate).toISOString(),
+          environment: decodeData?.environment,
+          transactionReason: decodeData?.transactionReason,
+          storefront: decodeData?.storefront,
+          storefrontId: decodeData?.storefrontId,
+          price: renewalPrice,
+          currency: decodeData?.currency,
+          appTransactionId: decodeData?.appTransactionId,
+        }
 
+        const renewalDetails = {
+          expirationIntent: signedRenewalInfo?.expirationIntent,
+          originalTransactionId: signedRenewalInfo?.originalTransactionId,
+          autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
+          productId: signedRenewalInfo?.productId,
+          autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
+          isInBillingRetryPeriod: signedRenewalInfo?.isInBillingRetryPeriod,
+          signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
+          environment: signedRenewalInfo?.environment,
+          recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
+          renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
+          appTransactionId: signedRenewalInfo?.appTransactionId,
+        };
+        return {
+          transactions: transactionDetails,
+          renewalInfo: renewalDetails,
+        };
+      }
     } catch (err) {
       console.log("Error in getTransactionHistory", err);
       throw err;

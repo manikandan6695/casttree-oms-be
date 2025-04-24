@@ -180,7 +180,8 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-
+    console.log("paymentRecord",body,invoiceData);
+    
     const paymentData = {
       ...body,
       source_id: invoiceData._id,

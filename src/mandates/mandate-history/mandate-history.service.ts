@@ -33,4 +33,16 @@ export class MandateHistoryService {
       throw err;
     }
   }
+  async updateIapMandateStatusCancel(id,data){
+    try{
+      let updateStatus = await this.mandateHistoryModel.updateMany(
+        { mandateId: id },
+        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
+      );
+      return updateStatus;
+    }
+    catch(err){
+      throw err;
+    }
+  }
 }
