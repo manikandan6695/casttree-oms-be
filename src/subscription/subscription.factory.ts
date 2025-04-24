@@ -401,7 +401,7 @@ export class SubscriptionFactory {
     try {
       // console.log("bodyData",bodyData);
       const purchaseInfo = await this.validatePurchase(bodyData?.data?.signedTransactionInfo);
-      console.log("purchaseInfo:", purchaseInfo);
+      // console.log("purchaseInfo:", purchaseInfo);
 
       const transactionId = purchaseInfo?.parsed?.transactionId;
       let response = null;
@@ -433,11 +433,11 @@ export class SubscriptionFactory {
       }
       const latestSignedTransaction = transactions[transactions.length - 1];
       const decodeData = await this.parseJwt(latestSignedTransaction);
-      console.log("decodeData", decodeData);
+      // console.log("decodeData", decodeData);
 
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = purchaseInfo?.parsed?.price;
         const price = priceMicros / 1000;
         let transactionDetails = {
@@ -484,7 +484,7 @@ export class SubscriptionFactory {
       }
       else if (bodyData.notificationType === EEventType.didCancel) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = decodeData?.price;
         const price = priceMicros / 1000;
         let transactionDetails = {
@@ -535,7 +535,7 @@ export class SubscriptionFactory {
       }
       else if (bodyData.notificationType === EEventType.didRenew) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = decodeData?.price;
         const price = priceMicros / 1000;
         let transactionDetails = {
@@ -581,7 +581,7 @@ export class SubscriptionFactory {
       }
       else if (bodyData.notificationType === EEventType.expired) {
         let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
         const renewalPriceMicros = decodeData?.price;
         const renewalPrice = renewalPriceMicros / 1000;
         let transactionDetails = {
