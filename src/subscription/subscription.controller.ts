@@ -173,4 +173,13 @@ export class SubscriptionController {
       return res.status(code).json(response);
     }
   }
+
+
+  @Get('test')
+  async test(
+
+  ){
+    let data = await this.subscriptionService.test();
+    return data;
+  }
 }

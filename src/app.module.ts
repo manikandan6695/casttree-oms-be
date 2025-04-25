@@ -1,4 +1,4 @@
-import { CacheModule } from "@nestjs/cache-manager";
+//import { CacheModule } from "@nestjs/cache-manager";
 import { MiddlewareConsumer, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
@@ -9,8 +9,10 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
 import { CommentsModule } from "./comments/comments.module";
 import { HelperModule } from "./helper/helper.module";
+import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { ItemModule } from "./item/item.module";
+import { MandatesModule } from './mandates/mandates.module';
 import { PaymentRequestModule } from "./payment/payment-request.module";
 import { ProcessModule } from "./process/process.module";
 import { ServiceRequestModule } from "./service-request/service-request.module";
@@ -18,8 +20,6 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
-import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
-import { MandatesModule } from './mandates/mandates.module';
 
 @Module({
   imports: [
@@ -44,9 +44,9 @@ import { MandatesModule } from './mandates/mandates.module';
       },
       inject: [ConfigService],
     }),
-    CacheModule.register({
-      isGlobal: true,
-    }),
+    // CacheModule.register({
+    //   isGlobal: true,
+    // }),
     SharedModule,
     ItemModule,
     HelperModule,

@@ -52,7 +52,7 @@ export class SubscriptionService {
     private itemService: ItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) {}
+  ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
@@ -127,46 +127,46 @@ export class SubscriptionService {
             subscription_first_charge_time: firstCharge,
           };
           break;
-          case EProvider.apple:
-            let endDate = this.sharedService.getFutureMonthISO(1);
-            subscriptionData = {
-              userId: token?.id,
-              planId: body?.planId,
-              providerId: EProviderId.apple,
-              provider: EProvider.apple,
-              startAt: new Date(),
-              endAt: endDate,
-              subscriptionStatus: EsubscriptionStatus.initiated,
-              notes: { itemId: body?.itemId },
-              amount: body?.authAmount,
-              status: EStatus.Active,
-              createdBy: token?.id,
-              updatedBy: token?.id,
-              metaData: {
-                externalId: body?.transactionDetails?.externalId,
-              },
-            };
-            break;
-          case EProvider.google:
-            let endAt = this.sharedService.getFutureMonthISO(1);
-            subscriptionData = {
-              userId: token?.id,
-              planId: body?.planId,
-              providerId: EProviderId.google,
-              provider: EProvider.google,
-              startAt: new Date(),
-              endAt: endAt,
-              subscriptionStatus: EsubscriptionStatus.initiated,
-              notes: { itemId: body?.itemId },
-              amount: body?.authAmount,
-              status: EStatus.Active,
-              createdBy: token?.id,
-              updatedBy: token?.id,
-              metaData: {
-                externalId: body?.transactionDetails?.externalId,
-              },
-            };
-            break;
+        case EProvider.apple:
+          let endDate = this.sharedService.getFutureMonthISO(1);
+          subscriptionData = {
+            userId: token?.id,
+            planId: body?.planId,
+            providerId: EProviderId.apple,
+            provider: EProvider.apple,
+            startAt: new Date(),
+            endAt: endDate,
+            subscriptionStatus: EsubscriptionStatus.initiated,
+            notes: { itemId: body?.itemId },
+            amount: body?.authAmount,
+            status: EStatus.Active,
+            createdBy: token?.id,
+            updatedBy: token?.id,
+            metaData: {
+              externalId: body?.transactionDetails?.externalId,
+            },
+          };
+          break;
+        case EProvider.google:
+          let endAt = this.sharedService.getFutureMonthISO(1);
+          subscriptionData = {
+            userId: token?.id,
+            planId: body?.planId,
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            startAt: new Date(),
+            endAt: endAt,
+            subscriptionStatus: EsubscriptionStatus.initiated,
+            notes: { itemId: body?.itemId },
+            amount: body?.authAmount,
+            status: EStatus.Active,
+            createdBy: token?.id,
+            updatedBy: token?.id,
+            metaData: {
+              externalId: body?.transactionDetails?.externalId,
+            },
+          };
+          break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -507,8 +507,8 @@ export class SubscriptionService {
         createdBy: token.id,
         updatedBy: token.id,
         externalId: body.externalId,
-        currencyCode:body.currencyCode,
-        currencyId:body.currencyId
+        currencyCode: body.currencyCode,
+        currencyId: body.currencyId
       };
       let subscription = await this.subscriptionModel.create(subscriptionData);
       return subscription;
@@ -549,11 +549,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -597,6 +597,12 @@ export class SubscriptionService {
         endAt: { $lte: currentDate },
         status: Estatus.Active,
       });
+      let userIds = [];
+
+      expiredSubscriptionsList.map((data) => {
+        userIds.push(data.userId);
+      });
+
       if (expiredSubscriptionsList.length > 0) {
         await this.subscriptionModel.updateMany(
           {
@@ -619,11 +625,7 @@ export class SubscriptionService {
           await this.helperService.mixPanel(mixPanelBody);
         }
 
-        let userIds = [];
 
-        expiredSubscriptionsList.map((data) => {
-          userIds.push(data.userId);
-        });
         // console.log(userIds);
         let updateBody = {
           userId: userIds,
@@ -823,22 +825,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -957,4 +959,94 @@ export class SubscriptionService {
       throw error;
     }
   }
+
+
+  async test() {
+    const currentDate = new Date();
+    const subscriptionData = await this.subscriptionModel.aggregate([
+      {
+        $match: {
+          subscriptionStatus: "Active",
+          status: "Active"
+        }
+      },
+      {
+        $lookup: {
+          from: "salesDocument",
+          localField: "_id",
+          foreignField: "source_id",
+          as: "salesDoc"
+        }
+      },
+      { $unwind: "$salesDoc" },
+      {
+        $lookup: {
+          from: "itemDocument",
+          localField: "salesDoc._id",
+          foreignField: "source_id",
+          as: "itemDoc"
+        }
+      },
+      { $unwind: "$itemDoc" },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          endAt: 1,
+          item_id: "$itemDoc.item_id",
+          isExpired: { $lte: ["$endAt", currentDate] },
+          isFuture: { $gt: ["$endAt", currentDate] }
+        }
+      },
+      {
+        $group: {
+          _id: "$userId",
+          expiredSubs: {
+            $push: {
+              $cond: [
+                "$isExpired",
+                { _id: "$_id", endAt: "$endAt", item_id: "$item_id" },
+                "$$REMOVE"
+              ]
+            }
+          },
+          futureItemIds: {
+            $addToSet: {
+              $cond: ["$isFuture", "$item_id", "$$REMOVE"]
+            }
+          }
+        }
+      },
+      {
+        $unwind: "$expiredSubs"
+      },
+      {
+        $match: {
+          $expr: {
+            $in: ["$expiredSubs.item_id", "$futureItemIds"]
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: "$_id",
+          subscriptionId: "$expiredSubs._id",
+          endAt: "$expiredSubs.endAt",
+          item_id: "$expiredSubs.item_id",
+          renewed: true
+        }
+      }
+    ]);
+    let renewedUserIds = [];
+    subscriptionData.map((data) => {
+      if (!data.renewed) {
+        renewedUserIds.push(data.userId);
+      }
+    })
+
+    return { subscriptionData };
+
+  }
+
 }
