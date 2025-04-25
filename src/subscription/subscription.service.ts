@@ -457,6 +457,17 @@ export class SubscriptionService {
           subscription?.notes?.itemId
         );
 
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.payment_success;
+        mixPanelBody.distinctId = subscription?.userId;
+        mixPanelBody.properties = {
+          itemname: item.itemName,
+          amount: invoice.grand_total,
+          currency_code: invoice.currencyCode,
+          serviceItemType: "subscription",
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+
         let userBody = {
           userId: subscription?.userId,
           membership: item?.itemName,
@@ -478,6 +489,7 @@ export class SubscriptionService {
 
   async validateSubscription(userId: string, status: String[]) {
     try {
+ 
       let subscription = await this.subscriptionModel.findOne({
         userId: userId,
         subscriptionStatus: { $nin: status },
