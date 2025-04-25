@@ -48,7 +48,7 @@ export class InvoiceService {
           updated_by: body.updated_by,
         },
       ]);
-      console.log("invoice id", data._id);
+    //  console.log("invoice id", data._id);
 
       return data;
     } catch (err) {

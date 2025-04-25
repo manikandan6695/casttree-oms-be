@@ -24,13 +24,12 @@ import {
   CancelSubscriptionBody,
   CashfreeFailedPaymentPayload,
   CashfreeNewPaymentPayload,
-  CashfreeStatusChangePayload,
   CreateSubscriptionDTO,
   PaymentRecordData,
   RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
-  UserUpdateData,
+  UserUpdateData
 } from "./dto/subscription.dto";
 import { EProvider } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
@@ -148,7 +147,7 @@ export class SubscriptionService {
 
   async subscriptionWebhook(@Req() req, providerId: number) {
     try {
-      console.log(providerId);
+    //  console.log(providerId);
       // console.log("provider id is ===>", providerId);
 
       // await this.extractSubscriptionDetails(req.body);
@@ -223,7 +222,7 @@ export class SubscriptionService {
       // }
       const provider = providerId == 2 ? "cashfree" : "razorpay";
 
-      console.log("provider", provider);
+    //  console.log("provider", provider);
       if (provider === "razorpay" && req.body?.payload?.subscription) {
         await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === "cashfree") {
@@ -234,7 +233,7 @@ export class SubscriptionService {
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
           await this.handleCashfreeNewPayment(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
-          console.log("provider", "failed");
+         // console.log("provider", "failed");
           await this.handleCashfreeFailedPayment(req.body);
         }
       }
@@ -727,11 +726,11 @@ export class SubscriptionService {
         },
       ]);
 
-      console.log(
-        "expiring list ==>",
-        expiringSubscriptionsList.length,
-        expiringSubscriptionsList
-      );
+      // console.log(
+      //   "expiring list ==>",
+      //   expiringSubscriptionsList.length,
+      //   expiringSubscriptionsList
+      // );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
@@ -891,7 +890,7 @@ export class SubscriptionService {
 
   async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
-      console.log("update payment records ==>", body);
+    //  console.log("update payment records ==>", body);
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
       await this.invoiceService.updateInvoice(

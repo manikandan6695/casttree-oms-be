@@ -14,7 +14,7 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
       }
       return super.handleRequest(err, user, info, context, status);
     } catch (err) {
-      console.log("err", err);
+     // console.log("err", err);
       throw new HttpException(
         "Failed on token validation",
         HttpStatus.UNAUTHORIZED
