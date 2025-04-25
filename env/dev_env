@@ -89,6 +89,6 @@ FACEBOOK_EVENT_URL = "https://graph.facebook.com/v12.0/1394572634549952/events"
 # APPLE IAP 
 ISSUER_ID="76c51240-1e94-4468-ac3b-3a82a557ae55"
 KEY_ID="53Y2MPF778"
-BUNDLE_ID="com.billionfaces.projects.CtRnIapStarter"
-FILEPATH="./iap/appkey.p8"
+BUNDLE_ID="com.billionfaces.casttree"
+FILEPATH="./opt/apple-subscription-key.p8"
 ENVIRONMENT=SANDBOX
