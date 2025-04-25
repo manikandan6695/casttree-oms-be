@@ -319,19 +319,10 @@ export class ServiceRequestService {
     }
   }
 
-  async getServiceRequestDetail(sourceId: string) {
+  async getServiceRequestDetail(id: string) {
     try {
       let data = await this.serviceRequestModel
-        .findOne({ sourceId: sourceId })
-        .populate({
-          path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
-        })
-        .lean();
+        .findOne({ _id:id });
 
       return { data: data };
     } catch (err) {

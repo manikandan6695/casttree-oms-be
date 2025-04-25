@@ -598,7 +598,7 @@ export class SubscriptionService {
         status: Estatus.Active,
       });
       let userIds = [];
-
+      let badgeRemovalUserIds = await this.getExpiredSUbscriptionUserIds();
       expiredSubscriptionsList.map((data) => {
         userIds.push(data.userId);
       });
@@ -627,8 +627,9 @@ export class SubscriptionService {
 
 
         // console.log(userIds);
+ 
         let updateBody = {
-          userId: userIds,
+          userId: badgeRemovalUserIds,
           membership: "",
           badge: "",
         };
@@ -961,13 +962,14 @@ export class SubscriptionService {
   }
 
 
-  async test() {
+  async getExpiredSUbscriptionUserIds() {
     const currentDate = new Date();
-    const subscriptionData = await this.subscriptionModel.aggregate([
+    let ExpiredData = await this.subscriptionModel.aggregate([
       {
         $match: {
           subscriptionStatus: "Active",
-          status: "Active"
+          status: "Active",
+          endAt: { $lte: currentDate }
         }
       },
       {
@@ -978,7 +980,12 @@ export class SubscriptionService {
           as: "salesDoc"
         }
       },
-      { $unwind: "$salesDoc" },
+      {
+        $unwind: {
+          path: "$salesDoc",
+          preserveNullAndEmptyArrays: true
+        }
+      },
       {
         $lookup: {
           from: "itemDocument",
@@ -987,66 +994,80 @@ export class SubscriptionService {
           as: "itemDoc"
         }
       },
-      { $unwind: "$itemDoc" },
+      {
+        $unwind: {
+          path: "$itemDoc",
+          preserveNullAndEmptyArrays: true
+        }
+      },
       {
         $project: {
           _id: 1,
           userId: 1,
           endAt: 1,
-          item_id: "$itemDoc.item_id",
-          isExpired: { $lte: ["$endAt", currentDate] },
-          isFuture: { $gt: ["$endAt", currentDate] }
+          item_id: "$itemDoc.item_id"
         }
-      },
-      {
-        $group: {
-          _id: "$userId",
-          expiredSubs: {
-            $push: {
-              $cond: [
-                "$isExpired",
-                { _id: "$_id", endAt: "$endAt", item_id: "$item_id" },
-                "$$REMOVE"
-              ]
-            }
-          },
-          futureItemIds: {
-            $addToSet: {
-              $cond: ["$isFuture", "$item_id", "$$REMOVE"]
-            }
-          }
-        }
-      },
-      {
-        $unwind: "$expiredSubs"
-      },
+      }]);
+    let expiredUserId = [];
+    ExpiredData.map((data) => {
+      expiredUserId.push(data.userId);
+    });
+
+    let renewalData = await this.subscriptionModel.aggregate([
       {
         $match: {
-          $expr: {
-            $in: ["$expiredSubs.item_id", "$futureItemIds"]
-          }
+          subscriptionStatus: "Active",
+          status: "Active",
+          endAt: { $gt: currentDate },
+          userId: { $in: expiredUserId }
+        }
+      },
+      {
+        $lookup: {
+          from: "salesDocument",
+          localField: "_id",
+          foreignField: "source_id",
+          as: "salesDoc"
+        }
+      },
+      {
+        $unwind: {
+          path: "$salesDoc",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "itemDocument",
+          localField: "salesDoc._id",
+          foreignField: "source_id",
+          as: "itemDoc"
+        }
+      },
+      {
+        $unwind: {
+          path: "$itemDoc",
+          preserveNullAndEmptyArrays: true
         }
       },
       {
         $project: {
-          _id: 0,
-          userId: "$_id",
-          subscriptionId: "$expiredSubs._id",
-          endAt: "$expiredSubs.endAt",
-          item_id: "$expiredSubs.item_id",
-          renewed: true
+          _id: 1,
+          userId: 1,
+          endAt: 1,
+          item_id: "$itemDoc.item_id"
         }
+      }]);
+    for (const expired of ExpiredData) {
+      const exists = renewalData.some(
+        r => r.item_id.toString() === expired?.item_id?.toString() && r.userId.toString() === expired?.userId?.toString()
+      );
+      if(exists){
+        expiredUserId = expiredUserId.filter(item => item !== expired.userId);
       }
-    ]);
-    let renewedUserIds = [];
-    subscriptionData.map((data) => {
-      if (!data.renewed) {
-        renewedUserIds.push(data.userId);
-      }
-    })
-
-    return { subscriptionData };
-
+      
+    }
+    return expiredUserId;
   }
 
 }
