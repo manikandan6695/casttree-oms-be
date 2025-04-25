@@ -175,11 +175,5 @@ export class SubscriptionController {
   }
 
 
-  @Get('test')
-  async test(
-
-  ){
-    let data = await this.subscriptionService.test();
-    return data;
-  }
+ 
 }
