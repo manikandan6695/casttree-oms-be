@@ -60,6 +60,9 @@ export class Mandate {
   providerId: number;
 
   @Prop()
+  provider: string;
+
+  @Prop()
   planId: string;
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User" })

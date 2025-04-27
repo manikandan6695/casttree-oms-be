@@ -18,7 +18,7 @@ class TransactionDetailsDTO {
   externalId: string;
 }
 export class CreateSubscriptionDTO {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   planId: string;
 
@@ -71,7 +71,7 @@ export class CreateSubscriptionDTO {
 
   @IsOptional()
   @IsString()
-  currencyCode : string;
+  currencyCode: string;
 }
 
 export class AddSubscriptionDTO {
