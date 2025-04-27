@@ -284,7 +284,7 @@ export class HelperService {
 
   async addSubscription(body, token: UserToken) {
     try {
-      console.log("addSubscription body is", body);
+      // console.log("addSubscription body is", body);
       let fv = {
         amount: body?.data?.amount,
         currency: body?.data?.currency,
@@ -315,7 +315,7 @@ export class HelperService {
 
   async createCustomer(body, token: any) {
     try {
-      console.log("token", token);
+      // console.log("token", token);
 
       let fv = {
         name: body.userName,
@@ -323,7 +323,7 @@ export class HelperService {
         contact: body.phoneNumber,
         fail_existing: "0",
       };
-      console.log("customer fv", fv);
+      // console.log("customer fv", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
