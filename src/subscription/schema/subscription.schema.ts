@@ -9,6 +9,7 @@ export interface ISubscriptionModel extends mongoose.Document {
   startAt: Date;
   amount: number;
   providerId: number;
+  provider: string;
   scheduleChangeAt: string;
   endAt: Date;
   paidCount: number;
@@ -18,9 +19,9 @@ export interface ISubscriptionModel extends mongoose.Document {
   metaData: any;
   status: string;
   externalId: string;
-  transactionDetails:{
+  transactionDetails: {
     externalId: string;
-  },
+  };
   currencyId: string;
   currencyCode: string;
   createdBy: string;
@@ -46,6 +47,9 @@ export const subscriptionSchema = new mongoose.Schema(
     },
     providerId: {
       type: Number,
+    },
+    provider: {
+      type: String,
     },
     currentEnd: { type: Date },
     startAt: {

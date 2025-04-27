@@ -41,15 +41,15 @@ export class SubscriptionFactory {
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
-  ) { }
+  ) {}
   async onModuleInit() {
     await this.init();
   }
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
-        createSubscription: async (data: any, token: UserToken) =>
-          this.helperService.addSubscription(data, token),
+        createSubscription: async (data: any, bodyData, token: UserToken) =>
+          this.handleRazorpaySubscription(data, bodyData, token),
       },
       cashfree: {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
@@ -77,119 +77,124 @@ export class SubscriptionFactory {
     bodyData,
     token: UserToken
   ) {
-    // console.log("inside handle cashfree", data);
-    // console.log("bodyData", bodyData);
+    try {
+      const subscription = await this.helperService.createSubscription(
+        data,
+        token
+      );
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "cashfree-payment",
+        "CSH-PMT",
+        5,
+        null
+      );
+      const paymentNumber = paymentSequence.toString().padStart(5, "0");
+      let paymentNewNumber = `${paymentNumber}-${Date.now()}`;
+      const authData = {
+        subscription_id: subscription?.subscription_id,
+        payment_id: paymentNewNumber.toString(),
+        payment_amount:
+          subscription?.authorization_details?.authorization_amount,
+        payment_schedule_date: new Date().toISOString(),
+        payment_type: "AUTH",
+        payment_method: { upi: { channel: "link" } },
+      };
+      const auth = await this.helperService.createAuth(authData);
+      let endDate = new Date(bodyData?.firstCharge);
+      let endAt = endDate.setHours(23, 59, 59, 999);
+      const subscriptionData = {
+        userId: token.id,
+        planId: subscription?.plan_details?.plan_id,
+        startAt: new Date().toISOString(),
+        endAt: endAt,
+        providerId: 2,
+        provider: EProvider.cashfree,
+        amount: parseInt(data?.authorization_details?.authorization_amount),
+        notes: { itemId: bodyData?.itemId },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        metaData: subscription,
+      };
+      // console.log("subscription data", subscriptionData);
 
-    const subscription = await this.helperService.createSubscription(
-      data,
-      token
-    );
-    const paymentSequence = await this.sharedService.getNextNumber(
-      "cashfree-payment",
-      "CSH-PMT",
-      5,
-      null
-    );
-    const paymentNumber = paymentSequence.toString().padStart(5, "0");
-    let paymentNewNumber = `${paymentNumber}-${Date.now()}`;
-    const authData = {
-      subscription_id: subscription?.subscription_id,
-      payment_id: paymentNewNumber.toString(),
-      payment_amount: subscription?.authorization_details?.authorization_amount,
-      payment_schedule_date: new Date().toISOString(),
-      payment_type: "AUTH",
-      payment_method: { upi: { channel: "link" } },
-    };
-    const auth = await this.helperService.createAuth(authData);
-    let endDate = new Date(bodyData?.firstCharge);
-    let endAt = endDate.setHours(23, 59, 59, 999);
-    const subscriptionData = {
-      userId: token.id,
-      planId: subscription?.plan_details?.plan_id,
-      startAt: new Date().toISOString(),
-      endAt: endAt,
-      providerId: 2,
-      amount: parseInt(data?.authorization_details?.authorization_amount),
-      notes: { itemId: bodyData?.itemId },
-      subscriptionStatus: EsubscriptionStatus.initiated,
-      metaData: subscription,
-    };
-    // console.log("subscription data", subscriptionData);
+      const subscriptionCreated = await this.subscriptionService.subscription(
+        subscriptionData,
+        token
+      );
 
-    const subscriptionCreated = await this.subscriptionService.subscription(
-      subscriptionData,
-      token
-    );
+      const mandateData = {
+        sourceId: subscriptionCreated._id,
+        userId: token.id,
+        paymentMethod: "UPI",
+        amount: bodyData?.authAmount,
+        providerId: 2,
+        provider: EProvider.cashfree,
+        currency: "INR",
+        planId: subscription?.plan_details?.plan_id,
+        frequency: subscription?.plan_details?.plan_type,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: auth,
+        startDate: bodyData.firstCharge,
+        endDate: bodyData.expiryTime,
 
-    const mandateData = {
-      sourceId: subscriptionCreated._id,
-      userId: token.id,
-      paymentMethod: "UPI",
-      amount: bodyData?.authAmount,
-      providerId: 2,
-      currency: "INR",
-      planId: subscription?.plan_details?.plan_id,
-      frequency: subscription?.plan_details?.plan_type,
-      mandateStatus: EMandateStatus.initiated,
-      status: EStatus.Active,
-      metaData: auth,
-      startDate: bodyData.firstCharge,
-      endDate: bodyData.expiryTime,
+        // startDate: data.subscription_first_charge_time,
+        // endDate:
+        //   bodyData.validityType == "day"
+        //     ? this.sharedService.getFutureDateISO(bodyData.validity)
+        //     : this.sharedService.getFutureMonthISO(bodyData.validity),
+      };
+      // console.log("mandate data", mandateData);
+      let mandate = await this.mandateService.addMandate(mandateData, token);
 
-      // startDate: data.subscription_first_charge_time,
-      // endDate:
-      //   bodyData.validityType == "day"
-      //     ? this.sharedService.getFutureDateISO(bodyData.validity)
-      //     : this.sharedService.getFutureMonthISO(bodyData.validity),
-    };
-    // console.log("mandate data", mandateData);
-    let mandate = await this.mandateService.addMandate(mandateData, token);
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: auth,
+        createdBy: token.id,
+        updatedBy: token.id,
+      });
 
-    await this.mandateHistoryService.createMandateHistory({
-      mandateId: mandate._id,
-      mandateStatus: EMandateStatus.initiated,
-      status: EStatus.Active,
-      metaData: auth,
-      createdBy: token.id,
-      updatedBy: token.id,
-    });
+      const invoiceData = {
+        itemId: bodyData.itemId,
+        source_id: subscriptionCreated._id,
+        source_type: "subscription",
+        sub_total: bodyData.authAmount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: bodyData.authAmount,
+        user_id: token.id,
+        created_by: token.id,
+        updated_by: token.id,
+      };
+      const invoice = await this.invoiceService.createInvoice(invoiceData);
 
-    const invoiceData = {
-      itemId: bodyData.itemId,
-      source_id: subscriptionCreated._id,
-      source_type: "subscription",
-      sub_total: bodyData.authAmount,
-      currencyCode: "INR",
-      document_status: EDocumentStatus.pending,
-      grand_total: bodyData.authAmount,
-      user_id: token.id,
-      created_by: token.id,
-      updated_by: token.id,
-    };
-    const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const paymentData = {
+        amount: bodyData.authAmount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.auth,
+        providerId: 2,
+        providerName: EProvider.cashfree,
+      };
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice,
+        "INR",
+        { order_id: auth.cf_payment_id }
+      );
+      // console.log("returning data");
 
-    const paymentData = {
-      amount: bodyData.authAmount,
-      currencyCode: "INR",
-      document_status: EDocumentStatus.pending,
-      paymentType: EPaymentType.auth,
-      providerId: 2,
-      providerName: EProvider.cashfree,
-    };
-    await this.paymentService.createPaymentRecord(
-      paymentData,
-      token,
-      invoice,
-      "INR",
-      { order_id: auth.cf_payment_id }
-    );
-    // console.log("returning data");
-
-    return {
-      subscriptionDetails: subscription,
-      authorizationDetails: auth,
-    };
+      return {
+        subscriptionDetails: subscription,
+        authorizationDetails: auth,
+      };
+    } catch (err) {
+      throw err;
+    }
   }
+
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     const transactionId = bodyData.transactionDetails?.externalId;
     // console.log("handleAppleIapSub", data,bodyData)
@@ -200,9 +205,11 @@ export class SubscriptionFactory {
 
       return existingSubscription;
     }
-    let currencyId = await this.helperService.getCurrencyId(bodyData.currencyCode)
+    let currencyId = await this.helperService.getCurrencyId(
+      bodyData.currencyCode
+    );
     // console.log("currencyId", currencyId);
-    let currencyResponse = currencyId?.data?.[0]
+    let currencyResponse = currencyId?.data?.[0];
     let subscriptionData = {
       userId: token.id,
       planId: data.planId,
@@ -238,7 +245,7 @@ export class SubscriptionFactory {
       created_by: token.id,
       updated_by: token.id,
       currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id
+      currency: currencyResponse._id,
     };
     // console.log("invoiceData",invoiceData);
     const invoice = await this.invoiceService.createInvoice(invoiceData);
@@ -251,7 +258,7 @@ export class SubscriptionFactory {
       transactionDate: new Date(),
       metaData: data.metaData,
       currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id
+      currency: currencyResponse._id,
     };
     // console.log("paymentData",paymentData);
     await this.paymentService.createPaymentRecord(paymentData, token, invoice);
@@ -268,8 +275,7 @@ export class SubscriptionFactory {
       metaData: data.metaData,
       startDate: data.startAt,
       endDate: data.endAt,
-
-    }
+    };
     let mandate = await this.mandateService.addMandate(mandateData, token);
     // console.log("mandate",mandate);
     // console.log("mandateData",mandateData);
@@ -297,9 +303,11 @@ export class SubscriptionFactory {
 
       return existingSubscription;
     }
-    let currencyId = await this.helperService.getCurrencyId(bodyData.currencyCode)
+    let currencyId = await this.helperService.getCurrencyId(
+      bodyData.currencyCode
+    );
     // console.log("currencyId", currencyId);
-    let currencyResponse = currencyId?.data?.[0]
+    let currencyResponse = currencyId?.data?.[0];
     let subscriptionData = {
       userId: token.id,
       planId: data.planId,
@@ -334,7 +342,7 @@ export class SubscriptionFactory {
       created_by: token.id,
       updated_by: token.id,
       currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id
+      currency: currencyResponse._id,
     };
     // console.log("invoiceData",invoiceData);
 
@@ -348,7 +356,7 @@ export class SubscriptionFactory {
       metaData: data.metaData,
       transactionDate: new Date(),
       currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id
+      currency: currencyResponse._id,
     };
     // console.log("paymentData",paymentData);
 
@@ -400,7 +408,9 @@ export class SubscriptionFactory {
   async getTransactionHistory(bodyData) {
     try {
       // console.log("bodyData",bodyData);
-      const purchaseInfo = await this.validatePurchase(bodyData?.data?.signedTransactionInfo);
+      const purchaseInfo = await this.validatePurchase(
+        bodyData?.data?.signedTransactionInfo
+      );
       // console.log("purchaseInfo:", purchaseInfo);
 
       const transactionId = purchaseInfo?.parsed?.transactionId;
@@ -436,7 +446,9 @@ export class SubscriptionFactory {
       // console.log("decodeData", decodeData);
 
       if (bodyData.notificationType === EEventType.didPurchase) {
-        let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
+        let signedRenewalInfo = await this.parseJwt(
+          bodyData?.data?.signedRenewalInfo
+        );
         // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = purchaseInfo?.parsed?.price;
         const price = priceMicros / 1000;
@@ -446,10 +458,17 @@ export class SubscriptionFactory {
           webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier: purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(purchaseInfo?.parsed?.purchaseDate).toISOString(),
-          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
-          expiresDate: new Date(purchaseInfo?.parsed?.expiresDate).toISOString(),
+          subscriptionGroupIdentifier:
+            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(
+            purchaseInfo?.parsed?.purchaseDate
+          ).toISOString(),
+          originalPurchaseDate: new Date(
+            purchaseInfo?.parsed?.originalPurchaseDate
+          ).toISOString(),
+          expiresDate: new Date(
+            purchaseInfo?.parsed?.expiresDate
+          ).toISOString(),
           quantity: purchaseInfo?.parsed?.quantity,
           type: purchaseInfo?.parsed?.type,
           inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
@@ -461,7 +480,7 @@ export class SubscriptionFactory {
           price: price,
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        }
+        };
         const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
         const renewalPrice = renewalPriceMicros / 1000;
         const renewalDetails = {
@@ -473,7 +492,9 @@ export class SubscriptionFactory {
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
+          recentSubscriptionStartDate: new Date(
+            signedRenewalInfo?.recentSubscriptionStartDate
+          ).toISOString(),
           renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
           appTransactionId: signedRenewalInfo?.appTransactionId,
         };
@@ -481,9 +502,10 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-      }
-      else if (bodyData.notificationType === EEventType.didCancel) {
-        let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
+      } else if (bodyData.notificationType === EEventType.didCancel) {
+        let signedRenewalInfo = await this.parseJwt(
+          bodyData?.data?.signedRenewalInfo
+        );
         // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = purchaseInfo?.parsed?.price;
         const price = priceMicros / 1000;
@@ -494,14 +516,21 @@ export class SubscriptionFactory {
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
           revocationReason: purchaseInfo?.parsed?.revocationReason,
-          subscriptionGroupIdentifier:purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(purchaseInfo?.parsed?.purchaseDate).toISOString(),
-          revocationDate: new Date(purchaseInfo?.parsed?.revocationDate).toISOString(),
-          expiresDate: new Date(purchaseInfo?.parsed?.expiresDate).toISOString(),
+          subscriptionGroupIdentifier:
+            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(
+            purchaseInfo?.parsed?.purchaseDate
+          ).toISOString(),
+          revocationDate: new Date(
+            purchaseInfo?.parsed?.revocationDate
+          ).toISOString(),
+          expiresDate: new Date(
+            purchaseInfo?.parsed?.expiresDate
+          ).toISOString(),
           quantity: purchaseInfo?.parsed?.quantity,
           type: purchaseInfo?.parsed?.type,
           inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
-          environment:purchaseInfo?.parsed?.environment,
+          environment: purchaseInfo?.parsed?.environment,
           transactionReason: purchaseInfo?.parsed?.transactionReason,
           storefront: purchaseInfo?.parsed?.storefront,
           storefrontId: purchaseInfo?.parsed?.storefrontId,
@@ -510,7 +539,7 @@ export class SubscriptionFactory {
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
           appAccountToken: purchaseInfo?.parsed?.appAccountToken,
           isUpgraded: purchaseInfo?.parsed?.isUpgraded,
-        }
+        };
         const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
         const renewalPrice = renewalPriceMicros / 1000;
         // console.log("renewalPrice",renewalPrice.toFixed(2));
@@ -523,7 +552,9 @@ export class SubscriptionFactory {
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
+          recentSubscriptionStartDate: new Date(
+            signedRenewalInfo?.recentSubscriptionStartDate
+          ).toISOString(),
           renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
           appTransactionId: signedRenewalInfo?.appTransactionId,
         };
@@ -531,10 +562,10 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-
-      }
-      else if (bodyData.notificationType === EEventType.didRenew) {
-        let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
+      } else if (bodyData.notificationType === EEventType.didRenew) {
+        let signedRenewalInfo = await this.parseJwt(
+          bodyData?.data?.signedRenewalInfo
+        );
         // console.log("signedRenewalInfo", signedRenewalInfo);
         const priceMicros = purchaseInfo?.parsed?.price;
         const price = priceMicros / 1000;
@@ -544,10 +575,17 @@ export class SubscriptionFactory {
           webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier:purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(purchaseInfo?.parsed?.purchaseDate).toISOString(),
-          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
-          expiresDate: new Date(purchaseInfo?.parsed?.expiresDate).toISOString(),
+          subscriptionGroupIdentifier:
+            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(
+            purchaseInfo?.parsed?.purchaseDate
+          ).toISOString(),
+          originalPurchaseDate: new Date(
+            purchaseInfo?.parsed?.originalPurchaseDate
+          ).toISOString(),
+          expiresDate: new Date(
+            purchaseInfo?.parsed?.expiresDate
+          ).toISOString(),
           quantity: purchaseInfo?.parsed?.quantity,
           type: purchaseInfo?.parsed?.type,
           inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
@@ -558,7 +596,7 @@ export class SubscriptionFactory {
           price: price,
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        }
+        };
         const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
         const renewalPrice = renewalPriceMicros / 1000;
         const renewalDetails = {
@@ -570,7 +608,9 @@ export class SubscriptionFactory {
           currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
+          recentSubscriptionStartDate: new Date(
+            signedRenewalInfo?.recentSubscriptionStartDate
+          ).toISOString(),
           renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
           appTransactionId: signedRenewalInfo?.appTransactionId,
         };
@@ -578,9 +618,10 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-      }
-      else if (bodyData.notificationType === EEventType.expired) {
-        let signedRenewalInfo = await this.parseJwt(bodyData?.data?.signedRenewalInfo)
+      } else if (bodyData.notificationType === EEventType.expired) {
+        let signedRenewalInfo = await this.parseJwt(
+          bodyData?.data?.signedRenewalInfo
+        );
         // console.log("signedRenewalInfo", signedRenewalInfo);
         const renewalPriceMicros = purchaseInfo?.parsed?.price;
         const renewalPrice = renewalPriceMicros / 1000;
@@ -590,10 +631,17 @@ export class SubscriptionFactory {
           webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier: purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(purchaseInfo?.parsed?.purchaseDate).toISOString(),
-          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
-          expiresDate: new Date(purchaseInfo?.parsed?.expiresDate).toISOString(),
+          subscriptionGroupIdentifier:
+            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          purchaseDate: new Date(
+            purchaseInfo?.parsed?.purchaseDate
+          ).toISOString(),
+          originalPurchaseDate: new Date(
+            purchaseInfo?.parsed?.originalPurchaseDate
+          ).toISOString(),
+          expiresDate: new Date(
+            purchaseInfo?.parsed?.expiresDate
+          ).toISOString(),
           quantity: purchaseInfo?.parsed?.quantity,
           type: purchaseInfo?.parsed?.type,
           inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
@@ -605,7 +653,7 @@ export class SubscriptionFactory {
           price: renewalPrice,
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        }
+        };
 
         const renewalDetails = {
           expirationIntent: signedRenewalInfo?.expirationIntent,
@@ -616,7 +664,9 @@ export class SubscriptionFactory {
           isInBillingRetryPeriod: signedRenewalInfo?.isInBillingRetryPeriod,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(signedRenewalInfo?.recentSubscriptionStartDate).toISOString(),
+          recentSubscriptionStartDate: new Date(
+            signedRenewalInfo?.recentSubscriptionStartDate
+          ).toISOString(),
           renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
           appTransactionId: signedRenewalInfo?.appTransactionId,
         };
@@ -633,13 +683,13 @@ export class SubscriptionFactory {
 
   parseJwt(token) {
     try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
       const jsonPayload = decodeURIComponent(
         atob(base64)
-          .split('')
-          .map(c => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
-          .join('')
+          .split("")
+          .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
+          .join("")
       );
       // console.log("json payload", JSON.stringify(jsonPayload))
       return JSON.parse(jsonPayload);
@@ -665,6 +715,125 @@ export class SubscriptionFactory {
     } catch (error) {
       console.log("Error in validatePurchase", error);
       throw error;
+    }
+  }
+
+  private async handleRazorpaySubscription(data, bodyData, token) {
+    try {
+      // console.log("data in razorpay", data);
+
+      let userAdditionalData =
+        await this.helperService.getUserAdditionalDetails({ userId: token.id });
+      // console.log("userAdditionalData", userAdditionalData);
+      let customer;
+      if (!userAdditionalData?.data?.referenceId) {
+        customer = await this.helperService.createCustomer(
+          {
+            userName: userAdditionalData?.userAdditional?.userId?.userName,
+            email: userAdditionalData?.userAdditional?.userId?.emailId,
+            phoneNumber:
+              userAdditionalData?.userAdditional?.userId?.phoneNumber,
+          },
+          token
+        );
+        // console.log("customer", customer);
+        await this.helperService.updateUserAdditional({
+          userId: token.id,
+          referenceId: customer?.id,
+        });
+      }
+      let customerId = userAdditionalData?.data?.referenceId || customer?.id;
+      let fv = {
+        data,
+        customer_id: customerId,
+      };
+      const subscription = await this.helperService.addSubscription(fv, token);
+      let endDate = new Date(data?.firstCharge);
+      endDate.setHours(23, 59, 59, 999); // modifies in-place
+      let endAt = endDate;
+      // console.log("endAt is", endAt);
+
+      const subscriptionData = {
+        userId: token.id,
+        startAt: new Date().toISOString(),
+        endAt: endAt,
+        providerId: 1,
+        provider: EProvider.razorpay,
+        amount: parseInt(data?.authAmount),
+        notes: { itemId: data?.itemId },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        metaData: subscription,
+      };
+      // console.log("subscription data", subscriptionData);
+
+      const subscriptionCreated = await this.subscriptionService.subscription(
+        subscriptionData,
+        token
+      );
+
+      const mandateData = {
+        sourceId: subscriptionCreated._id,
+        userId: token.id,
+        paymentMethod: "UPI",
+        amount: data?.subscriptionAmount,
+        providerId: 1,
+        provider: EProvider.razorpay,
+        currency: data?.currency,
+        frequency: "ON_DEMAND",
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: { customerId: customerId, orderId: subscription?.id },
+        startDate: data.firstCharge,
+        endDate: data.expiryTime,
+      };
+      // console.log("mandate data", mandateData);
+      let mandate = await this.mandateService.addMandate(mandateData, token);
+
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: { customerId: customerId },
+        createdBy: token.id,
+        updatedBy: token.id,
+      });
+
+      const invoiceData = {
+        itemId: data.itemId,
+        source_id: subscriptionCreated._id,
+        source_type: "subscription",
+        sub_total: data.authAmount,
+        currencyCode: data?.currencyCode,
+        document_status: EDocumentStatus.pending,
+        grand_total: data.authAmount,
+        user_id: token.id,
+        created_by: token.id,
+        updated_by: token.id,
+      };
+      const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+      const paymentData = {
+        amount: data.authAmount,
+        currencyCode: data.currency,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.auth,
+        providerId: 1,
+        providerName: EProvider.razorpay,
+      };
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice,
+        data?.currencyCode,
+        { order_id: subscription.id }
+      );
+      // console.log("returning data");
+
+      return {
+        subscriptionDetails: { customerId: customerId, ...subscription },
+      };
+    } catch (err) {
+      throw err;
     }
   }
 }
