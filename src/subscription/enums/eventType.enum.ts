@@ -7,16 +7,20 @@ export enum EEventType {
   didPurchase = "SUBSCRIBED",
   expired = "EXPIRED",
   subTypeInitial = "INITIAL_BUY",
-  subTypeReSub="RESUBSCRIBE",
-  subTypeRenew="BILLING_RECOVERY",
-  subTypeCancel="AUTO_RENEW_DISABLED",
-  expiredSubType="VOLUNTARY",
-  expiredSubTypeBilling="BILLING_RETRY",
-  expiredSubTypePrice="PRICE_INCREASE",
-  expiredSubTypeNotForSale="PRODUCT_NOT_FOR_SALE",
-  Remew="SUBSCRIPTION_RENEWED",
-  Cancel="SUBSCRIPTION_CANCELED",
-  Purchase="SUBSCRIPTION_PURCHASED",
+  subTypeReSub = "RESUBSCRIBE",
+  subTypeRenew = "BILLING_RECOVERY",
+  subTypeCancel = "AUTO_RENEW_DISABLED",
+  expiredSubType = "VOLUNTARY",
+  expiredSubTypeBilling = "BILLING_RETRY",
+  expiredSubTypePrice = "PRICE_INCREASE",
+  expiredSubTypeNotForSale = "PRODUCT_NOT_FOR_SALE",
+  Remew = "SUBSCRIPTION_RENEWED",
+  Cancel = "SUBSCRIPTION_CANCELED",
+  Purchase = "SUBSCRIPTION_PURCHASED",
+  tokenConfirmed = "token.confirmed",
+  tokenCancelled = "token.cancellation_initiated",
+  paymentAuthorized = "payment.authorized",
+  paymentFailed = "payment.failed",
 }
 
 export const ESEventType = [
@@ -37,9 +41,9 @@ export const ESEventType = [
   EEventType.expiredSubType,
 ];
 
-export enum EEventId{
+export enum EEventId {
   renew = 2,
   cancel = 3,
   purchase = 4,
 }
-export const ESEventId = [EEventId.renew,EEventId.cancel,EEventId.purchase]
+export const ESEventId = [EEventId.renew, EEventId.cancel, EEventId.purchase];

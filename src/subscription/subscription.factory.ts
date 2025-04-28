@@ -755,11 +755,13 @@ export class SubscriptionFactory {
 
       const subscriptionData = {
         userId: token.id,
+        subscriptionId: data?.subscription_id,
         startAt: new Date().toISOString(),
         endAt: endAt,
         providerId: 1,
         provider: EProvider.razorpay,
         amount: parseInt(data?.authAmount),
+        currencyCode: data?.currency,
         notes: { itemId: data?.itemId },
         subscriptionStatus: EsubscriptionStatus.initiated,
         metaData: subscription,
@@ -782,7 +784,11 @@ export class SubscriptionFactory {
         frequency: "ON_DEMAND",
         mandateStatus: EMandateStatus.initiated,
         status: EStatus.Active,
-        metaData: { customerId: customerId, orderId: subscription?.id },
+        metaData: {
+          customerId: customerId,
+          orderId: subscription?.id,
+          subscriptionId: data?.subscription_id,
+        },
         startDate: data.firstCharge,
         endDate: data.expiryTime,
       };

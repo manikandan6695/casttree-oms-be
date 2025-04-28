@@ -236,13 +236,26 @@ export class SubscriptionService {
       };
       const provider = getProviderName(providerId);
       console.log("provider:", provider);
-
-      // const provider = providerId == 2 ? "cashfree" : "razorpay";
-
-      console.log("provider", provider);
+      // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
-        console.log("inside razorpay webhook", req?.body);
-
+        let event = req?.body?.event;
+        // console.log("inside razorpay webhook", req?.body);
+        // if (event === EEventType.tokenCancelled) {
+        //   const payload = req?.body?.payload;
+        //   await this.handleRazorpayMandate(payload);
+        // }
+        if (event === EEventType.paymentAuthorized) {
+          const payload = req?.body?.payload;
+          console.log("inside payment authorized", payload);
+          await this.handleRazorpaySubscriptionPayment(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
+        if (event === EEventType.paymentFailed) {
+          const payload = req?.body?.payload;
+          console.log("inside payment failed", payload);
+          await this.handleRazorpayFailedPayment(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
@@ -559,6 +572,110 @@ export class SubscriptionService {
     }
   }
 
+  async handleRazorpayFailedPayment(payload: any) {
+    try {
+      const razpPaymentOrderId = payload?.payment?.entity?.order_id;
+      // console.log("cfPaymentId", cfPaymentId);
+
+      let failedReason = payload?.payment?.entity?.error_reason;
+      // console.log("failure details is", payload?.data?.failure_details);
+      let body = {
+        document_status: EPaymentStatus.failed,
+        reason: failedReason,
+      };
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(razpPaymentOrderId);
+      // console.log("paymentRecord", paymentRecord);
+
+      await this.paymentService.updateMetaData(
+        paymentRecord._id as string,
+        payload?.payment?.entity
+      );
+      // console.log("invoice id is", paymentRecord?.source_id);
+
+      await this.paymentService.updateStatus(paymentRecord._id, body);
+      let updatedInvoice = await this.invoiceService.updateInvoice(
+        paymentRecord?.source_id,
+        EPaymentStatus.failed
+      );
+      // console.log("subscription id is", updatedInvoice?.invoice?.source_id);
+
+      await this.subscriptionModel.updateOne(
+        {
+          _id: updatedInvoice?.invoice?.source_id,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+        },
+        {
+          $set: {
+            subscriptionStatus: EsubscriptionStatus.failed,
+          },
+        }
+      );
+      return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+  private async handleRazorpayMandate(payload: any) {
+    try {
+    } catch (err) {
+      throw err;
+    }
+  }
+  private async handleRazorpaySubscriptionPayment(payload: any) {
+    try {
+      console.log("inside razorpay subscription payment");
+
+      const rzpPaymentId = payload?.payment?.entity?.order_id;
+      console.log("rzpPaymentId", rzpPaymentId);
+
+      let paymentRequest =
+        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+      console.log("paymentRequest", paymentRequest);
+
+      if (paymentRequest) {
+        let updatedStatus = await this.paymentService.completePayment({
+          invoiceId: paymentRequest?.source_id,
+          paymentId: paymentRequest?._id,
+        });
+        let invoice = await this.invoiceService.getInvoiceDetail(
+          paymentRequest?.source_id
+        );
+        let subscription = await this.subscriptionModel.findOne({
+          _id: invoice?.source_id,
+        });
+        if (subscription) {
+          subscription.subscriptionStatus = "Active";
+          await subscription.save();
+          let mandate = await this.mandateService.updateMandateDetail(
+            { "metaData.subscription_id": subscription?.subscriptionId },
+            { $set: { mandateStatus: EMandateStatus.active } }
+          );
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
+
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          let userData = await this.helperService.getUserById(
+            subscription?.userId
+          );
+          await this.helperService.facebookEvents(
+            userData.data.phoneNumber,
+            invoice.currencyCode,
+            invoice.grand_total
+          );
+        }
+        //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
+      }
+    } catch (err) {
+      throw err;
+    }
+  }
   // Handles Razorpay subscription logic
   private async handleRazorpaySubscription(payload: any) {
     let existingSubscription = await this.subscriptionModel.findOne({
@@ -727,6 +844,7 @@ export class SubscriptionService {
       let subscriptionData = {
         userId: token.id,
         planId: body.planId,
+        subscriptionId: body?.subscriptionId,
         startAt: body.startAt,
         endAt: body.endAt,
         notes: body.notes,

@@ -79,6 +79,18 @@ export class MandatesService {
       throw error;
     }
   }
+
+  async updateMandateDetail(filter: any, criteria: any) {
+    try {
+      console.log("inside mandate update service", filter, criteria);
+
+      let mandate = await this.mandateModel.updateOne(filter, criteria);
+
+      return { message: "Updated Successfully" };
+    } catch (error) {
+      throw error;
+    }
+  }
   async createMandate(body: any): Promise<MandateDocument> {
     try {
       // console.log("mandate body is", body);
@@ -106,29 +118,29 @@ export class MandatesService {
       throw new Error(error);
     }
   }
-  async updateIapStatus(id,data){
-    try{
+  async updateIapStatus(id, data) {
+    try {
       let updateStatus = await this.mandateModel.updateMany(
         { "metaData.externalId": id },
         { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
       );
       return updateStatus;
-    }
-    catch(err){
+    } catch (err) {
       throw err;
     }
   }
-  async updateIapStatusCancel(id,data){
-    try{
-      const updatedDoc = await this.mandateModel.findOneAndUpdate(
-        { sourceId: id },
-        { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } },
-        { new: true } 
-      ).select('_id');
-      
+  async updateIapStatusCancel(id, data) {
+    try {
+      const updatedDoc = await this.mandateModel
+        .findOneAndUpdate(
+          { sourceId: id },
+          { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } },
+          { new: true }
+        )
+        .select("_id");
+
       return updatedDoc?._id;
-    }
-    catch(err){
+    } catch (err) {
       throw err;
     }
   }

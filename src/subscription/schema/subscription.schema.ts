@@ -2,6 +2,7 @@ import * as mongoose from "mongoose";
 export interface ISubscriptionModel extends mongoose.Document {
   userId: string;
   planId: string;
+  subscriptionId: string;
   totalCount: number;
   currentStart: Date;
   quantity: number;
@@ -32,6 +33,9 @@ export const subscriptionSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
+    },
+    subscriptionId: {
+      type: String,
     },
     planId: {
       type: String,
