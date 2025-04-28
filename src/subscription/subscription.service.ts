@@ -240,8 +240,10 @@ export class SubscriptionService {
       // const provider = providerId == 2 ? "cashfree" : "razorpay";
 
       console.log("provider", provider);
-      if (provider === EProvider.razorpay && req.body?.payload?.subscription) {
-        await this.handleRazorpaySubscription(req.body.payload);
+      if (provider === EProvider.razorpay) {
+        console.log("inside razorpay webhook", req?.body?.payload);
+
+        // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
         if (eventType === "SUBSCRIPTION_STATUS_CHANGED") {
@@ -558,9 +560,7 @@ export class SubscriptionService {
   }
 
   // Handles Razorpay subscription logic
-  private async handleRazorpaySubscription(
-    payload: RazorpaySubscriptionPayload
-  ) {
+  private async handleRazorpaySubscription(payload: any) {
     let existingSubscription = await this.subscriptionModel.findOne({
       userId: payload.subscription?.entity?.notes?.userId,
     });
