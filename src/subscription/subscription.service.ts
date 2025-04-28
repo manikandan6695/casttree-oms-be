@@ -649,7 +649,7 @@ export class SubscriptionService {
           await subscription.save();
           let mandate = await this.mandateService.updateMandateDetail(
             { "metaData.subscription_id": subscription?.subscriptionId },
-            { $set: { mandateStatus: EMandateStatus.active } }
+            { mandateStatus: EMandateStatus.active }
           );
           let item = await this.itemService.getItemDetail(
             subscription?.notes?.itemId
