@@ -241,7 +241,7 @@ export class SubscriptionService {
 
       console.log("provider", provider);
       if (provider === EProvider.razorpay) {
-        console.log("inside razorpay webhook", req?.body?.payload);
+        console.log("inside razorpay webhook", req?.body);
 
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
