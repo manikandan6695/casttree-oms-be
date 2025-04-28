@@ -84,9 +84,10 @@ export class MandatesService {
     try {
       console.log("inside mandate update service", filter, criteria);
 
-      let mandate = await this.mandateModel.updateOne(filter, criteria);
+      await this.mandateModel.updateOne(filter, criteria);
+      let mandate = await this.mandateModel.findOne(filter);
 
-      return { message: "Updated Successfully" };
+      return { message: "Updated Successfully", mandate };
     } catch (error) {
       throw error;
     }

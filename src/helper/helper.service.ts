@@ -282,18 +282,52 @@ export class HelperService {
     }
   }
 
-  async addSubscription(body, token: UserToken) {
+  async addSubscription(body) {
     try {
       // console.log("addSubscription body is", body);
       let fv = {
-        amount: body?.data?.amount,
-        currency: body?.data?.currency,
+        amount: body?.amount,
+        currency: body?.currency,
         customer_id: body?.customer_id,
         method: "upi",
         payment_capture: 1,
         token: {
-          max_amount: body?.data?.token.max_amount,
-          expire_at: body?.data?.token.expire_at,
+          max_amount: body?.token.max_amount,
+          expire_at: body?.token.expire_at,
+        },
+      };
+      let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
+      let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
+      let data = await this.http_service
+        .post(`${this.configService.get("RAZORPAY_BASE_URL")}/v1/orders`, fv, {
+          auth: {
+            username: razor_pay_key,
+            password: razor_pay_secret,
+          },
+        })
+        .toPromise();
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createRecurringPayment(body) {
+    try {
+      let fv = {
+        email: body.email,
+        contact: body.phoneNumber,
+        amount: body.amount,
+        currency: body.currency,
+        order_id: body.orderId,
+        customer_id: body.customerId,
+        token: body.token,
+        recurring: "1",
+        notes: {
+          userId: body?.userId,
+          userReferenceId: body?.customerId,
+          razorpayOrderId: body.orderId,
         },
       };
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");

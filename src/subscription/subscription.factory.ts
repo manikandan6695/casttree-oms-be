@@ -744,10 +744,10 @@ export class SubscriptionFactory {
       }
       let customerId = userAdditionalData?.data?.referenceId || customer?.id;
       let fv = {
-        data,
+        ...data,
         customer_id: customerId,
       };
-      const subscription = await this.helperService.addSubscription(fv, token);
+      const subscription = await this.helperService.addSubscription(fv);
       let endDate = new Date(data?.firstCharge);
       endDate.setHours(23, 59, 59, 999); // modifies in-place
       let endAt = endDate;

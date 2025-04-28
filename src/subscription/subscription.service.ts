@@ -244,7 +244,10 @@ export class SubscriptionService {
         //   const payload = req?.body?.payload;
         //   await this.handleRazorpayMandate(payload);
         // }
-        if (event === EEventType.paymentAuthorized) {
+        if (
+          event === EEventType.paymentAuthorized &&
+          event === EEventType.tokenConfirmed
+        ) {
           const payload = req?.body?.payload;
           console.log("inside payment authorized", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
@@ -647,10 +650,23 @@ export class SubscriptionService {
         if (subscription) {
           subscription.subscriptionStatus = "Active";
           await subscription.save();
-          let mandate = await this.mandateService.updateMandateDetail(
-            { "metaData.subscription_id": subscription?.subscriptionId },
-            { mandateStatus: EMandateStatus.active }
+
+          let tokenId = payload?.token?.entity?.id;
+          let updatedMandate = await this.mandateService.updateMandateDetail(
+            { "metaData.subscriptionId": subscription?.subscriptionId },
+            {
+              mandateStatus: EMandateStatus.active,
+              "metaData.referenceId": tokenId,
+            }
           );
+          await this.mandateHistoryService.createMandateHistory({
+            mandateId: updatedMandate?.mandate._id,
+            mandateStatus: EMandateStatus.active,
+            "metaData.additionalDetail": payload?.token?.entity,
+            status: EStatus.Active,
+            createdBy: subscription?.userId,
+            updatedBy: subscription?.userId,
+          });
           let item = await this.itemService.getItemDetail(
             subscription?.notes?.itemId
           );
@@ -1277,6 +1293,176 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
+    }
+  }
+
+  async raiseCharge(subscriptionData, planDetail) {
+    try {
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "razorpay-payment",
+        "RZP-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+      let now = new Date();
+      let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+
+      let authBody = {
+        amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount * 100,
+        currency: "INR",
+        payment_capture: true,
+        notification: {
+          token_id:
+            subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
+          payment_after: paymentSchedule,
+        },
+        notes: {
+          mandateId:
+            subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
+          userId: subscriptionData?.latestDocument?.userId,
+          subscriptionId: subscriptionData?.latestDocument?.subscriptionId,
+        },
+      };
+      // console.log("auth body is ==>", authBody);
+
+      const today = new Date();
+      const startAt = new Date();
+      startAt.setDate(today.getDate() + 1);
+      startAt.setHours(0, 0, 0, 0);
+      // console.log("startAt", startAt);
+
+      let endAt = new Date();
+      // console.log("endAt", endAt);
+
+      planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+        ?.validityType == EvalidityType.day
+        ? endAt.setDate(
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
+          : endAt.setFullYear(
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
+      let chargeResponse = await this.helperService.addSubscription(authBody);
+      let userAdditionalData =
+        await this.helperService.getUserAdditionalDetails({
+          userId: subscriptionData?.latestDocument?.userId,
+        });
+      let recurring = {
+        email: userAdditionalData?.user?.emailId,
+        contact: userAdditionalData?.user?.phoneNumber,
+        amount:
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.amount * 100,
+        currency: "INR",
+        order_id: chargeResponse?.id,
+        customer_id: userAdditionalData?.userReferenceId,
+        token:
+          subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
+        recurring: "1",
+        notes: {
+          userId: subscriptionData?.latestDocument?.userId,
+          userReferenceId: userAdditionalData?.userReferenceId,
+          razorpayOrderId: chargeResponse?.id,
+        },
+      };
+      let recurringResponse =
+        await this.helperService.createRecurringPayment(recurring);
+      if (recurringResponse) {
+        endAt.setDate(endAt.getDate());
+        endAt.setHours(23, 59, 59, 999);
+
+        let fv = {
+          userId: subscriptionData?.latestDocument?.userId,
+          startAt: startAt,
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          providerId: 1,
+          provider: EProvider.razorpay,
+          endAt: endAt,
+          metaData: {
+            subscription_id:
+              subscriptionData?.latestDocument?.metaData?.subscriptionId,
+            ...chargeResponse,
+          },
+          notes: {
+            itemId: subscriptionData.latestDocument.notes.itemId,
+            amount:
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            paymentScheduledAt: paymentSchedule,
+            paymentId: paymentNumber,
+          },
+          subscriptionStatus: EsubscriptionStatus.initiated,
+          status: EStatus.Active,
+          createdBy: subscriptionData?.latestDocument?.userId,
+          updatedBy: subscriptionData?.latestDocument?.userId,
+        };
+        // console.log("creating subscription", fv);
+
+        let subscription = await this.subscriptionModel.create(fv);
+
+        const invoiceData = {
+          itemId: subscriptionData.latestDocument.notes.itemId,
+          source_id: subscription._id,
+          source_type: "subscription",
+          sub_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          document_status: EDocumentStatus.pending,
+          grand_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          user_id: subscriptionData.latestDocument.userId,
+          created_by: subscriptionData.latestDocument.userId,
+          updated_by: subscriptionData.latestDocument.userId,
+        };
+        // console.log("creating invoice", invoiceData);
+        const invoice = await this.invoiceService.createInvoice(invoiceData);
+
+        const paymentData = {
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          source_id: invoice._id,
+          source_type: EPaymentSourceType.invoice,
+          userId: subscriptionData?.latestDocument?.userId,
+          document_status: EDocumentStatus.pending,
+          paymentType: EPaymentType.charge,
+          providerId: 1,
+          providerName: EProvider.razorpay,
+          transactionDate: paymentSchedule,
+        };
+
+        // console.log("creating payment", paymentData);
+        await this.paymentService.createPaymentRecord(
+          paymentData,
+          null,
+          invoice,
+          "INR",
+          { order_id: chargeResponse?.id }
+        );
+      }
+    } catch (err) {
+      throw err;
     }
   }
 
