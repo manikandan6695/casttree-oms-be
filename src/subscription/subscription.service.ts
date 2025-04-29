@@ -239,15 +239,14 @@ export class SubscriptionService {
       // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
+        console.log("event", event);
+
         // console.log("inside razorpay webhook", req?.body);
         // if (event === EEventType.tokenCancelled) {
         //   const payload = req?.body?.payload;
         //   await this.handleRazorpayMandate(payload);
         // }
-        if (
-          event === EEventType.paymentAuthorized &&
-          event === EEventType.tokenConfirmed
-        ) {
+        if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
           console.log("inside payment authorized", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
