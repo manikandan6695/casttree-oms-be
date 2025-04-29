@@ -259,6 +259,13 @@ export class SubscriptionService {
           await this.handleRazorpayFailedPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
+
+        if (event === EEventType.tokenCancelled) {
+          const payload = req?.body?.payload;
+          console.log("inside mandate cancelled", payload);
+          await this.handleRazorpayCancelledMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
@@ -570,6 +577,32 @@ export class SubscriptionService {
         }
       );
       return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleRazorpayCancelledMandate(payload: any) {
+    try {
+      let tokenId = payload?.token?.entity?.id;
+      let status = payload?.token?.entity?.recurring_details?.status;
+      if (status == "cancellation_initiated") {
+        let data = await this.mandateService.updateMandateDetail(
+          { "metaData.referenceId": tokenId },
+          {
+            mandateStatus: EMandateStatus.cancelled,
+            "metaData.status": status,
+          }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: data?.mandate?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+      }
     } catch (err) {
       throw err;
     }
