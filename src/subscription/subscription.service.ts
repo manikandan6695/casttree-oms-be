@@ -166,46 +166,46 @@ export class SubscriptionService {
             subscription_first_charge_time: firstCharge,
           };
           break;
-          // case EProvider.apple:
-          //   let endDate = this.sharedService.getFutureMonthISO(1);
-          //   subscriptionData = {
-          //     userId: token?.id,
-          //     planId: body?.planId,
-          //     providerId: EProviderId.apple,
-          //     provider: EProvider.apple,
-          //     startAt: new Date(),
-          //     endAt: endDate,
-          //     subscriptionStatus: EsubscriptionStatus.initiated,
-          //     notes: { itemId: body?.itemId },
-          //     amount: body?.authAmount,
-          //     status: EStatus.Active,
-          //     createdBy: token?.id,
-          //     updatedBy: token?.id,
-          //     metaData: {
-          //       externalId: body?.transactionDetails?.externalId,
-          //     },
-          //   };
-          //   break;
-          // case EProvider.google:
-          let endAt = this.sharedService.getFutureMonthISO(1);
-          subscriptionData = {
-            userId: token?.id,
-            planId: body?.planId,
-            providerId: EProviderId.google,
-            provider: EProvider.google,
-            startAt: new Date(),
-            endAt: endAt,
-            subscriptionStatus: EsubscriptionStatus.initiated,
-            notes: { itemId: body?.itemId },
-            amount: body?.authAmount,
-            status: EStatus.Active,
-            createdBy: token?.id,
-            updatedBy: token?.id,
-            metaData: {
-              externalId: body?.transactionDetails?.externalId,
-            },
-          };
-          break;
+        // case EProvider.apple:
+        //   let endDate = this.sharedService.getFutureMonthISO(1);
+        //   subscriptionData = {
+        //     userId: token?.id,
+        //     planId: body?.planId,
+        //     providerId: EProviderId.apple,
+        //     provider: EProvider.apple,
+        //     startAt: new Date(),
+        //     endAt: endDate,
+        //     subscriptionStatus: EsubscriptionStatus.initiated,
+        //     notes: { itemId: body?.itemId },
+        //     amount: body?.authAmount,
+        //     status: EStatus.Active,
+        //     createdBy: token?.id,
+        //     updatedBy: token?.id,
+        //     metaData: {
+        //       externalId: body?.transactionDetails?.externalId,
+        //     },
+        //   };
+        //   break;
+        // case EProvider.google:
+        // let endAt = this.sharedService.getFutureMonthISO(1);
+        // subscriptionData = {
+        //   userId: token?.id,
+        //   planId: body?.planId,
+        //   providerId: EProviderId.google,
+        //   provider: EProvider.google,
+        //   startAt: new Date(),
+        //   endAt: endAt,
+        //   subscriptionStatus: EsubscriptionStatus.initiated,
+        //   notes: { itemId: body?.itemId },
+        //   amount: body?.authAmount,
+        //   status: EStatus.Active,
+        //   createdBy: token?.id,
+        //   updatedBy: token?.id,
+        //   metaData: {
+        //     externalId: body?.transactionDetails?.externalId,
+        //   },
+        // };
+        // break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
