@@ -721,8 +721,8 @@ export class HelperService {
     try {
       let data = await this.http_service
         .get(
-          // `${this.configService.get("CASTTREE_BASE_URL")}/configuration/itemid?key=${itemId}`,
-           `http://localhost:3000/casttree/configuration/itemid?key=${itemId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration/itemid?key=${itemId}`,
+          //  `http://localhost:3000/casttree/configuration/itemid?key=${itemId}`,
           
         )
         .toPromise();
