@@ -252,6 +252,13 @@ export class SubscriptionService {
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
+
+        if (event === EEventType.tokenConfirmed) {
+          const payload = req?.body?.payload;
+          console.log("inside payment authorized", payload);
+          await this.handleRazorpayMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
         if (event === EEventType.paymentFailed) {
           const payload = req?.body?.payload;
           console.log("inside payment failed", payload);
@@ -587,7 +594,7 @@ export class SubscriptionService {
       let status = payload?.token?.entity?.recurring_details?.status;
       if (status == "cancellation_initiated") {
         let data = await this.mandateService.updateMandateDetail(
-          { "metaData.referenceId": tokenId },
+          { referenceId: tokenId },
           {
             mandateStatus: EMandateStatus.cancelled,
             "metaData.status": status,
@@ -653,6 +660,16 @@ export class SubscriptionService {
   }
   private async handleRazorpayMandate(payload: any) {
     try {
+      let tokenId = payload?.token?.entity?.id;
+      let mandate = await this.mandateService.getMandate(tokenId);
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.active,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: mandate?.createdBy,
+        updatedBy: mandate?.updatedBy,
+      });
     } catch (err) {
       throw err;
     }
@@ -683,22 +700,15 @@ export class SubscriptionService {
           subscription.subscriptionStatus = "Active";
           await subscription.save();
 
-          let tokenId = payload?.token?.entity?.id;
+          let tokenId = payload?.payment?.entity?.token_id;
           let updatedMandate = await this.mandateService.updateMandateDetail(
             { "metaData.subscriptionId": subscription?.subscriptionId },
             {
               mandateStatus: EMandateStatus.active,
-              "metaData.referenceId": tokenId,
+              referenceId: tokenId,
             }
           );
-          await this.mandateHistoryService.createMandateHistory({
-            mandateId: updatedMandate?.mandate._id,
-            mandateStatus: EMandateStatus.active,
-            "metaData.additionalDetail": payload?.token?.entity,
-            status: EStatus.Active,
-            createdBy: subscription?.userId,
-            updatedBy: subscription?.userId,
-          });
+
           let item = await this.itemService.getItemDetail(
             subscription?.notes?.itemId
           );
