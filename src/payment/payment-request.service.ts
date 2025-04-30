@@ -46,7 +46,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -117,6 +117,7 @@ export class PaymentRequestService {
           itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
           userId: body.userId,
+          couponCode : body.couponCode ? body.couponCode : null
         }
       );
 
@@ -136,7 +137,7 @@ export class PaymentRequestService {
       mixPanelBody.properties = {
         itemname: serviceItemDetail.itemId.itemName,
         amount: body.amount,
-        cuurency_code: body.currencyCode,
+        curency_code: body.currencyCode,
         serviceItemType: serviceItemDetail.type,
       };
 
@@ -180,12 +181,12 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-    console.log("paymentRecord",body,invoiceData);
-    
+    console.log("paymentRecord", body, invoiceData);
+
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency?._id||body?.currency,
+      currency: currency?._id || body?.currency,
       currencyCode: body?.currencyCode,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
@@ -357,12 +358,12 @@ export class PaymentRequestService {
           serviceItemType: serviceItemDetail.type,
         };
         await this.helperService.mixPanel(mixPanelBody);
-        await this.completePayment(ids);
+        await this.completePayment(ids, status);
       }
 
-      // if (status === ERazorpayPaymentStatus.failed) {
-      //   await this.failPayment(ids);
-      // }
+      if (status === ERazorpayPaymentStatus.failed) {
+        //await this.failPayment(ids);
+      }
 
       return { message: "Updated Successfully" };
     } catch (err) {
@@ -393,18 +394,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -419,29 +420,51 @@ export class PaymentRequestService {
     }
   }
 
-  async completePayment(ids) {
-    await this.invoiceService.updateInvoice(
-      ids.invoiceId,
-      EDocumentStatus.completed
-    );
-    await this.updatePaymentRequest(
-      {
-        id: ids.paymentId,
-        document_status: EDocumentStatus.completed,
-      },
-      Req
-    );
-
-    if (ids?.serviceRequestId) {
-      await this.serviceRequestService.updateServiceRequest(
-        ids.serviceRequestId,
-        {
-          // visibilityStatus: EVisibilityStatus.unlocked,
-          requestStatus: EServiceRequestStatus.pending,
-        }
+  async completePayment(ids, status?) {
+    if (status == ERazorpayPaymentStatus.captured) {
+      await this.invoiceService.updateInvoice(
+        ids.invoiceId,
+        EDocumentStatus.completed
       );
+      await this.updatePaymentRequest(
+        {
+          id: ids.paymentId,
+          document_status: EDocumentStatus.completed,
+        },
+        Req
+      );
+
+      if (ids?.serviceRequestId) {
+        await this.serviceRequestService.updateServiceRequest(
+          ids.serviceRequestId,
+          {
+            // visibilityStatus: EVisibilityStatus.unlocked,
+            requestStatus: EServiceRequestStatus.pending,
+          }
+        );
+      }
     }
+    else if (status == ERazorpayPaymentStatus.failed) {
+      await this.invoiceService.updateInvoice(
+        ids.invoiceId,
+        EDocumentStatus.failed
+      );
+      await this.updatePaymentRequest(
+        {
+          id: ids.paymentId,
+          document_status: EDocumentStatus.failed,
+        },
+        Req
+      );
+
+      if (ids?.serviceRequestId && ids?.userId) {
+        
+      }
+    }
+
   }
+
+
 
   async fetchPaymentByOrderId(cfPaymentId: string) {
     try {
@@ -464,7 +487,7 @@ export class PaymentRequestService {
         {
           $set: {
             reason: body?.reason?.failureReason,
-            document_status: body.document_status||body,
+            document_status: body.document_status || body,
           },
         }
       );

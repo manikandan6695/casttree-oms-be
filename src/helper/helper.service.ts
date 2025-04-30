@@ -3,7 +3,6 @@ import { BadRequestException, Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { catchError, lastValueFrom, map } from "rxjs";
-import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 
@@ -13,7 +12,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -190,6 +189,22 @@ export class HelperService {
       throw err;
     }
   }
+
+  async updateCouponUsage(body) {
+    try {
+      let data = await this.http_service
+        .post(
+          // `${this.configService.get("CASTTREE_BASE_URL")}/coupon/update-coupon-usage`,
+          `http://localhost:3000/casttree/coupon/update-coupon-usage`,
+          body
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
 
   async sendMail(body) {
     try {
