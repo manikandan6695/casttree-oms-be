@@ -180,11 +180,12 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-
+    console.log("paymentRecord",body,invoiceData);
+    
     const paymentData = {
       ...body,
       source_id: invoiceData._id,
-      currency: currency?._id,
+      currency: currency?._id||body?.currency,
       currencyCode: body?.currencyCode,
       source_type: EDocumentTypeName.invoice,
       payment_order_id: orderDetail?.order_id,
@@ -455,14 +456,15 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      // console.log("paymentId", paymentId, body);
-
+      console.log("paymentId", paymentId, body);
       let updateData = await this.paymentModel.updateOne(
-        { _id: paymentId },
+        {
+          $or: [{ source_id: paymentId }, { payment_order_id: paymentId }],
+        },
         {
           $set: {
-            reason: body?.reason,
-            document_status: body?.document_status,
+            reason: body?.reason?.failureReason,
+            document_status: body.document_status||body,
           },
         }
       );

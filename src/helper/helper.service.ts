@@ -62,7 +62,21 @@ export class HelperService {
       throw err;
     }
   }
+  async getCurrencyId(currency, skip = 0, limit = 1) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/currency?search=${currency}&skip=${skip}&limit=${limit}`
+          // `http://localhost:3000/casttree/currency?search=${currency}&skip=${skip}&limit=${limit}`,
+        )
+        .toPromise();
+      // console.log("currency data",data.data);
 
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
   async getUserById(user_id) {
     try {
       let data = await this.http_service
@@ -268,24 +282,91 @@ export class HelperService {
     }
   }
 
-  async addSubscription(body, token: UserToken) {
+  async addSubscription(body) {
     try {
+      // console.log("addSubscription body is", body);
       let fv = {
-        plan_id: body.plan_id,
-        total_count: body.total_count,
-        notes: {
-          userId: body.notes.userId,
-          sourceId: body.notes.sourceId,
-          sourceType: body.notes.sourceType,
-          itemId: body.notes.itemId,
+        amount: body?.amount,
+        currency: body?.currency,
+        customer_id: body?.customer_id,
+        method: "upi",
+        payment_capture: 1,
+        token: {
+          max_amount: body?.token.max_amount,
+          expire_at: body?.token.expire_at,
         },
       };
+      // console.log("addSubscription fv", fv);
+
+      let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
+      let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
+      let data = await this.http_service
+        .post(`${this.configService.get("RAZORPAY_BASE_URL")}/v1/orders`, fv, {
+          auth: {
+            username: razor_pay_key,
+            password: razor_pay_secret,
+          },
+        })
+        .toPromise();
+      // console.log("addSubscription data", data.data);
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createRecurringPayment(body) {
+    try {
+      let fv = {
+        email: body.email,
+        contact: body.phoneNumber,
+        amount: body.amount,
+        currency: body.currency,
+        order_id: body.orderId,
+        customer_id: body.customerId,
+        token: body.token,
+        recurring: "1",
+        notes: {
+          userId: body?.userId,
+          userReferenceId: body?.customerId,
+          razorpayOrderId: body.orderId,
+        },
+      };
+      let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
+      let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
+      let data = await this.http_service
+        .post(`${this.configService.get("RAZORPAY_BASE_URL")}/v1/orders`, fv, {
+          auth: {
+            username: razor_pay_key,
+            password: razor_pay_secret,
+          },
+        })
+        .toPromise();
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createCustomer(body, token: any) {
+    try {
+      // console.log("token", token);
+
+      let fv = {
+        name: body.userName,
+        email: body.email,
+        contact: body.phoneNumber,
+        fail_existing: "0",
+      };
+      // console.log("customer fv", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
         .post(
-          `${this.configService.get("RAZORPAY_BASE_URL")}/v1/subscriptions`,
+          `${this.configService.get("RAZORPAY_BASE_URL")}/v1/customers`,
           fv,
           {
             auth: {
@@ -301,6 +382,7 @@ export class HelperService {
       throw err;
     }
   }
+
   async updateUser(body: any) {
     try {
       let data = await this.http_service
@@ -432,6 +514,62 @@ export class HelperService {
     }
   }
 
+  async getUserAdditionalDetails(body) {
+    try {
+      console.log("getUserAdditionalDetails body is", body);
+
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/get-user-additional/${body.userId}`;
+      const request = this.http_service
+        .get(requestURL, body)
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updateUserAdditional(body) {
+    try {
+      // console.log("inisde update user additional", body);
+
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
+      const request = this.http_service
+        .patch(requestURL, body)
+        .pipe(
+          map((res) => {
+            console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      // console.log("response", response);
+
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async mixPanel(body: any) {
     try {
       let data = await this.http_service
@@ -509,13 +647,17 @@ export class HelperService {
         "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
       };
       const request = this.http_service
-        .post(requestURL, {
-          "payment_id": body.paymentId,
-          "action": "RETRY",
-          "action_details": {
-            "next_scheduled_time": body.nextSchedule
-          }
-        }, { headers: headers })
+        .post(
+          requestURL,
+          {
+            payment_id: body.paymentId,
+            action: "RETRY",
+            action_details: {
+              next_scheduled_time: body.nextSchedule,
+            },
+          },
+          { headers: headers }
+        )
         .pipe(
           map((res) => {
           //  console.log(res?.data);
@@ -536,47 +678,50 @@ export class HelperService {
     }
   }
 
-  async facebookEvents(phoneNumber,currency,amount){
-    try{
+  async facebookEvents(phoneNumber, currency, amount) {
+    try {
       let hashedPhoneNumber = await this.sha256(phoneNumber);
       let data = await this.http_service
-        .post(
-          `${this.configService.get("FACEBOOK_EVENT_URL")}`,
-          {
-            "data":[{
-              "event_name": "Purchase",
-              "event_time": Math.floor(Date.now() / 1000),
-              "action_source": "website",
-              "event_id": Math.floor(1000000000 + Math.random() * 9000000000),
-              "attribution_data": {
-                "attribution_share": "0.3"
+        .post(`${this.configService.get("FACEBOOK_EVENT_URL")}`, {
+          data: [
+            {
+              event_name: "Purchase",
+              event_time: Math.floor(Date.now() / 1000),
+              action_source: "website",
+              event_id: Math.floor(1000000000 + Math.random() * 9000000000),
+              attribution_data: {
+                attribution_share: "0.3",
               },
-              "original_event_data": {
-                "event_name": "Purchase",
-                "event_time": Math.floor(Date.now() / 1000)
+              original_event_data: {
+                event_name: "Purchase",
+                event_time: Math.floor(Date.now() / 1000),
               },
-              "user_data": {
-                "ph": hashedPhoneNumber
+              user_data: {
+                ph: hashedPhoneNumber,
               },
-              "custom_data": {
-                "currency": currency,
-                "value": amount
-              }
-            }],
-            "access_token": this.configService.get("FACEBOOK_ACCESS_TOKEN")
-          }
-        )
+              custom_data: {
+                currency: currency,
+                value: amount,
+              },
+            },
+          ],
+          access_token: this.configService.get("FACEBOOK_ACCESS_TOKEN"),
+        })
         .toPromise();
       return data.data;
-    }catch(err){throw err}
+    } catch (err) {
+      throw err;
+    }
   }
 
   async sha256(message) {
     const encoder = new TextEncoder();
     const data = encoder.encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     return hashHex;
   }
 

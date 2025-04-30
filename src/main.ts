@@ -22,6 +22,6 @@ async function bootstrap() {
   app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
   app.setGlobalPrefix(process.env.API_PREFIX);
   await app.listen(port);
-  //console.log(`${new Date()}====>App started in port ${port}<====`);
+  console.log(`${new Date()}====>App started in port ${port}<====`);
 }
 bootstrap();

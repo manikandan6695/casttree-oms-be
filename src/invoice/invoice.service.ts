@@ -60,12 +60,17 @@ export class InvoiceService {
     try {
       let updateBody: any = {};
       updateBody.document_status = status;
-
       await this.salesDocumentModel.updateOne(
-        { _id: id },
+        {
+          $or: [{ source_id: id }, { _id: id }],
+        },
         { $set: { document_status: status } }
       );
-      let invoice = await this.salesDocumentModel.findOne({ _id: id });
+      let invoice = await this.salesDocumentModel.findOne({
+        $or: [{ source_id: id }, { _id: id }],
+      });
+      console.log("invoice id", invoice);
+      
       return { message: "Updated successfully", invoice };
     } catch (err) {
       throw err;
