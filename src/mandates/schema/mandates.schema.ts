@@ -39,6 +39,9 @@ export class Mandate {
   mandateStatus: string;
 
   @Prop()
+  referenceId: string;
+
+  @Prop()
   status: string;
 
   @Prop({ type: MongooseSchema.Types.Mixed })
@@ -58,6 +61,9 @@ export class Mandate {
 
   @Prop()
   providerId: number;
+
+  @Prop()
+  provider: string;
 
   @Prop()
   planId: string;

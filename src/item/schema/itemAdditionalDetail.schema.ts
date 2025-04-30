@@ -107,17 +107,19 @@ export interface itemAdditionalDetailModel {
   workShopEndDate: Date;
   startTime: String;
   endTime: String;
-  thumbnail:String;
+  thumbnail: String;
   faq: faqModel[];
   highlights: highlightsModel[];
   targetUsers: targetUsersModel[];
   testimonials: testimonialModel[];
   videDescription: videoDescriptionModel[];
   badge: string;
-  planId:string;
-  promotionDetails:any;
-  premiumPage:any;
-  ratingSummary:string;
+  authDetail: any;
+  subscriptionDetail: any;
+  planId: string;
+  promotionDetails: any;
+  premiumPage: any;
+  ratingSummary: string;
 }
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
@@ -143,8 +145,10 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   targetUsers: [targetUsersSchema],
   testimonials: [testimonialSchema],
   videDescription: [videoDescriptionSchema],
-  planId: {type:String},
+  planId: { type: String },
+  authDetail: { type: mongoose.Schema.Types.Mixed },
+  subscriptionDetail: { type: mongoose.Schema.Types.Mixed },
   promotionDetails: { type: mongoose.Schema.Types.Mixed },
   premiumPage: { type: mongoose.Schema.Types.Mixed },
-  ratingSummary: {type:String}
+  ratingSummary: { type: String },
 });
