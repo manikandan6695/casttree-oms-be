@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { CustomLogger } from "src/logger/customlogger.service";
@@ -11,7 +12,6 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
-import { EventEmitter2 } from "@nestjs/event-emitter";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
 @Injectable()
@@ -89,7 +89,7 @@ export class SharedService {
     userDetails: any
   ) {
     try {
-      console.log("inside track and emit event");
+    //  console.log("inside track and emit event");
 
       const commandSource = {
         userId: userDetails?.userId,
@@ -107,7 +107,7 @@ export class SharedService {
 
       const commandSourceCreate =
         await this.commandSourceModel.create(commandSource);
-      console.log("commandSourceCreate", commandSourceCreate);
+   //   console.log("commandSourceCreate", commandSourceCreate);
 
       event["commandSource"] = commandSourceCreate;
       if (isAsync) {
@@ -134,7 +134,7 @@ export class SharedService {
           try {
             prop = err.message.split(":")[2].replace(" dup key", "").trim();
           } catch (properr) {
-            console.log("cant get prop");
+         //   console.log("cant get prop");
           }
           code = HttpStatus.NOT_ACCEPTABLE;
           response = { code, message: `${prop} provided already exist` };
@@ -305,7 +305,7 @@ export class SharedService {
       }
       return input;
     } catch (err) {
-      console.log("error in converting ", input);
+    //  console.log("error in converting ", input);
       throw err;
     }
   }

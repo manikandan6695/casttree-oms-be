@@ -239,36 +239,24 @@ export class SubscriptionService {
       // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
-        console.log("event", event);
-
-        // console.log("inside razorpay webhook", req?.body);
-        // if (event === EEventType.tokenCancelled) {
-        //   const payload = req?.body?.payload;
-        //   await this.handleRazorpayMandate(payload);
-        // }
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
-          console.log("inside payment authorized", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
-
         if (event === EEventType.tokenConfirmed) {
           const payload = req?.body?.payload;
-          console.log("inside payment authorized", payload);
           await this.handleRazorpayMandate(payload);
           // await this.handleRazorpaySubscription(payload);
         }
         if (event === EEventType.paymentFailed) {
           const payload = req?.body?.payload;
-          console.log("inside payment failed", payload);
           await this.handleRazorpayFailedPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
 
         if (event === EEventType.tokenCancelled) {
           const payload = req?.body?.payload;
-          console.log("inside mandate cancelled", payload);
           await this.handleRazorpayCancelledMandate(payload);
           // await this.handleRazorpaySubscription(payload);
         }
@@ -280,33 +268,34 @@ export class SubscriptionService {
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
           await this.handleCashfreeNewPayment(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_FAILED") {
-          console.log("provider", "failed");
+          // console.log("provider", "failed");
           await this.handleCashfreeFailedPayment(req.body);
         }
-      } else if (provider == EProvider.apple) {
-        const decodeId = await this.subscriptionFactory.parseJwt(
-          req?.body?.signedPayload
-        );
-        // console.log("decodeId:", decodeId);
-        if (
-          decodeId.notificationType === EEventType.didRenew ||
-          decodeId.subtype === EEventType.subTypeRenew
-        ) {
-          await this.handleAppleIAPRenew(decodeId);
-        } else if (decodeId.notificationType === EEventType.didCancel) {
-          await this.handleAppleIAPCancel(decodeId);
-        } else if (
-          decodeId.notificationType === EEventType.didPurchase &&
-          decodeId.subtype === EEventType.subTypeInitial
-        ) {
-          await this.handleAppleIAPPurchase(decodeId);
-        } else if (
-          decodeId.notificationType === EEventType.expired &&
-          decodeId.subtype === EEventType.expiredSubType
-        ) {
-          await this.handleIapExpired(decodeId);
-        }
       }
+      // else if (provider == EProvider.apple) {
+      //   const decodeId = await this.subscriptionFactory.parseJwt(
+      //     req?.body?.signedPayload
+      //   );
+      //   // console.log("decodeId:", decodeId);
+      //   if (
+      //     decodeId.notificationType === EEventType.didRenew ||
+      //     decodeId.subtype === EEventType.subTypeRenew
+      //   ) {
+      //     await this.handleAppleIAPRenew(decodeId);
+      //   } else if (decodeId.notificationType === EEventType.didCancel) {
+      //     await this.handleAppleIAPCancel(decodeId);
+      //   } else if (
+      //     decodeId.notificationType === EEventType.didPurchase &&
+      //     decodeId.subtype === EEventType.subTypeInitial
+      //   ) {
+      //     await this.handleAppleIAPPurchase(decodeId);
+      //   } else if (
+      //     decodeId.notificationType === EEventType.expired &&
+      //     decodeId.subtype === EEventType.expiredSubType
+      //   ) {
+      //     await this.handleIapExpired(decodeId);
+      //   }
+      // }
     } catch (err) {
       throw err;
     }
@@ -1176,11 +1165,11 @@ export class SubscriptionService {
         },
       ]);
 
-      console.log(
-        "expiring list ==>",
-        expiringSubscriptionsList.length,
-        expiringSubscriptionsList
-      );
+      // console.log(
+      //   "expiring list ==>",
+      //   expiringSubscriptionsList.length,
+      //   expiringSubscriptionsList
+      // );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         await this.createChargeData(expiringSubscriptionsList[i], planDetail);
       }
@@ -1510,7 +1499,7 @@ export class SubscriptionService {
 
   async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
-      console.log("update payment records ==>", body);
+      //  console.log("update payment records ==>", body);
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
       await this.invoiceService.updateInvoice(

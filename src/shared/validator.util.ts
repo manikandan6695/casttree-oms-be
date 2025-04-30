@@ -49,7 +49,7 @@ export function getValidator(type, field) {
         });
       break;
     case "string_email":
-      console.log("email called");
+   //   console.log("email called");
       schema = Joi.string()
         .email({ tlds: { allow: false } })
         .messages({
@@ -59,7 +59,7 @@ export function getValidator(type, field) {
         });
       break;
     case "string_email_required":
-      console.log("email called");
+    //  console.log("email called");
       schema = Joi.string()
         .email({ tlds: { allow: false } })
         .required()
