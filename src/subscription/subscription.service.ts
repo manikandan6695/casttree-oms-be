@@ -1,4 +1,4 @@
-import { Injectable, Req } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Req } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
@@ -37,6 +37,8 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+import { ServiceItemService } from "src/item/service-item.service";
+import { ELIGIBLE_SUBSCRIPTION, NOT_ELIGIBLE_SUBSCRIPTION } from "src/shared/app.constants";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -51,9 +53,11 @@ export class SubscriptionService {
     private helperService: HelperService,
     private sharedService: SharedService,
     private itemService: ItemService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) {}
+  ) { }
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
@@ -80,16 +84,16 @@ export class SubscriptionService {
           let chargeDate =
             item?.additionalDetail?.authDetail?.validityType === "day"
               ? this.sharedService.getFutureDateISO(
-                  item?.additionalDetail?.authDetail?.validity
-                )
+                item?.additionalDetail?.authDetail?.validity
+              )
               : item?.additionalDetail?.authDetail?.validityType === "month"
                 ? this.sharedService.getFutureMonthISO(
-                    item?.additionalDetail?.authDetail?.validity
-                  )
+                  item?.additionalDetail?.authDetail?.validity
+                )
                 : item?.additionalDetail?.authDetail?.validityType === "year"
                   ? this.sharedService.getFutureYearISO(
-                      item?.additionalDetail?.authDetail?.validity
-                    )
+                    item?.additionalDetail?.authDetail?.validity
+                  )
                   : null;
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
           subscriptionData = {
@@ -947,11 +951,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1221,22 +1225,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1374,22 +1378,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getDate() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
+          ?.validityType == EvalidityType.month
           ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          )
           : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          );
       let chargeResponse = await this.helperService.addSubscription(authBody);
       let userAdditionalData =
         await this.helperService.getUserAdditionalDetails({
@@ -1525,4 +1529,30 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async checkEligibility(token: UserToken, itemId: string) {
+    try {
+      const activeSubscription = await this.subscriptionModel.findOne({
+        userId: token.id,
+        subscriptionStatus: "Active",
+      });
+      let userItemId = activeSubscription.notes.itemId
+        const serviceItemTypeList = await this.serviceItemService.getServiceItemType(userItemId);
+        let isEligible =false;
+        if (activeSubscription && serviceItemTypeList.type === "subscription") {
+          const config = await this.helperService.getSystemConfig(itemId);
+          const eligibilityList = config?.data?.eligibility;
+          isEligible = Array.isArray(eligibilityList)
+            ? eligibilityList.some((e) => e._id === userItemId)
+            : false;
+        }
+        return {
+          isEligible: isEligible,
+          reason: isEligible ? ELIGIBLE_SUBSCRIPTION : NOT_ELIGIBLE_SUBSCRIPTION,
+        };
+    
+    } catch (error) {
+      throw error
+    }
+  }
+
 }
