@@ -594,7 +594,7 @@ export class SubscriptionService {
       let status = payload?.token?.entity?.recurring_details?.status;
       if (status == "cancellation_initiated") {
         let data = await this.mandateService.updateMandateDetail(
-          { "metaData.referenceId": tokenId },
+          { referenceId: tokenId },
           {
             mandateStatus: EMandateStatus.cancelled,
             "metaData.status": status,
