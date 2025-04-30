@@ -296,6 +296,8 @@ export class HelperService {
           expire_at: body?.token.expire_at,
         },
       };
+      // console.log("addSubscription fv", fv);
+
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
@@ -306,6 +308,7 @@ export class HelperService {
           },
         })
         .toPromise();
+      // console.log("addSubscription data", data.data);
 
       return data.data;
     } catch (err) {
@@ -540,6 +543,8 @@ export class HelperService {
 
   async updateUserAdditional(body) {
     try {
+      // console.log("inisde update user additional", body);
+
       const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -557,6 +562,8 @@ export class HelperService {
         );
 
       const response = await lastValueFrom(request);
+      // console.log("response", response);
+
       return response;
     } catch (err) {
       throw err;

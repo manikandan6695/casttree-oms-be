@@ -726,7 +726,7 @@ export class SubscriptionFactory {
         await this.helperService.getUserAdditionalDetails({ userId: token.id });
       // console.log("userAdditionalData", userAdditionalData);
       let customer;
-      if (!userAdditionalData?.data?.referenceId) {
+      if (!userAdditionalData?.userAdditional?.referenceId) {
         customer = await this.helperService.createCustomer(
           {
             userName: userAdditionalData?.userAdditional?.userId?.userName,
@@ -742,11 +742,16 @@ export class SubscriptionFactory {
           referenceId: customer?.id,
         });
       }
-      let customerId = userAdditionalData?.data?.referenceId || customer?.id;
+      let customerId =
+        userAdditionalData?.userAdditional?.referenceId || customer?.id;
+      // console.log("customerId", customerId);
+
       let fv = {
         ...data,
         customer_id: customerId,
       };
+      // console.log("fv is", fv);
+
       const subscription = await this.helperService.addSubscription(fv);
       let endDate = new Date(data?.firstCharge);
       endDate.setHours(23, 59, 59, 999); // modifies in-place
