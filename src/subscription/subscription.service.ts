@@ -105,7 +105,8 @@ export class SubscriptionService {
                 ?.amount,
             token: {
               max_amount:
-                item?.additionalDetail?.subscriptionDetail?.amount * 100,
+                item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                  ?.amount * 100,
               expire_at: expiry,
             },
             itemId: body?.itemId,
