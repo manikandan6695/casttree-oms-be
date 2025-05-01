@@ -296,7 +296,7 @@ export class HelperService {
           expire_at: body?.token.expire_at,
         },
       };
-      // console.log("addSubscription fv", fv);
+      console.log("razorpay order creation fv", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
@@ -462,13 +462,13 @@ export class HelperService {
         .get(requestURL, { headers: headers })
         .pipe(
           map((res) => {
-           // console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-           // console.log(err);
+            // console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -482,7 +482,7 @@ export class HelperService {
 
   async createSubscription(body, token) {
     try {
-     // console.log("subscription body is", body);
+      // console.log("subscription body is", body);
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
 
       const headers = {
@@ -496,13 +496,13 @@ export class HelperService {
         .post(requestURL, body, { headers: headers })
         .pipe(
           map((res) => {
-           // console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-          //  console.log(err);
+            //  console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -593,11 +593,11 @@ export class HelperService {
       let toCurrency = "INR";
       const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
       const response = await axios.get(url);
-     // console.log("API Response:", response.data);
+      // console.log("API Response:", response.data);
       const conversionRate = response.data?.conversion_rate;
-     // console.log(
+      // console.log(
       //  `Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`
-   //   );
+      //   );
       return conversionRate;
     } catch (error: any) {
       console.error("Failed to fetch conversion rate:", error.message);
@@ -660,13 +660,13 @@ export class HelperService {
         )
         .pipe(
           map((res) => {
-          //  console.log(res?.data);
+            //  console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-          //  console.log(err);
+            //  console.log(err);
             throw new BadRequestException("API not available");
           })
         );
