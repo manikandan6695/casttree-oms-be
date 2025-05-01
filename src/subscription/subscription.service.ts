@@ -65,8 +65,9 @@ export class SubscriptionService {
             EsubscriptionStatus.initiated,
           ]);
           let authAmount = existingSubscription
-            ? item?.additionalDetail?.subscriptionDetail?.amount
-            : item?.additionalDetail?.authDetail?.amount;
+            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount
+            : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
           );
@@ -83,8 +84,8 @@ export class SubscriptionService {
           // console.log("inside subscription service", subscriptionNumber);
           let expiryDate = this.sharedService.getFutureYearISO(10);
           let detail = existingSubscription
-            ? item?.additionalDetail?.subscriptionDetail
-            : item?.additionalDetail?.authDetail;
+            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+            : item?.additionalDetail?.promotionDetails?.authDetail;
           let chargeDate = await this.getFutureDate(detail);
           console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
@@ -92,11 +93,16 @@ export class SubscriptionService {
             subscription_id: razorpaySubscriptionNewNumber.toString(),
             amount: authAmount * 100,
             authAmount: authAmount,
-            currency: item?.additionalDetail?.authDetail?.currency_code,
+            currency:
+              item?.additionalDetail?.promotionDetails?.authDetail
+                ?.currency_code,
             method: "upi",
             subscriptionAmount:
-              item?.additionalDetail?.subscriptionDetail?.amount,
-            maximumAmount: item?.additionalDetail?.subscriptionDetail?.amount,
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            maximumAmount:
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
             token: {
               max_amount:
                 item?.additionalDetail?.subscriptionDetail?.amount * 100,
