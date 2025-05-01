@@ -6,6 +6,7 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  Headers,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
@@ -34,9 +35,9 @@ export class ItemController {
   }
 
   @Get(":id")
-  async getItemDetail(@Param("id") id: string) {
+  async getItemDetail(@Param("id") id: string,@Headers('x-api-version') version: string) {
     try {
-      let data = await this.itemService.getItemDetail(id);
+      let data = await this.itemService.getItemDetail(id,version);
       return data;
     } catch (err) {
       return err;

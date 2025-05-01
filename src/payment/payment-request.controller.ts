@@ -33,8 +33,7 @@ export class PaymentRequestController {
     @Res() res: Response
   ) {
     try {
-      console.log("inside initiate payment is ==>");
-
+      console.log("inside initiate payment is ==>",body);
       let data = await this.paymentRequestService.initiatePayment(
         body,
         token,

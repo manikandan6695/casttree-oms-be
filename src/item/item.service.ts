@@ -4,12 +4,14 @@ import { Model } from "mongoose";
 import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
 import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
+import { HelperService } from "src/helper/helper.service";
 
 @Injectable()
 export class ItemService {
   constructor(
     @InjectModel("platformItem")
     private platformItem: Model<IPlatformItemModel>,
+    private helperService: HelperService,
     @InjectModel("item") private itemModel: Model<IItemModel>
   ) {}
   async getPlatformItem(
@@ -44,13 +46,25 @@ export class ItemService {
     }
   }
 
-  async getItemDetail(id: string) {
+  async getItemDetail(id: string, version: string) {
     try {
-        
-      let data = await this.itemModel.findOne({ _id: id }).lean();
-      return data;
+      if (version === 'v2') {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        const itemId = awardData?._id;
+        const nominationsData = await this.helperService.getNominations(itemId);
+        return {
+          item: itemData,
+          award: awardData,
+          participants: nominationsData,
+        };
+      }
+      else {
+        const data = await this.itemModel.findOne({ _id: id }).lean();
+        return data;
+      }
     } catch (err) {
-      throw err;
+       throw err;
     }
   }
 
