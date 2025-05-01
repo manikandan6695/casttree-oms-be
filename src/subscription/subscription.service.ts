@@ -61,7 +61,12 @@ export class SubscriptionService {
       switch (body.provider) {
         case "razorpay":
           let item = await this.itemService.getItemDetail(body.itemId);
-          let authAmount = item?.additionalDetail?.authDetail?.amount;
+          let existingSubscription = await this.validateSubscription(token.id, [
+            EsubscriptionStatus.initiated,
+          ]);
+          let authAmount = existingSubscription
+            ? item?.additionalDetail?.subscriptionDetail?.amount
+            : item?.additionalDetail?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
           );
@@ -77,20 +82,11 @@ export class SubscriptionService {
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
           let expiryDate = this.sharedService.getFutureYearISO(10);
-          let chargeDate =
-            item?.additionalDetail?.authDetail?.validityType === "day"
-              ? this.sharedService.getFutureDateISO(
-                  item?.additionalDetail?.authDetail?.validity
-                )
-              : item?.additionalDetail?.authDetail?.validityType === "month"
-                ? this.sharedService.getFutureMonthISO(
-                    item?.additionalDetail?.authDetail?.validity
-                  )
-                : item?.additionalDetail?.authDetail?.validityType === "year"
-                  ? this.sharedService.getFutureYearISO(
-                      item?.additionalDetail?.authDetail?.validity
-                    )
-                  : null;
+          let detail = existingSubscription
+            ? item?.additionalDetail?.subscriptionDetail
+            : item?.additionalDetail?.authDetail;
+          let chargeDate = await this.getFutureDate(detail);
+          console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
           subscriptionData = {
             subscription_id: razorpaySubscriptionNewNumber.toString(),
@@ -220,6 +216,19 @@ export class SubscriptionService {
       return { data };
     } catch (err) {
       throw err;
+    }
+  }
+
+  async getFutureDate(detail: any) {
+    switch (detail?.validityType) {
+      case "day":
+        return this.sharedService.getFutureDateISO(detail?.validity);
+      case "month":
+        return this.sharedService.getFutureMonthISO(detail?.validity);
+      case "year":
+        return this.sharedService.getFutureYearISO(detail?.validity);
+      default:
+        return null;
     }
   }
   async subscriptionWebhook(@Req() req, providerId: number) {
