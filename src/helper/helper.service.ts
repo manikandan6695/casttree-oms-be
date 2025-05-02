@@ -284,7 +284,7 @@ export class HelperService {
 
   async addSubscription(body) {
     try {
-      // console.log("addSubscription body is", body);
+      console.log("addSubscription body is", body);
       let fv = {
         amount: body?.amount,
         currency: body?.currency,
@@ -306,6 +306,7 @@ export class HelperService {
           },
         })
         .toPromise();
+      console.log("response data is ==>", data.data);
 
       return data.data;
     } catch (err) {
@@ -316,30 +317,37 @@ export class HelperService {
   async createRecurringPayment(body) {
     try {
       let fv = {
-        email: body.email,
-        contact: body.phoneNumber,
+        email: body?.email || "mani6693@gmail.com",
+        contact: body?.contact,
         amount: body.amount,
         currency: body.currency,
-        order_id: body.orderId,
-        customer_id: body.customerId,
+        order_id: body.order_id,
+        customer_id: body.customer_id,
         token: body.token,
         recurring: "1",
         notes: {
-          userId: body?.userId,
-          userReferenceId: body?.customerId,
-          razorpayOrderId: body.orderId,
+          userId: body?.notes?.userId,
+          userReferenceId: body?.notes?.userReferenceId,
+          razorpayOrderId: body?.notes?.razorpayOrderId,
         },
       };
+
+      console.log("recurring payment body is", fv);
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
-        .post(`${this.configService.get("RAZORPAY_BASE_URL")}/v1/orders`, fv, {
-          auth: {
-            username: razor_pay_key,
-            password: razor_pay_secret,
-          },
-        })
+        .post(
+          `${this.configService.get("RAZORPAY_BASE_URL")}/v1/payments/create/recurring`,
+          fv,
+          {
+            auth: {
+              username: razor_pay_key,
+              password: razor_pay_secret,
+            },
+          }
+        )
         .toPromise();
+      console.log("recurring data is ==>", data.data);
 
       return data.data;
     } catch (err) {
@@ -513,7 +521,7 @@ export class HelperService {
 
   async getUserAdditionalDetails(body) {
     try {
-      console.log("getUserAdditionalDetails body is", body);
+      // console.log("getUserAdditionalDetails body is", body);
 
       const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/get-user-additional/${body.userId}`;
       const request = this.http_service
