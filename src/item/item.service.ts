@@ -46,31 +46,33 @@ export class ItemService {
     }
   }
 
-  async getItemDetail(id: string, version: string) {
+  async getItemDetail(id: string, version?: string) {
     try {
-      if (version === 'v2') {
-        const itemData = await this.itemModel.findOne({ _id: id }).lean();
-        const awardData = await this.helperService.getAward(id);
-        const itemId = awardData?._id;
-        const nominationsData = await this.helperService.getNominations(itemId);
-        return {
-          item: itemData,
-          award: awardData,
-          participants: nominationsData,
-        };
-      }
-      else {
-        const data = await this.itemModel.findOne({ _id: id }).lean();
-        return data;
-      }
+      const data = await this.itemModel.findOne({ _id: id }).lean();
+      return data;
     } catch (err) {
-       throw err;
+      throw err;
+    }
+  }
+
+  async getItem(id: string) {
+    try {
+      const itemData = await this.itemModel.findOne({ _id: id }).lean();
+      const awardData = await this.helperService.getAward(id);
+      const awardId = awardData?._id;
+      const nominationsData = await this.helperService.getNominations(awardId);
+      return {
+        item: itemData,
+        award: awardData,
+        participants: nominationsData,
+      };
+    } catch (err) {
+      throw err;
     }
   }
 
   async getItemDetailByName(name: string) {
     try {
-        
       let data = await this.itemModel.findOne({ itemName: name }).lean();
       return data;
     } catch (err) {
@@ -79,7 +81,9 @@ export class ItemService {
   }
   async getItemNamesByIds(itemIds: string[]) {
     try {
-      const items = await this.itemModel.find({ _id: { $in: itemIds } }, { _id: 1, itemName: 1 }).lean();
+      const items = await this.itemModel
+        .find({ _id: { $in: itemIds } }, { _id: 1, itemName: 1 })
+        .lean();
       return items.reduce((acc, item) => {
         acc[item._id.toString()] = item.itemName;
         return acc;

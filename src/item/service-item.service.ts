@@ -32,30 +32,39 @@ export class ServiceItemService {
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService,
     private subscriptionService: SubscriptionService
-  ) { }
+  ) {}
   async getServiceItemDetailbyItemId(itemId) {
     try {
-      let data = await this.serviceItemModel.findOne({ itemId: itemId }).populate({
-        path: "itemId",
-        populate: [
-          {
-            path: "platformItemId",
-          },
-        ],
-      }).lean();
+      let data = await this.serviceItemModel
+        .findOne({ itemId: itemId })
+        .populate({
+          path: "itemId",
+          populate: [
+            {
+              path: "platformItemId",
+            },
+          ],
+        })
+        .lean();
       return data;
-
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
 
   async getServiceItemDetailbyProcessId(processId: string | string[], userId?) {
     try {
-
       let data;
       if (Array.isArray(processId)) {
-        data = await this.serviceItemModel.find({ "additionalDetails.processId": { $in: processId } }, { userId: 1, additionalDetails: 1, itemId: 1 }).populate({
-          path: "itemId"
-        }).lean();
+        data = await this.serviceItemModel
+          .find(
+            { "additionalDetails.processId": { $in: processId } },
+            { userId: 1, additionalDetails: 1, itemId: 1 }
+          )
+          .populate({
+            path: "itemId",
+          })
+          .lean();
         const userIds = data.map((e) => e.userId);
         const profileInfo = await this.helperService.getProfileByIdTl(
           userIds,
@@ -76,26 +85,35 @@ export class ServiceItemService {
         }, {});
 
         for (let i = 0; i < data.length; i++) {
-          console.log("lll: "+data[i]["itemId"]?.itemDescription,data[i]["itemId"]?.itemName);
+          // console.log(
+          //   "lll: " + data[i]["itemId"]?.itemDescription,
+          //   data[i]["itemId"]?.itemName
+          // );
           data[i]["displayName"] =
             userProfileInfo[data[i]["userId"]]?.displayName;
           data[i]["itemDescription"] = data[i]["itemId"]?.itemDescription;
           data[i]["itemId"] = data[i]["itemId"]?.itemName;
-          data[i]["taskData"] = firstTaskObject[data[i]["additionalDetails"]["processId"]]
+          data[i]["taskData"] =
+            firstTaskObject[data[i]["additionalDetails"]["processId"]];
         }
       } else {
-        data = await this.serviceItemModel.findOne({ "additionalDetails.processId": processId }).populate({
-          path: "itemId",
-          populate: [
-            {
-              path: "platformItemId",
-            },
-          ],
-        }).lean();
+        data = await this.serviceItemModel
+          .findOne({ "additionalDetails.processId": processId })
+          .populate({
+            path: "itemId",
+            populate: [
+              {
+                path: "platformItemId",
+              },
+            ],
+          })
+          .lean();
       }
 
       return data;
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
 
   async getServiceItems(
@@ -143,12 +161,24 @@ export class ServiceItemService {
       const userIds = serviceItemData.map((e) => e.userId);
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          sourceIds
+        );
         serviceItemData.map((data) => {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
-            data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-            data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-            data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+            data.itemId["price"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "price"
+              ];
+            data.itemId["comparePrice"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "comparePrice"
+              ];
+            data.itemId["currency"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "currency"
+              ];
           }
         });
       }
@@ -183,7 +213,6 @@ export class ServiceItemService {
 
   async getServiceItemDetails(id: string, country_code: string = "", userId?) {
     try {
-
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate({
@@ -195,7 +224,6 @@ export class ServiceItemService {
           ],
         })
         .lean();
-
 
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
@@ -218,11 +246,21 @@ export class ServiceItemService {
       if (country_code) {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          sourceIds
+        );
         if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
-          data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-          data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-          data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+          data.itemId["price"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+          data.itemId["comparePrice"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+              "comparePrice"
+            ];
+          data.itemId["currency"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+              "currency"
+            ];
         }
       }
 
@@ -240,7 +278,9 @@ export class ServiceItemService {
       const updatedMoreExpertsData = [];
       if (moreExpertsData.data.length > 0) {
         for (let i = 0; i < moreExpertsData?.data?.length; i++) {
-          if (moreExpertsData?.data[i]?._id?.toString() != data?._id?.toString()) {
+          if (
+            moreExpertsData?.data[i]?._id?.toString() != data?._id?.toString()
+          ) {
             updatedMoreExpertsData.push({
               _id: moreExpertsData?.data[i]?._id,
               languages: moreExpertsData?.data[i]?.language,
@@ -258,7 +298,10 @@ export class ServiceItemService {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.feedback_expert_detail_view;
         mixPanelBody.distinctId = userId;
-        mixPanelBody.properties = { "item_name": data.itemId.itemName, "expert_name": data.profileData.displayName };
+        mixPanelBody.properties = {
+          item_name: data.itemId.itemName,
+          expert_name: data.profileData.displayName,
+        };
         await this.helperService.mixPanel(mixPanelBody);
       }
       data["similarExperts"] = updatedMoreExpertsData;
@@ -302,10 +345,8 @@ export class ServiceItemService {
     limit: number,
     userId?: string,
     country_code?: string
-
   ) {
     try {
-
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -338,11 +379,18 @@ export class ServiceItemService {
         .limit(limit)
         .lean();
 
-      let currentUserWorkshops = await this.serviceRequestService.getUserRequests(EServiceRequestStatus.pending, userId, EserviceItemType.workShop);
+      let currentUserWorkshops =
+        await this.serviceRequestService.getUserRequests(
+          EServiceRequestStatus.pending,
+          userId,
+          EserviceItemType.workShop
+        );
 
       const countData = await this.serviceItemModel.countDocuments(filter);
       const userIds = serviceItemData.map((e) => e.userId);
-      currentUserWorkshops.map((data) => { userIds.push(data.requestedToUser) });
+      currentUserWorkshops.map((data) => {
+        userIds.push(data.requestedToUser);
+      });
       const profileInfo = await this.helperService.getworkShopProfileById(
         userIds,
         EprofileType.Expert
@@ -356,33 +404,50 @@ export class ServiceItemService {
           userProfileInfo[serviceItemData[i]["userId"]];
       }
       // let userIds = [];
-      currentUserWorkshops.map((data) => { data['profileData'] = userProfileInfo[data.requestedToUser.toString()] });
+      currentUserWorkshops.map((data) => {
+        data["profileData"] = userProfileInfo[data.requestedToUser.toString()];
+      });
       const sourceIds = serviceItemData.map((e) => e.itemId._id.toString());
       const itemsList = serviceItemData.map((e) => e.itemId);
       if (country_code) {
-
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          sourceIds
+        );
         serviceItemData.map((data) => {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
-            data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-            data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-            data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+            data.itemId["price"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "price"
+              ];
+            data.itemId["comparePrice"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "comparePrice"
+              ];
+            data.itemId["currency"] =
+              itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+                "currency"
+              ];
           }
         });
       }
 
-      return { data: serviceItemData, count: countData, currentWorkShops: currentUserWorkshops };
+      return {
+        data: serviceItemData,
+        count: countData,
+        currentWorkShops: currentUserWorkshops,
+      };
     } catch (err) {
       throw err;
     }
   }
 
-  async getworkShopServiceItemDetails(id: string,
+  async getworkShopServiceItemDetails(
+    id: string,
     userId?: string,
     country_code?: string
   ) {
     try {
-
       var data: any = await this.serviceItemModel
         .findOne({ _id: id })
         .populate(
@@ -399,11 +464,21 @@ export class ServiceItemService {
       if (country_code) {
         let sourceIds = [];
         sourceIds.push(data.itemId._id);
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, sourceIds);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          sourceIds
+        );
         if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
-          data.itemId["price"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
-          data.itemId["comparePrice"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["comparePrice"];
-          data.itemId["currency"] = itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["currency"];
+          data.itemId["price"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
+          data.itemId["comparePrice"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+              "comparePrice"
+            ];
+          data.itemId["currency"] =
+            itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
+              "currency"
+            ];
         }
       }
       data["profileData"] = profileInfo[0];
@@ -745,7 +820,6 @@ export class ServiceItemService {
 
   async getPlanDetails(processId, country_code: string = "", userId?) {
     try {
-
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
         .populate("itemId")
@@ -774,9 +848,7 @@ export class ServiceItemService {
           processPricingData.itemId["comparePrice"] =
             processPrice["comparePrice"];
           processPricingData.itemId["currency"] = processPrice["currency"];
-
         }
-
       }
       let finalResponse = {};
       let featuresArray = [];
@@ -817,7 +889,11 @@ export class ServiceItemService {
         plandata[1].currency.currency_code,
         plandata[0].currency.currency_code,
       ];
-      let itemId = [processPricingData.itemId._id, plandata[1]._id, plandata[0]._id];
+      let itemId = [
+        processPricingData.itemId._id,
+        plandata[1]._id,
+        plandata[0]._id,
+      ];
       let comparePrice = [
         processPricingData.itemId.comparePrice,
         plandata[1].comparePrice,
@@ -873,7 +949,6 @@ export class ServiceItemService {
 
   async getSubscriptionPlanDetails(country_code: string = "", userId?) {
     try {
-
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
@@ -881,12 +956,20 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          ids
+        );
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
-            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
-            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
-            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
+            data["price"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()][
+                "comparePrice"
+              ];
+            data["currency"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
       }
@@ -961,7 +1044,10 @@ export class ServiceItemService {
       let userCountryCode;
       let userData;
       if (userId) {
-        subscriptionData = await this.subscriptionService.validateSubscription(userId, [EsubscriptionStatus.initiated]);
+        subscriptionData = await this.subscriptionService.validateSubscription(
+          userId,
+          [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
+        );
       }
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
@@ -978,7 +1064,8 @@ export class ServiceItemService {
         a[c.userId] = c;
         return a;
       }, {});
-      processPricingData["profileData"] = profileInfoObj[processPricingData.userId.toString()];
+      processPricingData["profileData"] =
+        profileInfoObj[processPricingData.userId.toString()];
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
@@ -986,17 +1073,26 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-      ids.push(new ObjectId(processPricingData.itemId._id))
+      ids.push(new ObjectId(processPricingData.itemId._id));
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          ids
+        );
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
-            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
-            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
-            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
+            data["price"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()][
+                "comparePrice"
+              ];
+            data["currency"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
-        let processPrice = itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
+        let processPrice =
+          itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
         if (processPrice) {
           processPricingData.itemId["price"] = processPrice["price"];
           processPricingData.itemId["comparePrice"] =
@@ -1004,23 +1100,36 @@ export class ServiceItemService {
           processPricingData.itemId["currency"] = processPrice["currency"];
         }
       }
-      processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData.itemId.price;
-      processPricingData.itemId.additionalDetail.promotionDetails.itemName = processPricingData.itemId.itemName;
-      processPricingData.itemId.additionalDetail.promotionDetails.mentorName = processPricingData.profileData.displayName;
-      processPricingData.itemId.additionalDetail.promotionDetails.thumbnail = processPricingData.additionalDetails.thumbnail;
-      processPricingData.itemId.additionalDetail.promotionDetails.itemId = processPricingData.itemId._id;
-      processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData.itemId.comparePrice;
-      processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData.itemId.currency.currency_code;
-      finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
+      processPricingData.itemId.additionalDetail.promotionDetails.price =
+        processPricingData.itemId.price;
+      processPricingData.itemId.additionalDetail.promotionDetails.itemName =
+        processPricingData.itemId.itemName;
+      processPricingData.itemId.additionalDetail.promotionDetails.mentorName =
+        processPricingData.profileData.displayName;
+      processPricingData.itemId.additionalDetail.promotionDetails.thumbnail =
+        processPricingData.additionalDetails.thumbnail;
+      processPricingData.itemId.additionalDetail.promotionDetails.itemId =
+        processPricingData.itemId._id;
+      processPricingData.itemId.additionalDetail.promotionDetails.comparePrice =
+        processPricingData.itemId.comparePrice;
+      processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
+        processPricingData.itemId.currency.currency_code;
+      finalResponse.push(
+        processPricingData.itemId.additionalDetail.promotionDetails
+      );
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.itemId = data._id;
         data.additionalDetail.promotionDetails.itemName = data.itemName;
         data.additionalDetail.promotionDetails.price = data.price;
-        data.additionalDetail.promotionDetails.currency_code = data.currency.currency_code;
-        data.additionalDetail.promotionDetails.planId = data.additionalDetail.planId;
-        data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData ? false : true;
-        data.additionalDetail.promotionDetails.planConfig = data.additionalDetail?.planConfig;
+        data.additionalDetail.promotionDetails.currency_code =
+          data.currency?.currency_code;
+        data.additionalDetail.promotionDetails.planId =
+          data.additionalDetail?.planId;
+        data.additionalDetail.promotionDetails.isNewSubscriber =
+          subscriptionData ? false : true;
+        data.additionalDetail.promotionDetails.planConfig =
+          data.additionalDetail?.planConfig;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1031,26 +1140,35 @@ export class ServiceItemService {
 
   async getPremiumDetails(country_code: string = "", userId?) {
     try {
-
       let subscriptionItemIds: any = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
-        .sort({ _id: 1 }).lean();
+        .sort({ _id: 1 })
+        .lean();
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       if (country_code) {
-        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(country_code, ids);
+        let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
+          country_code,
+          ids
+        );
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data._id]) {
-            data["price"] = itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
-            data["comparePrice"] = itemListObjectWithUpdatedPrice[data._id.toString()]["comparePrice"];
-            data["currency"] = itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
+            data["price"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+            data["comparePrice"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()][
+                "comparePrice"
+              ];
+            data["currency"] =
+              itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
         });
-
       }
       let finalResponse = [];
-      plandata.map((data) => { finalResponse.push(data.additionalDetail.premiumPage) });
+      plandata.map((data) => {
+        finalResponse.push(data.additionalDetail.premiumPage);
+      });
       for (let i = 0; i < finalResponse.length; i++) {
         finalResponse[i].price = plandata[i].price;
         finalResponse[i].comparePrice = plandata[i].comparePrice;
@@ -1072,11 +1190,7 @@ export class ServiceItemService {
         country_code
       );
       return priceListData;
-    }
-
-
-    catch (err) { }
-
+    } catch (err) {}
   }
   async getServiceItemType(itemId: string) {
     try {
@@ -1089,6 +1203,4 @@ export class ServiceItemService {
       throw error;
     }
   }
-  
-
 }
