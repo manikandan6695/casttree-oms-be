@@ -63,6 +63,7 @@ export class SubscriptionService {
           let item = await this.itemService.getItemDetail(body.itemId);
           let existingSubscription = await this.validateSubscription(token.id, [
             EsubscriptionStatus.initiated,
+            EsubscriptionStatus.failed,
           ]);
           let authAmount = existingSubscription
             ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -950,6 +951,7 @@ export class SubscriptionService {
     try {
       let subscriptionData = await this.validateSubscription(token.id, [
         EsubscriptionStatus.initiated,
+        EsubscriptionStatus.failed,
       ]);
       let itemDetails = await this.itemService.getItemDetail(body.itemId);
       let subscriptionDetailsData = subscriptionData
