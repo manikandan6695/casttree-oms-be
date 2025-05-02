@@ -724,7 +724,48 @@ export class HelperService {
       .join("");
     return hashHex;
   }
-
+  async getSystemConfig(itemId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration/itemid?key=${itemId}`
+          //  `http://localhost:3000/casttree/configuration/itemid?key=${itemId}`,
+        )
+        .toPromise();
+      // console.log("data",data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getAward(itemId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/awards/get-awards-itemId?itemId=${itemId}`
+          // `http://localhost:3000/casttree/awards/get-awards-itemId?itemId=${itemId}`
+        )
+        .toPromise();
+      // console.log("data",data.data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getNominations(id: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}nominations/award/${id}`
+          // `http://localhost:3000/casttree/nominations/award/${id}`
+        )
+        .toPromise();
+      // console.log("getNominations",data.data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {

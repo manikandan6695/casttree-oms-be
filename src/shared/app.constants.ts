@@ -8,3 +8,5 @@ export const UPDATE_NOMINATION_STATUS =
   "Casttree.Events.Update.Nomination.Status";
   export const EVENT_UPDATE_USER =
   "Casttree.Events.Update.USER";   
+export const ELIGIBLE_SUBSCRIPTION="Eligible for this Subscription";
+export const NOT_ELIGIBLE_SUBSCRIPTION="You are not a premium subscriber";
