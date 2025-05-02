@@ -1046,7 +1046,7 @@ export class ServiceItemService {
       if (userId) {
         subscriptionData = await this.subscriptionService.validateSubscription(
           userId,
-          [EsubscriptionStatus.initiated]
+          [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
         );
       }
       let finalResponse = [];
