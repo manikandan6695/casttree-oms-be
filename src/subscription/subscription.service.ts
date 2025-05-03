@@ -38,7 +38,7 @@ import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 import { ServiceItemService } from "src/item/service-item.service";
-import { ELIGIBLE_SUBSCRIPTION, NOT_ELIGIBLE_SUBSCRIPTION } from "src/shared/app.constants";
+import { ELIGIBLE_SUBSCRIPTION, NOT_ELIGIBLE_SUBSCRIPTION, SUBSCRIPTION_NOT_FOUND } from "src/shared/app.constants";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -1552,6 +1552,12 @@ export class SubscriptionService {
         userId: token.id,
         subscriptionStatus: "Active",
       });
+      if (!activeSubscription) {
+        return {
+          isEligible: false,
+          reason: SUBSCRIPTION_NOT_FOUND,
+        };
+      }
       let userItemId = activeSubscription.notes.itemId
         const serviceItemTypeList = await this.serviceItemService.getServiceItemType(userItemId);
         let isEligible =false;
