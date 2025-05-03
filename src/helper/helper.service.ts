@@ -724,15 +724,14 @@ export class HelperService {
       .join("");
     return hashHex;
   }
-  async getSystemConfig(itemId: string) {
+  async getSystemConfig(contestId: string) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/configuration/itemid?key=${itemId}`
-          //  `http://localhost:3000/casttree/configuration/itemid?key=${itemId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration/contestId?contestId=${contestId}`
+          //  `http://localhost:3000/casttree/configuration/contestId?contestId=${itemId}`,
         )
         .toPromise();
-      // console.log("data",data);
       return data.data;
     } catch (err) {
       throw err;
