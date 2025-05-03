@@ -505,7 +505,7 @@ export class PaymentRequestService {
         },
       ]);
 
-      console.log({ data });
+    //  console.log({ data });
       return data;
     } catch (err) {
       throw err;

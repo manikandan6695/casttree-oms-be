@@ -296,6 +296,8 @@ export class HelperService {
           expire_at: body?.token.expire_at,
         },
       };
+      console.log("razorpay order creation fv", fv);
+
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
@@ -317,7 +319,7 @@ export class HelperService {
   async createRecurringPayment(body) {
     try {
       let fv = {
-        email: body?.email || "mani6693@gmail.com",
+        email: body?.email,
         contact: body?.contact,
         amount: body.amount,
         currency: body.currency,
@@ -332,7 +334,7 @@ export class HelperService {
         },
       };
 
-      console.log("recurring payment body is", fv);
+      // console.log("recurring payment body is", fv);
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
@@ -347,7 +349,7 @@ export class HelperService {
           }
         )
         .toPromise();
-      console.log("recurring data is ==>", data.data);
+      // console.log("recurring data is ==>", data.data);
 
       return data.data;
     } catch (err) {
@@ -422,7 +424,7 @@ export class HelperService {
 
   async createAuth(body) {
     try {
-      console.log("auth body is", body);
+      //console.log("auth body is", body);
 
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/pay`;
       const headers = {
@@ -435,13 +437,13 @@ export class HelperService {
         .post(requestURL, body, { headers: headers })
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            //console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-            console.log(err);
+            //console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -467,13 +469,13 @@ export class HelperService {
         .get(requestURL, { headers: headers })
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-            console.log(err);
+            // console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -487,7 +489,7 @@ export class HelperService {
 
   async createSubscription(body, token) {
     try {
-      console.log("subscription body is", body);
+      // console.log("subscription body is", body);
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions`;
 
       const headers = {
@@ -501,13 +503,13 @@ export class HelperService {
         .post(requestURL, body, { headers: headers })
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-            console.log(err);
+            //  console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -548,6 +550,8 @@ export class HelperService {
 
   async updateUserAdditional(body) {
     try {
+      // console.log("inisde update user additional", body);
+
       const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -565,6 +569,8 @@ export class HelperService {
         );
 
       const response = await lastValueFrom(request);
+      // console.log("response", response);
+
       return response;
     } catch (err) {
       throw err;
@@ -594,11 +600,11 @@ export class HelperService {
       let toCurrency = "INR";
       const url = `${process.env.CURRENCY_API}/${API_KEY}/pair/${fromCurrency}/${toCurrency}/${amount}`;
       const response = await axios.get(url);
-      console.log("API Response:", response.data);
+      // console.log("API Response:", response.data);
       const conversionRate = response.data?.conversion_rate;
-      console.log(
-        `Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`
-      );
+      // console.log(
+      //  `Conversion rate from ${fromCurrency} to ${toCurrency} amount ${amount} is ${conversionRate}`
+      //   );
       return conversionRate;
     } catch (error: any) {
       console.error("Failed to fetch conversion rate:", error.message);
@@ -661,13 +667,13 @@ export class HelperService {
         )
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            //  console.log(res?.data);
             return res?.data;
           })
         )
         .pipe(
           catchError((err) => {
-            console.log(err);
+            //  console.log(err);
             throw new BadRequestException("API not available");
           })
         );
@@ -725,7 +731,48 @@ export class HelperService {
       .join("");
     return hashHex;
   }
-
+  async getSystemConfig(itemId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration/itemid?key=${itemId}`
+          //  `http://localhost:3000/casttree/configuration/itemid?key=${itemId}`,
+        )
+        .toPromise();
+      // console.log("data",data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getAward(itemId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/awards/get-awards-itemId?itemId=${itemId}`
+          // `http://localhost:3000/casttree/awards/get-awards-itemId?itemId=${itemId}`
+        )
+        .toPromise();
+      // console.log("data",data.data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getNominations(id: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/nominations/award/${id}`
+          // `http://localhost:3000/casttree/nominations/award/${id}`
+        )
+        .toPromise();
+      // console.log("getNominations",data.data);
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {

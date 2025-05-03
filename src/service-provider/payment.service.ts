@@ -1,10 +1,9 @@
-import { HttpStatus, Injectable, Req } from "@nestjs/common";
-import { EPaymentProvider } from "./enum/payment-providers.enum";
-import { ICurrencyModel } from "src/shared/schema/currency.schema";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ValidateRPPaymentId } from "./dto/validate-rp-payment.dto";
-import { AppException } from "src/shared/app-exception";
 import { HelperService } from "src/helper/helper.service";
+import { AppException } from "src/shared/app-exception";
+import { ValidateRPPaymentId } from "./dto/validate-rp-payment.dto";
+import { EPaymentProvider } from "./enum/payment-providers.enum";
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
 
@@ -62,7 +61,7 @@ export class PaymentService {
         accessToken,
         null
       );
-      console.log("pg order notes is", notes);
+    // console.log("pg order notes is", notes);
 
       let pg_meta = { name: profile.userName };
       switch (pg_type) {
@@ -73,7 +72,7 @@ export class PaymentService {
             receipt: reference_no,
             notes,
           };
-          console.log("options", options);
+        //  console.log("options", options);
 
           let order_detail: any = await new Promise((res, rej) => {
             pg_instance.orders.create(options, function (err, order) {
@@ -89,7 +88,7 @@ export class PaymentService {
 
       return { pg_meta, pg_type, order_id };
     } catch (err) {
-      console.log("err is", err);
+    //  console.log("err is", err);
 
       throw err;
     }

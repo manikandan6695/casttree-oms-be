@@ -39,10 +39,10 @@ export class MandatesService {
     }
   }
 
-  async getMandate(subscriptionId) {
+  async getMandate(id) {
     try {
       let data = await this.mandateModel.findOne({
-        "metaData.subscription_id": subscriptionId,
+        $or: [{ "metaData.subscription_id": id }, { referenceId: id }],
       });
       return data;
     } catch (err) {

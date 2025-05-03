@@ -1,10 +1,9 @@
+import { HttpService } from "@nestjs/axios";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { HttpService } from "@nestjs/axios";
 import { InjectModel } from "@nestjs/mongoose";
 import * as AWS from "aws-sdk";
 import { Model } from "mongoose";
-import * as nodemailer from "nodemailer";
 import { CustomLogger } from "src/logger/customlogger.service";
 import { ESPAppType } from "src/service-provider/enum/app-type.enum";
 import { EMessageProvider } from "src/service-provider/enum/message-provider.enum";
@@ -15,7 +14,6 @@ import {
 import { IDefaultApplicationCredentialModel } from "src/service-provider/schema/default-app-credential.schema";
 import { AppException } from "src/shared/app-exception";
 import { SharedService } from "src/shared/shared.service";
-import { SendEmailModel } from "./model/amazon-ses-envelop.model";
 import { SendSMSModel } from "./model/amazon-sns-envelop.model";
 
 var ses = require("node-ses");
@@ -169,7 +167,7 @@ export class ServiceProviderHelperService {
           })
           .promise();
       } else if (message_provider == EMessageProvider.msg91) {
-        console.log("provider_values", provider_values);
+      //  console.log("provider_values", provider_values);
 
         let res = await this.http_service
           .post(
@@ -192,7 +190,7 @@ export class ServiceProviderHelperService {
 
         sms_dispatch_response = res.data;
       }
-      console.log("sms response", sms_dispatch_response);
+    //  console.log("sms response", sms_dispatch_response);
 
       this.custom_logger.debug(sms_dispatch_response, this.constructor.name);
       return { message_provider, sms_response: sms_dispatch_response };
