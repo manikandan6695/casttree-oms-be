@@ -41,6 +41,7 @@ import { ServiceItemService } from "src/item/service-item.service";
 import {
   ELIGIBLE_SUBSCRIPTION,
   NOT_ELIGIBLE_SUBSCRIPTION,
+  SUBSCRIPTION_NOT_FOUND,
 } from "src/shared/app.constants";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
@@ -1612,7 +1613,13 @@ export class SubscriptionService {
         userId: token.id,
         subscriptionStatus: "Active",
       });
-      let userItemId = activeSubscription.notes.itemId;
+      if (!activeSubscription) {
+        return {
+          isEligible: false,
+          reason: SUBSCRIPTION_NOT_FOUND,
+        };
+      }
+      let userItemId = activeSubscription?.notes?.itemId;
       const serviceItemTypeList =
         await this.serviceItemService.getServiceItemType(userItemId);
       let isEligible = false;
