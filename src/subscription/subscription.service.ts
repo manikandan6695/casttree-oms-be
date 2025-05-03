@@ -1094,9 +1094,10 @@ export class SubscriptionService {
       throw error;
     }
   }
-  // @Cron("*/10 * * * * *")
+  // @Cron("*/20 * * * * *")
 
-  @Cron("0 1 * * *")
+  // @Cron("0 1 * * *")
+  @Cron("*/20 * * * * *")
   async createCharge() {
     try {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
@@ -1110,9 +1111,6 @@ export class SubscriptionService {
           $sort: {
             _id: -1,
           },
-        },
-        {
-          $match: { _id: new ObjectId("68123487e7836fb7f5b619e0") },
         },
         {
           $group: {
@@ -1194,15 +1192,15 @@ export class SubscriptionService {
         expiringSubscriptionsList.length,
         expiringSubscriptionsList
       );
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        let mandate = expiringSubscriptionsList[i]?.latestMandate;
-        // if (mandate?.providerId == EProviderId.cashfree) {
-        //   await this.createChargeData(expiringSubscriptionsList[i], planDetail);
-        // }
-        if (mandate?.providerId == EProviderId.razorpay) {
-          await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
-        }
-      }
+      // for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+      //   let mandate = expiringSubscriptionsList[i]?.latestMandate;
+      //   // if (mandate?.providerId == EProviderId.cashfree) {
+      //   //   await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+      //   // }
+      //   if (mandate?.providerId == EProviderId.razorpay) {
+      //     await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
+      //   }
+      // }
     } catch (error) {
       throw error;
     }
