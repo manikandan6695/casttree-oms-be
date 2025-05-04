@@ -38,7 +38,11 @@ import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 import { ServiceItemService } from "src/item/service-item.service";
-import { ELIGIBLE_SUBSCRIPTION, NOT_ELIGIBLE_SUBSCRIPTION, SUBSCRIPTION_NOT_FOUND } from "src/shared/app.constants";
+import {
+  ELIGIBLE_SUBSCRIPTION,
+  NOT_ELIGIBLE_SUBSCRIPTION,
+  SUBSCRIPTION_NOT_FOUND,
+} from "src/shared/app.constants";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -57,7 +61,7 @@ export class SubscriptionService {
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService
-  ) { }
+  ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
@@ -968,11 +972,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1114,6 +1118,7 @@ export class SubscriptionService {
       throw error;
     }
   }
+  // @Cron("*/20 * * * * *")
 
   @Cron("0 1 * * *")
   async createCharge() {
@@ -1121,7 +1126,7 @@ export class SubscriptionService {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 1);
+      tomorrow.setDate(today.getDate() + 2);
       tomorrow.setHours(23, 59, 59, 999);
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
@@ -1135,9 +1140,6 @@ export class SubscriptionService {
             _id: "$userId",
             latestDocument: { $first: "$$ROOT" },
           },
-        },
-        {
-          $match: { "latestDocument.providerId": 2 },
         },
         {
           $match: {
@@ -1179,10 +1181,28 @@ export class SubscriptionService {
           },
         },
         {
+          $unwind: {
+            path: "$mandates",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $sort: {
+            "mandates._id": -1,
+          },
+        },
+        {
           $match: {
             "mandates.mandateStatus": {
               $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
             },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id",
+            latestDocument: { $first: "$latestDocument" },
+            latestMandate: { $first: "$mandates" },
           },
         },
       ]);
@@ -1193,7 +1213,13 @@ export class SubscriptionService {
       //   expiringSubscriptionsList
       // );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+        let mandate = expiringSubscriptionsList[i]?.latestMandate;
+        if (mandate?.providerId == EProviderId.cashfree) {
+          await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+        }
+        if (mandate?.providerId == EProviderId.razorpay) {
+          await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
+        }
       }
     } catch (error) {
       throw error;
@@ -1242,22 +1268,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1351,6 +1377,10 @@ export class SubscriptionService {
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
+      // console.log("inside raise charge");
+
+      // console.log("subscription data is ==>", subscriptionData);
+
       const paymentSequence = await this.sharedService.getNextNumber(
         "razorpay-payment",
         "RZP-PMT",
@@ -1362,21 +1392,33 @@ export class SubscriptionService {
 
       let now = new Date();
       let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      let userAdditionalData =
+        await this.helperService.getUserAdditionalDetails({
+          userId: subscriptionData?.latestDocument?.userId,
+        });
+      // console.log("userAdditionalData is", userAdditionalData);
 
+      let customerId = userAdditionalData?.userAdditional?.referenceId;
+      let subscriptionAmount =
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount * 100;
+      let paymentScheduleInMM = new Date(paymentSchedule).getTime();
+      let paymentScheduleInSeconds = Math.floor(paymentScheduleInMM / 1000);
       let authBody = {
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount * 100,
+        amount: subscriptionAmount,
         currency: "INR",
+        customer_id: customerId,
         payment_capture: true,
+        token: {
+          max_amount: subscriptionAmount,
+          expire_at: paymentScheduleInSeconds,
+        },
         notification: {
-          token_id:
-            subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
-          payment_after: paymentSchedule,
+          token_id: subscriptionData?.latestMandate?.referenceId,
+          payment_after: paymentScheduleInSeconds,
         },
         notes: {
-          mandateId:
-            subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
+          mandateId: subscriptionData?.latestMandate?.referenceId,
           userId: subscriptionData?.latestDocument?.userId,
           subscriptionId: subscriptionData?.latestDocument?.subscriptionId,
         },
@@ -1395,53 +1437,67 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
+      // console.log("auth body for razorpay is ==>", authBody);
+
       let chargeResponse = await this.helperService.addSubscription(authBody);
-      let userAdditionalData =
-        await this.helperService.getUserAdditionalDetails({
-          userId: subscriptionData?.latestDocument?.userId,
-        });
+      // console.log("charge response is", chargeResponse);
+
       let recurring = {
-        email: userAdditionalData?.user?.emailId,
-        contact: userAdditionalData?.user?.phoneNumber,
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount * 100,
+        email:
+          userAdditionalData?.userAdditional?.userId?.emailId ||
+          userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
+            "@casttree.com",
+        contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
+        amount: subscriptionAmount,
         currency: "INR",
         order_id: chargeResponse?.id,
-        customer_id: userAdditionalData?.userReferenceId,
-        token:
-          subscriptionData?.latestDocument?.mandates?.metaData?.referenceId,
+        customer_id: customerId,
+        token: subscriptionData?.latestMandate?.referenceId,
         recurring: "1",
         notes: {
           userId: subscriptionData?.latestDocument?.userId,
-          userReferenceId: userAdditionalData?.userReferenceId,
+          userReferenceId: customerId,
           razorpayOrderId: chargeResponse?.id,
         },
       };
+      // console.log("recurring body is", recurring);
+
       let recurringResponse =
         await this.helperService.createRecurringPayment(recurring);
+      // console.log("recurring response is", recurringResponse);
+      // return true;
       if (recurringResponse) {
         endAt.setDate(endAt.getDate());
         endAt.setHours(23, 59, 59, 999);
-
+        const razorpaySubscriptionSequence =
+          await this.sharedService.getNextNumber(
+            "razorpay-subscription",
+            "RZP-SUB",
+            5,
+            null
+          );
+        const razorpaySubscriptionNumber = razorpaySubscriptionSequence
+          .toString()
+          .padStart(5, "0");
         let fv = {
           userId: subscriptionData?.latestDocument?.userId,
+          subscriptionId: razorpaySubscriptionNumber,
           startAt: startAt,
           amount:
             planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -1454,11 +1510,10 @@ export class SubscriptionService {
               subscriptionData?.latestDocument?.metaData?.subscriptionId,
             ...chargeResponse,
           },
+          currencyCode: "INR",
           notes: {
-            itemId: subscriptionData.latestDocument.notes.itemId,
-            amount:
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.amount,
+            itemId: subscriptionData?.latestDocument?.notes?.itemId,
+            amount: subscriptionAmount,
             paymentScheduledAt: paymentSchedule,
             paymentId: paymentNumber,
           },
@@ -1483,9 +1538,9 @@ export class SubscriptionService {
           grand_total:
             planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
               ?.amount,
-          user_id: subscriptionData.latestDocument.userId,
-          created_by: subscriptionData.latestDocument.userId,
-          updated_by: subscriptionData.latestDocument.userId,
+          user_id: subscriptionData?.latestDocument?.userId,
+          created_by: subscriptionData?.latestDocument?.userId,
+          updated_by: subscriptionData?.latestDocument?.userId,
         };
         // console.log("creating invoice", invoiceData);
         const invoice = await this.invoiceService.createInvoice(invoiceData);
@@ -1503,6 +1558,12 @@ export class SubscriptionService {
           providerId: 1,
           providerName: EProvider.razorpay,
           transactionDate: paymentSchedule,
+          metaData: {
+            response: {
+              chargeResponse,
+              recurringResponse,
+            },
+          },
         };
 
         // console.log("creating payment", paymentData);
@@ -1558,24 +1619,23 @@ export class SubscriptionService {
           reason: SUBSCRIPTION_NOT_FOUND,
         };
       }
-      let userItemId = activeSubscription.notes.itemId
-        const serviceItemTypeList = await this.serviceItemService.getServiceItemType(userItemId);
-        let isEligible =false;
-        if (activeSubscription && serviceItemTypeList.type === "subscription") {
-          const config = await this.helperService.getSystemConfig(itemId);
-          const eligibilityList = config?.data?.eligibility;
-          isEligible = Array.isArray(eligibilityList)
-            ? eligibilityList.some((e) => e._id === userItemId)
-            : false;
-        }
-        return {
-          isEligible: isEligible,
-          reason: isEligible ? ELIGIBLE_SUBSCRIPTION : NOT_ELIGIBLE_SUBSCRIPTION,
-        };
-    
+      let userItemId = activeSubscription?.notes?.itemId;
+      const serviceItemTypeList =
+        await this.serviceItemService.getServiceItemType(userItemId);
+      let isEligible = false;
+      if (activeSubscription && serviceItemTypeList.type === "subscription") {
+        const config = await this.helperService.getSystemConfig(itemId);
+        const eligibilityList = config?.data?.eligibility;
+        isEligible = Array.isArray(eligibilityList)
+          ? eligibilityList.some((e) => e._id === userItemId)
+          : false;
+      }
+      return {
+        isEligible: isEligible,
+        reason: isEligible ? ELIGIBLE_SUBSCRIPTION : NOT_ELIGIBLE_SUBSCRIPTION,
+      };
     } catch (error) {
-      throw error
+      throw error;
     }
   }
-
 }
