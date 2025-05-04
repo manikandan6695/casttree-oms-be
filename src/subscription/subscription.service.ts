@@ -1126,7 +1126,7 @@ export class SubscriptionService {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 1);
+      tomorrow.setDate(today.getDate() + 2);
       tomorrow.setHours(23, 59, 59, 999);
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
@@ -1192,17 +1192,17 @@ export class SubscriptionService {
           },
         },
         {
+          $match: {
+            "mandates.mandateStatus": {
+              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
+            },
+          },
+        },
+        {
           $group: {
             _id: "$_id",
             latestDocument: { $first: "$latestDocument" },
             latestMandate: { $first: "$mandates" },
-          },
-        },
-        {
-          $match: {
-            "latestMandate.mandateStatus": {
-              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
-            },
           },
         },
       ]);
