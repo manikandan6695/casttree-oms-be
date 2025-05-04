@@ -264,6 +264,7 @@ export class SubscriptionService {
       // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
+        console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
           await this.handleRazorpaySubscriptionPayment(payload);
@@ -281,6 +282,12 @@ export class SubscriptionService {
         }
 
         if (event === EEventType.tokenCancelled) {
+          const payload = req?.body?.payload;
+          await this.handleRazorpayCancelledMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
+
+        if (event === EEventType.tokenCancel) {
           const payload = req?.body?.payload;
           await this.handleRazorpayCancelledMandate(payload);
           // await this.handleRazorpaySubscription(payload);
