@@ -611,9 +611,11 @@ export class SubscriptionService {
 
   async handleRazorpayCancelledMandate(payload: any) {
     try {
+      console.log("inside razorpay cancelled mandate", payload);
+
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
-      if (status == "cancellation_initiated") {
+      if (status == "cancellation_initiated" || status == "cancelled") {
         let data = await this.mandateService.updateMandateDetail(
           { referenceId: tokenId },
           {
