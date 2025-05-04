@@ -21,6 +21,7 @@ export enum EEventType {
   tokenCancelled = "token.cancellation_initiated",
   paymentAuthorized = "payment.authorized",
   paymentFailed = "payment.failed",
+  tokenCancel = "token.cancelled",
 }
 
 export const ESEventType = [
