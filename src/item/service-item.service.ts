@@ -1192,4 +1192,15 @@ export class ServiceItemService {
       return priceListData;
     } catch (err) {}
   }
+  async getServiceItemType(itemId: string) {
+    try {
+      const type = await this.serviceItemModel.findOne({
+        itemId: new mongoose.Types.ObjectId(itemId),
+      });
+      // console.log("type", type);
+      return type;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
