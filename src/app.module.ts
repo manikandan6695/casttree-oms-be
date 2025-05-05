@@ -1,4 +1,4 @@
-import { CacheModule } from "@nestjs/cache-manager";
+//import { CacheModule } from "@nestjs/cache-manager";
 import { MiddlewareConsumer, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
@@ -44,9 +44,9 @@ import { SubscriptionModule } from "./subscription/subscription.module";
       },
       inject: [ConfigService],
     }),
-    CacheModule.register({
-      isGlobal: true,
-    }),
+    // CacheModule.register({
+    //   isGlobal: true,
+    // }),
     SharedModule,
     ItemModule,
     HelperModule,

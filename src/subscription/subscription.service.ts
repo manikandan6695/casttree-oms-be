@@ -12,7 +12,6 @@ import { ItemService } from "src/item/item.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
 import { MandatesService } from "src/mandates/mandates.service";
-import { EEventId, EEventType } from "./enums/eventType.enum";
 import {
   EPaymentSourceType,
   EPaymentStatus,
@@ -27,11 +26,11 @@ import {
   CashfreeNewPaymentPayload,
   CreateSubscriptionDTO,
   PaymentRecordData,
-  RazorpaySubscriptionPayload,
   SubscriptionData,
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
+import { EEventType } from "./enums/eventType.enum";
 import { EProvider, EProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -886,6 +885,17 @@ export class SubscriptionService {
           subscription?.notes?.itemId
         );
 
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.payment_success;
+        mixPanelBody.distinctId = subscription?.userId;
+        mixPanelBody.properties = {
+          itemname: item.itemName,
+          amount: invoice.grand_total,
+          currency_code: invoice.currencyCode,
+          serviceItemType: "subscription",
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+
         let userBody = {
           userId: subscription?.userId,
           membership: item?.itemName,
@@ -1029,6 +1039,12 @@ export class SubscriptionService {
         endAt: { $lte: currentDate },
         status: Estatus.Active,
       });
+      let userIds = [];
+      let badgeRemovalUserIds = await this.getExpiredSUbscriptionUserIds();
+      expiredSubscriptionsList.map((data) => {
+        userIds.push(data.userId);
+      });
+
       if (expiredSubscriptionsList.length > 0) {
         await this.subscriptionModel.updateMany(
           {
@@ -1051,14 +1067,10 @@ export class SubscriptionService {
           await this.helperService.mixPanel(mixPanelBody);
         }
 
-        let userIds = [];
-
-        expiredSubscriptionsList.map((data) => {
-          userIds.push(data.userId);
-        });
         // console.log(userIds);
+
         let updateBody = {
-          userId: userIds,
+          userId: badgeRemovalUserIds,
           membership: "",
           badge: "",
         };
@@ -1616,6 +1628,117 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async getExpiredSUbscriptionUserIds() {
+    const currentDate = new Date();
+    let ExpiredData = await this.subscriptionModel.aggregate([
+      {
+        $match: {
+          subscriptionStatus: "Active",
+          status: "Active",
+          endAt: { $lte: currentDate },
+        },
+      },
+      {
+        $lookup: {
+          from: "salesDocument",
+          localField: "_id",
+          foreignField: "source_id",
+          as: "salesDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$salesDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "itemDocument",
+          localField: "salesDoc._id",
+          foreignField: "source_id",
+          as: "itemDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$itemDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          endAt: 1,
+          item_id: "$itemDoc.item_id",
+        },
+      },
+    ]);
+    let expiredUserId = [];
+    ExpiredData.map((data) => {
+      expiredUserId.push(data.userId);
+    });
+
+    let renewalData = await this.subscriptionModel.aggregate([
+      {
+        $match: {
+          subscriptionStatus: "Active",
+          status: "Active",
+          endAt: { $gt: currentDate },
+          userId: { $in: expiredUserId },
+        },
+      },
+      {
+        $lookup: {
+          from: "salesDocument",
+          localField: "_id",
+          foreignField: "source_id",
+          as: "salesDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$salesDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "itemDocument",
+          localField: "salesDoc._id",
+          foreignField: "source_id",
+          as: "itemDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$itemDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          userId: 1,
+          endAt: 1,
+          item_id: "$itemDoc.item_id",
+        },
+      },
+    ]);
+    for (const expired of ExpiredData) {
+      const exists = renewalData.some(
+        (r) =>
+          r.item_id.toString() === expired?.item_id?.toString() &&
+          r.userId.toString() === expired?.userId?.toString()
+      );
+      if (exists) {
+        expiredUserId = expiredUserId.filter((item) => item !== expired.userId);
+      }
+    }
+    return expiredUserId;
+  }
+
   async checkEligibility(token: UserToken, itemId: string) {
     try {
       const activeSubscription = await this.subscriptionModel.findOne({
