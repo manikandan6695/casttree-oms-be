@@ -1135,7 +1135,7 @@ export class SubscriptionService {
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 2);
+      tomorrow.setDate(today.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
@@ -1216,11 +1216,11 @@ export class SubscriptionService {
         },
       ]);
 
-      // console.log(
-      //   "expiring list ==>",
-      //   expiringSubscriptionsList.length,
-      //   expiringSubscriptionsList
-      // );
+      console.log(
+        "expiring list ==>",
+        expiringSubscriptionsList.length
+        // expiringSubscriptionsList
+      );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         let mandate = expiringSubscriptionsList[i]?.latestMandate;
         if (mandate?.providerId == EProviderId.cashfree) {
