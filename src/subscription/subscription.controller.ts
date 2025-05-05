@@ -173,7 +173,25 @@ export class SubscriptionController {
       return res.status(code).json(response);
     }
   }
-
-
- 
+  @UseGuards(JwtAuthGuard)
+  @Get("eligibleCheck/:itemId")
+  async checkEligibility(
+    @GetToken() token: UserToken,
+    @Param("itemId") itemId: string,
+    @Res() res: Response
+  ) {
+    try {
+      const result = await this.subscriptionService.checkEligibility(
+        token,
+        itemId
+      );
+      return res.json(result);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
 }

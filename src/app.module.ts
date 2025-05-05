@@ -37,7 +37,7 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => {
-        console.log("db url", config.get("DB_URL"));
+       // console.log("db url", config.get("DB_URL"));
         return {
           uri: config.get("DB_URL"),
         };

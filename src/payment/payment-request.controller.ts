@@ -33,7 +33,7 @@ export class PaymentRequestController {
     @Res() res: Response
   ) {
     try {
-      console.log("inside initiate payment is ==>");
+   //   console.log("inside initiate payment is ==>");
 
       let data = await this.paymentRequestService.initiatePayment(
         body,
@@ -54,7 +54,7 @@ export class PaymentRequestController {
   @Get(":id")
   async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {
     try {
-      console.log("test");
+   //   console.log("test");
       let data: any = await this.paymentRequestService.getPaymentDetail(id);
 
       return res.json(data.payment);

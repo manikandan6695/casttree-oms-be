@@ -15,23 +15,23 @@ import { EProvider, EProviderId } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 import { readFile } from "fs";
-import * as path from "path";
-import {
-  AppStoreServerAPIClient,
-  Environment,
-  GetTransactionHistoryVersion,
-  Order,
-  ProductType,
-} from "@apple/app-store-server-library";
+// import * as path from "path";
+// import {
+//   AppStoreServerAPIClient,
+//   Environment,
+//   GetTransactionHistoryVersion,
+//   Order,
+//   ProductType,
+// } from "@apple/app-store-server-library";
 import { EEventType } from "./enums/eventType.enum";
-const issuerId = process.env.ISSUER_ID;
-const keyId = process.env.KEY_ID;
-const bundleId = process.env.BUNDLE_ID;
-const filePath = process.env.FILEPATH;
-const environment = Environment.SANDBOX;
+// const issuerId = process.env.ISSUER_ID;
+// const keyId = process.env.KEY_ID;
+// const bundleId = process.env.BUNDLE_ID;
+// const filePath = process.env.FILEPATH;
+// const environment = Environment.SANDBOX;
 @Injectable()
 export class SubscriptionFactory {
-  private client: AppStoreServerAPIClient;
+  // private client: AppStoreServerAPIClient;
   constructor(
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
@@ -42,9 +42,9 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
   ) {}
-  async onModuleInit() {
-    await this.init();
-  }
+  // async onModuleInit() {
+  //   await this.init();
+  // }
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
@@ -386,337 +386,337 @@ export class SubscriptionFactory {
     });
     return createdSubscription;
   }
-  async init() {
-    const encodedKey = await new Promise<string>((res, rej) => {
-      readFile(filePath, (err, data) => {
-        if (err) return rej(err);
-        res(data.toString());
-      });
-    });
-    // console.log("encodedKey", encodedKey);
-    // console.log("client", encodedKey, keyId, issuerId, bundleId, environment);
+  // async init() {
+  //   const encodedKey = await new Promise<string>((res, rej) => {
+  //     readFile(filePath, (err, data) => {
+  //       if (err) return rej(err);
+  //       res(data.toString());
+  //     });
+  //   });
+  //   // console.log("encodedKey", encodedKey);
+  //   // console.log("client", encodedKey, keyId, issuerId, bundleId, environment);
 
-    this.client = new AppStoreServerAPIClient(
-      encodedKey,
-      keyId,
-      issuerId,
-      bundleId,
-      environment
-    );
-  }
+  //   this.client = new AppStoreServerAPIClient(
+  //     encodedKey,
+  //     keyId,
+  //     issuerId,
+  //     bundleId,
+  //     environment
+  //   );
+  // }
 
-  async getTransactionHistory(bodyData) {
-    try {
-      // console.log("bodyData",bodyData);
-      const purchaseInfo = await this.validatePurchase(
-        bodyData?.data?.signedTransactionInfo
-      );
-      // console.log("purchaseInfo:", purchaseInfo);
+  // async getTransactionHistory(bodyData) {
+  //   try {
+  //     // console.log("bodyData",bodyData);
+  //     const purchaseInfo = await this.validatePurchase(
+  //       bodyData?.data?.signedTransactionInfo
+  //     );
+  //     // console.log("purchaseInfo:", purchaseInfo);
 
-      const transactionId = purchaseInfo?.parsed?.transactionId;
-      let response = null;
-      let transactions = [];
-      if (transactionId != null) {
-        const transactionHistoryRequest = {
-          sort: Order.ASCENDING,
-          revoked: false,
-          productTypes: [ProductType.AUTO_RENEWABLE],
-        };
-        do {
-          const revisionToken =
-            response !== null && response.revision !== null
-              ? response.revision
-              : null;
-          response = await this.client.getTransactionHistory(
-            transactionId,
-            revisionToken,
-            transactionHistoryRequest,
-            GetTransactionHistoryVersion.V2
-          );
-          // console.log("response is", response)
-          if (response.signedTransactions) {
-            transactions = transactions.concat(response?.signedTransactions);
-          }
-        } while (response.hasMore);
+  //     const transactionId = purchaseInfo?.parsed?.transactionId;
+  //     let response = null;
+  //     let transactions = [];
+  //     if (transactionId != null) {
+  //       const transactionHistoryRequest = {
+  //         sort: Order.ASCENDING,
+  //         revoked: false,
+  //         productTypes: [ProductType.AUTO_RENEWABLE],
+  //       };
+  //       do {
+  //         const revisionToken =
+  //           response !== null && response.revision !== null
+  //             ? response.revision
+  //             : null;
+  //         response = await this.client.getTransactionHistory(
+  //           transactionId,
+  //           revisionToken,
+  //           transactionHistoryRequest,
+  //           GetTransactionHistoryVersion.V2
+  //         );
+  //         // console.log("response is", response)
+  //         if (response.signedTransactions) {
+  //           transactions = transactions.concat(response?.signedTransactions);
+  //         }
+  //       } while (response.hasMore);
 
-        // console.log("transactions",transactions);
-      }
-      const latestSignedTransaction = transactions[transactions.length - 1];
-      const decodeData = await this.parseJwt(latestSignedTransaction);
-      // console.log("decodeData", decodeData);
+  //       // console.log("transactions",transactions);
+  //     }
+  //     const latestSignedTransaction = transactions[transactions.length - 1];
+  //     const decodeData = await this.parseJwt(latestSignedTransaction);
+  //     // console.log("decodeData", decodeData);
 
-      if (bodyData.notificationType === EEventType.didPurchase) {
-        let signedRenewalInfo = await this.parseJwt(
-          bodyData?.data?.signedRenewalInfo
-        );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
-        let transactionDetails = {
-          transactionId: purchaseInfo?.parsed?.transactionId,
-          originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
-          webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
-          bundleId: purchaseInfo?.parsed?.bundleId,
-          productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier:
-            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(
-            purchaseInfo?.parsed?.purchaseDate
-          ).toISOString(),
-          originalPurchaseDate: new Date(
-            purchaseInfo?.parsed?.originalPurchaseDate
-          ).toISOString(),
-          expiresDate: new Date(
-            purchaseInfo?.parsed?.expiresDate
-          ).toISOString(),
-          quantity: purchaseInfo?.parsed?.quantity,
-          type: purchaseInfo?.parsed?.type,
-          inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
-          signedDate: new Date(purchaseInfo?.parsed?.signedDate).toISOString(),
-          environment: purchaseInfo?.parsed?.environment,
-          transactionReason: purchaseInfo?.parsed?.transactionReason,
-          storefront: purchaseInfo?.parsed?.storefront,
-          storefrontId: purchaseInfo?.parsed?.storefrontId,
-          price: price,
-          currency: purchaseInfo?.parsed?.currency,
-          appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
-        const renewalDetails = {
-          originalTransactionId: signedRenewalInfo?.originalTransactionId,
-          autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
-          productId: signedRenewalInfo?.productId,
-          autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: renewalPrice,
-          currency: signedRenewalInfo?.currency,
-          signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
-          environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(
-            signedRenewalInfo?.recentSubscriptionStartDate
-          ).toISOString(),
-          renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
-          appTransactionId: signedRenewalInfo?.appTransactionId,
-        };
-        return {
-          transactions: transactionDetails,
-          renewalInfo: renewalDetails,
-        };
-      } else if (bodyData.notificationType === EEventType.didCancel) {
-        let signedRenewalInfo = await this.parseJwt(
-          bodyData?.data?.signedRenewalInfo
-        );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
-        let transactionDetails = {
-          transactionId: purchaseInfo?.parsed?.transactionId,
-          originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
-          webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
-          bundleId: purchaseInfo?.parsed?.bundleId,
-          productId: purchaseInfo?.parsed?.productId,
-          revocationReason: purchaseInfo?.parsed?.revocationReason,
-          subscriptionGroupIdentifier:
-            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(
-            purchaseInfo?.parsed?.purchaseDate
-          ).toISOString(),
-          revocationDate: new Date(
-            purchaseInfo?.parsed?.revocationDate
-          ).toISOString(),
-          expiresDate: new Date(
-            purchaseInfo?.parsed?.expiresDate
-          ).toISOString(),
-          quantity: purchaseInfo?.parsed?.quantity,
-          type: purchaseInfo?.parsed?.type,
-          inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
-          environment: purchaseInfo?.parsed?.environment,
-          transactionReason: purchaseInfo?.parsed?.transactionReason,
-          storefront: purchaseInfo?.parsed?.storefront,
-          storefrontId: purchaseInfo?.parsed?.storefrontId,
-          price: price,
-          currency: purchaseInfo?.parsed?.currency,
-          appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-          appAccountToken: purchaseInfo?.parsed?.appAccountToken,
-          isUpgraded: purchaseInfo?.parsed?.isUpgraded,
-        };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
-        // console.log("renewalPrice",renewalPrice.toFixed(2));
-        const renewalDetails = {
-          originalTransactionId: signedRenewalInfo?.originalTransactionId,
-          autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
-          productId: signedRenewalInfo?.productId,
-          autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: renewalPrice,
-          currency: signedRenewalInfo?.currency,
-          signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
-          environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(
-            signedRenewalInfo?.recentSubscriptionStartDate
-          ).toISOString(),
-          renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
-          appTransactionId: signedRenewalInfo?.appTransactionId,
-        };
-        return {
-          transactions: transactionDetails,
-          renewalInfo: renewalDetails,
-        };
-      } else if (bodyData.notificationType === EEventType.didRenew) {
-        let signedRenewalInfo = await this.parseJwt(
-          bodyData?.data?.signedRenewalInfo
-        );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
-        let transactionDetails = {
-          transactionId: purchaseInfo?.parsed?.transactionId,
-          originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
-          webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
-          bundleId: purchaseInfo?.parsed?.bundleId,
-          productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier:
-            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(
-            purchaseInfo?.parsed?.purchaseDate
-          ).toISOString(),
-          originalPurchaseDate: new Date(
-            purchaseInfo?.parsed?.originalPurchaseDate
-          ).toISOString(),
-          expiresDate: new Date(
-            purchaseInfo?.parsed?.expiresDate
-          ).toISOString(),
-          quantity: purchaseInfo?.parsed?.quantity,
-          type: purchaseInfo?.parsed?.type,
-          inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
-          environment: purchaseInfo?.parsed?.environment,
-          transactionReason: purchaseInfo?.parsed?.transactionReason,
-          storefront: purchaseInfo?.parsed?.storefront,
-          storefrontId: purchaseInfo?.parsed?.storefrontId,
-          price: price,
-          currency: purchaseInfo?.parsed?.currency,
-          appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
-        const renewalDetails = {
-          originalTransactionId: signedRenewalInfo?.originalTransactionId,
-          autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
-          productId: signedRenewalInfo?.productId,
-          autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: renewalPrice,
-          currency: signedRenewalInfo?.currency,
-          signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
-          environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(
-            signedRenewalInfo?.recentSubscriptionStartDate
-          ).toISOString(),
-          renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
-          appTransactionId: signedRenewalInfo?.appTransactionId,
-        };
-        return {
-          transactions: transactionDetails,
-          renewalInfo: renewalDetails,
-        };
-      } else if (bodyData.notificationType === EEventType.expired) {
-        let signedRenewalInfo = await this.parseJwt(
-          bodyData?.data?.signedRenewalInfo
-        );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
-        const renewalPriceMicros = purchaseInfo?.parsed?.price;
-        const renewalPrice = renewalPriceMicros / 1000;
-        let transactionDetails = {
-          transactionId: purchaseInfo?.parsed?.transactionId,
-          originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
-          webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
-          bundleId: purchaseInfo?.parsed?.bundleId,
-          productId: purchaseInfo?.parsed?.productId,
-          subscriptionGroupIdentifier:
-            purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          purchaseDate: new Date(
-            purchaseInfo?.parsed?.purchaseDate
-          ).toISOString(),
-          originalPurchaseDate: new Date(
-            purchaseInfo?.parsed?.originalPurchaseDate
-          ).toISOString(),
-          expiresDate: new Date(
-            purchaseInfo?.parsed?.expiresDate
-          ).toISOString(),
-          quantity: purchaseInfo?.parsed?.quantity,
-          type: purchaseInfo?.parsed?.type,
-          inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
-          signedDate: new Date(purchaseInfo?.parsed?.signedDate).toISOString(),
-          environment: purchaseInfo?.parsed?.environment,
-          transactionReason: purchaseInfo?.parsed?.transactionReason,
-          storefront: purchaseInfo?.parsed?.storefront,
-          storefrontId: purchaseInfo?.parsed?.storefrontId,
-          price: renewalPrice,
-          currency: purchaseInfo?.parsed?.currency,
-          appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-        };
+  //     if (bodyData.notificationType === EEventType.didPurchase) {
+  //       let signedRenewalInfo = await this.parseJwt(
+  //         bodyData?.data?.signedRenewalInfo
+  //       );
+  //       // console.log("signedRenewalInfo", signedRenewalInfo);
+  //       const priceMicros = purchaseInfo?.parsed?.price;
+  //       const price = priceMicros / 1000;
+  //       let transactionDetails = {
+  //         transactionId: purchaseInfo?.parsed?.transactionId,
+  //         originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
+  //         webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
+  //         bundleId: purchaseInfo?.parsed?.bundleId,
+  //         productId: purchaseInfo?.parsed?.productId,
+  //         subscriptionGroupIdentifier:
+  //           purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+  //         purchaseDate: new Date(
+  //           purchaseInfo?.parsed?.purchaseDate
+  //         ).toISOString(),
+  //         originalPurchaseDate: new Date(
+  //           purchaseInfo?.parsed?.originalPurchaseDate
+  //         ).toISOString(),
+  //         expiresDate: new Date(
+  //           purchaseInfo?.parsed?.expiresDate
+  //         ).toISOString(),
+  //         quantity: purchaseInfo?.parsed?.quantity,
+  //         type: purchaseInfo?.parsed?.type,
+  //         inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
+  //         signedDate: new Date(purchaseInfo?.parsed?.signedDate).toISOString(),
+  //         environment: purchaseInfo?.parsed?.environment,
+  //         transactionReason: purchaseInfo?.parsed?.transactionReason,
+  //         storefront: purchaseInfo?.parsed?.storefront,
+  //         storefrontId: purchaseInfo?.parsed?.storefrontId,
+  //         price: price,
+  //         currency: purchaseInfo?.parsed?.currency,
+  //         appTransactionId: purchaseInfo?.parsed?.appTransactionId,
+  //       };
+  //       const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+  //       const renewalPrice = renewalPriceMicros / 1000;
+  //       const renewalDetails = {
+  //         originalTransactionId: signedRenewalInfo?.originalTransactionId,
+  //         autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
+  //         productId: signedRenewalInfo?.productId,
+  //         autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
+  //         renewalPrice: renewalPrice,
+  //         currency: signedRenewalInfo?.currency,
+  //         signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
+  //         environment: signedRenewalInfo?.environment,
+  //         recentSubscriptionStartDate: new Date(
+  //           signedRenewalInfo?.recentSubscriptionStartDate
+  //         ).toISOString(),
+  //         renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
+  //         appTransactionId: signedRenewalInfo?.appTransactionId,
+  //       };
+  //       return {
+  //         transactions: transactionDetails,
+  //         renewalInfo: renewalDetails,
+  //       };
+  //     } else if (bodyData.notificationType === EEventType.didCancel) {
+  //       let signedRenewalInfo = await this.parseJwt(
+  //         bodyData?.data?.signedRenewalInfo
+  //       );
+  //       // console.log("signedRenewalInfo", signedRenewalInfo);
+  //       const priceMicros = purchaseInfo?.parsed?.price;
+  //       const price = priceMicros / 1000;
+  //       let transactionDetails = {
+  //         transactionId: purchaseInfo?.parsed?.transactionId,
+  //         originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
+  //         webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
+  //         bundleId: purchaseInfo?.parsed?.bundleId,
+  //         productId: purchaseInfo?.parsed?.productId,
+  //         revocationReason: purchaseInfo?.parsed?.revocationReason,
+  //         subscriptionGroupIdentifier:
+  //           purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+  //         purchaseDate: new Date(
+  //           purchaseInfo?.parsed?.purchaseDate
+  //         ).toISOString(),
+  //         revocationDate: new Date(
+  //           purchaseInfo?.parsed?.revocationDate
+  //         ).toISOString(),
+  //         expiresDate: new Date(
+  //           purchaseInfo?.parsed?.expiresDate
+  //         ).toISOString(),
+  //         quantity: purchaseInfo?.parsed?.quantity,
+  //         type: purchaseInfo?.parsed?.type,
+  //         inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
+  //         environment: purchaseInfo?.parsed?.environment,
+  //         transactionReason: purchaseInfo?.parsed?.transactionReason,
+  //         storefront: purchaseInfo?.parsed?.storefront,
+  //         storefrontId: purchaseInfo?.parsed?.storefrontId,
+  //         price: price,
+  //         currency: purchaseInfo?.parsed?.currency,
+  //         appTransactionId: purchaseInfo?.parsed?.appTransactionId,
+  //         appAccountToken: purchaseInfo?.parsed?.appAccountToken,
+  //         isUpgraded: purchaseInfo?.parsed?.isUpgraded,
+  //       };
+  //       const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+  //       const renewalPrice = renewalPriceMicros / 1000;
+  //       // console.log("renewalPrice",renewalPrice.toFixed(2));
+  //       const renewalDetails = {
+  //         originalTransactionId: signedRenewalInfo?.originalTransactionId,
+  //         autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
+  //         productId: signedRenewalInfo?.productId,
+  //         autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
+  //         renewalPrice: renewalPrice,
+  //         currency: signedRenewalInfo?.currency,
+  //         signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
+  //         environment: signedRenewalInfo?.environment,
+  //         recentSubscriptionStartDate: new Date(
+  //           signedRenewalInfo?.recentSubscriptionStartDate
+  //         ).toISOString(),
+  //         renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
+  //         appTransactionId: signedRenewalInfo?.appTransactionId,
+  //       };
+  //       return {
+  //         transactions: transactionDetails,
+  //         renewalInfo: renewalDetails,
+  //       };
+  //     } else if (bodyData.notificationType === EEventType.didRenew) {
+  //       let signedRenewalInfo = await this.parseJwt(
+  //         bodyData?.data?.signedRenewalInfo
+  //       );
+  //       // console.log("signedRenewalInfo", signedRenewalInfo);
+  //       const priceMicros = purchaseInfo?.parsed?.price;
+  //       const price = priceMicros / 1000;
+  //       let transactionDetails = {
+  //         transactionId: purchaseInfo?.parsed?.transactionId,
+  //         originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
+  //         webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
+  //         bundleId: purchaseInfo?.parsed?.bundleId,
+  //         productId: purchaseInfo?.parsed?.productId,
+  //         subscriptionGroupIdentifier:
+  //           purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+  //         purchaseDate: new Date(
+  //           purchaseInfo?.parsed?.purchaseDate
+  //         ).toISOString(),
+  //         originalPurchaseDate: new Date(
+  //           purchaseInfo?.parsed?.originalPurchaseDate
+  //         ).toISOString(),
+  //         expiresDate: new Date(
+  //           purchaseInfo?.parsed?.expiresDate
+  //         ).toISOString(),
+  //         quantity: purchaseInfo?.parsed?.quantity,
+  //         type: purchaseInfo?.parsed?.type,
+  //         inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
+  //         environment: purchaseInfo?.parsed?.environment,
+  //         transactionReason: purchaseInfo?.parsed?.transactionReason,
+  //         storefront: purchaseInfo?.parsed?.storefront,
+  //         storefrontId: purchaseInfo?.parsed?.storefrontId,
+  //         price: price,
+  //         currency: purchaseInfo?.parsed?.currency,
+  //         appTransactionId: purchaseInfo?.parsed?.appTransactionId,
+  //       };
+  //       const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
+  //       const renewalPrice = renewalPriceMicros / 1000;
+  //       const renewalDetails = {
+  //         originalTransactionId: signedRenewalInfo?.originalTransactionId,
+  //         autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
+  //         productId: signedRenewalInfo?.productId,
+  //         autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
+  //         renewalPrice: renewalPrice,
+  //         currency: signedRenewalInfo?.currency,
+  //         signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
+  //         environment: signedRenewalInfo?.environment,
+  //         recentSubscriptionStartDate: new Date(
+  //           signedRenewalInfo?.recentSubscriptionStartDate
+  //         ).toISOString(),
+  //         renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
+  //         appTransactionId: signedRenewalInfo?.appTransactionId,
+  //       };
+  //       return {
+  //         transactions: transactionDetails,
+  //         renewalInfo: renewalDetails,
+  //       };
+  //     } else if (bodyData.notificationType === EEventType.expired) {
+  //       let signedRenewalInfo = await this.parseJwt(
+  //         bodyData?.data?.signedRenewalInfo
+  //       );
+  //       // console.log("signedRenewalInfo", signedRenewalInfo);
+  //       const renewalPriceMicros = purchaseInfo?.parsed?.price;
+  //       const renewalPrice = renewalPriceMicros / 1000;
+  //       let transactionDetails = {
+  //         transactionId: purchaseInfo?.parsed?.transactionId,
+  //         originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
+  //         webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
+  //         bundleId: purchaseInfo?.parsed?.bundleId,
+  //         productId: purchaseInfo?.parsed?.productId,
+  //         subscriptionGroupIdentifier:
+  //           purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+  //         purchaseDate: new Date(
+  //           purchaseInfo?.parsed?.purchaseDate
+  //         ).toISOString(),
+  //         originalPurchaseDate: new Date(
+  //           purchaseInfo?.parsed?.originalPurchaseDate
+  //         ).toISOString(),
+  //         expiresDate: new Date(
+  //           purchaseInfo?.parsed?.expiresDate
+  //         ).toISOString(),
+  //         quantity: purchaseInfo?.parsed?.quantity,
+  //         type: purchaseInfo?.parsed?.type,
+  //         inAppOwnershipType: purchaseInfo?.parsed?.inAppOwnershipType,
+  //         signedDate: new Date(purchaseInfo?.parsed?.signedDate).toISOString(),
+  //         environment: purchaseInfo?.parsed?.environment,
+  //         transactionReason: purchaseInfo?.parsed?.transactionReason,
+  //         storefront: purchaseInfo?.parsed?.storefront,
+  //         storefrontId: purchaseInfo?.parsed?.storefrontId,
+  //         price: renewalPrice,
+  //         currency: purchaseInfo?.parsed?.currency,
+  //         appTransactionId: purchaseInfo?.parsed?.appTransactionId,
+  //       };
 
-        const renewalDetails = {
-          expirationIntent: signedRenewalInfo?.expirationIntent,
-          originalTransactionId: signedRenewalInfo?.originalTransactionId,
-          autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
-          productId: signedRenewalInfo?.productId,
-          autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          isInBillingRetryPeriod: signedRenewalInfo?.isInBillingRetryPeriod,
-          signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
-          environment: signedRenewalInfo?.environment,
-          recentSubscriptionStartDate: new Date(
-            signedRenewalInfo?.recentSubscriptionStartDate
-          ).toISOString(),
-          renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
-          appTransactionId: signedRenewalInfo?.appTransactionId,
-        };
-        return {
-          transactions: transactionDetails,
-          renewalInfo: renewalDetails,
-        };
-      }
-    } catch (err) {
-      console.log("Error in getTransactionHistory", err);
-      throw err;
-    }
-  }
+  //       const renewalDetails = {
+  //         expirationIntent: signedRenewalInfo?.expirationIntent,
+  //         originalTransactionId: signedRenewalInfo?.originalTransactionId,
+  //         autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
+  //         productId: signedRenewalInfo?.productId,
+  //         autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
+  //         isInBillingRetryPeriod: signedRenewalInfo?.isInBillingRetryPeriod,
+  //         signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
+  //         environment: signedRenewalInfo?.environment,
+  //         recentSubscriptionStartDate: new Date(
+  //           signedRenewalInfo?.recentSubscriptionStartDate
+  //         ).toISOString(),
+  //         renewalDate: new Date(signedRenewalInfo?.renewalDate).toISOString(),
+  //         appTransactionId: signedRenewalInfo?.appTransactionId,
+  //       };
+  //       return {
+  //         transactions: transactionDetails,
+  //         renewalInfo: renewalDetails,
+  //       };
+  //     }
+  //   } catch (err) {
+  //     console.log("Error in getTransactionHistory", err);
+  //     throw err;
+  //   }
+  // }
 
-  parseJwt(token) {
-    try {
-      const base64Url = token.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
-          .join("")
-      );
-      // console.log("json payload", JSON.stringify(jsonPayload))
-      return JSON.parse(jsonPayload);
-    } catch (err) {
-      console.error("Error while parsing JWT:", err, token);
-      return null;
-    }
-  }
+  // parseJwt(token) {
+  //   try {
+  //     const base64Url = token.split(".")[1];
+  //     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  //     const jsonPayload = decodeURIComponent(
+  //       atob(base64)
+  //         .split("")
+  //         .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
+  //         .join("")
+  //     );
+  //     // console.log("json payload", JSON.stringify(jsonPayload))
+  //     return JSON.parse(jsonPayload);
+  //   } catch (err) {
+  //     console.error("Error while parsing JWT:", err, token);
+  //     return null;
+  //   }
+  // }
 
-  async validatePurchase(signedTransactionInfo) {
-    try {
-      const parsed = this.parseJwt(signedTransactionInfo);
-      if (!parsed) {
-        return {
-          success: false,
-          message: "Failed to parse or decode JWT.",
-        };
-      }
-      return {
-        success: parsed.expiresDate > Date.now(),
-        parsed,
-      };
-    } catch (error) {
-      console.log("Error in validatePurchase", error);
-      throw error;
-    }
-  }
+  // async validatePurchase(signedTransactionInfo) {
+  //   try {
+  //     const parsed = this.parseJwt(signedTransactionInfo);
+  //     if (!parsed) {
+  //       return {
+  //         success: false,
+  //         message: "Failed to parse or decode JWT.",
+  //       };
+  //     }
+  //     return {
+  //       success: parsed.expiresDate > Date.now(),
+  //       parsed,
+  //     };
+  //   } catch (error) {
+  //     console.log("Error in validatePurchase", error);
+  //     throw error;
+  //   }
+  // }
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {
