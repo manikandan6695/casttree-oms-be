@@ -181,10 +181,12 @@ export class SubscriptionController {
     @Res() res: Response
   ) {
     try {
-      const result = await this.subscriptionService.checkEligibility(token, itemId);
+      const result = await this.subscriptionService.checkEligibility(
+        token,
+        itemId
+      );
       return res.json(result);
-    }
-    catch (err) {
+    } catch (err) {
       const { code, response } = await this.sservice.processError(
         err,
         this.constructor.name

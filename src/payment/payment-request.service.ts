@@ -323,7 +323,7 @@ export class PaymentRequestService {
     // let serviceRequest;
     // if (invoice.source_type == EPaymentSourceType.serviceRequest) {
     let serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(invoiceId);
+      await this.serviceRequestService.getServiceRequestDetail(invoice.source_id);
 
     // }
 
