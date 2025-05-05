@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model,Types } from "mongoose";
 import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
 import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
@@ -92,4 +92,19 @@ export class ItemService {
       throw err;
     }
   }
+  async getItemsByGroupKey(groupKey: string, skip: number, limit: number) {
+    try {
+      let groupKeyObjectId = new Types.ObjectId(groupKey);
+      let items = await this.itemModel.find({ groupKey: groupKeyObjectId })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+  
+      // console.log("items", items);
+      return items;
+    
+  } catch (err) {
+   throw err;
+  }
+}
 }

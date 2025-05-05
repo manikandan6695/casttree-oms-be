@@ -70,6 +70,7 @@ export interface IItemModel extends mongoose.Document {
   updated_by: string;
   E_material_code?: string;
   status?: any;
+  groupKey: string;
   data_create_mode: string;
   comparePrice: number;
 }
@@ -310,6 +311,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     variant: VariantSchema,
     stock_details: [StockDetailsSchema],
     status: { type: String, default: "Active" },
+    groupKey:{ type: mongoose.Schema.Types.ObjectId, required: true },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
