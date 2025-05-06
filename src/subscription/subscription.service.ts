@@ -288,7 +288,19 @@ export class SubscriptionService {
 
         if (event === EEventType.tokenCancel) {
           const payload = req?.body?.payload;
-          await this.handleRazorpayCancelledMandate(payload);
+          await this.handleRazorpayCancelMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
+
+        if (event === EEventType.tokenPaused) {
+          const payload = req?.body?.payload;
+          await this.handleRazorpayPausedMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
+
+        if (event === EEventType.tokenRejected) {
+          const payload = req?.body?.payload;
+          await this.handleRazorpayRejectedMandate(payload);
           // await this.handleRazorpaySubscription(payload);
         }
         // await this.handleRazorpaySubscription(req.body.payload);
@@ -614,23 +626,99 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
-      if (status == "cancellation_initiated" || status == "cancelled") {
-        let data = await this.mandateService.updateMandateDetail(
-          { referenceId: tokenId },
-          {
-            mandateStatus: EMandateStatus.cancelled,
-            "metaData.status": status,
-          }
-        );
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: data?.mandate?._id,
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        {
+          mandateStatus: EMandateStatus.cancel_initiated,
+        }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.cancel_initiated,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: payload?.token?.entity?.notes?.userId,
+        updatedBy: payload?.token?.entity?.notes?.userId,
+      });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleRazorpayCancelMandate(payload: any) {
+    try {
+      console.log("inside razorpay cancelled mandate", payload);
+
+      let tokenId = payload?.token?.entity?.id;
+      let status = payload?.token?.entity?.recurring_details?.status;
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        {
           mandateStatus: EMandateStatus.cancelled,
-          "metaData.additionalDetail": payload?.token?.entity,
-          status: EStatus.Active,
-          createdBy: payload?.token?.entity?.notes?.userId,
-          updatedBy: payload?.token?.entity?.notes?.userId,
-        });
-      }
+        }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.cancelled,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: payload?.token?.entity?.notes?.userId,
+        updatedBy: payload?.token?.entity?.notes?.userId,
+      });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleRazorpayRejectedMandate(payload: any) {
+    try {
+      console.log("inside razorpay rejected mandate", payload);
+
+      let tokenId = payload?.token?.entity?.id;
+      let status = payload?.token?.entity?.recurring_details?.status;
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        {
+          mandateStatus: EMandateStatus.rejected,
+        }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.rejected,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: payload?.token?.entity?.notes?.userId,
+        updatedBy: payload?.token?.entity?.notes?.userId,
+      });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handleRazorpayPausedMandate(payload: any) {
+    try {
+      console.log("inside razorpay paused mandate", payload);
+
+      let tokenId = payload?.token?.entity?.id;
+      let status = payload?.token?.entity?.recurring_details?.status;
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        {
+          mandateStatus: EMandateStatus.paused,
+        }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.paused,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: payload?.token?.entity?.notes?.userId,
+        updatedBy: payload?.token?.entity?.notes?.userId,
+      });
     } catch (err) {
       throw err;
     }
@@ -683,7 +771,15 @@ export class SubscriptionService {
   private async handleRazorpayMandate(payload: any) {
     try {
       let tokenId = payload?.token?.entity?.id;
-      let mandate = await this.mandateService.getMandate(tokenId);
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      console.log("token confirmed mandate", mandate);
+
+      let updatedMandate = await this.mandateService.updateMandateDetail(
+        { _id: mandate._id },
+        {
+          mandateStatus: EMandateStatus.active,
+        }
+      );
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate?._id,
         mandateStatus: EMandateStatus.active,
@@ -726,7 +822,6 @@ export class SubscriptionService {
           let updatedMandate = await this.mandateService.updateMandateDetail(
             { "metaData.subscriptionId": subscription?.subscriptionId },
             {
-              mandateStatus: EMandateStatus.active,
               referenceId: tokenId,
             }
           );

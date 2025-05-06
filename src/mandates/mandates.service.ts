@@ -42,8 +42,17 @@ export class MandatesService {
   async getMandate(id) {
     try {
       let data = await this.mandateModel.findOne({
-        $or: [{ "metaData.subscription_id": id }, { referenceId: id }],
+        "metaData.subscription_id": id,
       });
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getMandateById(id) {
+    try {
+      let data = await this.mandateModel.findOne({ referenceId: id });
       return data;
     } catch (err) {
       throw err;
