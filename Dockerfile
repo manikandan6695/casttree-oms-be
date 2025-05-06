@@ -7,4 +7,5 @@ COPY . .
 RUN npm run build
 COPY env/dev_env ./.env
 COPY apple-subscription-key.p8 ./
+# COPY casttree-d50d2cec9329.json ./
 CMD ["node", "dist/main"]

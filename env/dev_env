@@ -92,3 +92,5 @@ KEY_ID="53Y2MPF778"
 BUNDLE_ID="com.billionfaces.casttree"
 FILEPATH="apple-subscription-key.p8"
 ENVIRONMENT=SANDBOX
+# Google IAP
+# GOOGLE_FILE_PATH="casttree-d50d2cec9329.json"
