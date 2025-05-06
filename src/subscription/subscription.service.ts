@@ -625,7 +625,6 @@ export class SubscriptionService {
       console.log("inside razorpay cancelled mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
-      let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
@@ -771,6 +770,9 @@ export class SubscriptionService {
   private async handleRazorpayMandate(payload: any) {
     try {
       let tokenId = payload?.token?.entity?.id;
+      console.log("tokenId", tokenId);
+      console.log("token confirmed payload", payload);
+
       let mandate = await this.mandateService.getMandateById(tokenId);
       console.log("token confirmed mandate", mandate);
 
