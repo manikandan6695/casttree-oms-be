@@ -614,23 +614,23 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
-      if (status == "cancellation_initiated" || status == "cancelled") {
-        let data = await this.mandateService.updateMandateDetail(
-          { referenceId: tokenId },
-          {
-            mandateStatus: EMandateStatus.cancelled,
-            "metaData.status": status,
-          }
-        );
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: data?.mandate?._id,
+      // if (status == "cancellation_initiated" || status == "cancelled") {
+      let data = await this.mandateService.updateMandateDetail(
+        { referenceId: tokenId },
+        {
           mandateStatus: EMandateStatus.cancelled,
-          "metaData.additionalDetail": payload?.token?.entity,
-          status: EStatus.Active,
-          createdBy: payload?.token?.entity?.notes?.userId,
-          updatedBy: payload?.token?.entity?.notes?.userId,
-        });
-      }
+          "metaData.status": status,
+        }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: data?.mandate?._id,
+        mandateStatus: EMandateStatus.cancelled,
+        "metaData.additionalDetail": payload?.token?.entity,
+        status: EStatus.Active,
+        createdBy: payload?.token?.entity?.notes?.userId,
+        updatedBy: payload?.token?.entity?.notes?.userId,
+      });
+      // }
     } catch (err) {
       throw err;
     }
