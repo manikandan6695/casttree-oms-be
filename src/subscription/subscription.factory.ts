@@ -30,6 +30,7 @@ const keyId = process.env.KEY_ID;
 const bundleId = process.env.BUNDLE_ID;
 const filePath = process.env.FILEPATH;
 const environment = Environment.SANDBOX;
+const googleFile = process.env.GOOGLE_FILE_PATH; 
 @Injectable()
 export class SubscriptionFactory {
   private client: AppStoreServerAPIClient;
@@ -396,10 +397,8 @@ export class SubscriptionFactory {
       });
     });
     try {
-      const serviceAccountPath = process.env.GOOGLE_FILE_PATH || path.join(__dirname, 'json', 'casttree-d50d2cec9329.json');
-      console.log("serviceAccountPath", serviceAccountPath);
       const auth = new google.auth.GoogleAuth({
-        keyFile: serviceAccountPath,
+        keyFile: googleFile,
         scopes: ["https://www.googleapis.com/auth/androidpublisher"],
       });
       // console.log("auth", auth);
@@ -407,10 +406,11 @@ export class SubscriptionFactory {
         version: "v3",
         auth: auth,
       });
-      console.log("androidpublisher initialized successfully");
+      // console.log("androidpublisher initialized successfully");
 
     } catch (err) {
-      console.error("Failed to initialize androidpublisher", err);
+      throw err
+      // console.error("Failed to initialize androidpublisher", err);
     }
     // console.log("encodedKey", encodedKey);
     // console.log("client", encodedKey, keyId, issuerId, bundleId, environment);
@@ -713,7 +713,7 @@ export class SubscriptionFactory {
       // console.log("json payload", JSON.stringify(jsonPayload))
       return JSON.parse(jsonPayload);
     } catch (err) {
-      console.error("Error while parsing JWT:", err, token);
+      // console.error("Error while parsing JWT:", err, token);
       return null;
     }
   }
@@ -732,11 +732,11 @@ export class SubscriptionFactory {
         parsed,
       };
     } catch (error) {
-      console.log("Error in validatePurchase", error);
+      // console.log("Error in validatePurchase", error);
       throw error;
     }
   }
-  
+
   async googleRtdn(message) {
     try {
       // let sampleCode = {
@@ -750,14 +750,14 @@ export class SubscriptionFactory {
       //   "subscription": "projects/casttree/subscriptions/play-rtdn-sub"
       // }
       const pubSubMessage = message;
-      console.log("pubSubMessage", pubSubMessage);
+      // console.log("pubSubMessage", pubSubMessage);
       const messageBuffer = Buffer.from(pubSubMessage.data, 'base64');
       const notification = JSON.parse(messageBuffer.toString());
-      console.log('📬 RTDN received:', notification);
+      // console.log('📬 RTDN received:', notification);
       const { subscriptionNotification } = notification;
-      console.log("subscriptionNotification", subscriptionNotification);
+      // console.log("subscriptionNotification", subscriptionNotification);
       const { notificationType, purchaseToken, subscriptionId } = subscriptionNotification;
-      console.log("notificationType", notificationType, subscriptionId);
+      // console.log("notificationType", notificationType, subscriptionId);
 
       const verification = await this.validateTransactions(
         notification.packageName,
@@ -769,30 +769,32 @@ export class SubscriptionFactory {
         purchaseToken: purchaseToken,
         notificationType: notificationType
       }
-      console.log("verification", verification);
+      // console.log("verification", verification);
 
       return verificationData;
     } catch (err) {
-      console.error('❌ Error handling RTDN:', err);
+      throw err;
+      // console.error('❌ Error handling RTDN:', err);
     }
   }
 
   async validateTransactions(packageName, data) {
     try {
+      // console.log("packageName", packageName, data);
 
       const res = await this.androidpublisher.purchases.subscriptionsv2.get({
         packageName: packageName,
         token: data,
       });
       const transactionInfo = res.data;
-      console.log("transactionInfo", transactionInfo);
+      // console.log("transactionInfo", transactionInfo);
 
       return {
         success: res.data.expiryTime > new Date(),
         transactionInfo,
       };
     } catch (err) {
-      console.error("Failed to get transaction", err);
+      // console.error("Failed to get transaction", err);
       throw err;
     }
   }
