@@ -4,6 +4,9 @@ export enum EMandateStatus {
   expired = "Expired",
   bankPendingApproval = "Bank_approval_pending",
   cancelled = "Cancelled",
+  cancel_initiated = "Cancel_Initiated",
+  paused = "Paused",
+  rejected = "Rejected",
 }
 
 export const ESMandateStatus = [
@@ -12,4 +15,6 @@ export const ESMandateStatus = [
   EMandateStatus.expired,
   EMandateStatus.bankPendingApproval,
   EMandateStatus.cancelled,
+  EMandateStatus.paused,
+  EMandateStatus.rejected,
 ];
