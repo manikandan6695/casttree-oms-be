@@ -269,11 +269,11 @@ export class SubscriptionService {
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
-        if (event === EEventType.tokenConfirmed) {
-          const payload = req?.body?.payload;
-          await this.handleRazorpayMandate(payload);
-          // await this.handleRazorpaySubscription(payload);
-        }
+        // if (event === EEventType.tokenConfirmed) {
+        //   const payload = req?.body?.payload;
+        //   await this.handleRazorpayMandate(payload);
+        //   // await this.handleRazorpaySubscription(payload);
+        // }
         if (event === EEventType.paymentFailed) {
           const payload = req?.body?.payload;
           await this.handleRazorpayFailedPayment(payload);
@@ -827,7 +827,23 @@ export class SubscriptionService {
               referenceId: tokenId,
             }
           );
-
+          let mandate = await this.mandateService.getMandateById(tokenId);
+          if (mandate.mandateStatus == EMandateStatus.initiated) {
+            let updatedMandate = await this.mandateService.updateMandateDetail(
+              { _id: mandate._id },
+              {
+                mandateStatus: EMandateStatus.active,
+              }
+            );
+            await this.mandateHistoryService.createMandateHistory({
+              mandateId: mandate?._id,
+              mandateStatus: EMandateStatus.active,
+              "metaData.additionalDetail": payload?.token?.entity,
+              status: EStatus.Active,
+              createdBy: mandate?.createdBy,
+              updatedBy: mandate?.updatedBy,
+            });
+          }
           let item = await this.itemService.getItemDetail(
             subscription?.notes?.itemId
           );
