@@ -6,6 +6,7 @@ import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
 import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
+import { log } from "console";
 
 @Injectable()
 export class InvoiceService {
@@ -15,7 +16,9 @@ export class InvoiceService {
     private configService: ConfigService,
     private sharedService: SharedService,
     private itemDocumentService: ItemDocumentService
-  ) {}
+  ) {
+    this.calculateGST(100,8)
+  }
 
   async createInvoice(body) {
     try {
@@ -28,12 +31,18 @@ export class InvoiceService {
       let invoice_number = invoice_sequence.toString();
       let invoice = invoice_number.padStart(5, "0");
 
+      let gstValues = this.calculateGST(body.grand_total, body.gst_percentage || 18);
+
+
       let fv = {
         ...body,
       };
       fv["sales_doc_id_prefix"] = "INV";
       fv["sales_document_number"] = invoice;
       fv["document_number"] = invoice;
+      fv["amount_without_tax"] = gstValues.amountWithoutTax;
+      fv["gst_amount"] = gstValues.taxAmount;
+
 
       let data = await this.salesDocumentModel.create(fv);
       await this.itemDocumentService.createItemDocuments([
@@ -54,6 +63,22 @@ export class InvoiceService {
     } catch (err) {
       throw err;
     }
+  }
+
+  private calculateGST(grandTotal: number ,gstPercentage : number): { 
+    amountWithoutTax: number; 
+    taxAmount: number; 
+  } {
+    const amountWithoutTax = grandTotal / (1 + gstPercentage / 100);
+    console.log("amount without_tax ==>", amountWithoutTax.toFixed(2));
+
+    
+    const taxAmount = grandTotal - amountWithoutTax;
+  
+    return {
+      amountWithoutTax: parseFloat(amountWithoutTax.toFixed(2)),
+      taxAmount: parseFloat(taxAmount.toFixed(2)),
+    };
   }
 
   async updateInvoice(id: any, status) {

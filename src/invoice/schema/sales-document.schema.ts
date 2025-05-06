@@ -188,6 +188,12 @@ export const SalesDocumentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
     },
+    amount_without_tax:{
+      type: Number,
+    },
+    gst_amount: {
+      type: Number,
+    }
   },
   {
     collection: "salesDocument",
