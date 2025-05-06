@@ -48,7 +48,7 @@ export class InvoiceService {
           updated_by: body.updated_by,
         },
       ]);
-    //  console.log("invoice id", data._id);
+      //  console.log("invoice id", data._id);
 
       return data;
     } catch (err) {
@@ -69,8 +69,8 @@ export class InvoiceService {
       let invoice = await this.salesDocumentModel.findOne({
         $or: [{ source_id: id }, { _id: id }],
       });
-      console.log("invoice id", invoice);
-      
+      // console.log("invoice id", invoice);
+
       return { message: "Updated successfully", invoice };
     } catch (err) {
       throw err;

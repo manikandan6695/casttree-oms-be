@@ -674,7 +674,7 @@ export class SubscriptionService {
 
   async handleRazorpayRejectedMandate(payload: any) {
     try {
-      console.log("inside razorpay cancelled mandate", payload);
+      console.log("inside razorpay rejected mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
@@ -700,7 +700,7 @@ export class SubscriptionService {
 
   async handleRazorpayPausedMandate(payload: any) {
     try {
-      console.log("inside razorpay cancelled mandate", payload);
+      console.log("inside razorpay paused mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
