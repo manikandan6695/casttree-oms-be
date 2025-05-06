@@ -217,6 +217,7 @@ export class SubscriptionFactory {
       userId: token.id,
       planId: data.planId,
       startAt: data.startAt,
+      // endAt: data.endAt,
       providerId: data.providerId,
       provider: data.provider,
       amount: parseInt(bodyData.authAmount),

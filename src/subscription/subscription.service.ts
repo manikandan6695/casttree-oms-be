@@ -185,6 +185,7 @@ export class SubscriptionService {
             providerId: EProviderId.apple,
             provider: EProvider.apple,
             startAt: new Date(),
+            endAt: endDate,
             subscriptionStatus: EsubscriptionStatus.initiated,
             notes: { itemId: body?.itemId },
             amount: body?.authAmount,
