@@ -49,6 +49,11 @@ export class CreateSubscriptionDTO {
   redirectionUrl: string;
 
   @IsOptional()
+  @IsString()
+  @IsMongoId()
+  refId: string;
+
+  @IsOptional()
   @IsNumber()
   validity: number;
 
