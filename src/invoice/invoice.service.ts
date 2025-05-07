@@ -70,7 +70,7 @@ export class InvoiceService {
     taxAmount: number; 
   } {
     const amountWithoutTax = grandTotal / (1 + gstPercentage / 100);
-    console.log("amount without_tax ==>", amountWithoutTax.toFixed(2));
+    console.log("amount without tax ==>", amountWithoutTax.toFixed(2));
 
     
     const taxAmount = grandTotal - amountWithoutTax;
