@@ -72,10 +72,11 @@ export class SubscriptionService {
             EsubscriptionStatus.initiated,
             EsubscriptionStatus.failed,
           ]);
-          let authAmount = existingSubscription
-            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.amount
-            : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
+          let authAmount =
+            body?.refId || existingSubscription
+              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                  ?.amount
+              : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
           );
@@ -91,9 +92,10 @@ export class SubscriptionService {
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
           let expiryDate = this.sharedService.getFutureYearISO(10);
-          let detail = existingSubscription
-            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-            : item?.additionalDetail?.promotionDetails?.authDetail;
+          let detail =
+            body?.refId || existingSubscription
+              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+              : item?.additionalDetail?.promotionDetails?.authDetail;
           let chargeDate = await this.getFutureDate(detail);
           console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
