@@ -180,6 +180,7 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
+          console.log("body",body);
           let endDate = this.sharedService.getFutureMonthISO(1);
           subscriptionData = {
             userId: token?.id,
@@ -194,6 +195,7 @@ export class SubscriptionService {
             status: EStatus.Active,
             createdBy: token?.id,
             updatedBy: token?.id,
+            transactionDetails:body?.transactionDetails,
             metaData: {
               externalId: body?.transactionDetails?.externalId,
             },
@@ -1291,7 +1293,7 @@ export class SubscriptionService {
 
   async subscription(body, token) {
     try {
-      // console.log("subscription data", body);
+      console.log("subscription data", body);
 
       let subscriptionData = {
         userId: token.id,
@@ -1309,6 +1311,7 @@ export class SubscriptionService {
         createdBy: token.id,
         updatedBy: token.id,
         externalId: body.externalId,
+        transactionDetails:body.transactionDetails,
         currencyCode: body.currencyCode,
         currencyId: body.currencyId,
       };
