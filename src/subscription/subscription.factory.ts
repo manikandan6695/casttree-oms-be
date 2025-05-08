@@ -45,9 +45,9 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService
   ) {}
-  // async onModuleInit() {
-  //   await this.init();
-  // }
+  async onModuleInit() {
+    await this.init();
+  }
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
@@ -199,6 +199,8 @@ export class SubscriptionFactory {
   }
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
+    // console.log("data in apple", data, bodyData);
+    
     const transactionId = bodyData.transactionDetails?.externalId;
     const existingSubscription =
       await this.subscriptionService.findExternalId(transactionId);
@@ -209,10 +211,11 @@ export class SubscriptionFactory {
       bodyData.currencyCode
     );
     let currencyResponse = currencyId?.data?.[0];
+    const validTransactionDate = new Date(data?.transactionDetails?.transactionDate);
     let subscriptionData = {
       userId: token.id,
       planId: data.planId,
-      startAt: data.startAt,
+      startAt: validTransactionDate.toISOString(),
       // endAt: data.endAt,
       providerId: data.providerId,
       provider: data.provider,
@@ -222,10 +225,18 @@ export class SubscriptionFactory {
       createdBy: token?.id,
       updatedBy: token?.id,
       metaData: data.metaData,
+      transactionDetails:{
+        externalId:data?.transactionDetails?.externalId,
+        originalTransactionId:data?.transactionDetails?.originalTransactionId,
+        authAmount:data?.transactionDetails?.authAmount,
+        transactionDate:validTransactionDate?.toISOString(),
+      },
       externalId: transactionId,
       currencyCode: currencyResponse.currency_code,
       currencyId: currencyResponse._id,
     };
+    // console.log("subscriptionData",subscriptionData);
+    
     const createdSubscription = await this.subscriptionService.subscription(
       subscriptionData,
       token
@@ -450,7 +461,10 @@ export class SubscriptionFactory {
             transactions = transactions.concat(response?.signedTransactions);
           }
         } while (response.hasMore);
-
+        // for (const signedToken of transactions) {
+        //   const decodedData = await this.parseJwt(signedToken);
+        //   console.log("decodedData", decodedData);
+        // }
         // console.log("transactions",transactions);
       }
       const latestSignedTransaction = transactions[transactions.length - 1];

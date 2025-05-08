@@ -1,3 +1,4 @@
+import { string } from "joi";
 import * as mongoose from "mongoose";
 export interface ISubscriptionModel extends mongoose.Document {
   userId: string;
@@ -22,7 +23,10 @@ export interface ISubscriptionModel extends mongoose.Document {
   externalId: string;
   transactionDetails: {
     externalId: string;
-  };
+    originalTransactionId: string;
+    authAmount: number;
+    transactionDate: Date;
+  }; 
   currencyId: string;
   currencyCode: string;
   createdBy: string;
@@ -89,7 +93,10 @@ export const subscriptionSchema = new mongoose.Schema(
     externalId: { type: String, unique: true },
     transactionDetails: {
       externalId: { type: String, unique: true },
-    },
+      originalTransactionId: { type: String },
+      authAmount: { type: Number },
+      transactionDate: { type: Date },
+    },    
     currencyId: {
       type: mongoose.Schema.Types.ObjectId,
     },

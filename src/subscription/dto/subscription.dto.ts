@@ -1,4 +1,5 @@
 import {
+  IsDate,
   IsEnum,
   IsMongoId,
   IsNotEmpty,
@@ -16,6 +17,18 @@ class TransactionDetailsDTO {
   @IsNotEmpty()
   @IsString()
   externalId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  originalTransactionId: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  authAmount: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  transactionDate: number;
 }
 export class CreateSubscriptionDTO {
   @IsOptional()
