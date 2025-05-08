@@ -6,6 +6,7 @@ import { ItemDocumentService } from "src/item-document/item-document.service";
 import { SharedService } from "src/shared/shared.service";
 import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
+import { ItemService } from "src/item/item.service";
 import { log } from "console";
 
 @Injectable()
@@ -15,9 +16,9 @@ export class InvoiceService {
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     private configService: ConfigService,
     private sharedService: SharedService,
+    private itemService: ItemService,
     private itemDocumentService: ItemDocumentService
   ) {
-    this.calculateGST(100,8)
   }
 
   async createInvoice(body) {
@@ -30,8 +31,11 @@ export class InvoiceService {
       );
       let invoice_number = invoice_sequence.toString();
       let invoice = invoice_number.padStart(5, "0");
+      const itemId = "6788a5ceecf6b05434b9b6ad";
+      const itemDetails = await this.itemService.getItemsDetails([itemId]);
+      const gstPercentage = itemDetails?.[0]?.item_taxes?.map(tax => tax.item_tax_id?.tax_rate)?.[0] || 18;
+      let gstValues = this.calculateGST(body.grandTotal, gstPercentage);
 
-      let gstValues = this.calculateGST(body.grand_total, body.gst_percentage || 18);
 
 
       let fv = {
@@ -49,7 +53,7 @@ export class InvoiceService {
         {
           source_id: data._id,
           source_type: EDocumentTypeName.invoice,
-          item_id: body.itemId,
+          item_id: itemId,
           amount: data.sub_total,
           quantity: data.item_count,
           user_id: body.user_id,
@@ -65,22 +69,21 @@ export class InvoiceService {
     }
   }
 
-  private calculateGST(grandTotal: number ,gstPercentage : number): { 
+  private calculateGST(grandTotal: number, gstPercentage: number): { 
     amountWithoutTax: number; 
     taxAmount: number; 
   } {
     const amountWithoutTax = grandTotal / (1 + gstPercentage / 100);
-    console.log("amount without tax ==>", amountWithoutTax.toFixed(2));
-
-    
     const taxAmount = grandTotal - amountWithoutTax;
+  
+    console.log("Amount without tax ==>", amountWithoutTax.toFixed(2));
+    console.log("Tax amount ==>", taxAmount.toFixed(2));
   
     return {
       amountWithoutTax: parseFloat(amountWithoutTax.toFixed(2)),
       taxAmount: parseFloat(taxAmount.toFixed(2)),
     };
   }
-
   async updateInvoice(id: any, status) {
     try {
       let updateBody: any = {};
