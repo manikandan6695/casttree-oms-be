@@ -16,7 +16,7 @@ import { Type } from "class-transformer";
 class TransactionDetailsDTO {
   @IsNotEmpty()
   @IsString()
-  externalId: string;
+  transactionId: string;
 
   @IsNotEmpty()
   @IsString()

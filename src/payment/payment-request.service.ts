@@ -180,7 +180,7 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-    console.log("paymentRecord", body, invoiceData);
+    // console.log("paymentRecord", body, invoiceData);
 
     const paymentData = {
       ...body,
@@ -456,9 +456,12 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("paymentId", paymentId, body);
+      // console.log("paymentId", paymentId, body);
       let updateData = await this.paymentModel.updateOne(
-        { _id: paymentId },
+        { $or: [
+          { _id: paymentId },
+          { source_id: paymentId }
+        ] },
         {
           $set: {
             reason: body?.reason?.failureReason,

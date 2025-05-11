@@ -74,7 +74,7 @@ export class SubscriptionService {
           ]);
           let authAmount = existingSubscription
             ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.amount
+              ?.amount
             : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -178,7 +178,6 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
-          console.log("body",body);
           let endDate = this.sharedService.getFutureMonthISO(1);
           subscriptionData = {
             userId: token?.id,
@@ -193,9 +192,9 @@ export class SubscriptionService {
             status: EStatus.Active,
             createdBy: token?.id,
             updatedBy: token?.id,
-            transactionDetails:body?.transactionDetails,
+            transactionDetails: body?.transactionDetails,
             metaData: {
-              externalId: body?.transactionDetails?.externalId,
+              externalId: body?.transactionDetails?.transactionId,
             },
           };
           break;
@@ -364,10 +363,13 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
+      // console.log("transactionHistory", transactionHistory);
       const transactionId = transactionHistory?.transactions?.transactionId;
+      const originalTransactionId = transactionHistory?.transactions?.originalTransactionId;
       const existingSubscription = await this.subscriptionModel.findOne({
-        externalId: transactionId,
+        "transactionDetails.originalTransactionId": originalTransactionId,
       });
+      console.log("existingSubscription", existingSubscription);
 
       if (!existingSubscription) {
         return { message: "No matching subscription found." };
@@ -391,11 +393,13 @@ export class SubscriptionService {
           },
         }
       );
+      // console.log("updateResult", updateResult);
       if (updateResult.modifiedCount > 0) {
         const updatedInvoice = await this.invoiceService.updateInvoice(
           existingSubscription._id,
           EDocumentStatus.completed
         );
+        // console.log("updatedInvoice", updatedInvoice);
 
         await this.paymentService.updateStatus(
           updatedInvoice.invoice._id,
@@ -1292,7 +1296,7 @@ export class SubscriptionService {
 
   async subscription(body, token) {
     try {
-      console.log("subscription data", body);
+      // console.log("subscription data", body);
 
       let subscriptionData = {
         userId: token.id,
@@ -1354,11 +1358,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1652,22 +1656,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1821,22 +1825,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getDate() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
+          ?.validityType == EvalidityType.month
           ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          )
           : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1846,7 +1850,7 @@ export class SubscriptionService {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
           userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
+          "@casttree.com",
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
@@ -1982,7 +1986,7 @@ export class SubscriptionService {
   async findExternalId(transactionId) {
     try {
       let externalIdData = await this.subscriptionModel.findOne({
-        "metaData.externalId": transactionId,
+        externalId: transactionId,
         providerId: { $in: [EProviderId.apple, EProviderId.google] },
         // provider: EProvider.apple,
       });
@@ -2129,6 +2133,55 @@ export class SubscriptionService {
         isEligible: isEligible,
         reason: isEligible ? ELIGIBLE_SUBSCRIPTION : NOT_ELIGIBLE_SUBSCRIPTION,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async findOriginalTransactionId(originalTransactionId: string) {
+    try {
+      let filter = { "transactionDetails.originalTransactionId": originalTransactionId };
+      let subscriptionData = await this.subscriptionModel.findOne(filter).lean();
+      // console.log("subscriptionData", subscriptionData);
+      return subscriptionData;
+
+    } catch (error) {
+      throw error;
+    }
+  }
+ async isTransactionStored(transactionId) {
+  try {
+    const filter = {
+      $or: [
+        { "metaData.transaction.transactionId": transactionId },
+        { externalId: transactionId }
+      ]
+    };
+
+    const data = await this.subscriptionModel.exists(filter);
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+  async updateSubacription(body) {
+    try {
+      let data = await this.subscriptionModel.updateOne(
+        {
+          _id: body._id,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+          status: EStatus.Active,
+          providerId: EProviderId.apple,
+        },
+        {
+          $set: {
+            subscriptionStatus: EsubscriptionStatus.active,
+            metaData: body?.metaData,
+            endAt: new Date(body?.expiresDate),
+          },
+
+        })
+      return data
     } catch (error) {
       throw error;
     }
