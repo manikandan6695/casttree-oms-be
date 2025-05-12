@@ -320,7 +320,7 @@ export class SubscriptionService {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
-        // console.log("decodeId:", decodeId);
+        console.log("decodeId:", decodeId);
         if (
           decodeId.notificationType === EEventType.didRenew ||
           decodeId.subtype === EEventType.subTypeRenew
