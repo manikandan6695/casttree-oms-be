@@ -201,24 +201,30 @@ export class SubscriptionFactory {
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
       const transactionId = bodyData.transactionDetails?.transactionId;
-      const originalTransactionId = data?.transactionDetails?.originalTransactionId;
-      const existingSubscription = await this.subscriptionService.findExternalId(transactionId);
-      const matchingTransaction = await this.getTransactionHistoryById(transactionId, originalTransactionId);
-      console.log("matchingTransaction", matchingTransaction);
+      const originalTransactionId =
+        data?.transactionDetails?.originalTransactionId;
+      const existingSubscription =
+        await this.subscriptionService.findExternalId(transactionId);
+      const matchingTransaction = await this.getTransactionHistoryById(
+        transactionId,
+        originalTransactionId
+      );
+      // console.log("matchingTransaction", matchingTransaction);
       if (existingSubscription) {
-        return existingSubscription
+        return existingSubscription;
       }
 
       let currencyId = await this.helperService.getCurrencyId(
         bodyData.currencyCode
       );
       let currencyResponse = currencyId?.data?.[0];
-      const validTransactionDate = new Date(data?.transactionDetails?.transactionDate);
+      const validTransactionDate = new Date(
+        data?.transactionDetails?.transactionDate
+      );
       let subscriptionData = {
         userId: token.id,
         planId: data.planId,
         startAt: new Date(),
-        // endAt: data.endAt,
         providerId: data.providerId,
         provider: data.provider,
         amount: parseInt(bodyData.authAmount),
@@ -229,7 +235,8 @@ export class SubscriptionFactory {
         metaData: originalTransactionId,
         transactionDetails: {
           transactionId: data?.transactionDetails?.transactionId,
-          originalTransactionId: data?.transactionDetails?.originalTransactionId,
+          originalTransactionId:
+            data?.transactionDetails?.originalTransactionId,
           authAmount: data?.transactionDetails?.authAmount,
           transactionDate: validTransactionDate?.toISOString(),
           planId: data?.transactionDetails?.planId,
@@ -266,7 +273,11 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse.currency_code,
         currency: currencyResponse._id,
       };
-      await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice
+      );
       const mandateData = {
         sourceId: createdSubscription._id,
         userId: token.id,
@@ -278,7 +289,7 @@ export class SubscriptionFactory {
         mandateStatus: EMandateStatus.initiated,
         status: EStatus.Active,
         metaData: {
-          externalId: originalTransactionId
+          externalId: originalTransactionId,
         },
         startDate: data.startAt,
         endDate: data.endAt,
@@ -292,11 +303,18 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      if (matchingTransaction && matchingTransaction.transactionReason === "PURCHASE") {
+      if (
+        matchingTransaction &&
+        matchingTransaction.transactionReason === "PURCHASE"
+      ) {
         const price = matchingTransaction?.price;
         const transactionId = matchingTransaction?.transactionId;
-        const originalTransactionId = matchingTransaction?.originalTransactionId;
-        const existingSubscription = await this.subscriptionService.findOriginalTransactionId(originalTransactionId);
+        const originalTransactionId =
+          matchingTransaction?.originalTransactionId;
+        const existingSubscription =
+          await this.subscriptionService.findOriginalTransactionId(
+            originalTransactionId
+          );
         if (!existingSubscription) {
           return { message: "No matching subscription found." };
         }
@@ -307,10 +325,17 @@ export class SubscriptionFactory {
             webOrderLineItemId: matchingTransaction?.webOrderLineItemId,
             bundleId: matchingTransaction?.bundleId,
             productId: matchingTransaction?.productId,
-            subscriptionGroupIdentifier: matchingTransaction?.subscriptionGroupIdentifier,
-            purchaseDate: new Date(matchingTransaction?.purchaseDate).toISOString(),
-            originalPurchaseDate: new Date(matchingTransaction?.originalPurchaseDate).toISOString(),
-            expiresDate: new Date(matchingTransaction?.expiresDate).toISOString(),
+            subscriptionGroupIdentifier:
+              matchingTransaction?.subscriptionGroupIdentifier,
+            purchaseDate: new Date(
+              matchingTransaction?.purchaseDate
+            ).toISOString(),
+            originalPurchaseDate: new Date(
+              matchingTransaction?.originalPurchaseDate
+            ).toISOString(),
+            expiresDate: new Date(
+              matchingTransaction?.expiresDate
+            ).toISOString(),
             quantity: matchingTransaction?.quantity,
             type: matchingTransaction?.type,
             inAppOwnershipType: matchingTransaction?.inAppOwnershipType,
@@ -322,15 +347,16 @@ export class SubscriptionFactory {
             price: price,
             currency: matchingTransaction?.currency,
             appTransactionId: matchingTransaction?.appTransactionId,
-          }
+          },
           // renewal: transactionHistory.renewalInfo,
         };
         let body = {
           _id: existingSubscription._id,
           metaData: metaData,
-          expiresDate: new Date(matchingTransaction?.expiresDate)
-        }
-        const updateResult = await this.subscriptionService.updateSubacription(body)
+          expiresDate: new Date(matchingTransaction?.expiresDate),
+        };
+        const updateResult =
+          await this.subscriptionService.updateSubscription(body);
         if (updateResult.modifiedCount > 0) {
           const updatedInvoice = await this.invoiceService.updateInvoice(
             existingSubscription._id,
@@ -340,18 +366,16 @@ export class SubscriptionFactory {
             matchingTransaction?.currency,
             price
           );
-          const baseAmount = parseInt(
-            (price * conversionRateAmt).toString()
-          );
+          const baseAmount = parseInt((price * conversionRateAmt).toString());
           let conversionBody = {
             baseAmount: baseAmount,
             baseCurrency: currencyResponse.currency_code,
-            conversionRate: conversionRateAmt
-          }
+            conversionRate: conversionRateAmt,
+          };
           let statusData = {
             status: EDocumentStatus.completed,
-            conversionBody
-          }
+            conversionBody,
+          };
           await this.paymentService.updateStatus(
             updatedInvoice.invoice._id,
             statusData
@@ -368,7 +392,6 @@ export class SubscriptionFactory {
           );
         }
         return { message: "Updated Successfully" };
-
       }
       return createdSubscription;
     } catch (error) {
@@ -485,7 +508,7 @@ export class SubscriptionFactory {
     });
     // console.log("encodedKey", encodedKey);
     // console.log("client", encodedKey, keyId, issuerId, bundleId, environment);
-    // google iap 
+    // google iap
     // try {
     //   const auth = new google.auth.GoogleAuth({
     //     keyFile: googleFile,
@@ -612,7 +635,7 @@ export class SubscriptionFactory {
           bodyData?.data?.signedRenewalInfo
         );
         // console.log("signedRenewalInfo", signedRenewalInfo);
-        const price =purchaseInfo?.parsed?.price;
+        const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
           originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
@@ -814,7 +837,7 @@ export class SubscriptionFactory {
       throw error;
     }
   }
-  // google iap 
+  // google iap
   // async googleRtdn(message) {
   //   try {
   //     const pubSubMessage = message;
@@ -852,7 +875,6 @@ export class SubscriptionFactory {
   //     throw err;
   //   }
   // }
-
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {

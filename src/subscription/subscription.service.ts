@@ -181,14 +181,12 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
-          let endDate = this.sharedService.getFutureMonthISO(1);
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
             providerId: EProviderId.apple,
             provider: EProvider.apple,
             startAt: new Date(),
-            endAt: endDate,
             subscriptionStatus: EsubscriptionStatus.initiated,
             notes: { itemId: body?.itemId },
             amount: body?.authAmount,
@@ -367,7 +365,8 @@ export class SubscriptionService {
         await this.subscriptionFactory.getTransactionHistory(payload);
       // console.log("transactionHistory", transactionHistory);
       const transactionId = transactionHistory?.transactions?.transactionId;
-      const originalTransactionId = transactionHistory?.transactions?.originalTransactionId;
+      const originalTransactionId =
+        transactionHistory?.transactions?.originalTransactionId;
       const existingSubscription = await this.subscriptionModel.findOne({
         "transactionDetails.originalTransactionId": originalTransactionId,
       });
@@ -442,7 +441,7 @@ export class SubscriptionService {
         renewal: transactionHistory.renewalInfo,
       };
       let currencyId = await this.helperService.getCurrencyId(
-       transactionHistory?.transactions?.currency
+        transactionHistory?.transactions?.currency
       );
       let currencyResponse = currencyId?.data?.[0];
       const subscriptionData = {
@@ -1321,7 +1320,7 @@ export class SubscriptionService {
         createdBy: token.id,
         updatedBy: token.id,
         externalId: body.externalId,
-        transactionDetails:body.transactionDetails,
+        transactionDetails: body.transactionDetails,
         currencyCode: body.currencyCode,
         currencyId: body.currencyId,
       };
@@ -1365,11 +1364,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1663,22 +1662,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1832,22 +1831,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1857,7 +1856,7 @@ export class SubscriptionService {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
           userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-          "@casttree.com",
+            "@casttree.com",
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
@@ -2146,18 +2145,20 @@ export class SubscriptionService {
   }
   async findOriginalTransactionId(originalTransactionId: string) {
     try {
-      let filter = { "transactionDetails.originalTransactionId": originalTransactionId };
-      let subscriptionData = await this.subscriptionModel.findOne(filter).lean();
+      let filter = {
+        "transactionDetails.originalTransactionId": originalTransactionId,
+      };
+      let subscriptionData = await this.subscriptionModel
+        .findOne(filter)
+        .lean();
       // console.log("subscriptionData", subscriptionData);
       return subscriptionData;
-
     } catch (error) {
       throw error;
     }
   }
 
-
-  async updateSubacription(body) {
+  async updateSubscription(body) {
     try {
       let data = await this.subscriptionModel.updateOne(
         {
@@ -2172,9 +2173,9 @@ export class SubscriptionService {
             metaData: body?.metaData,
             endAt: new Date(body?.expiresDate),
           },
-
-        })
-      return data
+        }
+      );
+      return data;
     } catch (error) {
       throw error;
     }
