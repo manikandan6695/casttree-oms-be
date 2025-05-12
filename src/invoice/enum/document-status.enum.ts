@@ -3,11 +3,13 @@ export enum EDocumentStatus {
   completed = "Completed",
   failed = "Failed",
   expired = "Expired",
+  active = "Active",
 }
 
 export const ESDocumentStatus = [
   EDocumentStatus.pending,
   EDocumentStatus.completed,
   EDocumentStatus.failed,
-  EDocumentStatus.expired
+  EDocumentStatus.expired,
+  EDocumentStatus.active
 ];

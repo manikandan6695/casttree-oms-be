@@ -30,7 +30,7 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EEventType } from "./enums/eventType.enum";
+import { EEventId, EEventType } from "./enums/eventType.enum";
 import { EProvider, EProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -72,6 +72,7 @@ export class SubscriptionService {
             EsubscriptionStatus.initiated,
             EsubscriptionStatus.failed,
           ]);
+
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -180,47 +181,44 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
-          console.log("body",body);
-          let endDate = this.sharedService.getFutureMonthISO(1);
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
             providerId: EProviderId.apple,
             provider: EProvider.apple,
             startAt: new Date(),
-            endAt: endDate,
             subscriptionStatus: EsubscriptionStatus.initiated,
             notes: { itemId: body?.itemId },
             amount: body?.authAmount,
             status: EStatus.Active,
             createdBy: token?.id,
             updatedBy: token?.id,
-            transactionDetails:body?.transactionDetails,
+            transactionDetails: body?.transactionDetails,
             metaData: {
-              externalId: body?.transactionDetails?.externalId,
+              externalId: body?.transactionDetails?.transactionId,
             },
           };
           break;
         // case EProvider.google:
-        // let endAt = this.sharedService.getFutureMonthISO(1);
-        // subscriptionData = {
-        //   userId: token?.id,
-        //   planId: body?.planId,
-        //   providerId: EProviderId.google,
-        //   provider: EProvider.google,
-        //   startAt: new Date(),
-        //   endAt: endAt,
-        //   subscriptionStatus: EsubscriptionStatus.initiated,
-        //   notes: { itemId: body?.itemId },
-        //   amount: body?.authAmount,
-        //   status: EStatus.Active,
-        //   createdBy: token?.id,
-        //   updatedBy: token?.id,
-        //   metaData: {
-        //     externalId: body?.transactionDetails?.externalId,
-        //   },
-        // };
-        // break;
+        //   let endAt = this.sharedService.getFutureMonthISO(1);
+        //   subscriptionData = {
+        //     userId: token?.id,
+        //     planId: body?.planId,
+        //     providerId: EProviderId.google,
+        //     provider: EProvider.google,
+        //     startAt: new Date(),
+        //     endAt: endAt,
+        //     subscriptionStatus: EsubscriptionStatus.initiated,
+        //     notes: { itemId: body?.itemId },
+        //     amount: body?.authAmount,
+        //     status: EStatus.Active,
+        //     createdBy: token?.id,
+        //     updatedBy: token?.id,
+        //     metaData: {
+        //       externalId: body?.transactionDetails?.transactionId,
+        //     },
+        //   };
+        //   break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -365,10 +363,14 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
+      // console.log("transactionHistory", transactionHistory);
       const transactionId = transactionHistory?.transactions?.transactionId;
+      const originalTransactionId =
+        transactionHistory?.transactions?.originalTransactionId;
       const existingSubscription = await this.subscriptionModel.findOne({
-        externalId: transactionId,
+        "transactionDetails.originalTransactionId": originalTransactionId,
       });
+      console.log("existingSubscription", existingSubscription);
 
       if (!existingSubscription) {
         return { message: "No matching subscription found." };
@@ -392,11 +394,13 @@ export class SubscriptionService {
           },
         }
       );
+      // console.log("updateResult", updateResult);
       if (updateResult.modifiedCount > 0) {
         const updatedInvoice = await this.invoiceService.updateInvoice(
           existingSubscription._id,
           EDocumentStatus.completed
         );
+        // console.log("updatedInvoice", updatedInvoice);
 
         await this.paymentService.updateStatus(
           updatedInvoice.invoice._id,
@@ -436,6 +440,10 @@ export class SubscriptionService {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
       };
+      let currencyId = await this.helperService.getCurrencyId(
+        transactionHistory?.transactions?.currency
+      );
+      let currencyResponse = currencyId?.data?.[0];
       const subscriptionData = {
         userId: existingSubscription?.userId,
         planId: existingSubscription?.planId,
@@ -445,14 +453,15 @@ export class SubscriptionService {
         amount: transactionHistory?.transactions.price,
         status: EStatus.Active,
         notes: { itemId: existingSubscription?.notes?.itemId },
-        createBy: existingSubscription?.userId,
-        updateBy: existingSubscription?.userId,
+        createdBy: existingSubscription?.userId,
+        updatedBy: existingSubscription?.userId,
         metaData: metaData,
         providerId: EProviderId.apple,
         provider: EProvider.apple,
         externalId: transactionHistory.transactions.transactionId,
+        currencyCode: currencyResponse.currency_code,
+        currencyId: currencyResponse._id,
       };
-
       let subscription = await this.subscriptionModel.create(subscriptionData);
 
       const invoiceData = {
@@ -486,7 +495,7 @@ export class SubscriptionService {
         userId: existingSubscription.userId,
         baseAmount: amt,
         baseCurrency: "INR",
-        conversionRate: 1,
+        conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
       return { message: "Created Successfully" };
@@ -1293,7 +1302,7 @@ export class SubscriptionService {
 
   async subscription(body, token) {
     try {
-      console.log("subscription data", body);
+      // console.log("subscription data", body);
 
       let subscriptionData = {
         userId: token.id,
@@ -1311,7 +1320,7 @@ export class SubscriptionService {
         createdBy: token.id,
         updatedBy: token.id,
         externalId: body.externalId,
-        transactionDetails:body.transactionDetails,
+        transactionDetails: body.transactionDetails,
         currencyCode: body.currencyCode,
         currencyId: body.currencyId,
       };
@@ -1983,7 +1992,7 @@ export class SubscriptionService {
   async findExternalId(transactionId) {
     try {
       let externalIdData = await this.subscriptionModel.findOne({
-        "metaData.externalId": transactionId,
+        externalId: transactionId,
         providerId: { $in: [EProviderId.apple, EProviderId.google] },
         // provider: EProvider.apple,
       });
@@ -2130,6 +2139,43 @@ export class SubscriptionService {
         isEligible: isEligible,
         reason: isEligible ? ELIGIBLE_SUBSCRIPTION : NOT_ELIGIBLE_SUBSCRIPTION,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async findOriginalTransactionId(originalTransactionId: string) {
+    try {
+      let filter = {
+        "transactionDetails.originalTransactionId": originalTransactionId,
+      };
+      let subscriptionData = await this.subscriptionModel
+        .findOne(filter)
+        .lean();
+      // console.log("subscriptionData", subscriptionData);
+      return subscriptionData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateSubscription(body) {
+    try {
+      let data = await this.subscriptionModel.updateOne(
+        {
+          _id: body._id,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+          status: EStatus.Active,
+          providerId: EProviderId.apple,
+        },
+        {
+          $set: {
+            subscriptionStatus: EsubscriptionStatus.active,
+            metaData: body?.metaData,
+            endAt: new Date(body?.expiresDate),
+          },
+        }
+      );
+      return data;
     } catch (error) {
       throw error;
     }
