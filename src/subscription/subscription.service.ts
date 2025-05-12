@@ -72,10 +72,12 @@ export class SubscriptionService {
             EsubscriptionStatus.initiated,
             EsubscriptionStatus.failed,
           ]);
-          let authAmount = existingSubscription
-            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount
-            : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
+
+          let authAmount =
+            body?.refId || existingSubscription
+              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                  ?.amount
+              : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
           );
@@ -91,9 +93,10 @@ export class SubscriptionService {
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
           let expiryDate = this.sharedService.getFutureYearISO(10);
-          let detail = existingSubscription
-            ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-            : item?.additionalDetail?.promotionDetails?.authDetail;
+          let detail =
+            body?.refId || existingSubscription
+              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+              : item?.additionalDetail?.promotionDetails?.authDetail;
           let chargeDate = await this.getFutureDate(detail);
           console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
@@ -315,8 +318,7 @@ export class SubscriptionService {
           // console.log("provider", "failed");
           await this.handleCashfreeFailedPayment(req.body);
         }
-      }
-      else if (provider == EProvider.apple) {
+      } else if (provider == EProvider.apple) {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
@@ -586,7 +588,7 @@ export class SubscriptionService {
       throw error;
     }
   }
-  // google iap 
+  // google iap
   // async handleGoogleIAPPurchase(payload) {
   //   try {
   //     // console.log("payload", payload);
@@ -649,7 +651,7 @@ export class SubscriptionService {
   //         body
   //       );
   //       // console.log("payment", payment);
-  //     } 
+  //     }
   //     return { message: "Google IAP Updated Successfully" };
   //   } catch (err) {
   //     // console.error("Error in handleGoogleIAPPurchase:", err);
