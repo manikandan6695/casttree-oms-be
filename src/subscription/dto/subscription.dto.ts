@@ -82,6 +82,11 @@ export class CreateSubscriptionDTO {
   providerId: number;
 
   @IsOptional()
+  @IsString()
+  @IsMongoId()
+  refId: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => TransactionDetailsDTO)
   transactionDetails?: TransactionDetailsDTO;
