@@ -30,7 +30,7 @@ const keyId = process.env.KEY_ID;
 const bundleId = process.env.BUNDLE_ID;
 const filePath = process.env.FILEPATH;
 const environment = Environment.SANDBOX;
-// const googleFile = process.env.GOOGLE_FILE_PATH; 
+// const googleFile = process.env.GOOGLE_FILE_PATH;
 @Injectable()
 export class SubscriptionFactory {
   private client: AppStoreServerAPIClient;
@@ -199,200 +199,305 @@ export class SubscriptionFactory {
   }
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
-    // console.log("data in apple", data, bodyData);
-    
-    const transactionId = bodyData.transactionDetails?.externalId;
-    const existingSubscription =
-      await this.subscriptionService.findExternalId(transactionId);
-    if (existingSubscription) {
-      return existingSubscription;
+    try {
+      const transactionId = bodyData.transactionDetails?.transactionId;
+      const originalTransactionId =
+        data?.transactionDetails?.originalTransactionId;
+      const existingSubscription =
+        await this.subscriptionService.findExternalId(transactionId);
+      const matchingTransaction = await this.getTransactionHistoryById(
+        transactionId,
+        originalTransactionId
+      );
+      // console.log("matchingTransaction", matchingTransaction);
+      if (existingSubscription) {
+        return existingSubscription;
+      }
+
+      let currencyId = await this.helperService.getCurrencyId(
+        bodyData.currencyCode
+      );
+      let currencyResponse = currencyId?.data?.[0];
+      const validTransactionDate = new Date(
+        data?.transactionDetails?.transactionDate
+      );
+      let subscriptionData = {
+        userId: token.id,
+        planId: data.planId,
+        startAt: new Date(),
+        providerId: data.providerId,
+        provider: data.provider,
+        amount: parseInt(bodyData.authAmount),
+        notes: data.notes,
+        subscriptionStatus: data.subscriptionStatus,
+        createdBy: token?.id,
+        updatedBy: token?.id,
+        metaData: originalTransactionId,
+        transactionDetails: {
+          transactionId: data?.transactionDetails?.transactionId,
+          originalTransactionId:
+            data?.transactionDetails?.originalTransactionId,
+          authAmount: data?.transactionDetails?.authAmount,
+          transactionDate: validTransactionDate?.toISOString(),
+          planId: data?.transactionDetails?.planId,
+        },
+        externalId: originalTransactionId,
+        currencyCode: currencyResponse.currency_code,
+        currencyId: currencyResponse._id,
+      };
+      const createdSubscription = await this.subscriptionService.subscription(
+        subscriptionData,
+        token
+      );
+      const invoiceData = {
+        itemId: data?.notes?.itemId,
+        source_id: createdSubscription._id,
+        source_type: "subscription",
+        sub_total: parseInt(bodyData?.authAmount),
+        document_status: EDocumentStatus.pending,
+        grand_total: parseInt(bodyData?.authAmount),
+        user_id: token.id,
+        created_by: token.id,
+        updated_by: token.id,
+        currencyCode: currencyResponse.currency_code,
+        currency: currencyResponse._id,
+      };
+      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const paymentData = {
+        amount: bodyData?.authAmount,
+        document_status: EDocumentStatus.pending,
+        providerId: EProviderId.apple,
+        providerName: EProvider.apple,
+        transactionDate: new Date(),
+        metaData: data.metaData,
+        currencyCode: currencyResponse.currency_code,
+        currency: currencyResponse._id,
+      };
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice
+      );
+      const mandateData = {
+        sourceId: createdSubscription._id,
+        userId: token.id,
+        paymentMethod: "UPI",
+        amount: bodyData?.authAmount,
+        providerId: EProviderId.apple,
+        currency: currencyResponse.currency_code,
+        planId: data.planId,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: {
+          externalId: originalTransactionId,
+        },
+        startDate: data.startAt,
+        endDate: data.endAt,
+      };
+      let mandate = await this.mandateService.addMandate(mandateData, token);
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: data.metaData,
+        createdBy: token.id,
+        updatedBy: token.id,
+      });
+      if (
+        matchingTransaction &&
+        matchingTransaction.transactionReason === "PURCHASE"
+      ) {
+        const price = matchingTransaction?.price;
+        const transactionId = matchingTransaction?.transactionId;
+        const originalTransactionId =
+          matchingTransaction?.originalTransactionId;
+        const existingSubscription =
+          await this.subscriptionService.findOriginalTransactionId(
+            originalTransactionId
+          );
+        if (!existingSubscription) {
+          return { message: "No matching subscription found." };
+        }
+        const metaData = {
+          transaction: {
+            transactionId: matchingTransaction?.transactionId,
+            originalTransactionId: matchingTransaction?.originalTransactionId,
+            webOrderLineItemId: matchingTransaction?.webOrderLineItemId,
+            bundleId: matchingTransaction?.bundleId,
+            productId: matchingTransaction?.productId,
+            subscriptionGroupIdentifier:
+              matchingTransaction?.subscriptionGroupIdentifier,
+            purchaseDate: new Date(
+              matchingTransaction?.purchaseDate
+            ).toISOString(),
+            originalPurchaseDate: new Date(
+              matchingTransaction?.originalPurchaseDate
+            ).toISOString(),
+            expiresDate: new Date(
+              matchingTransaction?.expiresDate
+            ).toISOString(),
+            quantity: matchingTransaction?.quantity,
+            type: matchingTransaction?.type,
+            inAppOwnershipType: matchingTransaction?.inAppOwnershipType,
+            signedDate: new Date(matchingTransaction?.signedDate).toISOString(),
+            environment: matchingTransaction?.environment,
+            transactionReason: matchingTransaction?.transactionReason,
+            storefront: matchingTransaction?.storefront,
+            storefrontId: matchingTransaction?.storefrontId,
+            price: price,
+            currency: matchingTransaction?.currency,
+            appTransactionId: matchingTransaction?.appTransactionId,
+          },
+          // renewal: transactionHistory.renewalInfo,
+        };
+        let body = {
+          _id: existingSubscription._id,
+          metaData: metaData,
+          expiresDate: new Date(matchingTransaction?.expiresDate),
+        };
+        const updateResult =
+          await this.subscriptionService.updateSubscription(body);
+        if (updateResult.modifiedCount > 0) {
+          const updatedInvoice = await this.invoiceService.updateInvoice(
+            existingSubscription._id,
+            EDocumentStatus.completed
+          );
+          const conversionRateAmt = await this.helperService.getConversionRate(
+            matchingTransaction?.currency,
+            price
+          );
+          const baseAmount = parseInt((price * conversionRateAmt).toString());
+          let conversionBody = {
+            baseAmount: baseAmount,
+            baseCurrency: currencyResponse.currency_code,
+            conversionRate: conversionRateAmt,
+          };
+          let statusData = {
+            status: EDocumentStatus.completed,
+            conversionBody,
+          };
+          await this.paymentService.updateStatus(
+            updatedInvoice.invoice._id,
+            statusData
+          );
+          const body = {
+            status: EDocumentStatus.active,
+            updatedAt: new Date(),
+          };
+
+          await this.mandateService.updateIapStatus(transactionId, body);
+          await this.mandateHistoryService.updateIapMandateStatus(
+            transactionId,
+            body
+          );
+        }
+        return { message: "Updated Successfully" };
+      }
+      return createdSubscription;
+    } catch (error) {
+      throw error;
     }
-    let currencyId = await this.helperService.getCurrencyId(
-      bodyData.currencyCode
-    );
-    let currencyResponse = currencyId?.data?.[0];
-    const validTransactionDate = new Date(data?.transactionDetails?.transactionDate);
-    let subscriptionData = {
-      userId: token.id,
-      planId: data.planId,
-      startAt: validTransactionDate.toISOString(),
-      // endAt: data.endAt,
-      providerId: data.providerId,
-      provider: data.provider,
-      amount: parseInt(bodyData.authAmount),
-      notes: data.notes,
-      subscriptionStatus: data.subscriptionStatus,
-      createdBy: token?.id,
-      updatedBy: token?.id,
-      metaData: data.metaData,
-      transactionDetails:{
-        externalId:data?.transactionDetails?.externalId,
-        originalTransactionId:data?.transactionDetails?.originalTransactionId,
-        authAmount:data?.transactionDetails?.authAmount,
-        transactionDate:validTransactionDate?.toISOString(),
-      },
-      externalId: transactionId,
-      currencyCode: currencyResponse.currency_code,
-      currencyId: currencyResponse._id,
-    };
-    // console.log("subscriptionData",subscriptionData);
-    
-    const createdSubscription = await this.subscriptionService.subscription(
-      subscriptionData,
-      token
-    );
-
-    const invoiceData = {
-      itemId: data?.notes?.itemId,
-      source_id: createdSubscription._id,
-      source_type: "subscription",
-      sub_total: parseInt(bodyData?.authAmount),
-      document_status: EDocumentStatus.pending,
-      grand_total: parseInt(bodyData?.authAmount),
-      user_id: token.id,
-      created_by: token.id,
-      updated_by: token.id,
-      currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id,
-    };
-    // console.log("invoiceData",invoiceData);
-    const invoice = await this.invoiceService.createInvoice(invoiceData);
-
-    const paymentData = {
-      amount: bodyData?.authAmount,
-      document_status: EDocumentStatus.pending,
-      providerId: EProviderId.apple,
-      providerName: EProvider.apple,
-      transactionDate: new Date(),
-      metaData: data.metaData,
-      currencyCode: currencyResponse.currency_code,
-      currency: currencyResponse._id,
-    };
-    // console.log("paymentData",paymentData);
-    await this.paymentService.createPaymentRecord(paymentData, token, invoice);
-    const mandateData = {
-      sourceId: createdSubscription._id,
-      userId: token.id,
-      paymentMethod: "UPI",
-      amount: bodyData?.authAmount,
-      providerId: EProviderId.apple,
-      currency: currencyResponse.currency_code,
-      planId: data.planId,
-      mandateStatus: EMandateStatus.initiated,
-      status: EStatus.Active,
-      metaData: data.metaData,
-      startDate: data.startAt,
-      endDate: data.endAt,
-    };
-    let mandate = await this.mandateService.addMandate(mandateData, token);
-    // console.log("mandate",mandate);
-    // console.log("mandateData",mandateData);
-    await this.mandateHistoryService.createMandateHistory({
-      mandateId: mandate._id,
-      mandateStatus: EMandateStatus.initiated,
-      status: EStatus.Active,
-      metaData: data.metaData,
-      createdBy: token.id,
-      updatedBy: token.id,
-    });
-
-    // console.log("mandateHistory",mandateHistory);
-
-    return createdSubscription;
   }
 
   // private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
-  //   const transactionId = bodyData.transactionDetails?.externalId;
+  //   try {
+  //     const transactionId = bodyData.transactionDetails?.externalId;
 
-  //   const existingSubscription =
-  //     await this.subscriptionService.findExternalId(transactionId);
-  //   if (existingSubscription) {
-  //     // console.log("existing subscription", existingSubscription);
+  //     const existingSubscription =
+  //       await this.subscriptionService.findExternalId(transactionId);
+  //     if (existingSubscription) {
+  //       // console.log("existing subscription", existingSubscription);
 
-  //     return existingSubscription;
+  //       return existingSubscription;
+  //     }
+  //     let currencyId = await this.helperService.getCurrencyId(
+  //       bodyData.currencyCode
+  //     );
+  //     // console.log("currencyId", currencyId);
+  //     let currencyResponse = currencyId?.data?.[0];
+  //     let subscriptionData = {
+  //       userId: token.id,
+  //       planId: data.planId,
+  //       startAt: data.startAt,
+  //       // endAt: data.endAt,
+  //       providerId: data.providerId,
+  //       provider: data.provider,
+  //       amount: parseInt(bodyData.authAmount),
+  //       notes: data.notes,
+  //       subscriptionStatus: data.subscriptionStatus,
+  //       createdBy: token?.id,
+  //       updatedBy: token?.id,
+  //       metaData: data.metaData,
+  //       externalId: transactionId,
+  //       currencyCode: currencyResponse.currency_code,
+  //       currencyId: currencyResponse._id,
+  //     };
+
+  //     const createdSubscription = await this.subscriptionService.subscription(
+  //       subscriptionData,
+  //       token
+  //     );
+
+  //     const invoiceData = {
+  //       itemId: data?.notes?.itemId,
+  //       source_id: createdSubscription._id,
+  //       source_type: "subscription",
+  //       sub_total: bodyData?.authAmount,
+  //       document_status: EDocumentStatus.pending,
+  //       grand_total: bodyData?.authAmount,
+  //       user_id: token.id,
+  //       created_by: token.id,
+  //       updated_by: token.id,
+  //       currencyCode: currencyResponse.currency_code,
+  //       currency: currencyResponse._id,
+  //     };
+  //     // console.log("invoiceData",invoiceData);
+
+  //     const invoice = await this.invoiceService.createInvoice(invoiceData);
+  //     const conversionRateAmt = await this.helperService.getConversionRate(
+  //       bodyData?.authAmount,
+  //       currencyResponse.currency_code
+  //     );
+  //     const paymentData = {
+  //       amount: bodyData?.authAmount,
+  //       document_status: EDocumentStatus.pending,
+  //       providerId: EProviderId.google,
+  //       providerName: EProvider.google,
+  //       metaData: data.metaData,
+  //       transactionDate: new Date(),
+  //       currencyCode: currencyResponse.currency_code,
+  //       currency: currencyResponse._id,
+  //     };
+  //     // console.log("paymentData",paymentData);
+
+  //     await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+  //     let mandateData = {
+  //       sourceId: createdSubscription._id,
+  //       userId: token.id,
+  //       paymentMethod: "UPI",
+  //       amount: bodyData?.authAmount,
+  //       providerId: EProviderId.google,
+  //       currency: currencyResponse.currency_code,
+  //       planId: data.planId,
+  //       mandateStatus: EMandateStatus.initiated,
+  //       status: EStatus.Active,
+  //       metaData: data.metaData,
+  //       startDate: data.startAt,
+  //       endDate: data.endAt,
+  //     };
+  //     let mandate = await this.mandateService.addMandate(mandateData, token);
+  //     await this.mandateHistoryService.createMandateHistory({
+  //       mandateId: mandate._id,
+  //       mandateStatus: EMandateStatus.initiated,
+  //       status: EStatus.Active,
+  //       metaData: data.metaData,
+  //       createdBy: token.id,
+  //       updatedBy: token.id,
+  //     });
+  //     return createdSubscription;
+  //   } catch (error) {
+  //     throw error;
   //   }
-  //   let currencyId = await this.helperService.getCurrencyId(
-  //     bodyData.currencyCode
-  //   );
-  //   // console.log("currencyId", currencyId);
-  //   let currencyResponse = currencyId?.data?.[0];
-  //   let subscriptionData = {
-  //     userId: token.id,
-  //     planId: data.planId,
-  //     startAt: data.startAt,
-  //     endAt: data.endAt,
-  //     providerId: data.providerId,
-  //     provider: data.provider,
-  //     amount: parseInt(bodyData.authAmount),
-  //     notes: data.notes,
-  //     subscriptionStatus: data.subscriptionStatus,
-  //     createdBy: token?.id,
-  //     updatedBy: token?.id,
-  //     metaData: data.metaData,
-  //     externalId: transactionId,
-  //     currencyCode: currencyResponse.currency_code,
-  //     currencyId: currencyResponse._id,
-  //   };
-
-  //   const createdSubscription = await this.subscriptionService.subscription(
-  //     subscriptionData,
-  //     token
-  //   );
-
-  //   const invoiceData = {
-  //     itemId: data?.notes?.itemId,
-  //     source_id: createdSubscription._id,
-  //     source_type: "subscription",
-  //     sub_total: bodyData?.authAmount,
-  //     document_status: EDocumentStatus.pending,
-  //     grand_total: bodyData?.authAmount,
-  //     user_id: token.id,
-  //     created_by: token.id,
-  //     updated_by: token.id,
-  //     currencyCode: currencyResponse.currency_code,
-  //     currency: currencyResponse._id,
-  //   };
-  //   // console.log("invoiceData",invoiceData);
-
-  //   const invoice = await this.invoiceService.createInvoice(invoiceData);
-
-  //   const paymentData = {
-  //     amount: bodyData?.authAmount,
-  //     document_status: EDocumentStatus.pending,
-  //     providerId: EProviderId.google,
-  //     providerName: EProvider.google,
-  //     metaData: data.metaData,
-  //     transactionDate: new Date(),
-  //     currencyCode: currencyResponse.currency_code,
-  //     currency: currencyResponse._id,
-  //   };
-  //   // console.log("paymentData",paymentData);
-
-  //   await this.paymentService.createPaymentRecord(paymentData, token, invoice);
-  //   let mandateData = {
-  //     sourceId: createdSubscription._id,
-  //     userId: token.id,
-  //     paymentMethod: "UPI",
-  //     amount: bodyData?.authAmount,
-  //     providerId: EProviderId.google,
-  //     currency: currencyResponse.currency_code,
-  //     planId: data.planId,
-  //     mandateStatus: EMandateStatus.initiated,
-  //     status: EStatus.Active,
-  //     metaData: data.metaData,
-  //     startDate: data.startAt,
-  //     endDate: data.endAt,
-  //   };
-  //   let mandate = await this.mandateService.addMandate(mandateData, token);
-  //   await this.mandateHistoryService.createMandateHistory({
-  //     mandateId: mandate._id,
-  //     mandateStatus: EMandateStatus.initiated,
-  //     status: EStatus.Active,
-  //     metaData: data.metaData,
-  //     createdBy: token.id,
-  //     updatedBy: token.id,
-  //   });
-  //   return createdSubscription;
   // }
   async init() {
     const encodedKey = await new Promise<string>((res, rej) => {
@@ -403,7 +508,7 @@ export class SubscriptionFactory {
     });
     // console.log("encodedKey", encodedKey);
     // console.log("client", encodedKey, keyId, issuerId, bundleId, environment);
-    // google iap 
+    // google iap
     // try {
     //   const auth = new google.auth.GoogleAuth({
     //     keyFile: googleFile,
@@ -427,6 +532,41 @@ export class SubscriptionFactory {
       environment
     );
   }
+  async getTransactionHistoryById(transactionId, originalTransactionId) {
+    let response = null;
+    let transactions = [];
+
+    if (transactionId != null) {
+      const transactionHistoryRequest = {
+        sort: Order.ASCENDING,
+        revoked: false,
+        productTypes: [ProductType.AUTO_RENEWABLE],
+      };
+
+      do {
+        const revisionToken = response?.revision ?? null;
+        response = await this.client.getTransactionHistory(
+          transactionId,
+          revisionToken,
+          transactionHistoryRequest,
+          GetTransactionHistoryVersion.V2
+        );
+        if (response.signedTransactions) {
+          transactions = transactions.concat(response.signedTransactions);
+        }
+      } while (response.hasMore);
+    }
+    const decodedTokens = await Promise.all(
+      transactions.map((token) => this.parseJwt(token))
+    );
+    const purchaseMatch = decodedTokens.find(
+      (tx) =>
+        tx.transactionId === transactionId &&
+        tx.originalTransactionId === originalTransactionId &&
+        tx.transactionReason === "PURCHASE"
+    );
+    return purchaseMatch;
+  }
 
   async getTransactionHistory(bodyData) {
     try {
@@ -434,50 +574,13 @@ export class SubscriptionFactory {
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      // console.log("purchaseInfo:", purchaseInfo);
-
-      const transactionId = purchaseInfo?.parsed?.transactionId;
-      let response = null;
-      let transactions = [];
-      if (transactionId != null) {
-        const transactionHistoryRequest = {
-          sort: Order.ASCENDING,
-          revoked: false,
-          productTypes: [ProductType.AUTO_RENEWABLE],
-        };
-        do {
-          const revisionToken =
-            response !== null && response.revision !== null
-              ? response.revision
-              : null;
-          response = await this.client.getTransactionHistory(
-            transactionId,
-            revisionToken,
-            transactionHistoryRequest,
-            GetTransactionHistoryVersion.V2
-          );
-          // console.log("response is", response)
-          if (response.signedTransactions) {
-            transactions = transactions.concat(response?.signedTransactions);
-          }
-        } while (response.hasMore);
-        // for (const signedToken of transactions) {
-        //   const decodedData = await this.parseJwt(signedToken);
-        //   console.log("decodedData", decodedData);
-        // }
-        // console.log("transactions",transactions);
-      }
-      const latestSignedTransaction = transactions[transactions.length - 1];
-      const decodeData = await this.parseJwt(latestSignedTransaction);
-      // console.log("decodeData", decodeData);
 
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
         // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
+        const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
           originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
@@ -507,8 +610,7 @@ export class SubscriptionFactory {
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
         };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
+        const renewalPrice = signedRenewalInfo?.renewalPrice;
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
@@ -533,8 +635,7 @@ export class SubscriptionFactory {
           bodyData?.data?.signedRenewalInfo
         );
         // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
+        const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
           originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
@@ -566,8 +667,7 @@ export class SubscriptionFactory {
           appAccountToken: purchaseInfo?.parsed?.appAccountToken,
           isUpgraded: purchaseInfo?.parsed?.isUpgraded,
         };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
+        const renewalPrice = signedRenewalInfo?.renewalPrice;
         // console.log("renewalPrice",renewalPrice.toFixed(2));
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
@@ -593,8 +693,7 @@ export class SubscriptionFactory {
           bodyData?.data?.signedRenewalInfo
         );
         // console.log("signedRenewalInfo", signedRenewalInfo);
-        const priceMicros = purchaseInfo?.parsed?.price;
-        const price = priceMicros / 1000;
+        const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
           originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
@@ -623,8 +722,7 @@ export class SubscriptionFactory {
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
         };
-        const renewalPriceMicros = signedRenewalInfo?.renewalPrice;
-        const renewalPrice = renewalPriceMicros / 1000;
+        const renewalPrice = signedRenewalInfo?.renewalPrice;
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
@@ -649,8 +747,7 @@ export class SubscriptionFactory {
           bodyData?.data?.signedRenewalInfo
         );
         // console.log("signedRenewalInfo", signedRenewalInfo);
-        const renewalPriceMicros = purchaseInfo?.parsed?.price;
-        const renewalPrice = renewalPriceMicros / 1000;
+        const renewalPrice = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
           originalTransactionId: purchaseInfo?.parsed?.originalTransactionId,
@@ -740,7 +837,7 @@ export class SubscriptionFactory {
       throw error;
     }
   }
-  // google iap 
+  // google iap
   // async googleRtdn(message) {
   //   try {
   //     const pubSubMessage = message;
@@ -778,7 +875,6 @@ export class SubscriptionFactory {
   //     throw err;
   //   }
   // }
-
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {
