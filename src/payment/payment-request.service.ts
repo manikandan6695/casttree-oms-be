@@ -454,26 +454,41 @@ export class PaymentRequestService {
     }
   }
 
-  async updateStatus(paymentId, body) {
-    try {
-      // console.log("paymentId", paymentId, body);
-      let updateData = await this.paymentModel.updateOne(
-        { $or: [
+async updateStatus(paymentId, body) {
+  try {
+    const updateFields: any = {
+      reason: body?.reason?.failureReason,
+      document_status: body.document_status || body.status,
+    };
+
+    const conversionBody = body.conversionBody || {};
+    const optionalFields = ['baseAmount', 'baseCurrency', 'conversionRate'];
+
+    for (const field of optionalFields) {
+      if (conversionBody[field] !== undefined) {
+        updateFields[field] = conversionBody[field];
+      }
+    }
+
+    const updateData = await this.paymentModel.updateOne(
+      {
+        $or: [
           { _id: paymentId },
           { source_id: paymentId }
-        ] },
-        {
-          $set: {
-            reason: body?.reason?.failureReason,
-            document_status: body.document_status || body,
-          },
-        }
-      );
-      return updateData;
-    } catch (err) {
-      throw err;
-    }
+        ]
+      },
+      {
+        $set: updateFields,
+      }
+    );
+
+    return updateData;
+  } catch (err) {
+    throw err;
   }
+}
+
+
 
   async getLatestSubscriptionPayments(userId) {
     try {

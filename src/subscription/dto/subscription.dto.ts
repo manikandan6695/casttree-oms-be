@@ -14,22 +14,27 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { Type } from "class-transformer";
 class TransactionDetailsDTO {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  transactionId: string;
+  transactionId?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  originalTransactionId: string;
+  planId?: string;
 
-  @IsNotEmpty()
-  @IsNumber()
-  authAmount: number;
+  @IsOptional()
+  @IsString()
+  originalTransactionId?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  transactionDate: number;
+  authAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  transactionDate?: number;
 }
+
 export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
@@ -77,10 +82,9 @@ export class CreateSubscriptionDTO {
   providerId: number;
 
   @IsOptional()
-  @IsObject()
   @ValidateNested()
   @Type(() => TransactionDetailsDTO)
-  transactionDetails: TransactionDetailsDTO;
+  transactionDetails?: TransactionDetailsDTO;
 
   @IsOptional()
   @IsString()

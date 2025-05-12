@@ -30,7 +30,7 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EEventType } from "./enums/eventType.enum";
+import { EEventId, EEventType } from "./enums/eventType.enum";
 import { EProvider, EProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -199,25 +199,25 @@ export class SubscriptionService {
           };
           break;
         // case EProvider.google:
-        // let endAt = this.sharedService.getFutureMonthISO(1);
-        // subscriptionData = {
-        //   userId: token?.id,
-        //   planId: body?.planId,
-        //   providerId: EProviderId.google,
-        //   provider: EProvider.google,
-        //   startAt: new Date(),
-        //   endAt: endAt,
-        //   subscriptionStatus: EsubscriptionStatus.initiated,
-        //   notes: { itemId: body?.itemId },
-        //   amount: body?.authAmount,
-        //   status: EStatus.Active,
-        //   createdBy: token?.id,
-        //   updatedBy: token?.id,
-        //   metaData: {
-        //     externalId: body?.transactionDetails?.externalId,
-        //   },
-        // };
-        // break;
+        //   let endAt = this.sharedService.getFutureMonthISO(1);
+        //   subscriptionData = {
+        //     userId: token?.id,
+        //     planId: body?.planId,
+        //     providerId: EProviderId.google,
+        //     provider: EProvider.google,
+        //     startAt: new Date(),
+        //     endAt: endAt,
+        //     subscriptionStatus: EsubscriptionStatus.initiated,
+        //     notes: { itemId: body?.itemId },
+        //     amount: body?.authAmount,
+        //     status: EStatus.Active,
+        //     createdBy: token?.id,
+        //     updatedBy: token?.id,
+        //     metaData: {
+        //       externalId: body?.transactionDetails?.transactionId,
+        //     },
+        //   };
+        //   break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
@@ -439,6 +439,10 @@ export class SubscriptionService {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
       };
+      let currencyId = await this.helperService.getCurrencyId(
+       transactionHistory?.transactions?.currency
+      );
+      let currencyResponse = currencyId?.data?.[0];
       const subscriptionData = {
         userId: existingSubscription?.userId,
         planId: existingSubscription?.planId,
@@ -448,14 +452,15 @@ export class SubscriptionService {
         amount: transactionHistory?.transactions.price,
         status: EStatus.Active,
         notes: { itemId: existingSubscription?.notes?.itemId },
-        createBy: existingSubscription?.userId,
-        updateBy: existingSubscription?.userId,
+        createdBy: existingSubscription?.userId,
+        updatedBy: existingSubscription?.userId,
         metaData: metaData,
         providerId: EProviderId.apple,
         provider: EProvider.apple,
         externalId: transactionHistory.transactions.transactionId,
+        currencyCode: currencyResponse.currency_code,
+        currencyId: currencyResponse._id,
       };
-
       let subscription = await this.subscriptionModel.create(subscriptionData);
 
       const invoiceData = {
@@ -489,7 +494,7 @@ export class SubscriptionService {
         userId: existingSubscription.userId,
         baseAmount: amt,
         baseCurrency: "INR",
-        conversionRate: 1,
+        conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
       return { message: "Created Successfully" };
@@ -2148,21 +2153,7 @@ export class SubscriptionService {
       throw error;
     }
   }
- async isTransactionStored(transactionId) {
-  try {
-    const filter = {
-      $or: [
-        { "metaData.transaction.transactionId": transactionId },
-        { externalId: transactionId }
-      ]
-    };
 
-    const data = await this.subscriptionModel.exists(filter);
-    return data;
-  } catch (error) {
-    throw error;
-  }
-}
 
   async updateSubacription(body) {
     try {

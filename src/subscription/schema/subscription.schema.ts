@@ -26,6 +26,7 @@ export interface ISubscriptionModel extends mongoose.Document {
     originalTransactionId: string;
     authAmount: number;
     transactionDate: Date;
+    planId: string;
   }; 
   currencyId: string;
   currencyCode: string;
@@ -96,6 +97,7 @@ export const subscriptionSchema = new mongoose.Schema(
       originalTransactionId: { type: String },
       authAmount: { type: Number },
       transactionDate: { type: Date },
+      planId: { type: String },
     },    
     currencyId: {
       type: mongoose.Schema.Types.ObjectId,
