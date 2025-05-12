@@ -628,6 +628,7 @@ export class ServiceItemService {
         a[c.tagName] = c.details;
         return a;
       }, {});
+      // console.log("finalData", finalData);
 
       let featureCarouselData = {
         ListData: [],
@@ -636,6 +637,9 @@ export class ServiceItemService {
         ListData: [],
       };
       let updatedUpcomingData = {
+        ListData: [],
+      };
+      let allSeriesData = {
         ListData: [],
       };
       let processIds = [];
@@ -648,10 +652,14 @@ export class ServiceItemService {
       (finalData["upcomingseries"] ?? []).map((data) =>
         processIds.push(data?.processId)
       );
+      (finalData["allSeries"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
+      // console.log("allSeriesData", allSeriesData);
 
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
@@ -674,6 +682,13 @@ export class ServiceItemService {
       });
       (finalData["upcomingseries"] ?? []).map((data) => {
         updatedUpcomingData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["allSeries"] ?? []).map((data) => {
+        allSeriesData["ListData"].push({
           processId: data.processId,
           thumbnail: data.thumbnail,
           taskDetail: firstTaskObject[data.processId],
@@ -734,9 +749,17 @@ export class ServiceItemService {
             headerName: Eheader.mySeries,
             listData: updatedSeriesForYouData["ListData"],
           },
-          horizontalScroll: false,
+          horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
         });
+      sections.push({
+        data: {
+          headerName: Eheader.allSeries,
+          listData: allSeriesData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
       sections.push({
         data: {
           headerName: Eheader.upcoming,
