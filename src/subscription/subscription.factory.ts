@@ -416,6 +416,8 @@ export class SubscriptionFactory {
 
   private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
     try {
+      console.log("body data",data,bodyData);
+      
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
         await this.subscriptionService.findExternalId(transactionId);
@@ -773,7 +775,7 @@ export class SubscriptionFactory {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
+        console.log("signedRenewalInfo", signedRenewalInfo);
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
@@ -921,6 +923,7 @@ export class SubscriptionFactory {
   // google iap
   async googleRtdn(message) {
     try {
+      console.log("message",message);
       const pubSubMessage = message;
       const messageBuffer = Buffer.from(pubSubMessage.data, 'base64');
       const notification = JSON.parse(messageBuffer.toString());
