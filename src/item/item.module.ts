@@ -4,6 +4,7 @@ import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
 import { ProcessModule } from "src/process/process.module";
 import { ServiceRequestModule } from "src/service-request/service-request.module";
+import { SystemConfigurationSchema } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionModule } from "src/subscription/subscription.module";
 import { ItemController } from "./item.controller";
 import { ItemService } from "./item.service";
@@ -31,13 +32,13 @@ import { ServiceItemService } from "./service-item.service";
       { name: "priceListItems", schema: PriceListItemsSchema },
       { name: "platformItem", schema: platformItemSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
-    
+      { name: "systemConfiguration", schema: SystemConfigurationSchema },
     ]),
     AuthModule,
-    HelperModule, 
+    HelperModule,
     SubscriptionModule,
-    forwardRef(() =>  ServiceRequestModule),
-    forwardRef(() =>  ProcessModule)
+    forwardRef(() => ServiceRequestModule),
+    forwardRef(() => ProcessModule),
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],
