@@ -46,7 +46,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) {}
+  ) { }
 
   async initiatePayment(
     body: paymentDTO,
@@ -393,18 +393,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -454,39 +454,46 @@ export class PaymentRequestService {
     }
   }
 
-async updateStatus(paymentId, body) {
-  try {
-    const updateFields: any = {
-      reason: body?.reason?.failureReason,
-      document_status: body.document_status || body.status,
-    };
+  async updateStatus(paymentId, body) {
+    try {
+      console.log("body", paymentId, body);
 
-    const conversionBody = body.conversionBody || {};
-    const optionalFields = ['baseAmount', 'baseCurrency', 'conversionRate'];
+      const updateFields: any = {
+        reason: body?.reason?.failureReason,
+        document_status: body.document_status || body.status,
+        metaData: body.metaData
+      };
 
-    for (const field of optionalFields) {
-      if (conversionBody[field] !== undefined) {
-        updateFields[field] = conversionBody[field];
+      const conversionBody = body.conversionBody || {};
+      const optionalFields = ['baseAmount', 'baseCurrency', 'conversionRate'];
+
+      for (const field of optionalFields) {
+        if (conversionBody[field] !== undefined) {
+          updateFields[field] = conversionBody[field];
+        }
       }
+      if (conversionBody.metaData) {
+        updateFields.metaData = conversionBody.metaData;
+      }
+      console.log("updateFields", updateFields);
+
+      const updateData = await this.paymentModel.updateOne(
+        {
+          $or: [
+            { _id: paymentId },
+            { source_id: paymentId }
+          ]
+        },
+        {
+          $set: updateFields,
+        }
+      );
+
+      return updateData;
+    } catch (err) {
+      throw err;
     }
-
-    const updateData = await this.paymentModel.updateOne(
-      {
-        $or: [
-          { _id: paymentId },
-          { source_id: paymentId }
-        ]
-      },
-      {
-        $set: updateFields,
-      }
-    );
-
-    return updateData;
-  } catch (err) {
-    throw err;
   }
-}
 
 
 

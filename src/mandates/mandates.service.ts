@@ -130,7 +130,9 @@ export class MandatesService {
   }
   async updateIapStatus(id, data) {
     try {
-      let updateStatus = await this.mandateModel.updateMany(
+      // console.log("data",data,id);
+      
+      let updateStatus = await this.mandateModel.findOneAndUpdate(
         { "metaData.externalId": id },
         { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
       );
@@ -149,7 +151,7 @@ export class MandatesService {
         )
         .select("_id");
 
-      return updatedDoc?._id;
+      return updatedDoc;
     } catch (err) {
       throw err;
     }
