@@ -187,7 +187,7 @@ export class SubscriptionService {
             providerId: EProviderId.apple,
             provider: EProvider.apple,
             startAt: new Date(),
-            subscriptionStatus: EsubscriptionStatus.initiated,
+            subscriptionStatus: EsubscriptionStatus.active,
             notes: { itemId: body?.itemId },
             amount: body?.authAmount,
             status: EStatus.Active,
@@ -206,7 +206,7 @@ export class SubscriptionService {
             providerId: EProviderId.google,
             provider: EProvider.google,
             startAt: new Date(),
-            subscriptionStatus: EsubscriptionStatus.initiated,
+            subscriptionStatus: EsubscriptionStatus.active,
             notes: { itemId: body?.itemId },
             amount: body?.authAmount,
             status: EStatus.Active,
@@ -747,7 +747,7 @@ export class SubscriptionService {
           baseAmount: baseAmount,
           baseCurrency: "INR",
           conversionRate: conversionRateAmt,
-          metaData:{
+          metaData: {
             externalId: rtdn?.purchaseToken,
             latestOrderId: rtdn?.transactionInfo?.latestOrderId
           }
