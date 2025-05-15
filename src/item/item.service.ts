@@ -46,9 +46,21 @@ export class ItemService {
     }
   }
 
-  async getItemDetail(id: string, version?: string) {
+  async getItemDetail(id: string) {
     try {
-      const data = await this.itemModel.findOne({ _id: id }).lean();
+      const data = await this.itemModel
+        .findOne({ _id: id })
+        .populate({
+          path: "item_taxes.item_tax_specification",
+          model: "taxSpecification",
+          select: ["tax_specification_name"],
+        })
+        .populate({
+          path: "item_taxes.item_tax_id",
+          model: "tax",
+          select: ["tax_name", "tax_rate"],
+        })
+        .lean();
       return data;
     } catch (err) {
       throw err;
