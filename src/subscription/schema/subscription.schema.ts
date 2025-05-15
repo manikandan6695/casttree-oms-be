@@ -21,8 +21,12 @@ export interface ISubscriptionModel extends mongoose.Document {
   status: string;
   externalId: string;
   transactionDetails: {
-    externalId: string;
-  };
+    transactionId: string;
+    originalTransactionId: string;
+    authAmount: number;
+    transactionDate: Date;
+    planId: string;
+  }; 
   currencyId: string;
   currencyCode: string;
   createdBy: string;
@@ -88,7 +92,11 @@ export const subscriptionSchema = new mongoose.Schema(
     },
     externalId: { type: String, unique: true },
     transactionDetails: {
-      externalId: { type: String, unique: true },
+      transactionId: { type: String, unique: true },
+      originalTransactionId: { type: String },
+      authAmount: { type: Number },
+      transactionDate: { type: Date },
+      planId: { type: String },
     },
     currencyId: {
       type: mongoose.Schema.Types.ObjectId,

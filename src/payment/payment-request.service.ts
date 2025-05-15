@@ -180,7 +180,7 @@ export class PaymentRequestService {
       null
     );
     const paymentNumber = paymentSequence.toString().padStart(5, "0");
-    console.log("paymentRecord", body, invoiceData);
+    // console.log("paymentRecord", body, invoiceData);
 
     const paymentData = {
       ...body,
@@ -393,18 +393,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -456,16 +456,39 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("paymentId", paymentId, body);
-      let updateData = await this.paymentModel.updateOne(
-        { _id: paymentId },
+      // console.log("body", paymentId, body);
+
+      const updateFields: any = {
+        reason: body?.reason?.failureReason,
+        document_status: body.document_status || body.status,
+        metaData: body.metaData
+      };
+
+      const conversionBody = body.conversionBody || {};
+      const optionalFields = ['baseAmount', 'baseCurrency', 'conversionRate'];
+
+      for (const field of optionalFields) {
+        if (conversionBody[field] !== undefined) {
+          updateFields[field] = conversionBody[field];
+        }
+      }
+      if (conversionBody.metaData) {
+        updateFields.metaData = conversionBody.metaData;
+      }
+      console.log("updateFields", updateFields);
+
+      const updateData = await this.paymentModel.updateOne(
         {
-          $set: {
-            reason: body?.reason?.failureReason,
-            document_status: body.document_status || body,
-          },
+          $or: [
+            { _id: paymentId },
+            { source_id: paymentId }
+          ]
+        },
+        {
+          $set: updateFields,
         }
       );
+
       return updateData;
     } catch (err) {
       throw err;
