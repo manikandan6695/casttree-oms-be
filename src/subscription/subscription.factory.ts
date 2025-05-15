@@ -16,7 +16,7 @@ import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 import { readFile } from "fs";
 import * as path from "path";
-const { google } = require('googleapis');
+const { google } = require("googleapis");
 import {
   AppStoreServerAPIClient,
   Environment,
@@ -34,7 +34,7 @@ const environment = Environment.SANDBOX;
 const prodEnvironment = Environment.PRODUCTION;
 const googleFile = process.env.GOOGLE_FILE_PATH;
 const packageName = process.env.PACKAGE_NAME;
-const scopes = process.env.SCOPES
+const scopes = process.env.SCOPES;
 @Injectable()
 export class SubscriptionFactory {
   private client: AppStoreServerAPIClient;
@@ -49,7 +49,7 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService
-  ) { }
+  ) {}
   // async onModuleInit() {
   //   await this.init();
   // }
@@ -206,9 +206,13 @@ export class SubscriptionFactory {
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
       const transactionId = bodyData.transactionDetails?.transactionId;
-      const originalTransactionId = data?.transactionDetails?.originalTransactionId;
-      const existingSubscription = await this.subscriptionService.findExternalId(originalTransactionId);
-      const matchingTransaction = await this.getTransactionHistoryById(originalTransactionId);
+      const originalTransactionId =
+        data?.transactionDetails?.originalTransactionId;
+      const existingSubscription =
+        await this.subscriptionService.findExternalId(originalTransactionId);
+      const matchingTransaction = await this.getTransactionHistoryById(
+        originalTransactionId
+      );
       console.log("matchingTransaction", matchingTransaction);
       if (existingSubscription) {
         console.log("existingSubscription", existingSubscription);
@@ -216,7 +220,8 @@ export class SubscriptionFactory {
       }
       const price = matchingTransaction?.price;
       const currencyCode = matchingTransaction?.currency;
-      const currencyIdRes = await this.helperService.getCurrencyId(currencyCode);
+      const currencyIdRes =
+        await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
@@ -240,7 +245,8 @@ export class SubscriptionFactory {
             webOrderLineItemId: matchingTransaction?.webOrderLineItemId,
             bundleId: matchingTransaction?.bundleId,
             productId: matchingTransaction?.productId,
-            subscriptionGroupIdentifier: matchingTransaction?.subscriptionGroupIdentifier,
+            subscriptionGroupIdentifier:
+              matchingTransaction?.subscriptionGroupIdentifier,
             purchaseDate: matchingTransaction?.purchaseDate,
             originalPurchaseDate: matchingTransaction?.originalPurchaseDate,
             expiresDate: subscriptionEnd,
@@ -255,7 +261,7 @@ export class SubscriptionFactory {
             price: price,
             currency: matchingTransaction?.currency,
             appTransactionId: matchingTransaction?.appTransactionId,
-          }
+          },
         },
         transactionDetails: {
           transactionId: transactionId,
@@ -269,7 +275,10 @@ export class SubscriptionFactory {
         currencyId: currencyResponse._id,
       };
       console.log("subscriptionData", subscriptionData);
-      const createdSubscription = await this.subscriptionService.subscription(subscriptionData, token);
+      const createdSubscription = await this.subscriptionService.subscription(
+        subscriptionData,
+        token
+      );
       console.log("createdSubscription", createdSubscription);
       const userBody = {
         userId: createdSubscription?.userId,
@@ -292,7 +301,10 @@ export class SubscriptionFactory {
       };
       const invoice = await this.invoiceService.createInvoice(invoiceData);
 
-      const conversionRateAmt = await this.helperService.getConversionRate(currencyCode, price);
+      const conversionRateAmt = await this.helperService.getConversionRate(
+        currencyCode,
+        price
+      );
       const baseAmount = Math.round(price * conversionRateAmt);
       const paymentData = {
         amount: price,
@@ -310,7 +322,11 @@ export class SubscriptionFactory {
         baseCurrency: currencyCode,
         conversionRate: conversionRateAmt,
       };
-      await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice
+      );
 
       const mandateData = {
         sourceId: createdSubscription._id,
@@ -352,7 +368,10 @@ export class SubscriptionFactory {
       let existingSubscription =
         await this.subscriptionService.findExternalId(transactionId);
       console.log("existing subscription", existingSubscription);
-      let matchingTransaction = await this.validateTransactions(packageName, transactionId)
+      let matchingTransaction = await this.validateTransactions(
+        packageName,
+        transactionId
+      );
       console.log("matchingTransaction", matchingTransaction);
       if (existingSubscription && !matchingTransaction) {
         console.log("existing subscription", existingSubscription);
@@ -395,16 +414,18 @@ export class SubscriptionFactory {
         badge: item?.additionalDetail?.badge,
       };
       await this.helperService.updateUser(userBody);
-      let currency = matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode
-      let price = matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan?.recurringPrice?.units;
+      let currency =
+        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+          ?.recurringPrice?.currencyCode;
+      let price =
+        matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
+          ?.recurringPrice?.units;
       let conversionRateAmt = await this.helperService.getConversionRate(
         currency,
         price
       );
       let baseAmount = parseInt((price * conversionRateAmt).toString());
-      let currencyIds = await this.helperService.getCurrencyId(
-        currency
-      );
+      let currencyIds = await this.helperService.getCurrencyId(currency);
       let currencyResponses = currencyIds?.data?.[0];
       // console.log(" latestOrderId:rtdn?.transactionInfo?.latestOrderId", rtdn?.transactionInfo?.latestOrderId);
 
@@ -431,18 +452,22 @@ export class SubscriptionFactory {
         providerName: EProvider.google,
         metaData: {
           externalId: data.metaData.externalId,
-          latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId
+          latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         transactionDate: new Date(),
         currencyCode: currencyResponse.currency_code,
         currency: currencyResponse._id,
         baseAmount: baseAmount,
         baseCurrency: currencyResponse.currency_code,
-        conversionRate: conversionRateAmt
+        conversionRate: conversionRateAmt,
       };
       // console.log("paymentData",paymentData);
 
-      await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice
+      );
       let mandateData = {
         sourceId: createdSubscription._id,
         userId: token.id,
@@ -510,16 +535,16 @@ export class SubscriptionFactory {
       keyId,
       issuerId,
       bundleId,
-      environment,
+      environment
     );
     const clients = [
-      { name: 'Production', client: prodClient },
-      { name: 'Sandbox', client: sandboxClient },
+      { name: "Production", client: prodClient },
+      { name: "Sandbox", client: sandboxClient },
     ];
 
     for (const { name, client } of clients) {
       try {
-        let transactionId = originalTransactionId
+        let transactionId = originalTransactionId;
         let response = null;
         let transactions: string[] = [];
         const transactionHistoryRequest = {
@@ -547,21 +572,19 @@ export class SubscriptionFactory {
         const purchaseMatch = decodedTokens.find(
           (tx) =>
             tx.originalTransactionId === transactionId &&
-            tx.transactionReason === 'PURCHASE'
+            tx.transactionReason === "PURCHASE"
         );
 
         if (purchaseMatch) {
           console.log(`✅ Found in ${name}:`, purchaseMatch);
           return purchaseMatch;
         }
-
       } catch (err) {
         console.warn(`⚠️ Error in ${name} environment: ${err.message}`);
       }
     }
-    return 'Sandbox receipt used in production';
+    return "Sandbox receipt used in production";
   }
-
 
   async getTransactionHistory(bodyData) {
     try {
@@ -808,7 +831,7 @@ export class SubscriptionFactory {
           .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
           .join("")
       );
-      console.log("json payload", JSON.stringify(jsonPayload))
+      console.log("json payload", JSON.stringify(jsonPayload));
       return JSON.parse(jsonPayload);
     } catch (err) {
       return null;
@@ -837,7 +860,7 @@ export class SubscriptionFactory {
     try {
       console.log("message", message);
       const pubSubMessage = message;
-      const messageBuffer = Buffer.from(pubSubMessage.data, 'base64');
+      const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
       console.log("notification", notification);
 
@@ -854,8 +877,8 @@ export class SubscriptionFactory {
       let verificationData = {
         ...verification,
         purchaseToken: purchaseToken,
-        notificationType: notificationType
-      }
+        notificationType: notificationType,
+      };
       return verificationData;
     } catch (err) {
       throw err;
@@ -876,7 +899,7 @@ export class SubscriptionFactory {
       });
       const res = await this.androidpublisher.purchases.subscriptionsv2.get({
         packageName: packageName,
-        token: data
+        token: data,
       });
       console.log("res", res);
       const transactionInfo = res.data;
@@ -892,7 +915,6 @@ export class SubscriptionFactory {
       throw err;
     }
   }
-
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {
