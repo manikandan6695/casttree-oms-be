@@ -16,6 +16,11 @@ export enum Eheader {
   mySeries = "Series for you",
   allSeries = "All Series",
   upcoming = "Coming Soon",
+  trendingSeries = "Trending Series",
+  mostWatched = "Most Watched",
+  dailyVocalExcercises = "Daily Vocal Exercises",
+  stageAndMic = "Stage and Mic",
+  forYourVoice = "For Your Voice",
 }
 
 export const ESheader = [
