@@ -22,6 +22,7 @@
     "copy-assets": "cp -rv views dist/mailer/views"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^1.5.0",
     "@aws-sdk/credential-provider-node": "^3.577.0",
     "@aws-sdk/node-http-handler": "^3.370.0",
     "@aws-sdk/protocol-http": "^3.370.0",
