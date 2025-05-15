@@ -654,9 +654,9 @@ export class ServiceItemService {
       (finalData["SeriesForYou"] ?? []).map((data) =>
         processIds.push(data?.processId)
       );
-      (finalData["featured"] ?? []).map((data) =>
-        processIds.push(data?.processId)
-      );
+      // (finalData["featured"] ?? []).map((data) =>
+      //   processIds.push(data?.processId)
+      // );
       (finalData["upcomingseries"] ?? []).map((data) =>
         processIds.push(data?.processId)
       );
@@ -757,7 +757,7 @@ export class ServiceItemService {
             headerName: Eheader.mySeries,
             listData: updatedSeriesForYouData["ListData"],
           },
-          horizontalScroll: false,
+          horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
         });
       sections.push({
@@ -765,7 +765,7 @@ export class ServiceItemService {
           headerName: Eheader.allSeries,
           listData: allSeriesData["ListData"],
         },
-        horizontalScroll: false,
+        horizontalScroll: true,
         componentType: EcomponentType.ColThumbnailList,
       });
       sections.push({
