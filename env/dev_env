@@ -88,6 +88,7 @@ FACEBOOK_EVENT_URL = "https://graph.facebook.com/v12.0/1394572634549952/events"
 # Google IAP
 GOOGLE_FILE_PATH="casttree-d50d2cec9329.json"
 PACKAGE_NAME="com.billionfaces.casttree"
+SCOPES="https://www.googleapis.com/auth/androidpublisher"
 # APPLE IAP 
 ISSUER_ID="76c51240-1e94-4468-ac3b-3a82a557ae55"
 KEY_ID="53Y2MPF778"
