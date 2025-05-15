@@ -757,7 +757,7 @@ export class ServiceItemService {
             headerName: Eheader.mySeries,
             listData: updatedSeriesForYouData["ListData"],
           },
-          horizontalScroll: true,
+          horizontalScroll: false,
           componentType: EcomponentType.ColThumbnailList,
         });
       sections.push({
@@ -765,7 +765,7 @@ export class ServiceItemService {
           headerName: Eheader.allSeries,
           listData: allSeriesData["ListData"],
         },
-        horizontalScroll: true,
+        horizontalScroll: false,
         componentType: EcomponentType.ColThumbnailList,
       });
       sections.push({
