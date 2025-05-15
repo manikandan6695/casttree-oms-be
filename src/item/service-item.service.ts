@@ -8,6 +8,7 @@ import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
+import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
@@ -23,6 +24,8 @@ import { serviceitems } from "./schema/serviceItem.schema";
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
+    @InjectModel("systemConfiguration")
+    private systemConfigurationModel: Model<ISystemConfigurationModel>,
     @InjectModel("priceListItems")
     private priceListItemModel: Model<IPriceListItemsModel>,
     private helperService: HelperService,
@@ -628,14 +631,23 @@ export class ServiceItemService {
         a[c.tagName] = c.details;
         return a;
       }, {});
+      // console.log("finalData", finalData);
+      let systemConfiguration = await this.systemConfigurationModel.findOne({
+        key: "remaind-button",
+      });
+      let remindButton = systemConfiguration?.value?.isRemind;
+      // console.log("remindButton", remindButton);
 
-      let featureCarouselData = {
-        ListData: [],
-      };
+      // let featureCarouselData = {
+      //   ListData: [],
+      // };
       let updatedSeriesForYouData = {
         ListData: [],
       };
       let updatedUpcomingData = {
+        ListData: [],
+      };
+      let allSeriesData = {
         ListData: [],
       };
       let processIds = [];
@@ -648,23 +660,27 @@ export class ServiceItemService {
       (finalData["upcomingseries"] ?? []).map((data) =>
         processIds.push(data?.processId)
       );
+      (finalData["allSeries"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
+      // console.log("allSeriesData", allSeriesData);
 
       const firstTaskObject = firstTasks.reduce((a, c) => {
         a[c.processId] = c;
         return a;
       }, {});
-      (finalData["featured"] ?? []).map((data) => {
-        featureCarouselData["ListData"].push({
-          processId: data.processId,
-          thumbnail: data.thumbnail,
-          ctaName: data.ctaName,
-          taskDetail: firstTaskObject[data.processId],
-        });
-      });
+      // (finalData["featured"] ?? []).map((data) => {
+      //   featureCarouselData["ListData"].push({
+      //     processId: data.processId,
+      //     thumbnail: data.thumbnail,
+      //     ctaName: data.ctaName,
+      //     taskDetail: firstTaskObject[data.processId],
+      //   });
+      // });
       (finalData["SeriesForYou"] ?? []).map((data) => {
         updatedSeriesForYouData["ListData"].push({
           processId: data.processId,
@@ -674,6 +690,13 @@ export class ServiceItemService {
       });
       (finalData["upcomingseries"] ?? []).map((data) => {
         updatedUpcomingData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["allSeries"] ?? []).map((data) => {
+        allSeriesData["ListData"].push({
           processId: data.processId,
           thumbnail: data.thumbnail,
           taskDetail: firstTaskObject[data.processId],
@@ -722,27 +745,36 @@ export class ServiceItemService {
         horizontalScroll: true,
         componentType: EcomponentType.ActiveProcessList,
       }),
-        sections.push({
-          data: {
-            listData: featureCarouselData["ListData"],
-          },
-          horizontalScroll: true,
-          componentType: EcomponentType.feature,
-        }),
+        // sections.push({
+        //   data: {
+        //     listData: featureCarouselData["ListData"],
+        //   },
+        //   horizontalScroll: true,
+        //   componentType: EcomponentType.feature,
+        // }),
         sections.push({
           data: {
             headerName: Eheader.mySeries,
             listData: updatedSeriesForYouData["ListData"],
           },
-          horizontalScroll: false,
+          horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
         });
+      sections.push({
+        data: {
+          headerName: Eheader.allSeries,
+          listData: allSeriesData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
       sections.push({
         data: {
           headerName: Eheader.upcoming,
           listData: updatedUpcomingData["ListData"],
         },
         horizontalScroll: true,
+        isRemind: remindButton,
         componentType: EcomponentType.ColThumbnailList,
       });
 
