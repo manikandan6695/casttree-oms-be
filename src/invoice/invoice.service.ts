@@ -12,7 +12,7 @@ import { IItemModel } from "src/item/schema/item.schema";
 const { ObjectId } = require("mongodb");
 
 @Injectable()
-export class InvoiceService{
+export class InvoiceService {
   constructor(
     @InjectModel("salesDocument")
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
@@ -27,29 +27,28 @@ export class InvoiceService{
     this.calculateGST("6788a5ceecf6b05434b9b6ad", 1800);
   }
 
-// async onModuleInit() {
-//   try {
-//     const itemId = "6788a5ceecf6b05434b9b6ad";
+  // async onModuleInit() {
+  //   try {
+  //     const itemId = "6788a5ceecf6b05434b9b6ad";
 
-//     // Fetch item and get price
-//     const item = await this.itemModel.findById(itemId).lean() as any;
-//     const priceFromDb = item?.price;
+  //     // Fetch item and get price
+  //     const item = await this.itemModel.findById(itemId).lean() as any;
+  //     const priceFromDb = item?.price;
 
-//     if (priceFromDb === undefined || priceFromDb === null) {
-//       console.log("Price not found in DB, skipping GST calculation.");
-//       return;
-//     }
+  //     if (priceFromDb === undefined || priceFromDb === null) {
+  //       console.log("Price not found in DB, skipping GST calculation.");
+  //       return;
+  //     }
 
-//     const gstResult = await this.calculateGST(itemId, { grand_total: priceFromDb });
+  //     const gstResult = await this.calculateGST(itemId, { grand_total: priceFromDb });
 
-//     console.log("GST Result:", gstResult);
-//   } catch (error) {
-//     console.error("GST Calculation Error:", error.message);
-//   }
-// }
+  //     console.log("GST Result:", gstResult);
+  //   } catch (error) {
+  //     console.error("GST Calculation Error:", error.message);
+  //   }
+  // }
 
-
-async createInvoice(body) {
+  async createInvoice(body) {
     try {
       let invoice_sequence = await this.sharedService.getNextNumber(
         "Invoice",
@@ -115,63 +114,66 @@ async createInvoice(body) {
   }
 
   async calculateGST(itemId: string, priceIncludingTax: number) {
-  try {
-    // console.log('Calculating GST for Item ID:', itemId,priceIncludingTax);
-    
-    const itemId = "6788a5ceecf6b05434b9b6ad"; 
-    const itemDetails = await this.getItemDetails(itemId);
-    console.log('Fetched Item Details:', itemDetails);
+    try {
+      // console.log('Calculating GST for Item ID:', itemId,priceIncludingTax);
 
-    const taxRateObject = itemDetails?.item_taxes?.find(
-      tax => tax.item_tax_id && typeof tax.item_tax_id.tax_rate === 'number'
-    );
+      const itemId = "6788a5ceecf6b05434b9b6ad";
+      const itemDetails = await this.getItemDetails(itemId);
+      console.log("Fetched Item Details:", itemDetails);
 
-    if (!taxRateObject) {
-      console.log('No tax rate found, returning original amount without tax calculations.');
+      const taxRateObject = itemDetails?.item_taxes?.find(
+        (tax) => tax.item_tax_id && typeof tax.item_tax_id.tax_rate === "number"
+      );
+
+      if (!taxRateObject) {
+        console.log(
+          "No tax rate found, returning original amount without tax calculations."
+        );
+        return {
+          amount: priceIncludingTax.toFixed(2),
+          amountWithTax: priceIncludingTax,
+          taxAmount: "0.00",
+        };
+      }
+
+      const gstRate = taxRateObject.item_tax_id.tax_rate;
+      console.log("Actual tax rate from DB:", gstRate);
+
+      const amountWithoutTax = priceIncludingTax / (1 + gstRate / 100);
+      const taxAmount = priceIncludingTax - amountWithoutTax;
+
+      console.log(`GST Calculation for Item (${itemId}):`);
+      console.log("Amount without tax:", amountWithoutTax.toFixed(2));
+      console.log("Tax amount:", taxAmount.toFixed(2));
+
       return {
-        amount: priceIncludingTax.toFixed(2),
+        amount: amountWithoutTax.toFixed(2),
         amountWithTax: priceIncludingTax,
-        taxAmount: "0.00",
+        taxAmount: taxAmount.toFixed(2),
       };
+    } catch (err) {
+      throw err;
     }
-
-    const gstRate = taxRateObject.item_tax_id.tax_rate;
-    console.log('Actual tax rate from DB:', gstRate);
-
-    const amountWithoutTax = priceIncludingTax / (1 + gstRate / 100);
-    const taxAmount = priceIncludingTax - amountWithoutTax;
-
-    console.log(`GST Calculation for Item (${itemId}):`);
-    console.log("Amount without tax:", amountWithoutTax.toFixed(2));
-    console.log("Tax amount:", taxAmount.toFixed(2));
-
-    return {
-      amount: amountWithoutTax.toFixed(2),
-      amountWithTax: priceIncludingTax,
-      taxAmount: taxAmount.toFixed(2),
-    };
-  } catch (err) {
-    throw err;
   }
-}
 
   async getItemDetails(itemId: string) {
     try {
-       console.log('Fetching item details for ID:', typeof itemId,itemId);
-       const data = await this.itemModel.findOne()
-      //  .populate({
-      //     path: "item_taxes.item_tax_specification",
-      //     model: "taxSpecification",
-      //     select: ["tax_specification_name"],
-      //   })
-      //   .populate({
-      //     path: "item_taxes.item_tax_id",
-      //     model: "tax",
-      //     select: ["tax_name", "tax_rate"],
-      //   })
-        // .lean();
-        console.log("data is", data);
-        
+      console.log("Fetching item details for ID:", typeof itemId, itemId);
+      const data = await this.itemModel
+        .findOne({ _id: itemId })
+        //  .populate({
+        //     path: "item_taxes.item_tax_specification",
+        //     model: "taxSpecification",
+        //     select: ["tax_specification_name"],
+        //   })
+        .populate({
+          path: "item_taxes.item_tax_id",
+          model: "tax",
+          select: ["tax_name", "tax_rate"],
+        })
+        .lean();
+      console.log("data is", data);
+
       return data;
     } catch (err) {
       throw err;
