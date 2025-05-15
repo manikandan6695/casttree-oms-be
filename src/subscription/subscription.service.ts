@@ -195,7 +195,7 @@ export class SubscriptionService {
             updatedBy: token?.id,
             transactionDetails: body?.transactionDetails,
             metaData: {
-              externalId: body?.transactionDetails?.transactionId,
+              externalId: body?.transactionDetails?.originalTransactionId,
             },
           };
           break;

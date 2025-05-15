@@ -208,9 +208,8 @@ export class SubscriptionFactory {
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
       const existingSubscription =
-        await this.subscriptionService.findExternalId(transactionId);
+        await this.subscriptionService.findExternalId(originalTransactionId);
       const matchingTransaction = await this.getTransactionHistoryById(
-        transactionId,
         originalTransactionId
       );
       console.log("matchingTransaction", matchingTransaction);
@@ -308,11 +307,9 @@ export class SubscriptionFactory {
         updatedBy: token.id,
       });
       if (
-        matchingTransaction &&
-        matchingTransaction.transactionReason === "PURCHASE"
+        matchingTransaction 
       ) {
         const price = matchingTransaction?.price;
-        const transactionId = matchingTransaction?.transactionId;
         const originalTransactionId =
           matchingTransaction?.originalTransactionId;
         const existingSubscription =
@@ -400,9 +397,9 @@ export class SubscriptionFactory {
             updatedAt: new Date(),
           };
 
-          await this.mandateService.updateIapStatus(transactionId, body);
+          await this.mandateService.updateIapStatus(originalTransactionId, body);
           await this.mandateHistoryService.updateIapMandateStatus(
-            transactionId,
+            originalTransactionId,
             body
           );
         }
@@ -613,7 +610,8 @@ export class SubscriptionFactory {
       environment
     );
   }
-  async getTransactionHistoryById(transactionId, originalTransactionId) {
+  async getTransactionHistoryById(originalTransactionId) {
+    let transactionId = originalTransactionId
     let response = null;
     let transactions = [];
 
@@ -642,7 +640,6 @@ export class SubscriptionFactory {
     );
     const purchaseMatch = decodedTokens.find(
       (tx) =>
-        tx.transactionId === transactionId &&
         tx.originalTransactionId === originalTransactionId &&
         tx.transactionReason === "PURCHASE"
     );
