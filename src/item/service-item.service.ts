@@ -641,7 +641,22 @@ export class ServiceItemService {
       // let featureCarouselData = {
       //   ListData: [],
       // };
-      let updatedSeriesForYouData = {
+      // let updatedSeriesForYouData = {
+      //   ListData: [],
+      // };
+      let trendingSeriesData = {
+        ListData: [],
+      };
+      let mostWatchedData = {
+        ListData: [],
+      };
+      let dailyVocalExcersisesData = {
+        ListData: [],
+      };
+      let stageAndMicData = {
+        ListData: [],
+      };
+      let forYourVoiceData = {
         ListData: [],
       };
       let updatedUpcomingData = {
@@ -651,12 +666,27 @@ export class ServiceItemService {
         ListData: [],
       };
       let processIds = [];
-      (finalData["SeriesForYou"] ?? []).map((data) =>
-        processIds.push(data?.processId)
-      );
+      // (finalData["SeriesForYou"] ?? []).map((data) =>
+      //   processIds.push(data?.processId)
+      // );
       // (finalData["featured"] ?? []).map((data) =>
       //   processIds.push(data?.processId)
       // );
+      (finalData["trendingSeries"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["mostWatched"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["dailyVocalExcercises"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["stageAndMic"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
+      (finalData["forYourVoice"] ?? []).map((data) =>
+        processIds.push(data?.processId)
+      );
       (finalData["upcomingseries"] ?? []).map((data) =>
         processIds.push(data?.processId)
       );
@@ -681,10 +711,50 @@ export class ServiceItemService {
       //     taskDetail: firstTaskObject[data.processId],
       //   });
       // });
-      (finalData["SeriesForYou"] ?? []).map((data) => {
-        updatedSeriesForYouData["ListData"].push({
+      // (finalData["SeriesForYou"] ?? []).map((data) => {
+      //   updatedSeriesForYouData["ListData"].push({
+      //     processId: data.processId,
+      //     thumbnail: data.thumbnail,
+      //     taskDetail: firstTaskObject[data.processId],
+      //   });
+      // });
+      (finalData["trendingSeries"] ?? []).map((data) => {
+        trendingSeriesData["ListData"].push({
           processId: data.processId,
           thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["mostWatched"] ?? []).map((data) => {
+        mostWatchedData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["dailyVocalExcercises"] ?? []).map((data) => {
+        dailyVocalExcersisesData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["stageAndMic"] ?? []).map((data) => {
+        stageAndMicData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
+          taskDetail: firstTaskObject[data.processId],
+        });
+      });
+      (finalData["forYourVoice"] ?? []).map((data) => {
+        forYourVoiceData["ListData"].push({
+          processId: data.processId,
+          thumbnail: data.thumbnail,
+          ctaName: data.ctaName,
           taskDetail: firstTaskObject[data.processId],
         });
       });
@@ -752,14 +822,62 @@ export class ServiceItemService {
         //   horizontalScroll: true,
         //   componentType: EcomponentType.feature,
         // }),
+        // sections.push({
+        //   data: {
+        //     headerName: Eheader.mySeries,
+        //     listData: updatedSeriesForYouData["ListData"],
+        //   },
+        //   horizontalScroll: true,
+        //   componentType: EcomponentType.ColThumbnailList,
+        // });
+        // sections.push({
+        //   data: {
+        //     listData: featureCarouselData["ListData"],
+        //   },
+        //   horizontalScroll: true,
+        //   componentType: EcomponentType.feature,
+        // }),
+
         sections.push({
           data: {
-            headerName: Eheader.mySeries,
-            listData: updatedSeriesForYouData["ListData"],
+            headerName: Eheader.trendingSeries,
+            listData: trendingSeriesData["ListData"],
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
         });
+      sections.push({
+        data: {
+          headerName: Eheader.mostWatched,
+          listData: mostWatchedData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
+      sections.push({
+        data: {
+          headerName: Eheader.dailyVocalExcercises,
+          listData: dailyVocalExcersisesData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
+      sections.push({
+        data: {
+          headerName: Eheader.stageAndMic,
+          listData: stageAndMicData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
+      sections.push({
+        data: {
+          headerName: Eheader.forYourVoice,
+          listData: forYourVoiceData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
       sections.push({
         data: {
           headerName: Eheader.allSeries,

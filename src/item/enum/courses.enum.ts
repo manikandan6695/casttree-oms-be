@@ -14,8 +14,13 @@ export enum Eheader {
   casttreeSpecials = "CASTTREE SPECIALS",
   continue = "Continue where you left",
   mySeries = "Series for you",
-  upcoming = "Coming Soon",
   allSeries = "All Series",
+  upcoming = "Coming Soon",
+  trendingSeries = "Trending Series",
+  mostWatched = "Most Watched",
+  dailyVocalExcercises = "Daily Vocal Exercises",
+  stageAndMic = "Stage and Mic",
+  forYourVoice = "For Your Voice",
 }
 
 export const ESheader = [
@@ -24,6 +29,11 @@ export const ESheader = [
   Eheader.mySeries,
   Eheader.upcoming,
   Eheader.allSeries,
+  Eheader.trendingSeries,
+  Eheader.mostWatched,
+  Eheader.dailyVocalExcercises,
+  Eheader.stageAndMic,
+  Eheader.forYourVoice,
 ];
 
 export enum Etag {
