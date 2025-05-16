@@ -201,17 +201,21 @@ export class SubscriptionFactory {
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
       const transactionId = bodyData.transactionDetails?.transactionId;
-      const originalTransactionId = data?.transactionDetails?.originalTransactionId;
-      const existingSubscription = await this.subscriptionService.findExternalId(originalTransactionId);
-      const matchingTransaction = await this.getTransactionHistoryById(originalTransactionId);
+      const originalTransactionId =
+        data?.transactionDetails?.originalTransactionId;
+      // const existingSubscription = await this.subscriptionService.findExternalId(originalTransactionId);
+      const matchingTransaction = await this.getTransactionHistoryById(
+        originalTransactionId
+      );
       // console.log("matchingTransaction", matchingTransaction);
-      if (existingSubscription) {
-        // console.log("existingSubscription", existingSubscription);
-        return existingSubscription;
-      }
+      // if (existingSubscription) {
+      //   // console.log("existingSubscription", existingSubscription);
+      //   return existingSubscription;
+      // }
       const price = matchingTransaction?.price;
       const currencyCode = matchingTransaction?.currency;
-      const currencyIdRes = await this.helperService.getCurrencyId(currencyCode);
+      const currencyIdRes =
+        await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
@@ -235,7 +239,8 @@ export class SubscriptionFactory {
             webOrderLineItemId: matchingTransaction?.webOrderLineItemId,
             bundleId: matchingTransaction?.bundleId,
             productId: matchingTransaction?.productId,
-            subscriptionGroupIdentifier: matchingTransaction?.subscriptionGroupIdentifier,
+            subscriptionGroupIdentifier:
+              matchingTransaction?.subscriptionGroupIdentifier,
             purchaseDate: matchingTransaction?.purchaseDate,
             originalPurchaseDate: matchingTransaction?.originalPurchaseDate,
             expiresDate: subscriptionEnd,
@@ -250,7 +255,7 @@ export class SubscriptionFactory {
             price: price,
             currency: matchingTransaction?.currency,
             appTransactionId: matchingTransaction?.appTransactionId,
-          }
+          },
         },
         transactionDetails: {
           transactionId: transactionId,
@@ -264,7 +269,10 @@ export class SubscriptionFactory {
         currencyId: currencyResponse._id,
       };
       // console.log("subscriptionData", subscriptionData);
-      const createdSubscription = await this.subscriptionService.subscription(subscriptionData, token);
+      const createdSubscription = await this.subscriptionService.subscription(
+        subscriptionData,
+        token
+      );
       // console.log("createdSubscription", createdSubscription);
       const userBody = {
         userId: createdSubscription?.userId,
@@ -287,7 +295,10 @@ export class SubscriptionFactory {
       };
       const invoice = await this.invoiceService.createInvoice(invoiceData);
 
-      const conversionRateAmt = await this.helperService.getConversionRate(currencyCode, price);
+      const conversionRateAmt = await this.helperService.getConversionRate(
+        currencyCode,
+        price
+      );
       const baseAmount = Math.round(price * conversionRateAmt);
       const paymentData = {
         amount: price,
@@ -305,7 +316,11 @@ export class SubscriptionFactory {
         baseCurrency: currencyCode,
         conversionRate: conversionRateAmt,
       };
-      await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice
+      );
 
       const mandateData = {
         sourceId: createdSubscription._id,
@@ -782,16 +797,16 @@ export class SubscriptionFactory {
       keyId,
       issuerId,
       bundleId,
-      environment,
+      environment
     );
     const clients = [
-      { name: 'Production', client: prodClient },
-      { name: 'Sandbox', client: sandboxClient },
+      { name: "Production", client: prodClient },
+      { name: "Sandbox", client: sandboxClient },
     ];
 
     for (const { name, client } of clients) {
       try {
-        let transactionId = originalTransactionId
+        let transactionId = originalTransactionId;
         let response = null;
         let transactions: string[] = [];
         const transactionHistoryRequest = {
@@ -819,25 +834,23 @@ export class SubscriptionFactory {
         const purchaseMatch = decodedTokens.find(
           (tx) =>
             tx.originalTransactionId === transactionId &&
-            tx.transactionReason === 'PURCHASE'
+            tx.transactionReason === "PURCHASE"
         );
 
         if (purchaseMatch) {
           console.log(`✅ Found in ${name}:`, purchaseMatch);
           return purchaseMatch;
         }
-
       } catch (err) {
         console.warn(`⚠️ Error in ${name} environment: ${err.message}`);
       }
     }
-    return 'Sandbox receipt used in production';
+    return "Sandbox receipt used in production";
   }
-
 
   async getTransactionHistory(bodyData) {
     try {
-      console.log("bodyData",bodyData);
+      console.log("bodyData", bodyData);
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
@@ -1080,7 +1093,7 @@ export class SubscriptionFactory {
           .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
           .join("")
       );
-      console.log("json payload", JSON.stringify(jsonPayload))
+      console.log("json payload", JSON.stringify(jsonPayload));
       return JSON.parse(jsonPayload);
     } catch (err) {
       return null;
