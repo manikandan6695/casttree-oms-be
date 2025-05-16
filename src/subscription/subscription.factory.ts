@@ -208,16 +208,16 @@ export class SubscriptionFactory {
       const transactionId = bodyData.transactionDetails?.transactionId;
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
-      const existingSubscription =
-        await this.subscriptionService.findExternalId(originalTransactionId);
+      // const existingSubscription =
+      //   await this.subscriptionService.findExternalId(originalTransactionId);
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
       console.log("matchingTransaction", matchingTransaction);
-      if (existingSubscription) {
-        console.log("existingSubscription", existingSubscription);
-        return existingSubscription;
-      }
+      // if (existingSubscription) {
+      //   console.log("existingSubscription", existingSubscription);
+      //   return existingSubscription;
+      // }
       const price = matchingTransaction?.price;
       const currencyCode = matchingTransaction?.currency;
       const currencyIdRes =
