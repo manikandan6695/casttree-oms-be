@@ -63,7 +63,6 @@ async onModuleInit() {
           updated_by: body.updated_by,
           tax_amount: gstData.taxAmount,
           amount_with_tax: gstData.amountWithTax,
-          totalamount: gstData.amount,
         },
       ]);
       //  console.log("invoice id", data._id);

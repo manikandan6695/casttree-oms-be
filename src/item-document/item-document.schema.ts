@@ -51,7 +51,6 @@ export interface IItemCompositionModel extends mongoose.Document {
   item_tax_composition: IItemTaxComposition[];
   amount: number;
   amount_with_tax: number;
-  tax_amount: number;
 }
 
 export interface IItemDocumentModel extends mongoose.Document {
@@ -108,9 +107,6 @@ export const ItemTaxComposition = new mongoose.Schema({
     type: Number,
   },
   tax_amount: {
-    type: Number,
-  },
-  amount_with_tax: {  
     type: Number,
   },
 
