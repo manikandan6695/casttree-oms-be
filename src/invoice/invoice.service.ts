@@ -23,11 +23,11 @@ export class InvoiceService implements OnModuleInit {
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService
   ) {}
-async onModuleInit() {
+  async onModuleInit() {
     await this.calculateGST("6788a5ceecf6b05434b9b6ad", 1800);
   }
 
- async createInvoice(body) {
+  async createInvoice(body) {
     try {
       let invoice_sequence = await this.sharedService.getNextNumber(
         "Invoice",
@@ -39,6 +39,7 @@ async onModuleInit() {
       let invoice = invoice_number.padStart(5, "0");
 
       const gstData = await this.calculateGST(body.itemId, body);
+      // console.log("GST Data:", gstData);
 
       let fv = {
         ...body,
@@ -49,9 +50,6 @@ async onModuleInit() {
       fv["toalamount"] = gstData.amount;
       fv["amount_with_tax"] = gstData.amountWithTax;
       fv["tax_amount"] = gstData.taxAmount;
-      fv["tax_name"] = body.taxName;
-      fv["tax_percentage"] = body.taxPercentage;
-      fv["tax_value"] = body.taxValue;
 
       let data = await this.salesDocumentModel.create(fv);
       await this.itemDocumentService.createItemDocuments([
@@ -64,15 +62,19 @@ async onModuleInit() {
           user_id: body.user_id,
           created_by: body.created_by,
           updated_by: body.updated_by,
-          item_tax_composition : [{
-          tax_id: gstData?.taxId,
-          amount: gstData?.amount,
-          amount_with_tax: gstData?.amountWithTax,
-          tax_amount: gstData?.taxAmount, 
-          tax_name: body.taxName,
-          tax_percentage: body.taxPercentage,
-          tax_value: body.taxValue, 
-          }],
+          item_tax_composition: [
+            {
+              tax_id: gstData?.itemDetails?.item_taxes[0].item_tax_id?._id,
+              amount: gstData?.amount,
+              amount_with_tax: gstData?.amountWithTax,
+              tax_amount: gstData?.taxAmount,
+              tax_name:
+                gstData?.itemDetails?.item_taxes[0].item_tax_id?.tax_rate,
+              // tax_percentage: body.taxPercentage,
+              tax_value:
+                gstData?.itemDetails?.item_taxes[0].item_tax_id.tax_rate,
+            },
+          ],
         },
       ]);
       //  console.log("invoice id", data._id);
@@ -108,11 +110,10 @@ async onModuleInit() {
     try {
       const itemDetails = await this.getItemDetails(itemId);
 
-      console.log("Fetched Item Details:", itemDetails);
+      console.log("Fetched Item Details:", itemDetails?.item_taxes[0]);
 
       const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
-      
       const amount = priceIncludingTax / (1 + gstRate / 100);
       const taxAmount = priceIncludingTax - amount;
 
@@ -126,7 +127,7 @@ async onModuleInit() {
         amount,
         amountWithTax: priceIncludingTax,
         taxAmount,
-        taxId : itemDetails?.item_taxes?.[0]?.item_tax_id?._id,
+        itemDetails,
       };
     } catch (error) {
       console.error("Error in calculateGST:", error.message);
