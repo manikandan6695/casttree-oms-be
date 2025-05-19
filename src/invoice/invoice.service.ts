@@ -49,6 +49,9 @@ async onModuleInit() {
       fv["toalamount"] = gstData.amount;
       fv["amount_with_tax"] = gstData.amountWithTax;
       fv["tax_amount"] = gstData.taxAmount;
+      fv["tax_name"] = body.taxName;
+      fv["tax_percentage"] = body.taxPercentage;
+      fv["tax_value"] = body.taxValue;
 
       let data = await this.salesDocumentModel.create(fv);
       await this.itemDocumentService.createItemDocuments([
@@ -62,25 +65,14 @@ async onModuleInit() {
           created_by: body.created_by,
           updated_by: body.updated_by,
           item_tax_composition : [{
-          tax_id: {
-              ref: "tax",
-            },
-            tax_name: {
-              type: String,
-            },
-            tax_percentage: {
-              type: Number,
-            },
-            tax_value: {
-              type: Number,
-            },
-            amount: {
-              type: Number,
-            },
-            tax_amount: {
-              type: Number,
-            },
-            }],
+          tax_id: gstData?.taxId,
+          amount: gstData?.amount,
+          amount_with_tax: gstData?.amountWithTax,
+          tax_amount: gstData?.taxAmount, 
+          tax_name: body.taxName,
+          tax_percentage: body.taxPercentage,
+          tax_value: body.taxValue, 
+          }],
         },
       ]);
       //  console.log("invoice id", data._id);
@@ -145,7 +137,7 @@ async onModuleInit() {
     try {
       console.log("Fetching item details for ID:", typeof itemId, itemId);
       const data = await this.itemModel
-        .findOne({ _id: itemId })
+        .findOne({ _id: new ObjectId(itemId) })
         //  .populate({
         //     path: "item_taxes.item_tax_specification",
         //     model: "taxSpecification",
