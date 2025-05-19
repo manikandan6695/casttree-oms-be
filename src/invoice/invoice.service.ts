@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -8,11 +8,10 @@ import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
 import { ItemService } from "src/item/item.service";
 import { IItemModel } from "src/item/schema/item.schema";
-//import { OnModuleInit } from "@nestjs/common";
 const { ObjectId } = require("mongodb");
 
 @Injectable()
-export class InvoiceService {
+export class InvoiceService implements OnModuleInit {
   constructor(
     @InjectModel("salesDocument")
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
@@ -23,32 +22,12 @@ export class InvoiceService {
     private itemDocumentService: ItemDocumentService
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService
-  ) {
-    this.calculateGST("6788a5ceecf6b05434b9b6ad", 1800);
+  ) {}
+async onModuleInit() {
+    await this.calculateGST("6788a5ceecf6b05434b9b6ad", 1800);
   }
 
-  // async onModuleInit() {
-  //   try {
-  //     const itemId = "6788a5ceecf6b05434b9b6ad";
-
-  //     // Fetch item and get price
-  //     const item = await this.itemModel.findById(itemId).lean() as any;
-  //     const priceFromDb = item?.price;
-
-  //     if (priceFromDb === undefined || priceFromDb === null) {
-  //       console.log("Price not found in DB, skipping GST calculation.");
-  //       return;
-  //     }
-
-  //     const gstResult = await this.calculateGST(itemId, { grand_total: priceFromDb });
-
-  //     console.log("GST Result:", gstResult);
-  //   } catch (error) {
-  //     console.error("GST Calculation Error:", error.message);
-  //   }
-  // }
-
-  async createInvoice(body) {
+ async createInvoice(body) {
     try {
       let invoice_sequence = await this.sharedService.getNextNumber(
         "Invoice",
@@ -67,7 +46,7 @@ export class InvoiceService {
       fv["sales_doc_id_prefix"] = "INV";
       fv["sales_document_number"] = invoice;
       fv["document_number"] = invoice;
-      fv["amount"] = gstData.amount;
+      fv["toalamount"] = gstData.amount;
       fv["amount_with_tax"] = gstData.amountWithTax;
       fv["tax_amount"] = gstData.taxAmount;
 
@@ -82,6 +61,9 @@ export class InvoiceService {
           user_id: body.user_id,
           created_by: body.created_by,
           updated_by: body.updated_by,
+          tax_amount: gstData.taxAmount,
+          amount_with_tax: gstData.amountWithTax,
+          totalamount: gstData.amount,
         },
       ]);
       //  console.log("invoice id", data._id);
@@ -115,47 +97,32 @@ export class InvoiceService {
 
   async calculateGST(itemId: string, priceIncludingTax: number) {
     try {
-      // console.log('Calculating GST for Item ID:', itemId,priceIncludingTax);
-
-      const itemId = "6788a5ceecf6b05434b9b6ad";
       const itemDetails = await this.getItemDetails(itemId);
+
       console.log("Fetched Item Details:", itemDetails);
 
-      const taxRateObject = itemDetails?.item_taxes?.find(
-        (tax) => tax.item_tax_id && typeof tax.item_tax_id.tax_rate === "number"
-      );
+      const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
-      if (!taxRateObject) {
-        console.log(
-          "No tax rate found, returning original amount without tax calculations."
-        );
-        return {
-          amount: priceIncludingTax.toFixed(2),
-          amountWithTax: priceIncludingTax,
-          taxAmount: "0.00",
-        };
-      }
+      
+      const amount = priceIncludingTax / (1 + gstRate / 100);
+      const taxAmount = priceIncludingTax - amount;
 
-      const gstRate = taxRateObject.item_tax_id.tax_rate;
-      console.log("Actual tax rate from DB:", gstRate);
-
-      const amountWithoutTax = priceIncludingTax / (1 + gstRate / 100);
-      const taxAmount = priceIncludingTax - amountWithoutTax;
-
-      console.log(`GST Calculation for Item (${itemId}):`);
-      console.log("Amount without tax:", amountWithoutTax.toFixed(2));
-      console.log("Tax amount:", taxAmount.toFixed(2));
+      console.log("GST Calculation for Item:", itemId);
+      console.log("Price Including Tax:", priceIncludingTax);
+      console.log("GST Rate:", gstRate);
+      console.log("Amount (Excl. Tax):", amount);
+      console.log("Tax Amount:", taxAmount);
 
       return {
-        amount: amountWithoutTax.toFixed(2),
+        amount,
         amountWithTax: priceIncludingTax,
-        taxAmount: taxAmount.toFixed(2),
+        taxAmount,
       };
-    } catch (err) {
-      throw err;
+    } catch (error) {
+      console.error("Error in calculateGST:", error.message);
+      throw error;
     }
   }
-
   async getItemDetails(itemId: string) {
     try {
       console.log("Fetching item details for ID:", typeof itemId, itemId);
