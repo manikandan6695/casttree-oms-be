@@ -61,8 +61,26 @@ async onModuleInit() {
           user_id: body.user_id,
           created_by: body.created_by,
           updated_by: body.updated_by,
-          tax_amount: gstData.taxAmount,
-          amount_with_tax: gstData.amountWithTax,
+          item_tax_composition : [{
+          tax_id: {
+              ref: "tax",
+            },
+            tax_name: {
+              type: String,
+            },
+            tax_percentage: {
+              type: Number,
+            },
+            tax_value: {
+              type: Number,
+            },
+            amount: {
+              type: Number,
+            },
+            tax_amount: {
+              type: Number,
+            },
+            }],
         },
       ]);
       //  console.log("invoice id", data._id);
@@ -116,6 +134,7 @@ async onModuleInit() {
         amount,
         amountWithTax: priceIncludingTax,
         taxAmount,
+        taxId : itemDetails?.item_taxes?.[0]?.item_tax_id?._id,
       };
     } catch (error) {
       console.error("Error in calculateGST:", error.message);
