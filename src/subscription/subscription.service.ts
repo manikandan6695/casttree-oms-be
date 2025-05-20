@@ -64,7 +64,7 @@ export class SubscriptionService {
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
-      console.log("subscription creation body is ==>", body);
+      console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       switch (body.provider) {
         case "razorpay":
@@ -221,6 +221,7 @@ export class SubscriptionService {
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
+      console.log("formed subscription data", subscriptionData, body);
 
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(
