@@ -17,10 +17,9 @@ export class GetUserOriginMiddleware implements NestMiddleware {
   ): Promise<any> {
     const { headers } = request;
     let userId = headers["x-userid"];
-    console.log("header userId", userId, headers);
-
+    // console.log("header userId", userId, headers);
     if (!userId || userId == undefined) {
-      console.log("authorization", headers?.authorization);
+      // console.log("authorization", headers?.authorization);
       if (headers?.authorization) {
         let authorization = headers?.authorization.split(" ")[1];
         const decoded = jwt.verify(
@@ -30,12 +29,11 @@ export class GetUserOriginMiddleware implements NestMiddleware {
         userId = decoded?.id;
       }
     }
-    console.log("UserId", userId);
+    // console.log("UserId", userId);
     let userData;
     let countryCode;
     if (userId) {
-      console.log("inside userId");
-
+      // console.log("inside userId");
       userData = await this.helperService.getUserById(userId);
       countryCode = userData?.data?.country_code;
       if (headers["x-real-ip"] && countryCode == undefined) {
@@ -45,7 +43,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
         await this.helperService.updateUserIpById(countryCode, userId);
       }
     } else {
-      console.log("inside ip call");
+      // console.log("inside ip call");
       if (headers["x-real-ip"]) {
         countryCode = await this.helperService.getCountryCodeByIpAddress(
           headers["x-real-ip"].toString()
