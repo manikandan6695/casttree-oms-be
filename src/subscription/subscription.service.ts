@@ -348,9 +348,10 @@ export class SubscriptionService {
           await this.handleGoogleIAPRenew(req.body);
         } else if (eventType.notificationType === EEventId.cancel) {
           await this.handleGoogleIAPCancel(req.body);
-        } else if (eventType.notificationType === EEventId.purchase) {
-          await this.handleGoogleIAPPurchase(req.body);
         }
+        // else if (eventType.notificationType === EEventId.purchase) {
+        //   await this.handleGoogleIAPPurchase(req.body);
+        // }
       }
     } catch (err) {
       throw err;
