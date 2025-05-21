@@ -36,6 +36,8 @@ export class SubscriptionController {
     @Res() res: Response
   ) {
     try {
+      console.log("inside create subscription controller", body);
+
       let data = await this.subscriptionService.createSubscription(body, token);
       return res.json(data);
     } catch (err) {
