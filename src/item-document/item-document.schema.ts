@@ -35,7 +35,7 @@ export const ESItemSourceType = [
 export interface IItemCompositionModel extends mongoose.Document {
   reference_item_id: string;
   organization_id: any;
-  source_id: string;
+  source_id: mongoose.Types.ObjectId | string;
   source_type: string;
   transaction_type: string;
   item_id: any;
@@ -50,8 +50,9 @@ export interface IItemCompositionModel extends mongoose.Document {
   item_tax_excemtion: IItemTax;
   item_tax_composition: IItemTaxComposition[];
   amount: number;
-  amount_with_tax: number;
+  amount_without_tax: number;
 }
+
 export interface IItemDocumentModel extends mongoose.Document {
   reference_item_id: string;
   organization_id: any;
@@ -100,6 +101,12 @@ export const ItemTaxComposition = new mongoose.Schema({
     type: Number,
   },
   tax_value: {
+    type: Number,
+  },
+  amount: {
+    type: Number,
+  },
+  tax_amount: {
     type: Number,
   },
 });
@@ -185,7 +192,7 @@ export const ItemCompositionSchema = new mongoose.Schema({
   amount: {
     type: Number,
   },
-  amount_with_tax: {
+  amount_without_tax: {
     type: Number,
   },
   reference_item_id: {
