@@ -75,7 +75,7 @@ export class SubscriptionService {
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.amount
+                  ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -315,8 +315,7 @@ export class SubscriptionService {
           // console.log("provider", "failed");
           await this.handleCashfreeFailedPayment(req.body);
         }
-      }
-      else if (provider == EProvider.apple) {
+      } else if (provider == EProvider.apple) {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
@@ -346,7 +345,7 @@ export class SubscriptionService {
   }
   async handleAppleIAPPurchase(payload) {
     try {
-      console.log("payload",payload);
+      console.log("payload", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       // console.log("transactionHistory", transactionHistory);
@@ -422,7 +421,7 @@ export class SubscriptionService {
 
   async handleAppleIAPRenew(payload) {
     try {
-      console.log("payload",payload);
+      console.log("payload", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       console.log("transactionHistory", transactionHistory);
@@ -459,11 +458,12 @@ export class SubscriptionService {
         currencyId: currencyResponse._id,
         transactionDetails: {
           transactionId: transactionHistory?.transactions?.transactionId,
-          originalTransactionId: transactionHistory?.transactions?.originalTransactionId,
+          originalTransactionId:
+            transactionHistory?.transactions?.originalTransactionId,
           authAmount: transactionHistory?.transactions?.price,
           transactionDate: transactionHistory?.transactions?.purchaseDate,
-          planId: transactionHistory?.transactions?.productId
-        }
+          planId: transactionHistory?.transactions?.productId,
+        },
       };
       // console.log("subscriptionData",subscriptionData);
       let subscription = await this.subscriptionModel.create(subscriptionData);
@@ -553,24 +553,25 @@ export class SubscriptionService {
   }
   async handleIapExpired(payload) {
     try {
-      console.log("payload",payload);
+      console.log("payload", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
       };
-      const existingSubscription = await this.subscriptionModel.findOneAndUpdate(
-        {
-          "metaData.transaction.originalTransactionId":
-            transactionHistory?.transactions?.originalTransactionId,
-        },
-        {
-          subscriptionStatus: EsubscriptionStatus.expired,
-          updatedAt: new Date(),
-          metaData: metaData,
-        }
-      );
+      const existingSubscription =
+        await this.subscriptionModel.findOneAndUpdate(
+          {
+            "metaData.transaction.originalTransactionId":
+              transactionHistory?.transactions?.originalTransactionId,
+          },
+          {
+            subscriptionStatus: EsubscriptionStatus.expired,
+            updatedAt: new Date(),
+            metaData: metaData,
+          }
+        );
 
       let updatedInvoice = await this.invoiceService.updateInvoice(
         existingSubscription?._id,
@@ -1112,11 +1113,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1410,22 +1411,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1539,8 +1540,12 @@ export class SubscriptionService {
           userId: subscriptionData?.latestDocument?.userId,
         });
       // console.log("userAdditionalData is", userAdditionalData);
-
-      let customerId = userAdditionalData?.userAdditional?.referenceId;
+      let userData = await this.helperService.getUserById(
+        subscriptionData?.latestDocument?.userId
+      );
+      let customerId = userAdditionalData?.userAdditional?.referenceId
+        ? userAdditionalData?.userAdditional?.referenceId
+        : subscriptionData?.latestMandate?.metaData?.customerId;
       let subscriptionAmount =
         planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
           ?.amount * 100;
@@ -1579,22 +1584,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1603,9 +1608,10 @@ export class SubscriptionService {
       let recurring = {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
-          userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
-        contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
+          userData?.data?.phoneNumber.toString() + "@casttree.com",
+        contact:
+          userAdditionalData?.userAdditional?.userId?.phoneNumber ||
+          userData?.data?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
         order_id: chargeResponse?.id,
