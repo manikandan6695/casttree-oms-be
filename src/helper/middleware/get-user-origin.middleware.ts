@@ -17,13 +17,17 @@ export class GetUserOriginMiddleware implements NestMiddleware {
   ): Promise<any> {
     const { headers } = request;
     let userId = headers["x-userid"];
-    if (!userId) {
-      let authorization = headers?.authorization.split(" ")[1];
-      const decoded = jwt.verify(
-        authorization,
-        this.configService.get("JWT_SECRET")
-      ) as any;
-      userId = decoded?.id;
+    console.log("UserId", userId);
+
+    if (!userId || userId == undefined) {
+      if (headers?.authorization) {
+        let authorization = headers?.authorization.split(" ")[1];
+        const decoded = jwt.verify(
+          authorization,
+          this.configService.get("JWT_SECRET")
+        ) as any;
+        userId = decoded?.id;
+      }
     }
     let userData;
     let countryCode;
