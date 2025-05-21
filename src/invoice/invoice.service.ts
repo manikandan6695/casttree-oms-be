@@ -11,7 +11,7 @@ import { IItemModel } from "src/item/schema/item.schema";
 const { ObjectId } = require("mongodb");
 
 @Injectable()
-export class InvoiceService implements OnModuleInit {
+export class InvoiceService {
   constructor(
     @InjectModel("salesDocument")
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
@@ -23,9 +23,6 @@ export class InvoiceService implements OnModuleInit {
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService
   ) {}
-  async onModuleInit() {
-    await this.calculateGST("6788a5ceecf6b05434b9b6ad", 1800);
-  }
 
   async createInvoice(body) {
     try {
@@ -38,7 +35,7 @@ export class InvoiceService implements OnModuleInit {
       let invoice_number = invoice_sequence.toString();
       let invoice = invoice_number.padStart(5, "0");
 
-      const gstData = await this.calculateGST(body.itemId, body);
+      const gstData = await this.calculateGST(body.itemId, body.grand_total);
       // console.log("GST Data:", gstData);
 
       let fv = {
@@ -47,9 +44,7 @@ export class InvoiceService implements OnModuleInit {
       fv["sales_doc_id_prefix"] = "INV";
       fv["sales_document_number"] = invoice;
       fv["document_number"] = invoice;
-      fv["toalamount"] = gstData.amount;
-      fv["amount_with_tax"] = gstData.amountWithTax;
-      fv["tax_amount"] = gstData.taxAmount;
+      fv["tax_amount"] = gstData.taxAmount.toFixed(2);
 
       let data = await this.salesDocumentModel.create(fv);
       await this.itemDocumentService.createItemDocuments([
@@ -65,9 +60,9 @@ export class InvoiceService implements OnModuleInit {
           item_tax_composition: [
             {
               tax_id: gstData?.itemDetails?.item_taxes[0].item_tax_id?._id,
-              amount: gstData?.amount,
-              amount_with_tax: gstData?.amountWithTax,
-              tax_amount: gstData?.taxAmount,
+              amount: gstData?.amountWithTax.toFixed(2),
+              amount_without_tax: gstData?.amount.toFixed(2),
+              tax_amount: gstData?.taxAmount.toFixed(2),
               tax_name:
                 gstData?.itemDetails?.item_taxes[0].item_tax_id?.tax_rate,
               // tax_percentage: body.taxPercentage,
@@ -110,19 +105,10 @@ export class InvoiceService implements OnModuleInit {
     try {
       const itemDetails = await this.getItemDetails(itemId);
 
-      console.log("Fetched Item Details:", itemDetails?.item_taxes[0]);
-
       const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
       const amount = priceIncludingTax / (1 + gstRate / 100);
       const taxAmount = priceIncludingTax - amount;
-
-      console.log("GST Calculation for Item:", itemId);
-      console.log("Price Including Tax:", priceIncludingTax);
-      console.log("GST Rate:", gstRate);
-      console.log("Amount (Excl. Tax):", amount);
-      console.log("Tax Amount:", taxAmount);
-
       return {
         amount,
         amountWithTax: priceIncludingTax,
