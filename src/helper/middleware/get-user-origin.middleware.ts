@@ -17,7 +17,9 @@ export class GetUserOriginMiddleware implements NestMiddleware {
   ): Promise<any> {
     const { headers } = request;
     let userId = headers["x-userid"];
-    if (!userId) {
+    console.log("UserId", userId);
+
+    if (!userId || userId == undefined) {
       if (headers?.authorization) {
         let authorization = headers?.authorization.split(" ")[1];
         const decoded = jwt.verify(
