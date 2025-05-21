@@ -375,8 +375,8 @@ export class SubscriptionFactory {
         transactionId
       );
       console.log("matchingTransaction", matchingTransaction);
-      if (existingSubscription && !matchingTransaction) {
-        console.log("existing subscription", existingSubscription);
+      if (existingSubscription) {
+        // console.log("existing subscription", existingSubscription);
         return existingSubscription;
       }
       let currencyId = await this.helperService.getCurrencyId(

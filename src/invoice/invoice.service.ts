@@ -104,14 +104,14 @@ export class InvoiceService {
   async calculateGST(itemId: string, priceIncludingTax: number) {
     try {
       const itemDetails = await this.getItemDetails(itemId);
-
+      const price = typeof priceIncludingTax === "string" ? parseFloat(priceIncludingTax) : priceIncludingTax;
       const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
       const amount = priceIncludingTax / (1 + gstRate / 100);
       const taxAmount = priceIncludingTax - amount;
       return {
         amount,
-        amountWithTax: priceIncludingTax,
+        amountWithTax: price,
         taxAmount,
         itemDetails,
       };

@@ -722,6 +722,9 @@ export class SubscriptionService {
           currencyId: currencyResponse._id,
           transactionDetails: {
             transactionId: rtdn.purchaseToken,
+            authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
+            transactionDate: rtdn.transactionInfo.startTime,
+            planId: rtdn.transactionInfo.lineItems[0]?.productId,
           },
         };
         let subscription =
