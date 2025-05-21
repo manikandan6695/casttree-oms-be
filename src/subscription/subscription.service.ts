@@ -722,6 +722,9 @@ export class SubscriptionService {
           currencyId: currencyResponse._id,
           transactionDetails: {
             transactionId: rtdn.purchaseToken,
+            authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
+            transactionDate: rtdn.transactionInfo.startTime,
+            planId: rtdn.transactionInfo.lineItems[0]?.productId,
           },
         };
         let subscription =
@@ -765,6 +768,7 @@ export class SubscriptionService {
             latestOrderId: rtdn?.transactionInfo?.latestOrderId,
           },
         };
+        console.log("paymentData",paymentData);
         await this.paymentService.createPaymentRecord(
           paymentData,
           null,
@@ -773,7 +777,7 @@ export class SubscriptionService {
         return subscription;
       }
     } catch (error) {
-      // console.error("Error in handleGoogleIAPRenew:", error);
+      console.error("Error in handleGoogleIAPRenew:", error);
       throw error;
     }
   }

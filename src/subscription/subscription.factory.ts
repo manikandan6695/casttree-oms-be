@@ -375,8 +375,8 @@ export class SubscriptionFactory {
         transactionId
       );
       console.log("matchingTransaction", matchingTransaction);
-      if (existingSubscription && !matchingTransaction) {
-        console.log("existing subscription", existingSubscription);
+      if (existingSubscription) {
+        // console.log("existing subscription", existingSubscription);
         return existingSubscription;
       }
       let currencyId = await this.helperService.getCurrencyId(
@@ -887,25 +887,30 @@ export class SubscriptionFactory {
     }
   }
 
-  async validateTransactions(packageName, data) {
+ async validateTransactions(packageName, data) {
     try {
       console.log("packageName", packageName, data);
+      const serviceAccountPath = path.join(
+        "./",
+        "/casttree-74fa0a77d5fd.json"
+      );
+      // console.log("scopes", scopes);
+
       const auth = new google.auth.GoogleAuth({
-        keyFile: googleFile,
+        keyFile: serviceAccountPath,
         scopes: [scopes],
       });
-      console.log("auth", auth);
       this.androidpublisher = google.androidpublisher({
         version: "v3",
         auth: auth,
       });
       const res = await this.androidpublisher.purchases.subscriptionsv2.get({
         packageName: packageName,
-        token: data,
+        token: data
       });
-      console.log("res", res);
+      // console.log("res", res);
       const transactionInfo = res.data;
-      console.log("transactionInfo", transactionInfo);
+      // console.log("transactionInfo", transactionInfo);
 
       return {
         success: res.data.expiryTime > new Date(),
