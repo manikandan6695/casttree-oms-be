@@ -35,7 +35,7 @@ export class ServiceItemService {
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService,
     private subscriptionService: SubscriptionService
-  ) {}
+  ) { }
   async getServiceItemDetailbyItemId(itemId) {
     try {
       let data = await this.serviceItemModel
@@ -172,15 +172,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "price"
+              "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "currency"
+              "currency"
               ];
           }
         });
@@ -258,11 +258,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+            "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+            "currency"
             ];
         }
       }
@@ -421,15 +421,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "price"
+              "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "currency"
+              "currency"
               ];
           }
         });
@@ -476,11 +476,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+            "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+            "currency"
             ];
         }
       }
@@ -626,7 +626,11 @@ export class ServiceItemService {
           },
         },
       ]);
-
+      const subscriptionData = await this.subscriptionService.validateSubscription(
+        userId,
+        [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
+      );
+      const isNewSubscription = subscriptionData ? true : false;
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
@@ -637,7 +641,21 @@ export class ServiceItemService {
       });
       let remindButton = systemConfiguration?.value?.isRemind;
       // console.log("remindButton", remindButton);
-
+      let referralConfig = await this.systemConfigurationModel.findOne({
+        key: "referral_banners",
+      });
+      let learnHomePageBanner;
+      let premiumBanner;
+      if (referralConfig && Array.isArray(referralConfig.value)) {
+        const bannerObj = referralConfig.value.find(
+          (b) => b.banner === "learnhomepage"
+        );
+        learnHomePageBanner = bannerObj.imageUrl;
+        const premiumBannerObj = referralConfig.value.find(
+          (b) => b.banner === "buypremium"
+        );
+        premiumBanner = premiumBannerObj?.imageUrl;
+      }
       // let featureCarouselData = {
       //   ListData: [],
       // };
@@ -814,38 +832,49 @@ export class ServiceItemService {
         },
         horizontalScroll: true,
         componentType: EcomponentType.ActiveProcessList,
-      }),
-        // sections.push({
-        //   data: {
-        //     listData: featureCarouselData["ListData"],
-        //   },
-        //   horizontalScroll: true,
-        //   componentType: EcomponentType.feature,
-        // }),
-        // sections.push({
-        //   data: {
-        //     headerName: Eheader.mySeries,
-        //     listData: updatedSeriesForYouData["ListData"],
-        //   },
-        //   horizontalScroll: true,
-        //   componentType: EcomponentType.ColThumbnailList,
-        // });
-        // sections.push({
-        //   data: {
-        //     listData: featureCarouselData["ListData"],
-        //   },
-        //   horizontalScroll: true,
-        //   componentType: EcomponentType.feature,
-        // }),
+      });
 
+      if (isNewSubscription === false && continueWhereYouLeftData.ListData.length === 1) {
         sections.push({
           data: {
-            headerName: Eheader.trendingSeries,
-            listData: trendingSeriesData["ListData"],
+            listData: [],
+            banner: premiumBanner, 
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
         });
+      }
+      // sections.push({
+      //   data: {
+      //     listData: featureCarouselData["ListData"],
+      //   },
+      //   horizontalScroll: true,
+      //   componentType: EcomponentType.feature,
+      // }),
+      // sections.push({
+      //   data: {
+      //     headerName: Eheader.mySeries,
+      //     listData: updatedSeriesForYouData["ListData"],
+      //   },
+      //   horizontalScroll: true,
+      //   componentType: EcomponentType.ColThumbnailList,
+      // });
+      // sections.push({
+      //   data: {
+      //     listData: featureCarouselData["ListData"],
+      //   },
+      //   horizontalScroll: true,
+      //   componentType: EcomponentType.feature,
+      // }),
+
+      sections.push({
+        data: {
+          headerName: Eheader.trendingSeries,
+          listData: trendingSeriesData["ListData"],
+        },
+        horizontalScroll: true,
+        componentType: EcomponentType.ColThumbnailList,
+      });
       sections.push({
         data: {
           headerName: Eheader.mostWatched,
@@ -862,6 +891,16 @@ export class ServiceItemService {
         horizontalScroll: true,
         componentType: EcomponentType.ColThumbnailList,
       });
+      if (isNewSubscription === true) {
+        sections.push({
+          data: {
+            listData: [],
+            banner: learnHomePageBanner, 
+          },
+          horizontalScroll: true,
+          componentType: EcomponentType.ColThumbnailList,
+        });
+      }
       sections.push({
         data: {
           headerName: Eheader.stageAndMic,
@@ -1116,7 +1155,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1235,7 +1274,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1308,7 +1347,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1340,7 +1379,7 @@ export class ServiceItemService {
         country_code
       );
       return priceListData;
-    } catch (err) {}
+    } catch (err) { }
   }
   async getServiceItemType(itemId: string) {
     try {
