@@ -34,7 +34,6 @@ class TransactionDetailsDTO {
   @IsNumber()
   transactionDate?: number;
 }
-
 export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
@@ -67,6 +66,11 @@ export class CreateSubscriptionDTO {
   redirectionUrl: string;
 
   @IsOptional()
+  @IsString()
+  @IsMongoId()
+  refId: string;
+
+  @IsOptional()
   @IsNumber()
   validity: number;
 
@@ -80,11 +84,6 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   providerId: number;
-
-  @IsOptional()
-  @IsString()
-  @IsMongoId()
-  refId: string;
 
   @IsOptional()
   @ValidateNested()

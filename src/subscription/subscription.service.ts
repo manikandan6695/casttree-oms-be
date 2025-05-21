@@ -73,11 +73,10 @@ export class SubscriptionService {
             EsubscriptionStatus.initiated,
             EsubscriptionStatus.failed,
           ]);
-
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
+                ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -1336,11 +1335,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1634,22 +1633,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1803,22 +1802,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getDate() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
+          ?.validityType == EvalidityType.month
           ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          )
           : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);

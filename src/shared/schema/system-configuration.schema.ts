@@ -5,6 +5,7 @@ export interface ISystemConfigurationModel extends mongoose.Document {
   key: string;
   value: any;
   is_org_applicable: boolean;
+
 }
 
 export const SystemConfigurationSchema = new mongoose.Schema(
@@ -13,6 +14,7 @@ export const SystemConfigurationSchema = new mongoose.Schema(
     key: { type: String, required: true, unique: true },
     value: { type: mongoose.Schema.Types.Mixed },
     is_org_applicable: { type: Boolean },
+ 
   },
   {
     collection: "systemConfiguration",

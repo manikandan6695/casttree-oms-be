@@ -54,8 +54,6 @@ export class SubscriptionFactory {
   //   await this.init();
   // }
   getProvider(providerName: string): SubscriptionProvider {
-    console.log("providerName", providerName);
-
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
         createSubscription: async (data: any, bodyData, token: UserToken) =>
@@ -920,7 +918,7 @@ export class SubscriptionFactory {
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {
-      console.log("data in razorpay", data);
+      // console.log("data in razorpay", data);
 
       let userAdditionalData =
         await this.helperService.getUserAdditionalDetails({ userId: token.id });
