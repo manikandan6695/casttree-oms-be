@@ -215,7 +215,7 @@ export class SubscriptionFactory {
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
-      console.log("matchingTransaction", matchingTransaction);
+      // console.log("matchingTransaction", matchingTransaction);
       // if (existingSubscription) {
       //   console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
@@ -276,12 +276,12 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse.currency_code,
         currencyId: currencyResponse._id,
       };
-      console.log("subscriptionData", subscriptionData);
+      // console.log("subscriptionData", subscriptionData);
       const createdSubscription = await this.subscriptionService.subscription(
         subscriptionData,
         token
       );
-      console.log("createdSubscription", createdSubscription);
+      // console.log("createdSubscription", createdSubscription);
       const userBody = {
         userId: createdSubscription?.userId,
         membership: item?.itemName,
@@ -364,17 +364,17 @@ export class SubscriptionFactory {
 
   private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      console.log("body data", data, bodyData);
+      // console.log("body data", data, bodyData);
 
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
         await this.subscriptionService.findExternalId(transactionId);
-      console.log("existing subscription", existingSubscription);
+      // console.log("existing subscription", existingSubscription);
       let matchingTransaction = await this.validateTransactions(
         packageName,
         transactionId
       );
-      console.log("matchingTransaction", matchingTransaction);
+      // console.log("matchingTransaction", matchingTransaction);
       let currencyId = await this.helperService.getCurrencyId(
         bodyData.currencyCode
       );
@@ -574,7 +574,7 @@ export class SubscriptionFactory {
         );
 
         if (purchaseMatch) {
-          console.log(`✅ Found in ${name}:`, purchaseMatch);
+          // console.log(`✅ Found in ${name}:`, purchaseMatch);
           return purchaseMatch;
         }
       } catch (err) {
@@ -590,7 +590,7 @@ export class SubscriptionFactory {
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      console.log("purchaseInfo", purchaseInfo);
+      // console.log("purchaseInfo", purchaseInfo);
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
@@ -708,7 +708,7 @@ export class SubscriptionFactory {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
@@ -829,7 +829,7 @@ export class SubscriptionFactory {
           .map((c) => `%${("00" + c.charCodeAt(0).toString(16)).slice(-2)}`)
           .join("")
       );
-      console.log("json payload", JSON.stringify(jsonPayload));
+      // console.log("json payload", JSON.stringify(jsonPayload));
       return JSON.parse(jsonPayload);
     } catch (err) {
       return null;
@@ -856,21 +856,21 @@ export class SubscriptionFactory {
   // google iap
   async googleRtdn(message) {
     try {
-      console.log("message", message);
+      // console.log("message", message);
       const pubSubMessage = message;
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
-      console.log("notification", notification);
+      // console.log("notification", notification);
 
       const { subscriptionNotification } = notification;
       const { notificationType, purchaseToken } = subscriptionNotification;
-      console.log("notificationType", purchaseToken, notification.packageName);
+      // console.log("notificationType", purchaseToken, notification.packageName);
 
       const verification = await this.validateTransactions(
         notification.packageName,
         purchaseToken
       );
-      console.log("verification", verification);
+      // console.log("verification", verification);
 
       let verificationData = {
         ...verification,
@@ -885,12 +885,12 @@ export class SubscriptionFactory {
 
   async validateTransactions(packageName, data) {
     try {
-      console.log("packageName", packageName, data);
+      // console.log("packageName", packageName, data);
       const auth = new google.auth.GoogleAuth({
         keyFile: googleFile,
         scopes: [scopes],
       });
-      console.log("auth", auth);
+      // console.log("auth", auth);
       this.androidpublisher = google.androidpublisher({
         version: "v3",
         auth: auth,
@@ -899,16 +899,16 @@ export class SubscriptionFactory {
         packageName: packageName,
         token: data,
       });
-      console.log("res", res);
+      // console.log("res", res);
       const transactionInfo = res.data;
-      console.log("transactionInfo", transactionInfo);
+      // console.log("transactionInfo", transactionInfo);
 
       return {
         success: res.data.expiryTime > new Date(),
         transactionInfo,
       };
     } catch (err) {
-      console.log("err", err);
+      // console.log("err", err);
 
       throw err;
     }
@@ -916,7 +916,7 @@ export class SubscriptionFactory {
 
   private async handleRazorpaySubscription(data, bodyData, token) {
     try {
-      console.log("data in razorpay", data);
+      // console.log("data in razorpay", data);
 
       let userAdditionalData =
         await this.helperService.getUserAdditionalDetails({ userId: token.id });

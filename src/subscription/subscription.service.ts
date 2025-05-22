@@ -64,7 +64,7 @@ export class SubscriptionService {
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
-      console.log("subscription creation body is ==>", body, body.provider);
+      // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       switch (body.provider) {
         case "razorpay":
@@ -99,7 +99,7 @@ export class SubscriptionService {
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
               : item?.additionalDetail?.promotionDetails?.authDetail;
           let chargeDate = await this.getFutureDate(detail);
-          console.log("chargeDate", chargeDate);
+          // console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
           subscriptionData = {
             subscription_id: razorpaySubscriptionNewNumber.toString(),
@@ -221,7 +221,7 @@ export class SubscriptionService {
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
-      console.log("formed subscription data", subscriptionData, body);
+      // console.log("formed subscription data", subscriptionData, body);
 
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(
@@ -250,7 +250,7 @@ export class SubscriptionService {
   }
   async subscriptionWebhook(@Req() req, providerId: number) {
     try {
-      console.log(providerId);
+      // console.log(providerId);
       const getProviderName = (id: number) => {
         const map = {
           [EProviderId.razorpay]: EProvider.razorpay,
@@ -320,7 +320,7 @@ export class SubscriptionService {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
-        console.log("decodeId:", decodeId);
+        // console.log("decodeId:", decodeId);
         if (
           decodeId.notificationType === EEventType.didRenew ||
           decodeId.subtype === EEventType.subTypeRenew
@@ -368,7 +368,7 @@ export class SubscriptionService {
       const existingSubscription = await this.subscriptionModel.findOne({
         "transactionDetails.originalTransactionId": originalTransactionId,
       });
-      console.log("existingSubscription", existingSubscription);
+      // console.log("existingSubscription", existingSubscription);
 
       if (!existingSubscription) {
         return { message: "No matching subscription found." };
@@ -722,7 +722,9 @@ export class SubscriptionService {
           currencyId: currencyResponse._id,
           transactionDetails: {
             transactionId: rtdn.purchaseToken,
-            authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
+            authAmount:
+              rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
+                ?.recurringPrice?.units,
             transactionDate: rtdn.transactionInfo.startTime,
             planId: rtdn.transactionInfo.lineItems[0]?.productId,
           },
@@ -794,7 +796,7 @@ export class SubscriptionService {
           transactionId,
           body
         );
-        console.log("mandate", mandate);
+        // console.log("mandate", mandate);
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
@@ -857,7 +859,7 @@ export class SubscriptionService {
 
   async handleRazorpayCancelledMandate(payload: any) {
     try {
-      console.log("inside razorpay cancelled mandate", payload);
+      // console.log("inside razorpay cancelled mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
@@ -882,7 +884,7 @@ export class SubscriptionService {
 
   async handleRazorpayCancelMandate(payload: any) {
     try {
-      console.log("inside razorpay cancelled mandate", payload);
+      // console.log("inside razorpay cancelled mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
@@ -908,7 +910,7 @@ export class SubscriptionService {
 
   async handleRazorpayRejectedMandate(payload: any) {
     try {
-      console.log("inside razorpay rejected mandate", payload);
+      // console.log("inside razorpay rejected mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
@@ -934,7 +936,7 @@ export class SubscriptionService {
 
   async handleRazorpayPausedMandate(payload: any) {
     try {
-      console.log("inside razorpay paused mandate", payload);
+      // console.log("inside razorpay paused mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
@@ -1005,11 +1007,11 @@ export class SubscriptionService {
   private async handleRazorpayMandate(payload: any) {
     try {
       let tokenId = payload?.token?.entity?.id;
-      console.log("tokenId", tokenId);
-      console.log("token confirmed payload", payload);
+      // console.log("tokenId", tokenId);
+      // console.log("token confirmed payload", payload);
 
       let mandate = await this.mandateService.getMandateById(tokenId);
-      console.log("token confirmed mandate", mandate);
+      // console.log("token confirmed mandate", mandate);
 
       let updatedMandate = await this.mandateService.updateMandateDetail(
         { _id: mandate._id },
@@ -1031,14 +1033,14 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
-      console.log("inside razorpay subscription payment");
+      // console.log("inside razorpay subscription payment");
 
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-      console.log("rzpPaymentId", rzpPaymentId);
+      // console.log("rzpPaymentId", rzpPaymentId);
 
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      console.log("paymentRequest", paymentRequest);
+      // console.log("paymentRequest", paymentRequest);
 
       if (paymentRequest) {
         let updatedStatus = await this.paymentService.completePayment({

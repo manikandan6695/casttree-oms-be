@@ -104,7 +104,10 @@ export class InvoiceService {
   async calculateGST(itemId: string, priceIncludingTax: number) {
     try {
       const itemDetails = await this.getItemDetails(itemId);
-      const price = typeof priceIncludingTax === "string" ? parseFloat(priceIncludingTax) : priceIncludingTax;
+      const price =
+        typeof priceIncludingTax === "string"
+          ? parseFloat(priceIncludingTax)
+          : priceIncludingTax;
       const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
       const amount = priceIncludingTax / (1 + gstRate / 100);
@@ -122,7 +125,7 @@ export class InvoiceService {
   }
   async getItemDetails(itemId: string) {
     try {
-      console.log("Fetching item details for ID:", typeof itemId, itemId);
+      // console.log("Fetching item details for ID:", typeof itemId, itemId);
       const data = await this.itemModel
         .findOne({ _id: new ObjectId(itemId) })
         //  .populate({
@@ -136,7 +139,7 @@ export class InvoiceService {
           select: ["tax_name", "tax_rate"],
         })
         .lean();
-      console.log("data is", data);
+      // console.log("data is", data);
 
       return data;
     } catch (err) {
