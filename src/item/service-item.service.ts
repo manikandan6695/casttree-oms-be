@@ -24,6 +24,7 @@ import { serviceitems } from "./schema/serviceItem.schema";
 export class ServiceItemService {
   constructor(
     @InjectModel("serviceitems") private serviceItemModel: Model<serviceitems>,
+    @InjectModel("systemConfiguration")
     @InjectModel("priceListItems")
     private priceListItemModel: Model<IPriceListItemsModel>,
     @InjectModel("systemConfiguration")

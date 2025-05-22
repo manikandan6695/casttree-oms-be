@@ -28,6 +28,12 @@ export const ESheader = [
   Eheader.continue,
   Eheader.mySeries,
   Eheader.upcoming,
+  Eheader.allSeries,
+  Eheader.trendingSeries,
+  Eheader.mostWatched,
+  Eheader.dailyVocalExcercises,
+  Eheader.stageAndMic,
+  Eheader.forYourVoice,
 ];
 
 export enum Etag {

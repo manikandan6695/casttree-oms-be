@@ -128,7 +128,7 @@ export class MandatesService {
       throw new Error(error);
     }
   }
-  async updateIapStatus(id, data) {
+   async updateIapStatus(id, data) {
     try {
       // console.log("data",data,id);
       

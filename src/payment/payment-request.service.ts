@@ -456,7 +456,7 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("body", paymentId, body);
+      // console.log("body", paymentId, body);
 
       const updateFields: any = {
         reason: body?.reason?.failureReason,
