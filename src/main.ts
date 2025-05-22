@@ -5,6 +5,10 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 
 const port = process.env.SERVER_PORT || 3001;
+let cors = process.env.CORS_ALLOWED_HEADERS.split(",").map((h) =>
+  h.trim().toLowerCase()
+);
+console.log("cors", cors);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -13,7 +17,9 @@ async function bootstrap() {
       optionsSuccessStatus: 200,
       origin: JSON.parse(process.env.CORS_ALLOWED_ORIGIN),
       credentials: true,
-      allowedHeaders: process.env.CORS_ALLOWED_HEADERS,
+      allowedHeaders: process.env.CORS_ALLOWED_HEADERS.split(",").map((h) =>
+        h.trim().toLowerCase()
+      ),
       methods: process.env.CORS_ALLOWED_METHODS,
     },
   });

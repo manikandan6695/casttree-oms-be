@@ -16,7 +16,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     next: NextFunction
   ): Promise<any> {
     const { headers } = request;
-    console.log("headers", headers, request);
+    console.log("headers", headers);
 
     let userId = headers["x-userid"];
     console.log("header userId", userId);
