@@ -16,8 +16,13 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     next: NextFunction
   ): Promise<any> {
     const { headers } = request;
+    console.log("headers", headers, request);
+
     let userId = headers["x-userid"];
+    console.log("header userId", userId);
     if (!userId) {
+      console.log("inside not of user id");
+
       let authorization = headers?.authorization.split(" ")[1];
       const decoded = jwt.verify(
         authorization,
@@ -25,6 +30,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       ) as any;
       userId = decoded?.id;
     }
+    console.log("userId", userId);
     let userData;
     let countryCode;
     if (userId) {
