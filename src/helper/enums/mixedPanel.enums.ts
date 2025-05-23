@@ -7,7 +7,7 @@ export enum EMixedPanelEvents {
     episode_complete="episode_complete",
     series_complete="series_complete",
     subscription_end = "subscription_end",
-    subscription_add = "subscription_added",
+    subscription_add = "subscription_add",
 
  
   }
