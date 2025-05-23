@@ -18,6 +18,21 @@ import { ItemService } from "./item.service";
 @Controller("item")
 export class ItemController {
   constructor(private itemService: ItemService) {}
+
+  @Get('filterByGroupKey')
+  async getItemsByGroupKey(
+    @Query('groupKey') groupKey: string,
+    @Query('skip', ParseIntPipe) skip: number,
+    @Query('limit', ParseIntPipe) limit: number
+  ) {
+    try {
+      const data = await this.itemService.getItemsByGroupKey(groupKey, skip, limit);
+      return data;
+    } catch (err) {
+      // console.error('Error:', err);  
+      return err
+    }
+  }
   @UseGuards(JwtAuthGuard)
   @Get("platformItem")
   async getPlatformItem(
