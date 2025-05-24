@@ -102,3 +102,5 @@ ISSUER_ID="76c51240-1e94-4468-ac3b-3a82a557ae55"
 KEY_ID="53Y2MPF778"
 BUNDLE_ID="com.billionfaces.casttree"
 FILEPATH="/opt/apple-iap-config/apple-subscription-key.p8"
+ENVIRONMENT="Production"
+
