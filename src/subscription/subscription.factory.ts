@@ -200,6 +200,8 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
+      console.log("bodyData", bodyData);
+
       const transactionId = bodyData.transactionDetails?.transactionId;
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
@@ -207,7 +209,7 @@ export class SubscriptionFactory {
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
-      // console.log("matchingTransaction", matchingTransaction);
+      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
       // if (existingSubscription) {
       //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
@@ -218,7 +220,10 @@ export class SubscriptionFactory {
         await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
+      console.log("expiresDateRaw", expiresDateRaw);
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
+      console.log("subscriptionEnd", subscriptionEnd);
+
       const item = await this.itemService.getItemDetail(bodyData?.itemId);
       const subscriptionData = {
         userId: token.id,
