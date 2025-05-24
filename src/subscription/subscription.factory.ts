@@ -46,7 +46,7 @@ export class SubscriptionFactory {
     private readonly itemService: ItemService
   ) {}
   // async onModuleInit() {
-  //   await this.init();
+  //   await this.getTransactionHistoryById("480002491504796");
   // }
   getProvider(providerName: string): SubscriptionProvider {
     const providers: Record<string, SubscriptionProvider> = {
@@ -216,7 +216,7 @@ export class SubscriptionFactory {
       //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
       // }
-      const price = matchingTransaction?.price;
+      const price = matchingTransaction?.price / 1000;
       const currencyCode = matchingTransaction?.currency;
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
@@ -849,10 +849,11 @@ export class SubscriptionFactory {
           return purchaseMatch;
         }
       } catch (err) {
-        console.warn(`⚠️ Error in ${name} environment: ${err.message}`);
+        // console.warn(`⚠️ Error in ${name} environment: ${err}`);
+        console.log("Error in getTransactionHistoryById", JSON.stringify(err));
       }
     }
-    return "Sandbox receipt used in production";
+    // return "Sandbox receipt used in production";
   }
 
   async getTransactionHistory(bodyData) {
