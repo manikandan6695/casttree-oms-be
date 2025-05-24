@@ -204,9 +204,9 @@ export class SubscriptionFactory {
 
       const transactionId = bodyData.transactionDetails?.transactionId;
       console.log("transactionId", transactionId);
-      const originalTransactionId =
-        data?.transactionDetails?.originalTransactionId;
-      console.log("originalTransactionId", originalTransactionId);
+      // const originalTransactionId =
+      //   data?.transactionDetails?.originalTransactionId;
+      // console.log("originalTransactionId", originalTransactionId);
 
       // const existingSubscription = await this.subscriptionService.findExternalId(originalTransactionId);
       const matchingTransaction =
@@ -268,12 +268,12 @@ export class SubscriptionFactory {
         },
         transactionDetails: {
           transactionId: transactionId,
-          originalTransactionId: originalTransactionId,
+          originalTransactionId: matchingTransaction?.originalTransactionId,
           authAmount: bodyData?.authAmount,
           transactionDate: bodyData?.transactionDate,
           planId: bodyData?.planId,
         },
-        externalId: originalTransactionId,
+        externalId: matchingTransaction?.originalTransactionId,
         currencyCode: currencyResponse.currency_code,
         currencyId: currencyResponse._id,
       };
@@ -342,7 +342,7 @@ export class SubscriptionFactory {
         mandateStatus: EDocumentStatus.active,
         status: EStatus.Active,
         metaData: {
-          externalId: originalTransactionId,
+          externalId: matchingTransaction?.originalTransactionId,
         },
         startDate: new Date(),
         endDate: subscriptionEnd,
