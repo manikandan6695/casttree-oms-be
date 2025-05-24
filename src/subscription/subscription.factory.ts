@@ -203,8 +203,11 @@ export class SubscriptionFactory {
       console.log("bodyData", bodyData);
 
       const transactionId = bodyData.transactionDetails?.transactionId;
+      console.log("transactionId", transactionId);
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
+      console.log("originalTransactionId", originalTransactionId);
+
       // const existingSubscription = await this.subscriptionService.findExternalId(originalTransactionId);
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
