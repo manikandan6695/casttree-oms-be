@@ -785,6 +785,12 @@ export class SubscriptionFactory {
   //   }
   // }
   async getTransactionHistoryById(originalTransactionId) {
+    console.log(
+      "inside get transaction id",
+      typeof originalTransactionId,
+      originalTransactionId
+    );
+
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
         if (err) return rej(err);
@@ -814,6 +820,8 @@ export class SubscriptionFactory {
     for (const { name, client } of clients) {
       try {
         let transactionId = originalTransactionId;
+        console.log("transactionId", transactionId);
+
         let response = null;
         let transactions: string[] = [];
         const transactionHistoryRequest = {
@@ -836,6 +844,16 @@ export class SubscriptionFactory {
 
         const decodedTokens = await Promise.all(
           transactions.map((token) => this.parseJwt(token))
+        );
+        console.log("decodedTokens", decodedTokens);
+
+        console.log(
+          "filter decode token",
+          decodedTokens.find(
+            (tx) =>
+              tx.originalTransactionId === transactionId &&
+              tx.transactionReason === "PURCHASE"
+          )
         );
 
         const purchaseMatch = decodedTokens.find(
