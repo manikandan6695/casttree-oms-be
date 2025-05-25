@@ -1389,7 +1389,7 @@ export class SubscriptionService {
 
     let authBody = {
       subscription_id:
-        subscriptionData?.latestDocument?.metaData?.subscription_id,
+        subscriptionData?.latestMandate?.metaData?.subscription_id,
       payment_id: paymentNumber,
       payment_amount:
         planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -1450,7 +1450,7 @@ export class SubscriptionService {
         endAt: endAt,
         metaData: {
           subscription_id:
-            subscriptionData?.latestDocument?.metaData?.subscription_id,
+            subscriptionData?.latestMandate?.metaData?.subscription_id,
           cf_subscription_id:
             subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
           customer_details:
