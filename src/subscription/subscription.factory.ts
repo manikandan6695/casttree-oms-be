@@ -1028,7 +1028,7 @@ export class SubscriptionFactory {
       };
       const invoice = await this.invoiceService.createInvoice(
         invoiceData,
-        token
+        token.id
       );
 
       const paymentData = {
