@@ -499,7 +499,10 @@ export class SubscriptionService {
         created_by: existingSubscription?.userId,
         updated_by: existingSubscription?.userId,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscription?.userId
+      );
       const conversionRateAmt = await this.helperService.getConversionRate(
         transactionHistory?.transactions?.currency,
         transactionHistory?.transactions?.price
@@ -752,7 +755,10 @@ export class SubscriptionService {
           created_by: subscription?.userId,
           updated_by: subscription?.userId,
         };
-        const invoice = await this.invoiceService.createInvoice(invoiceData);
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          subscription?.userId
+        );
         const paymentData = {
           amount: price,
           document_status: EDocumentStatus.completed,
@@ -1131,13 +1137,16 @@ export class SubscriptionService {
         updatedBy: payload.subscription?.entity?.notes?.userId,
       };
       let subscription = await this.subscriptionModel.create(fv);
-      let invoice = await this.invoiceService.createInvoice({
-        source_id: payload.subscription?.entity?.notes?.sourceId,
-        source_type: "process",
-        sub_total: payload.payment?.entity?.amount,
-        document_status: EDocumentStatus.completed,
-        grand_total: payload.payment?.entity?.amount,
-      });
+      let invoice = await this.invoiceService.createInvoice(
+        {
+          source_id: payload.subscription?.entity?.notes?.sourceId,
+          source_type: "process",
+          sub_total: payload.payment?.entity?.amount,
+          document_status: EDocumentStatus.completed,
+          grand_total: payload.payment?.entity?.amount,
+        },
+        payload.subscription?.entity?.notes?.userId
+      );
 
       let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
@@ -1719,7 +1728,10 @@ export class SubscriptionService {
         updated_by: subscriptionData.latestDocument.userId,
       };
       // console.log("creating invoice", invoiceData);
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
 
       const paymentData = {
         amount:
@@ -1915,7 +1927,10 @@ export class SubscriptionService {
           updated_by: subscriptionData?.latestDocument?.userId,
         };
         // console.log("creating invoice", invoiceData);
-        const invoice = await this.invoiceService.createInvoice(invoiceData);
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          subscriptionData?.latestDocument?.userId
+        );
 
         const paymentData = {
           amount:

@@ -177,7 +177,10 @@ export class SubscriptionFactory {
         created_by: token.id,
         updated_by: token.id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const paymentData = {
         amount: bodyData.authAmount,
@@ -301,7 +304,10 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse.currency_code,
         currency: currencyResponse._id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const conversionRateAmt = await this.helperService.getConversionRate(
         currencyCode,
@@ -442,7 +448,10 @@ export class SubscriptionFactory {
       };
       // console.log("invoiceData",invoiceData);
 
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
       const paymentData = {
         amount: bodyData?.authAmount,
         document_status: EDocumentStatus.completed,
@@ -1017,7 +1026,10 @@ export class SubscriptionFactory {
         created_by: token.id,
         updated_by: token.id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const paymentData = {
         amount: data.authAmount,
