@@ -2,6 +2,7 @@ import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
+import { MandatesModule } from "src/mandates/mandates.module";
 import { ProcessModule } from "src/process/process.module";
 import { ServiceRequestModule } from "src/service-request/service-request.module";
 import { SystemConfigurationSchema } from "src/shared/schema/system-configuration.schema";
@@ -37,6 +38,7 @@ import { ServiceItemService } from "./service-item.service";
     AuthModule,
     HelperModule,
     SubscriptionModule,
+    MandatesModule,
     forwardRef(() => ServiceRequestModule),
     forwardRef(() => ProcessModule),
   ],

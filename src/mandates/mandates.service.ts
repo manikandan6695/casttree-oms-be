@@ -2,8 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EMandateStatus } from "./enum/mandate.enum";
 import { Mandate, MandateDocument } from "./schema/mandates.schema";
-
+const { ObjectId } = require("mongodb");
 @Injectable()
 export class MandatesService {
   constructor(
@@ -152,6 +153,51 @@ export class MandatesService {
         .select("_id");
 
       return updatedDoc;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getMandateByProvider(userId: string) {
+    try {
+      let aggregationPipeLine = [];
+      aggregationPipeLine.push(
+        {
+          $sort: {
+            _id: -1,
+          },
+        },
+        {
+          $match: {
+            mandateStatus: {
+              $in: [EMandateStatus.active, EMandateStatus.expired],
+            },
+            userId: new ObjectId(userId),
+          },
+        },
+        {
+          $project: {
+            providerId: 1,
+            amount: 1,
+            mandateStatus: 1,
+          },
+        },
+        {
+          $group: {
+            _id: "$providerId",
+            mandates: {
+              $push: {
+                providerId: "$providerId",
+                amount: "$amount",
+                mandateStatus: "$mandateStatus",
+              },
+            },
+          },
+        }
+      );
+      let data = await this.mandateModel.aggregate(aggregationPipeLine);
+      let mandate = data[0];
+      return { mandate };
     } catch (err) {
       throw err;
     }
