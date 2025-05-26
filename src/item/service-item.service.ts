@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import mongoose, { Model } from "mongoose";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
+import { MandatesService } from "src/mandates/mandates.service";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
@@ -34,8 +35,9 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService,
-    private subscriptionService: SubscriptionService
-  ) { }
+    private subscriptionService: SubscriptionService,
+    private mandateService: MandatesService
+  ) {}
   async getServiceItemDetailbyItemId(itemId) {
     try {
       let data = await this.serviceItemModel
@@ -172,15 +174,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "price"
+                "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+                "currency"
               ];
           }
         });
@@ -258,11 +260,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "comparePrice"
+              "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "currency"
+              "currency"
             ];
         }
       }
@@ -421,15 +423,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "price"
+                "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+                "currency"
               ];
           }
         });
@@ -476,11 +478,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "comparePrice"
+              "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "currency"
+              "currency"
             ];
         }
       }
@@ -626,10 +628,11 @@ export class ServiceItemService {
           },
         },
       ]);
-      const subscriptionData = await this.subscriptionService.validateSubscription(
-        userId,
-        [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
-      );
+      const subscriptionData =
+        await this.subscriptionService.validateSubscription(userId, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
       const isNewSubscription = subscriptionData ? true : false;
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
@@ -834,11 +837,14 @@ export class ServiceItemService {
         componentType: EcomponentType.ActiveProcessList,
       });
 
-      if (isNewSubscription === false && continueWhereYouLeftData.ListData.length === 1) {
+      if (
+        isNewSubscription === false &&
+        continueWhereYouLeftData.ListData.length === 1
+      ) {
         sections.push({
           data: {
             listData: [],
-            banner: premiumBanner, 
+            banner: premiumBanner,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -895,7 +901,7 @@ export class ServiceItemService {
         sections.push({
           data: {
             listData: [],
-            banner: learnHomePageBanner, 
+            banner: learnHomePageBanner,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -1155,7 +1161,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1230,6 +1236,7 @@ export class ServiceItemService {
   async getPromotionDetails(processId, country_code: string = "", userId?) {
     try {
       let subscriptionData;
+      let mandateData;
       let userCountryCode;
       let userData;
       if (userId) {
@@ -1237,7 +1244,10 @@ export class ServiceItemService {
           userId,
           [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
         );
+        mandateData = await this.mandateService.getMandateByProvider(userId);
       }
+      // console.log("mandateData", mandateData);
+
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -1274,7 +1284,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1319,6 +1329,10 @@ export class ServiceItemService {
           subscriptionData ? false : true;
         data.additionalDetail.promotionDetails.planConfig =
           data.additionalDetail?.planConfig;
+        data.additionalDetail.promotionDetails.mandates = mandateData?.mandate
+          ?.mandates.length
+          ? mandateData?.mandate?.mandates
+          : [];
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1347,7 +1361,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1379,7 +1393,7 @@ export class ServiceItemService {
         country_code
       );
       return priceListData;
-    } catch (err) { }
+    } catch (err) {}
   }
   async getServiceItemType(itemId: string) {
     try {
