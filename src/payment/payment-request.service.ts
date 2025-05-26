@@ -46,7 +46,7 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService
-  ) { }
+  ) {}
 
   async initiatePayment(
     body: paymentDTO,
@@ -153,16 +153,19 @@ export class PaymentRequestService {
     if (body.couponCode != null) {
       grand_total = body.amount - body.discount;
     }
-    return await this.invoiceService.createInvoice({
-      itemId: body.itemId,
-      source_id: body?.invoiceDetail?.sourceId,
-      source_type: body?.invoiceDetail?.sourceType,
-      discount_amount: body?.discount,
-      sub_total: body?.amount,
-      currencyCode: body.currencyCode,
-      document_status: EDocumentStatus.pending,
-      grand_total: grand_total,
-    });
+    return await this.invoiceService.createInvoice(
+      {
+        itemId: body.itemId,
+        source_id: body?.invoiceDetail?.sourceId,
+        source_type: body?.invoiceDetail?.sourceType,
+        discount_amount: body?.discount,
+        sub_total: body?.amount,
+        currencyCode: body.currencyCode,
+        document_status: EDocumentStatus.pending,
+        grand_total: grand_total,
+      },
+      token.id
+    );
   }
 
   async createPaymentRecord(
@@ -323,7 +326,9 @@ export class PaymentRequestService {
     // let serviceRequest;
     // if (invoice.source_type == EPaymentSourceType.serviceRequest) {
     let serviceRequest =
-      await this.serviceRequestService.getServiceRequestDetail(invoice.source_id);
+      await this.serviceRequestService.getServiceRequestDetail(
+        invoice.source_id
+      );
 
     // }
 
@@ -393,18 +398,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_id": new ObjectId(sourceId),
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        })
+            $match: {
+              "salesDocument.source_id": new ObjectId(sourceId),
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          })
         : aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        });
+            $match: {
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -461,11 +466,11 @@ export class PaymentRequestService {
       const updateFields: any = {
         reason: body?.reason?.failureReason,
         document_status: body.document_status || body.status,
-        metaData: body.metaData
+        metaData: body.metaData,
       };
 
       const conversionBody = body.conversionBody || {};
-      const optionalFields = ['baseAmount', 'baseCurrency', 'conversionRate'];
+      const optionalFields = ["baseAmount", "baseCurrency", "conversionRate"];
 
       for (const field of optionalFields) {
         if (conversionBody[field] !== undefined) {
@@ -479,10 +484,7 @@ export class PaymentRequestService {
 
       const updateData = await this.paymentModel.updateOne(
         {
-          $or: [
-            { _id: paymentId },
-            { source_id: paymentId }
-          ]
+          $or: [{ _id: paymentId }, { source_id: paymentId }],
         },
         {
           $set: updateFields,
@@ -494,8 +496,6 @@ export class PaymentRequestService {
       throw err;
     }
   }
-
-
 
   async getLatestSubscriptionPayments(userId) {
     try {
