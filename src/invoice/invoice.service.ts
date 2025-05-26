@@ -21,20 +21,20 @@ export class InvoiceService {
     private readonly itemModel: Model<IItemModel>,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private itemDocumentService: ItemDocumentService,
-    private helperService: HelperService
+    private itemDocumentService: ItemDocumentService
+    // private helperService: HelperService
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService
   ) {}
 
   async createInvoice(body, userId: string) {
     try {
-      const [userData, invoice_sequence] = await Promise.all([
-        this.helperService.getUserById(userId),
+      const [invoice_sequence] = await Promise.all([
+        // this.helperService.getUserById(userId),
         this.sharedService.getNextNumber("Invoice", "INV", 5, null),
       ]);
 
-      const countryCode = userData?.data?.country_code;
+      // const countryCode = userData?.data?.country_code;
       const invoice_number = invoice_sequence.toString().padStart(5, "0");
 
       const fv: any = {
@@ -45,10 +45,10 @@ export class InvoiceService {
       };
 
       let gstData;
-      if (countryCode === "IN") {
-        gstData = await this.calculateGST(body.itemId, body.grand_total);
-        fv.tax_amount = gstData.taxAmount.toFixed(2);
-      }
+      // if (countryCode === "IN") {
+      gstData = await this.calculateGST(body.itemId, body.grand_total);
+      fv.tax_amount = gstData.taxAmount.toFixed(2);
+      // }
 
       const data = await this.salesDocumentModel.create(fv);
 
@@ -65,20 +65,20 @@ export class InvoiceService {
         },
       ];
 
-      if (countryCode === "IN") {
-        const taxDetail =
-          gstData?.itemDetails?.item_taxes?.[0]?.item_tax_id || {};
-        itemDocument[0]["item_tax_composition"] = [
-          {
-            tax_id: taxDetail._id,
-            amount: gstData?.amountWithTax?.toFixed(2),
-            amount_without_tax: gstData?.amount?.toFixed(2),
-            tax_amount: gstData?.taxAmount?.toFixed(2),
-            tax_name: taxDetail?.tax_rate,
-            tax_value: taxDetail?.tax_rate,
-          },
-        ];
-      }
+      // if (countryCode === "IN") {
+      const taxDetail =
+        gstData?.itemDetails?.item_taxes?.[0]?.item_tax_id || {};
+      itemDocument[0]["item_tax_composition"] = [
+        {
+          tax_id: taxDetail._id,
+          amount: gstData?.amountWithTax?.toFixed(2),
+          amount_without_tax: gstData?.amount?.toFixed(2),
+          tax_amount: gstData?.taxAmount?.toFixed(2),
+          tax_name: taxDetail?.tax_rate,
+          tax_value: taxDetail?.tax_rate,
+        },
+      ];
+      // }
 
       await this.itemDocumentService.createItemDocuments(itemDocument);
 
