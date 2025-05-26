@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
+import { HelperModule } from "src/helper/helper.module";
 import { ItemDocumentSchema } from "src/item-document/item-document.schema";
 import { ItemDocumentService } from "src/item-document/item-document.service";
 import { ItemSchema } from "src/item/schema/item.schema";
@@ -18,6 +19,7 @@ import { SalesDocumentSchema } from "./schema/sales-document.schema";
     ]),
     SharedModule,
     AuthModule,
+    HelperModule,
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, ItemDocumentService],
