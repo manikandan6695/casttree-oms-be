@@ -19,7 +19,7 @@ import { SalesDocumentSchema } from "./schema/sales-document.schema";
     ]),
     SharedModule,
     AuthModule,
-    HelperService,
+    // HelperService,
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, ItemDocumentService],
