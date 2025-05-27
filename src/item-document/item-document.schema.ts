@@ -6,6 +6,7 @@ export interface IItemTax {
   tax_name: string;
   tax_percentage: number;
   tax_value: number;
+  amount_without_tax: number;
 }
 
 export interface IItemTaxComposition {
@@ -13,6 +14,7 @@ export interface IItemTaxComposition {
   tax_name: string;
   tax_percentage: number;
   tax_value: number;
+  amount_without_tax: number;
 }
 export interface IItemCodesModel {
   code: string;
@@ -100,6 +102,9 @@ export const ItemTaxComposition = new mongoose.Schema({
     type: Number,
   },
   tax_value: {
+    type: Number,
+  },
+  amount_without_tax: {
     type: Number,
   },
 });
