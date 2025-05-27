@@ -75,7 +75,7 @@ export class SubscriptionService {
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.amount
+                  ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -488,7 +488,10 @@ export class SubscriptionService {
         created_by: existingSubscription?.userId,
         updated_by: existingSubscription?.userId,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        existingSubscription?.userId
+      );
       const conversionRateAmt = await this.helperService.getConversionRate(
         transactionHistory?.transactions?.currency,
         transactionHistory?.transactions?.price
@@ -912,13 +915,16 @@ export class SubscriptionService {
         updatedBy: payload.subscription?.entity?.notes?.userId,
       };
       let subscription = await this.subscriptionModel.create(fv);
-      let invoice = await this.invoiceService.createInvoice({
-        source_id: payload.subscription?.entity?.notes?.sourceId,
-        source_type: "process",
-        sub_total: payload.payment?.entity?.amount,
-        document_status: EDocumentStatus.completed,
-        grand_total: payload.payment?.entity?.amount,
-      });
+      let invoice = await this.invoiceService.createInvoice(
+        {
+          source_id: payload.subscription?.entity?.notes?.sourceId,
+          source_type: "process",
+          sub_total: payload.payment?.entity?.amount,
+          document_status: EDocumentStatus.completed,
+          grand_total: payload.payment?.entity?.amount,
+        },
+        payload.subscription?.entity?.notes?.userId
+      );
 
       let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
@@ -1133,11 +1139,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1431,22 +1437,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1510,7 +1516,10 @@ export class SubscriptionService {
         updated_by: subscriptionData.latestDocument.userId,
       };
       // console.log("creating invoice", invoiceData);
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
 
       const paymentData = {
         amount:
@@ -1604,22 +1613,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1711,7 +1720,10 @@ export class SubscriptionService {
           updated_by: subscriptionData?.latestDocument?.userId,
         };
         // console.log("creating invoice", invoiceData);
-        const invoice = await this.invoiceService.createInvoice(invoiceData);
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          subscriptionData?.latestDocument?.userId
+        );
 
         const paymentData = {
           amount:

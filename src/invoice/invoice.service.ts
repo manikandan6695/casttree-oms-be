@@ -8,6 +8,7 @@ import { EDocumentTypeName } from "./enum/document-type-name.enum";
 import { ISalesDocumentModel } from "./schema/sales-document.schema";
 import { ItemService } from "src/item/item.service";
 import { IItemModel } from "src/item/schema/item.schema";
+import { HelperService } from "src/helper/helper.service";
 const { ObjectId } = require("mongodb");
 
 @Injectable()
@@ -19,67 +20,72 @@ export class InvoiceService {
     private readonly itemModel: Model<IItemModel>,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private itemDocumentService: ItemDocumentService
+    private itemDocumentService: ItemDocumentService,
+    private helperService: HelperService
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService
   ) {}
 
-  async createInvoice(body) {
+  async createInvoice(body, userId: string) {
     try {
-      let invoice_sequence = await this.sharedService.getNextNumber(
-        "Invoice",
-        "INV",
-        5,
-        null
-      );
-      let invoice_number = invoice_sequence.toString();
-      let invoice = invoice_number.padStart(5, "0");
+      const [userData, invoice_sequence] = await Promise.all([
+        this.helperService.getUserById(userId),
+        this.sharedService.getNextNumber("Invoice", "INV", 5, null),
+      ]);
 
-      const gstData = await this.calculateGST(body.itemId, body.grand_total);
-      // console.log("GST Data:", gstData);
+      const countryCode = userData?.data?.country_code;
+      const invoice_number = invoice_sequence.toString().padStart(5, "0");
 
-      let fv = {
+      const fv: any = {
         ...body,
+        sales_doc_id_prefix: "INV",
+        sales_document_number: invoice_number,
+        document_number: invoice_number,
       };
-      fv["sales_doc_id_prefix"] = "INV";
-      fv["sales_document_number"] = invoice;
-      fv["document_number"] = invoice;
-      fv["tax_amount"] = gstData.taxAmount.toFixed(2);
 
-      let data = await this.salesDocumentModel.create(fv);
-      await this.itemDocumentService.createItemDocuments([
+      let gstData;
+      if (countryCode === "IN") {
+        gstData = await this.calculateGST(body.itemId, body.grand_total);
+        fv.tax_amount = gstData.taxAmount.toFixed(2);
+      }
+
+      const data = await this.salesDocumentModel.create(fv);
+
+      const itemDocument: any[] = [
         {
           source_id: data._id,
           source_type: EDocumentTypeName.invoice,
           item_id: body.itemId,
           amount: data.sub_total,
-          quantity: data.item_count,
+          quantity: body.item_count,
           user_id: body.user_id,
           created_by: body.created_by,
           updated_by: body.updated_by,
-          item_tax_composition: [
-            {
-              tax_id: gstData?.itemDetails?.item_taxes[0].item_tax_id?._id,
-              amount: gstData?.amountWithTax.toFixed(2),
-              amount_without_tax: gstData?.amount.toFixed(2),
-              tax_amount: gstData?.taxAmount.toFixed(2),
-              tax_name:
-                gstData?.itemDetails?.item_taxes[0].item_tax_id?.tax_rate,
-              // tax_percentage: body.taxPercentage,
-              tax_value:
-                gstData?.itemDetails?.item_taxes[0].item_tax_id.tax_rate,
-            },
-          ],
         },
-      ]);
-      //  console.log("invoice id", data._id);
+      ];
+
+      if (countryCode === "IN") {
+        const taxDetail =
+          gstData?.itemDetails?.item_taxes?.[0]?.item_tax_id || {};
+        itemDocument[0]["item_tax_composition"] = [
+          {
+            tax_id: taxDetail._id,
+            amount: gstData?.amountWithTax?.toFixed(2),
+            amount_without_tax: gstData?.amount?.toFixed(2),
+            tax_amount: gstData?.taxAmount?.toFixed(2),
+            tax_name: taxDetail?.tax_rate,
+            tax_value: taxDetail?.tax_rate,
+          },
+        ];
+      }
+
+      await this.itemDocumentService.createItemDocuments(itemDocument);
 
       return data;
     } catch (err) {
       throw err;
     }
   }
-
   async updateInvoice(id: any, status) {
     try {
       let updateBody: any = {};
@@ -104,7 +110,10 @@ export class InvoiceService {
   async calculateGST(itemId: string, priceIncludingTax: number) {
     try {
       const itemDetails = await this.getItemDetails(itemId);
-      const price = typeof priceIncludingTax === "string" ? parseFloat(priceIncludingTax) : priceIncludingTax;
+      const price =
+        typeof priceIncludingTax === "string"
+          ? parseFloat(priceIncludingTax)
+          : priceIncludingTax;
       const gstRate = itemDetails?.item_taxes?.[0]?.item_tax_id?.tax_rate;
 
       const amount = priceIncludingTax / (1 + gstRate / 100);
