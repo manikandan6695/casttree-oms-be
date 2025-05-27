@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model,Types } from "mongoose";
 import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
 import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
@@ -90,6 +90,18 @@ export class ItemService {
       }, {});
     } catch (err) {
       throw err;
+    }
+  }
+   async getParentItemId(parentId: string) {
+    try {
+      let filter: any = {};
+      if (parentId) {
+        filter.parentItemId = new Types.ObjectId(parentId);
+      }
+      let itemData = await this.itemModel.find(filter).lean();
+      return { itemData };
+    } catch (error) {
+      throw error;
     }
   }
 }

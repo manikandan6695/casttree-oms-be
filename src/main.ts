@@ -13,7 +13,9 @@ async function bootstrap() {
       optionsSuccessStatus: 200,
       origin: JSON.parse(process.env.CORS_ALLOWED_ORIGIN),
       credentials: true,
-      allowedHeaders: process.env.CORS_ALLOWED_HEADERS,
+      allowedHeaders: process.env.CORS_ALLOWED_HEADERS.split(",").map((h) =>
+        h.trim().toLowerCase()
+      ),
       methods: process.env.CORS_ALLOWED_METHODS,
     },
   });
