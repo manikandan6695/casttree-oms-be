@@ -257,7 +257,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     itemGroupId: {
       type: mongoose.Schema.Types.ObjectId,
     },
-    parentItemId:{ type: mongoose.Schema.Types.ObjectId, required: true },
+    parentItemId:{ type: mongoose.Schema.Types.ObjectId},
     additionalDetail: itemAdditionalDetailSchema,
     itemCommissionMarkupType: {
       type: String,

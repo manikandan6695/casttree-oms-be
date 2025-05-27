@@ -99,7 +99,7 @@ export class ItemService {
         filter.parentItemId = new Types.ObjectId(parentId);
       }
       let itemData = await this.itemModel.find(filter).lean();
-      return itemData;
+      return { itemData };
     } catch (error) {
       throw error;
     }
