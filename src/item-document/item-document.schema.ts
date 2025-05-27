@@ -50,7 +50,7 @@ export interface IItemCompositionModel extends mongoose.Document {
   item_tax_excemtion: IItemTax;
   item_tax_composition: IItemTaxComposition[];
   amount: number;
-  amount_with_tax: number;
+  amount_without_tax: number;
 }
 export interface IItemDocumentModel extends mongoose.Document {
   reference_item_id: string;
@@ -76,7 +76,7 @@ export interface IItemDocumentModel extends mongoose.Document {
   t_item_composition: [IItemCompositionModel];
   amount: number;
   status: string;
-  amount_with_tax: number;
+  amount_without_tax: number;
   created_by: any;
   updated_by: any;
 }
