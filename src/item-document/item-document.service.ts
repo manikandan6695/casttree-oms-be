@@ -19,4 +19,26 @@ export class ItemDocumentService {
       throw err;
     }
   }
+  async getItemDocument(sourceId) {
+    try {
+      let data = await this.item_document_model.findOne({
+        source_id: sourceId,
+      });
+      return { data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updateItemDocument(id, body) {
+    try {
+      let data = await this.item_document_model.updateOne(
+        { _id: id },
+        { $set: body }
+      );
+      return { message: "Updated successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
 }

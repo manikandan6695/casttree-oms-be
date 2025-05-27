@@ -31,6 +31,9 @@ export interface ISalesDocumentModel extends mongoose.Document {
   refund: number;
   created_by: any;
   updated_by: any;
+  amount: number;
+  amount_with_tax: number;  
+  tax_amount: number;
 }
 
 export const SalesDocumentSchema = new mongoose.Schema(
