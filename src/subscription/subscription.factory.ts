@@ -11,7 +11,7 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
-import { EProvider, EProviderId } from "./enums/provider.enum";
+import { EProvider, EProviderId, EProviderName } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 import { readFile } from "fs";
@@ -25,6 +25,7 @@ import {
 } from "@apple/app-store-server-library";
 import { EEventType } from "./enums/eventType.enum";
 import { ItemService } from "src/item/item.service";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 const issuerId = process.env.ISSUER_ID;
 const keyId = process.env.KEY_ID;
 const bundleId = process.env.BUNDLE_ID;
@@ -170,7 +171,10 @@ export class SubscriptionFactory {
         created_by: token.id,
         updated_by: token.id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const paymentData = {
         amount: bodyData.authAmount,
@@ -302,7 +306,10 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse.currency_code,
         currency: currencyResponse._id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const conversionRateAmt = await this.helperService.getConversionRate(
         currencyCode,
@@ -356,7 +363,16 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = {
+        userId: token?.id,
+        provider: EProviderName.google,
+        membership: item?.itemName,
+        badge: item?.additionalDetail?.badge,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;
@@ -453,6 +469,16 @@ export class SubscriptionFactory {
   //     createdBy: token.id,
   //     updatedBy: token.id,
   //   });
+  //   let mixPanelBody: any = {};
+  // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+  // mixPanelBody.distinctId = token.id;
+  // mixPanelBody.properties = {
+  //   userId: token?.id,
+  //   provider: EProviderName.google,
+  //   membership: item?.itemName,
+  //   badge: item?.additionalDetail?.badge,
+  // };
+  // await this.helperService.mixPanel(mixPanelBody);
   //   return createdSubscription;
   // }
   // async init() {
@@ -1248,7 +1274,10 @@ export class SubscriptionFactory {
         created_by: token.id,
         updated_by: token.id,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
 
       const paymentData = {
         amount: data.authAmount,

@@ -488,7 +488,10 @@ export class SubscriptionService {
         created_by: existingSubscription?.userId,
         updated_by: existingSubscription?.userId,
       };
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        existingSubscription?.userId
+      );
       const conversionRateAmt = await this.helperService.getConversionRate(
         transactionHistory?.transactions?.currency,
         transactionHistory?.transactions?.price
@@ -862,6 +865,16 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            userId: subscription?.userId,
+            provider: EProvider.razorpay,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
@@ -902,13 +915,16 @@ export class SubscriptionService {
         updatedBy: payload.subscription?.entity?.notes?.userId,
       };
       let subscription = await this.subscriptionModel.create(fv);
-      let invoice = await this.invoiceService.createInvoice({
-        source_id: payload.subscription?.entity?.notes?.sourceId,
-        source_type: "process",
-        sub_total: payload.payment?.entity?.amount,
-        document_status: EDocumentStatus.completed,
-        grand_total: payload.payment?.entity?.amount,
-      });
+      let invoice = await this.invoiceService.createInvoice(
+        {
+          source_id: payload.subscription?.entity?.notes?.sourceId,
+          source_type: "process",
+          sub_total: payload.payment?.entity?.amount,
+          document_status: EDocumentStatus.completed,
+          grand_total: payload.payment?.entity?.amount,
+        },
+        payload.subscription?.entity?.notes?.userId
+      );
 
       let invoiceFV: PaymentRecordData = {
         amount: payload.payment?.entity?.amount,
@@ -1006,14 +1022,24 @@ export class SubscriptionService {
           subscription?.notes?.itemId
         );
 
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.payment_success;
-        mixPanelBody.distinctId = subscription?.userId;
-        mixPanelBody.properties = {
+        let mixPanelBodyData: any = {};
+        mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
+        mixPanelBodyData.distinctId = subscription?.userId;
+        mixPanelBodyData.properties = {
           itemname: item.itemName,
           amount: invoice.grand_total,
           currency_code: invoice.currencyCode,
           serviceItemType: "subscription",
+        };
+        await this.helperService.mixPanel(mixPanelBodyData);
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        mixPanelBody.distinctId = subscription?.userId;
+        mixPanelBody.properties = {
+          userId: subscription?.userId,
+          provider: EProvider.cashfree,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
         };
         await this.helperService.mixPanel(mixPanelBody);
 
@@ -1490,7 +1516,10 @@ export class SubscriptionService {
         updated_by: subscriptionData.latestDocument.userId,
       };
       // console.log("creating invoice", invoiceData);
-      const invoice = await this.invoiceService.createInvoice(invoiceData);
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
 
       const paymentData = {
         amount:
@@ -1691,7 +1720,10 @@ export class SubscriptionService {
           updated_by: subscriptionData?.latestDocument?.userId,
         };
         // console.log("creating invoice", invoiceData);
-        const invoice = await this.invoiceService.createInvoice(invoiceData);
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          subscriptionData?.latestDocument?.userId
+        );
 
         const paymentData = {
           amount:
