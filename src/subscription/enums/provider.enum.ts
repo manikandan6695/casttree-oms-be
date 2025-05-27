@@ -24,3 +24,7 @@ export const ESProviderId = [
   EProviderId.apple,
   EProviderId.google,
 ];
+export enum EProviderName {
+  apple = "apple IAP",
+  google = "google IAP",
+}
