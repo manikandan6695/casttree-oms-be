@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ScheduleModule } from '@nestjs/schedule';
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { ThrottlerBehindProxyGuard } from "./auth/guard/throttle-behind-proxy.guard";
 import { CommentsModule } from "./comments/comments.module";
@@ -12,7 +12,7 @@ import { HelperModule } from "./helper/helper.module";
 import { GetUserOriginMiddleware } from "./helper/middleware/get-user-origin.middleware";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { ItemModule } from "./item/item.module";
-import { MandatesModule } from './mandates/mandates.module';
+import { MandatesModule } from "./mandates/mandates.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
 import { ProcessModule } from "./process/process.module";
 import { ServiceRequestModule } from "./service-request/service-request.module";
@@ -20,6 +20,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
+import { TaxModule } from "./tax/tax.module";
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => {
-       // console.log("db url", config.get("DB_URL"));
+        // console.log("db url", config.get("DB_URL"));
         return {
           uri: config.get("DB_URL"),
         };
@@ -60,7 +61,8 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     ProcessModule,
     SubscriptionModule,
     ScheduleModule.forRoot(),
-    MandatesModule
+    MandatesModule,
+    TaxModule,
   ],
   controllers: [],
   providers: [
@@ -71,9 +73,7 @@ import { SubscriptionModule } from "./subscription/subscription.module";
   ],
 })
 export class AppModule {
- configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(GetUserOriginMiddleware)
-      .forRoutes("/service-item");
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(GetUserOriginMiddleware).forRoutes("/service-item");
   }
 }
