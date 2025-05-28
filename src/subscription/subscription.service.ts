@@ -865,16 +865,16 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
-          let mixPanelBody: any = {};
-          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-          mixPanelBody.distinctId = subscription?.userId;
-          mixPanelBody.properties = {
-            userId: subscription?.userId,
-            provider: EProvider.razorpay,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
-          };
-          await this.helperService.mixPanel(mixPanelBody);
+          // let mixPanelBody: any = {};
+          // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          // mixPanelBody.distinctId = subscription?.userId;
+          // mixPanelBody.properties = {
+          //   userId: subscription?.userId,
+          //   provider: EProvider.razorpay,
+          //   membership: item?.itemName,
+          //   badge: item?.additionalDetail?.badge,
+          // };
+          // await this.helperService.mixPanel(mixPanelBody);
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
@@ -1032,16 +1032,16 @@ export class SubscriptionService {
           serviceItemType: "subscription",
         };
         await this.helperService.mixPanel(mixPanelBodyData);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscription?.userId;
-        mixPanelBody.properties = {
-          userId: subscription?.userId,
-          provider: EProvider.cashfree,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+        // let mixPanelBody: any = {};
+        // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        // mixPanelBody.distinctId = subscription?.userId;
+        // mixPanelBody.properties = {
+        //   userId: subscription?.userId,
+        //   provider: EProvider.cashfree,
+        //   membership: item?.itemName,
+        //   badge: item?.additionalDetail?.badge,
+        // };
+        // await this.helperService.mixPanel(mixPanelBody);
 
         let userBody = {
           userId: subscription?.userId,
