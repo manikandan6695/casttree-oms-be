@@ -363,16 +363,16 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        userId: token?.id,
-        provider: EProviderName.google,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      // let mixPanelBody: any = {};
+      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      // mixPanelBody.distinctId = token.id;
+      // mixPanelBody.properties = {
+      //   userId: token?.id,
+      //   provider: EProviderName.google,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;
