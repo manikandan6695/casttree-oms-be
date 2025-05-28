@@ -286,12 +286,12 @@ export class SubscriptionFactory {
         token
       );
       // console.log("createdSubscription", createdSubscription);
-      const userBody = {
-        userId: createdSubscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // const userBody = {
+      //   userId: createdSubscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       const invoiceData = {
         itemId: data?.notes?.itemId,
         source_id: createdSubscription._id,
@@ -362,16 +362,16 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        userId:token?.id,
-        provider:EProviderName.apple,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      // let mixPanelBody: any = {};
+      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      // mixPanelBody.distinctId = token.id;
+      // mixPanelBody.properties = {
+      //   userId:token?.id,
+      //   provider:EProviderName.apple,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;
@@ -422,12 +422,12 @@ export class SubscriptionFactory {
       // let item = await this.itemService.getItemDetail(
       //   createdSubscription?.notes?.itemId
       // );
-      let userBody = {
-        userId: createdSubscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // let userBody = {
+      //   userId: createdSubscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       let currency =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.currencyCode;
@@ -508,16 +508,16 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        userId:token?.id,
-        provider:EProviderName.google,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      // let mixPanelBody: any = {};
+      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      // mixPanelBody.distinctId = token.id;
+      // mixPanelBody.properties = {
+      //   userId:token?.id,
+      //   provider:EProviderName.google,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;

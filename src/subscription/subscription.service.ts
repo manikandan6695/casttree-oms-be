@@ -395,12 +395,12 @@ export class SubscriptionService {
       let item = await this.itemService.getItemDetail(
         existingSubscription?.notes?.itemId
       );
-      let userBody = {
-        userId: existingSubscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // let userBody = {
+      //   userId: existingSubscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       // console.log("updateResult", updateResult);
       if (updateResult.modifiedCount > 0) {
         const updatedInvoice = await this.invoiceService.updateInvoice(
@@ -481,12 +481,12 @@ export class SubscriptionService {
       let item = await this.itemService.getItemDetail(
         subscription?.notes?.itemId
       );
-      let userBody = {
-        userId: subscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // let userBody = {
+      //   userId: subscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       const invoiceData = {
         itemId: existingSubscription?.notes.itemId,
         source_id: subscription._id,
@@ -624,12 +624,12 @@ export class SubscriptionService {
         let item = await this.itemService.getItemDetail(
           subscription?.notes?.itemId
         );
-        let userBody = {
-          userId: subscription?.userId,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.updateUser(userBody);
+        // let userBody = {
+        //   userId: subscription?.userId,
+        //   membership: item?.itemName,
+        //   badge: item?.additionalDetail?.badge,
+        // };
+        // await this.helperService.updateUser(userBody);
         let updatedInvoice = await this.invoiceService.updateInvoice(
           existingSubscription._id,
           EDocumentStatus.completed
@@ -737,12 +737,12 @@ export class SubscriptionService {
         let item = await this.itemService.getItemDetail(
           subscription?.notes?.itemId
         );
-        let userBody = {
-          userId: subscription?.userId,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.updateUser(userBody);
+        // let userBody = {
+        //   userId: subscription?.userId,
+        //   membership: item?.itemName,
+        //   badge: item?.additionalDetail?.badge,
+        // };
+        // await this.helperService.updateUser(userBody);
         const invoiceData = {
           itemId: existingSubscription?.notes.itemId,
           source_id: subscription._id,
@@ -1091,22 +1091,22 @@ export class SubscriptionService {
             subscription?.notes?.itemId
           );
 
-          let userBody = {
-            userId: subscription?.userId,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
-          };
-          await this.helperService.updateUser(userBody);
-          let mixPanelBody: any = {};
-          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-          mixPanelBody.distinctId = subscription?.userId;
-          mixPanelBody.properties = {
-            userId: subscription?.userId,
-            provider: EProvider.razorpay,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
-          };
-          await this.helperService.mixPanel(mixPanelBody);
+          // let userBody = {
+          //   userId: subscription?.userId,
+          //   membership: item?.itemName,
+          //   badge: item?.additionalDetail?.badge,
+          // };
+          // await this.helperService.updateUser(userBody);
+          // let mixPanelBody: any = {};
+          // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          // mixPanelBody.distinctId = subscription?.userId;
+          // mixPanelBody.properties = {
+          //   userId: subscription?.userId,
+          //   provider: EProvider.razorpay,
+          //   membership: item?.itemName,
+          //   badge: item?.additionalDetail?.badge,
+          // };
+          // await this.helperService.mixPanel(mixPanelBody);
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
@@ -1176,13 +1176,13 @@ export class SubscriptionService {
         payload.subscription?.entity?.notes?.itemId
       );
 
-      let userBody: UserUpdateData = {
-        userId: payload.subscription?.entity?.notes?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
+      // let userBody: UserUpdateData = {
+      //   userId: payload.subscription?.entity?.notes?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
 
-      await this.helperService.updateUser(userBody);
+      // await this.helperService.updateUser(userBody);
     }
   }
 
@@ -1264,23 +1264,23 @@ export class SubscriptionService {
           serviceItemType: "subscription",
         };
         await this.helperService.mixPanel(mixPanelBodyData);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscription?.userId;
-        mixPanelBody.properties = {
-          userId: subscription?.userId,
-          provider: EProvider.cashfree,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+        // let mixPanelBody: any = {};
+        // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        // mixPanelBody.distinctId = subscription?.userId;
+        // mixPanelBody.properties = {
+        //   userId: subscription?.userId,
+        //   provider: EProvider.cashfree,
+        //   membership: item?.itemName,
+        //   badge: item?.additionalDetail?.badge,
+        // };
+        // await this.helperService.mixPanel(mixPanelBody);
 
-        let userBody = {
-          userId: subscription?.userId,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.updateUser(userBody);
+        // let userBody = {
+        //   userId: subscription?.userId,
+        //   membership: item?.itemName,
+        //   badge: item?.additionalDetail?.badge,
+        // };
+        // await this.helperService.updateUser(userBody);
         let userData = await this.helperService.getUserById(
           subscription?.userId
         );
@@ -1395,13 +1395,13 @@ export class SubscriptionService {
       };
       let subscription = await this.subscriptionModel.create(fv);
 
-      let userBody = {
-        userId: token.id,
-        membership: itemDetails?.itemName,
-        badge: itemDetails?.additionalDetail?.badge,
-      };
+      // let userBody = {
+      //   userId: token.id,
+      //   membership: itemDetails?.itemName,
+      //   badge: itemDetails?.additionalDetail?.badge,
+      // };
 
-      await this.helperService.updateUser(userBody);
+      // await this.helperService.updateUser(userBody);
       return subscription;
     } catch (err) {
       throw err;
