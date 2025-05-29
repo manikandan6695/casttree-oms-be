@@ -50,7 +50,7 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService
-  ) {}
+  ) { }
   // async onModuleInit() {
   //   await this.init();
   // }
@@ -211,27 +211,40 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      const transactionId = bodyData.transactionDetails?.transactionId;
+      console.log("bodyData", bodyData);
+
+      const transactionId = bodyData.transactionDetails?.originalTransactionId;
+      console.log("transactionId", transactionId);
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
-      // const existingSubscription =
-      //   await this.subscriptionService.findExternalId(originalTransactionId);
-      const matchingTransaction = await this.getTransactionHistoryById(
-        originalTransactionId
-      );
-      // console.log("matchingTransaction", matchingTransaction);
+      // console.log("originalTransactionId", originalTransactionId);
+
+      const existingSubscription = await this.subscriptionService.findAppleExternalId(originalTransactionId, transactionId);
+      console.log("existingSubscription", existingSubscription);
       // if (existingSubscription) {
       //   console.log("existingSubscription", existingSubscription);
+      //   return existingSubscription
+      // }
+      const matchingTransaction =
+        await this.getTransactionHistoryById(originalTransactionId);
+      console.log("match transaction", matchingTransaction);
+
+      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
+      // if (existingSubscription) {
+      //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
       // }
-      const price = matchingTransaction?.price;
+      const price = matchingTransaction?.price / 1000;
       const currencyCode = matchingTransaction?.currency;
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
+      console.log("expiresDateRaw", expiresDateRaw);
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
-      const item = await this.itemService.getItemDetail(bodyData?.itemId);
+      console.log("subscriptionEnd", subscriptionEnd);
+      let provider = EProviderId.apple
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId,provider);
       const subscriptionData = {
         userId: token.id,
         planId: data.planId,
@@ -271,12 +284,12 @@ export class SubscriptionFactory {
         },
         transactionDetails: {
           transactionId: transactionId,
-          originalTransactionId: originalTransactionId,
+          originalTransactionId: matchingTransaction?.originalTransactionId,
           authAmount: bodyData?.authAmount,
           transactionDate: bodyData?.transactionDate,
           planId: bodyData?.planId,
         },
-        externalId: originalTransactionId,
+        externalId: matchingTransaction?.originalTransactionId,
         currencyCode: currencyResponse.currency_code,
         currencyId: currencyResponse._id,
       };
@@ -286,14 +299,14 @@ export class SubscriptionFactory {
         token
       );
       // console.log("createdSubscription", createdSubscription);
-      const userBody = {
-        userId: createdSubscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // const userBody = {
+      //   userId: createdSubscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       const invoiceData = {
-        itemId: data?.notes?.itemId,
+        itemId: item._id,
         source_id: createdSubscription._id,
         source_type: "subscription",
         sub_total: price,
@@ -348,7 +361,7 @@ export class SubscriptionFactory {
         mandateStatus: EDocumentStatus.active,
         status: EStatus.Active,
         metaData: {
-          externalId: originalTransactionId,
+          externalId: matchingTransaction?.originalTransactionId,
         },
         startDate: new Date(),
         endDate: subscriptionEnd,
@@ -362,17 +375,17 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        userId: token?.id,
-        provider: EProviderName.apple,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
-      return createdSubscription;
+      // let mixPanelBody: any = {};
+      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      // mixPanelBody.distinctId = token.id;
+      // mixPanelBody.properties = {
+      //   userId: token?.id,
+      //   provider: EProviderName.google,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.mixPanel(mixPanelBody);
+      return subscriptionData;
     } catch (error) {
       throw error;
     }
@@ -384,18 +397,20 @@ export class SubscriptionFactory {
 
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
-        await this.subscriptionService.findExternalId(transactionId);
-      // console.log("existing subscription", existingSubscription);
+        await this.subscriptionService.findGoogleExternalId(transactionId);
+      console.log("existing subscription", existingSubscription);
       let matchingTransaction = await this.validateTransactions(
         packageName,
         transactionId
       );
-      // console.log("matchingTransaction", matchingTransaction);
+      console.log("matchingTransaction", matchingTransaction);
+      // const price = matchingTransaction?.price / 1000;
       // let currencyId = await this.helperService.getCurrencyId(
       //   bodyData.currencyCode
       // );
       // let currencyResponse = currencyId?.data?.[0];
-      const item = await this.itemService.getItemDetail(bodyData?.itemId);
+      let provider = EProviderId.google
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId,provider);
 
       let subscriptionData = {
         userId: token.id,
@@ -422,12 +437,12 @@ export class SubscriptionFactory {
       // let item = await this.itemService.getItemDetail(
       //   createdSubscription?.notes?.itemId
       // );
-      let userBody = {
-        userId: createdSubscription?.userId,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.updateUser(userBody);
+      // let userBody = {
+      //   userId: createdSubscription?.userId,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.updateUser(userBody);
       let currency =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.currencyCode;
@@ -444,7 +459,7 @@ export class SubscriptionFactory {
       // console.log(" latestOrderId:rtdn?.transactionInfo?.latestOrderId", rtdn?.transactionInfo?.latestOrderId);
 
       const invoiceData = {
-        itemId: data?.notes?.itemId,
+        itemId: item?._id,
         source_id: createdSubscription._id,
         source_type: "subscription",
         sub_total: 99,
@@ -508,16 +523,16 @@ export class SubscriptionFactory {
         createdBy: token.id,
         updatedBy: token.id,
       });
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        userId: token?.id,
-        provider: EProviderName.google,
-        membership: item?.itemName,
-        badge: item?.additionalDetail?.badge,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      // let mixPanelBody: any = {};
+      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      // mixPanelBody.distinctId = token.id;
+      // mixPanelBody.properties = {
+      //   userId: token?.id,
+      //   provider: EProviderName.google,
+      //   membership: item?.itemName,
+      //   badge: item?.additionalDetail?.badge,
+      // };
+      // await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;
@@ -542,6 +557,12 @@ export class SubscriptionFactory {
   //   );
   // }
   async getTransactionHistoryById(originalTransactionId) {
+    console.log(
+      "inside get transaction id",
+      typeof originalTransactionId,
+      originalTransactionId
+    );
+
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
         if (err) return rej(err);
@@ -571,6 +592,8 @@ export class SubscriptionFactory {
     for (const { name, client } of clients) {
       try {
         let transactionId = originalTransactionId;
+        console.log("transactionId", transactionId);
+
         let response = null;
         let transactions: string[] = [];
         const transactionHistoryRequest = {
@@ -594,6 +617,16 @@ export class SubscriptionFactory {
         const decodedTokens = await Promise.all(
           transactions.map((token) => this.parseJwt(token))
         );
+        console.log("decodedTokens", decodedTokens);
+
+        console.log(
+          "filter decode token",
+          decodedTokens.find(
+            (tx) =>
+              tx.originalTransactionId === transactionId &&
+              tx.transactionReason === "PURCHASE"
+          )
+        );
 
         const purchaseMatch = decodedTokens.find(
           (tx) =>
@@ -602,15 +635,17 @@ export class SubscriptionFactory {
         );
 
         if (purchaseMatch) {
-          // console.log(`✅ Found in ${name}:`, purchaseMatch);
+          console.log(`✅ Found in ${name}:`, purchaseMatch);
           return purchaseMatch;
         }
       } catch (err) {
-        console.warn(`⚠️ Error in ${name} environment: ${err.message}`);
+        // console.warn(`⚠️ Error in ${name} environment: ${err}`);
+        console.log("Error in getTransactionHistoryById", JSON.stringify(err));
       }
     }
-    return "Sandbox receipt used in production";
+    // return "Sandbox receipt used in production";
   }
+
 
   async getTransactionHistory(bodyData) {
     try {

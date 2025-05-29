@@ -2002,12 +2002,29 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async findExternalId(transactionId) {
+  async findAppleExternalId(originalTransactionId,transactionId) {
+    try {
+      let data = await this.subscriptionModel.findOne({
+        "transactionDetails.transactionId": transactionId,
+        "transactionDetails.originalTransactionId":originalTransactionId,
+        providerId:EProviderId.apple,
+        provider: EProvider.apple,
+        status: EStatus.Active
+      });
+      console.log("data",data);
+      
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async findGoogleExternalId(transactionId) {
     try {
       let externalIdData = await this.subscriptionModel.findOne({
         externalId: transactionId,
-        providerId: { $in: [EProviderId.apple, EProviderId.google] },
-        // provider: EProvider.apple,
+        providerId: EProviderId.google,
+        provider: EProvider.google,
+        status:EStatus.Active
       });
       return externalIdData;
     } catch (error) {

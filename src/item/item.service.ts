@@ -5,6 +5,8 @@ import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
 import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
 import { HelperService } from "src/helper/helper.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { EProviderId } from "src/subscription/enums/provider.enum";
 
 @Injectable()
 export class ItemService {
@@ -70,7 +72,23 @@ export class ItemService {
       throw err;
     }
   }
-
+  async getItemByPlanConfig(planConfig: string,provider){
+    try {
+      
+      let data = await this.itemModel.findOne({
+        status:EStatus.Active,
+       "additionalDetail.planConfig": {
+        $elemMatch: {
+          planId: planConfig,
+          providerId:provider
+        }
+      }
+      }).lean()
+      return data
+    } catch (error) {
+      throw error
+    }
+  }
   async getItemDetailByName(name: string) {
     try {
       let data = await this.itemModel.findOne({ itemName: name }).lean();
