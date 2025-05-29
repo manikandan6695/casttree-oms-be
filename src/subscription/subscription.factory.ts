@@ -404,15 +404,15 @@ export class SubscriptionFactory {
         endAt: matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime,
         providerId: data.providerId,
         provider: data.provider,
-        amount: parseInt(bodyData.authAmount),
+        amount: 99,
         notes: data.notes,
         subscriptionStatus: EsubscriptionStatus.active,
         createdBy: token?.id,
         updatedBy: token?.id,
         metaData: matchingTransaction?.transactionInfo,
         externalId: transactionId,
-        // currencyCode: currencyResponse.currency_code,
-        // currencyId: currencyResponse._id,
+        currencyCode: "INR",
+        currencyId: "6091525bf2d365fa107635e2",
       };
 
       const createdSubscription = await this.subscriptionService.subscription(
@@ -447,14 +447,14 @@ export class SubscriptionFactory {
         itemId: data?.notes?.itemId,
         source_id: createdSubscription._id,
         source_type: "subscription",
-        sub_total: bodyData?.authAmount,
+        sub_total: 99,
         document_status: EDocumentStatus.active,
-        grand_total: bodyData?.authAmount,
+        grand_total: 99,
         user_id: token.id,
         created_by: token.id,
         updated_by: token.id,
-        currencyCode: currencyResponses.currency_code,
-        currency: currencyResponses._id,
+        currencyCode: "INR",
+        currency: "6091525bf2d365fa107635e2",
       };
       // console.log("invoiceData",invoiceData);
 
@@ -463,7 +463,7 @@ export class SubscriptionFactory {
         token.id
       );
       const paymentData = {
-        amount: bodyData?.authAmount,
+        amount: 99,
         document_status: EDocumentStatus.completed,
         providerId: EProviderId.google,
         providerName: EProvider.google,
@@ -472,10 +472,10 @@ export class SubscriptionFactory {
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         transactionDate: new Date(),
-        // currencyCode: currencyResponse.currency_code,
+        currencyCode: "INR",
         // currency: currencyResponse._id,
         baseAmount: baseAmount,
-        // baseCurrency: currencyResponse.currency_code,
+        baseCurrency: "INR",
         conversionRate: conversionRateAmt,
       };
       // console.log("paymentData",paymentData);
@@ -489,9 +489,9 @@ export class SubscriptionFactory {
         sourceId: createdSubscription._id,
         userId: token.id,
         paymentMethod: "ONLINE",
-        amount: bodyData?.authAmount,
+        amount: 99,
         providerId: EProviderId.google,
-        // currency: currencyResponse.currency_code,
+        currency: "INR",
         planId: data.planId,
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
