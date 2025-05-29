@@ -366,8 +366,8 @@ export class SubscriptionFactory {
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = token.id;
       mixPanelBody.properties = {
-        userId:token?.id,
-        provider:EProviderName.apple,
+        userId: token?.id,
+        provider: EProviderName.apple,
         membership: item?.itemName,
         badge: item?.additionalDetail?.badge,
       };
@@ -391,10 +391,10 @@ export class SubscriptionFactory {
         transactionId
       );
       // console.log("matchingTransaction", matchingTransaction);
-      let currencyId = await this.helperService.getCurrencyId(
-        bodyData.currencyCode
-      );
-      let currencyResponse = currencyId?.data?.[0];
+      // let currencyId = await this.helperService.getCurrencyId(
+      //   bodyData.currencyCode
+      // );
+      // let currencyResponse = currencyId?.data?.[0];
       const item = await this.itemService.getItemDetail(bodyData?.itemId);
 
       let subscriptionData = {
@@ -411,8 +411,8 @@ export class SubscriptionFactory {
         updatedBy: token?.id,
         metaData: matchingTransaction?.transactionInfo,
         externalId: transactionId,
-        currencyCode: currencyResponse.currency_code,
-        currencyId: currencyResponse._id,
+        // currencyCode: currencyResponse.currency_code,
+        // currencyId: currencyResponse._id,
       };
 
       const createdSubscription = await this.subscriptionService.subscription(
@@ -472,10 +472,10 @@ export class SubscriptionFactory {
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         transactionDate: new Date(),
-        currencyCode: currencyResponse.currency_code,
-        currency: currencyResponse._id,
+        // currencyCode: currencyResponse.currency_code,
+        // currency: currencyResponse._id,
         baseAmount: baseAmount,
-        baseCurrency: currencyResponse.currency_code,
+        // baseCurrency: currencyResponse.currency_code,
         conversionRate: conversionRateAmt,
       };
       // console.log("paymentData",paymentData);
@@ -491,7 +491,7 @@ export class SubscriptionFactory {
         paymentMethod: "ONLINE",
         amount: bodyData?.authAmount,
         providerId: EProviderId.google,
-        currency: currencyResponse.currency_code,
+        // currency: currencyResponse.currency_code,
         planId: data.planId,
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
@@ -512,8 +512,8 @@ export class SubscriptionFactory {
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = token.id;
       mixPanelBody.properties = {
-        userId:token?.id,
-        provider:EProviderName.google,
+        userId: token?.id,
+        provider: EProviderName.google,
         membership: item?.itemName,
         badge: item?.additionalDetail?.badge,
       };
