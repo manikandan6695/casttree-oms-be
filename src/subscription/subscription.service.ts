@@ -320,22 +320,22 @@ export class SubscriptionService {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
-        // console.log("decodeId:", decodeId);
         if (
-          decodeId.notificationType === EEventType.didRenew ||
-          decodeId.subtype === EEventType.subTypeRenew
+          decodeId?.notificationType === EEventType.didRenew ||
+          decodeId?.subtype === EEventType.subTypeRenew
         ) {
           await this.handleAppleIAPRenew(decodeId);
-        } else if (decodeId.notificationType === EEventType.didCancel) {
-          await this.handleAppleIAPCancel(decodeId);
+        } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
+          let body = req.body.decodeId;
+          await this.handleAppleIAPCancel(body);
         } else if (
-          decodeId.notificationType === EEventType.didPurchase &&
-          decodeId.subtype === EEventType.subTypeInitial
+          decodeId?.notificationType === EEventType.didPurchase &&
+          decodeId?.subtype === EEventType.subTypeInitial
         ) {
           await this.handleAppleIAPPurchase(decodeId);
         } else if (
-          decodeId.notificationType === EEventType.expired &&
-          decodeId.subtype === EEventType.expiredSubType
+          decodeId?.notificationType === EEventType.expired &&
+          decodeId?.subtype === EEventType.expiredSubType
         ) {
           await this.handleIapExpired(decodeId);
         }
@@ -530,7 +530,7 @@ export class SubscriptionService {
     }
   }
 
-  async handleAppleIAPCancel(payload) {
+   async handleAppleIAPCancel(payload) {
     try {
       // console.log("payload", payload);
       const transactionHistory =
@@ -540,26 +540,30 @@ export class SubscriptionService {
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
       });
-      let body = {
-        status: EMandateStatus.cancelled,
-        updatedAt: new Date(),
-      };
-      let mandates = await this.mandateService.updateIapStatusCancel(
-        existingSubscription?._id,
-        body
-      );
-      const metaData = {
-        transaction: transactionHistory.transactions,
-        renewal: transactionHistory.renewalInfo,
-      };
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandates?._id,
-        mandateStatus: EMandateStatus.cancelled,
-        metaData: metaData,
-        status: EStatus.Active,
-        createdBy: mandates?.userId,
-        updatedBy: mandates?.userId,
-      });
+      // console.log("existingSubscription", existingSubscription);
+
+      if (existingSubscription) {
+        let body = {
+          status: EMandateStatus.cancelled,
+          updatedAt: new Date(),
+        };
+        let mandates = await this.mandateService.updateIapStatusCancel(
+          existingSubscription?._id,
+          body
+        );
+        const metaData = {
+          transaction: transactionHistory.transactions,
+          renewal: transactionHistory.renewalInfo,
+        };
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandates?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          metaData: metaData,
+          status: EStatus.Active,
+          createdBy: mandates?.userId,
+          updatedBy: mandates?.userId,
+        });
+      }
       return { message: "Updated Successfully" };
     } catch (error) {
       throw error;
