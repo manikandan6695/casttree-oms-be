@@ -244,7 +244,7 @@ export class SubscriptionFactory {
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
       console.log("subscriptionEnd", subscriptionEnd);
       let provider = EProviderId.apple
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId,provider);
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
       const subscriptionData = {
         userId: token.id,
         planId: data.planId,
@@ -412,12 +412,12 @@ export class SubscriptionFactory {
           ?.recurringPrice?.units;
       console.log("price", price);
       const currencyCode = matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
-      console.log("currencyCode",currencyCode);
+      console.log("currencyCode", currencyCode);
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
-      console.log("currencyResponse",currencyResponse);
-      
+      console.log("currencyResponse", currencyResponse);
+
       // let currencyId = await this.helperService.getCurrencyId(
       //   bodyData.currencyCode
       // );
@@ -456,7 +456,7 @@ export class SubscriptionFactory {
       //   badge: item?.additionalDetail?.badge,
       // };
       // await this.helperService.updateUser(userBody);
-     
+
       // let price =
       //   matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
       //     ?.recurringPrice?.units;
@@ -465,8 +465,8 @@ export class SubscriptionFactory {
         price
       );
       let baseAmount = parseInt((price * conversionRateAmt).toString());
-      console.log("baseAmount",baseAmount);
-      
+      console.log("baseAmount", baseAmount);
+
       const invoiceData = {
         itemId: item?._id,
         source_id: createdSubscription._id,
@@ -658,11 +658,11 @@ export class SubscriptionFactory {
 
   async getTransactionHistory(bodyData) {
     try {
-      // console.log("bodyData",bodyData);
+      console.log("bodyData", bodyData);
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      // console.log("purchaseInfo", purchaseInfo);
+      console.log("purchaseInfo", purchaseInfo);
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
@@ -718,11 +718,13 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-      } else if (bodyData.notificationType === EEventType.didCancel) {
+      }
+      else if (bodyData.notificationType === EEventType.didChangeRenewalStatus) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
+        console.log("signedRenewalInfo", signedRenewalInfo);
+        
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
@@ -730,15 +732,16 @@ export class SubscriptionFactory {
           webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
-          revocationReason: purchaseInfo?.parsed?.revocationReason,
+          // revocationReason: purchaseInfo?.parsed?.revocationReason,
           subscriptionGroupIdentifier:
             purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+            originalPurchaseDate:new Date( purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
           purchaseDate: new Date(
             purchaseInfo?.parsed?.purchaseDate
           ).toISOString(),
-          revocationDate: new Date(
-            purchaseInfo?.parsed?.revocationDate
-          ).toISOString(),
+          // revocationDate: new Date(
+          //   purchaseInfo?.parsed?.revocationDate
+          // ).toISOString(),
           expiresDate: new Date(
             purchaseInfo?.parsed?.expiresDate
           ).toISOString(),
@@ -752,18 +755,18 @@ export class SubscriptionFactory {
           price: price,
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-          appAccountToken: purchaseInfo?.parsed?.appAccountToken,
-          isUpgraded: purchaseInfo?.parsed?.isUpgraded,
+          // appAccountToken: purchaseInfo?.parsed?.appAccountToken,
+          // isUpgraded: purchaseInfo?.parsed?.isUpgraded,
         };
-        const renewalPrice = signedRenewalInfo?.renewalPrice;
+        // const renewalPrice = signedRenewalInfo?.renewalPrice;
         // console.log("renewalPrice",renewalPrice.toFixed(2));
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
           productId: signedRenewalInfo?.productId,
           autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: renewalPrice,
-          currency: signedRenewalInfo?.currency,
+          // renewalPrice: renewalPrice,
+          // currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
           recentSubscriptionStartDate: new Date(
