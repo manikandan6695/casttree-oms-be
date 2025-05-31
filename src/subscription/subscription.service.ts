@@ -1287,7 +1287,6 @@ export class SubscriptionService {
       throw error;
     }
   }
-  // @Cron("*/20 * * * * *")
 
   @Cron("0 1 * * *")
   async createCharge() {
@@ -1302,6 +1301,16 @@ export class SubscriptionService {
         {
           $sort: {
             _id: -1,
+          },
+        },
+        {
+          $match: { status: EStatus.Active },
+        },
+        {
+          $match: {
+            subscriptionStatus: {
+              $ne: EsubscriptionStatus.failed,
+            },
           },
         },
         {
@@ -1322,12 +1331,8 @@ export class SubscriptionService {
             $or: [
               {
                 "latestDocument.subscriptionStatus": {
-                  $in: [
-                    EsubscriptionStatus.failed,
-                    EsubscriptionStatus.expired,
-                  ],
+                  $in: [EsubscriptionStatus.expired],
                 },
-                "latestDocument.status": EStatus.Active,
               },
               {
                 $and: [
