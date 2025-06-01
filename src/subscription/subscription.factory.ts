@@ -400,7 +400,7 @@ export class SubscriptionFactory {
         await this.subscriptionService.findGoogleExternalId(transactionId);
       if (existingSubscription) {
         console.log("existing subscription", existingSubscription);
-        return existingSubscription
+        // return existingSubscription
       }
       let matchingTransaction = await this.validateTransactions(
         packageName,
@@ -424,12 +424,12 @@ export class SubscriptionFactory {
       // let currencyResponse = currencyId?.data?.[0];
       let provider = EProviderId.google
       const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
-
+      const subscriptionEnd = matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime;
       let subscriptionData = {
         userId: token.id,
         planId: data.planId,
         startAt: data.startAt,
-        endAt: matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime,
+        endAt: subscriptionEnd,
         providerId: data.providerId,
         provider: data.provider,
         amount: price,
@@ -521,7 +521,7 @@ export class SubscriptionFactory {
         status: EStatus.Active,
         metaData: data.metaData,
         startDate: data.startAt,
-        endDate: data.endAt,
+        endDate: subscriptionEnd,
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
@@ -724,7 +724,7 @@ export class SubscriptionFactory {
           bodyData?.data?.signedRenewalInfo
         );
         console.log("signedRenewalInfo", signedRenewalInfo);
-        
+
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
@@ -735,7 +735,7 @@ export class SubscriptionFactory {
           // revocationReason: purchaseInfo?.parsed?.revocationReason,
           subscriptionGroupIdentifier:
             purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-            originalPurchaseDate:new Date( purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
+          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
           purchaseDate: new Date(
             purchaseInfo?.parsed?.purchaseDate
           ).toISOString(),
