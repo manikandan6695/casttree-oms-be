@@ -400,7 +400,7 @@ export class SubscriptionFactory {
         await this.subscriptionService.findGoogleExternalId(transactionId);
       if (existingSubscription) {
         console.log("existing subscription", existingSubscription);
-        // return existingSubscription
+        return existingSubscription
       }
       let matchingTransaction = await this.validateTransactions(
         packageName,
