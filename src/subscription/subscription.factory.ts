@@ -719,7 +719,7 @@ export class SubscriptionFactory {
           renewalInfo: renewalDetails,
         };
       }
-      else if (bodyData.notificationType === EEventType.didChangeRenewalStatus) {
+      else if (bodyData.notificationType === EEventType.didChangeRenewalStatus&& bodyData.subtype===EEventType.autoRenewDisabled) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );

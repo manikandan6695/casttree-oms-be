@@ -326,8 +326,11 @@ export class SubscriptionService {
         ) {
           await this.handleAppleIAPRenew(decodeId);
         } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
-          let body = req.body.decodeId;
+          if (req.body.decodeId?.subtype===EEventType.autoRenewDisabled) {
+            let body = req.body.decodeId;
           await this.handleAppleIAPCancel(body);
+          }
+          
         } else if (
           decodeId?.notificationType === EEventType.didPurchase &&
           decodeId?.subtype === EEventType.subTypeInitial
