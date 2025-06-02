@@ -24,6 +24,8 @@ export enum EEventType {
   tokenCancel = "token.cancelled",
   tokenPaused = "token.paused",
   tokenRejected = "token.rejected",
+  didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
+  autoRenewDisabled="AUTO_RENEW_DISABLED"
 }
 
 export const ESEventType = [
@@ -42,6 +44,8 @@ export const ESEventType = [
   EEventType.subTypeReSub,
   EEventType.expired,
   EEventType.expiredSubType,
+  EEventType.didChangeRenewalStatus,
+  EEventType.autoRenewDisabled
 ];
 
 export enum EEventId {
