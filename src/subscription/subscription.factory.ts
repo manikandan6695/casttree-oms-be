@@ -221,10 +221,10 @@ export class SubscriptionFactory {
 
       const existingSubscription = await this.subscriptionService.findAppleExternalId(originalTransactionId, transactionId);
       console.log("existingSubscription", existingSubscription);
-      // if (existingSubscription) {
-      //   console.log("existingSubscription", existingSubscription);
-      //   return existingSubscription
-      // }
+      if (existingSubscription) {
+        console.log("existingSubscription", existingSubscription);
+        return existingSubscription
+      }
       const matchingTransaction =
         await this.getTransactionHistoryById(originalTransactionId);
       console.log("match transaction", matchingTransaction);
@@ -244,7 +244,7 @@ export class SubscriptionFactory {
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
       console.log("subscriptionEnd", subscriptionEnd);
       let provider = EProviderId.apple
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId,provider);
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
       const subscriptionData = {
         userId: token.id,
         planId: data.planId,
@@ -398,36 +398,49 @@ export class SubscriptionFactory {
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
         await this.subscriptionService.findGoogleExternalId(transactionId);
-      console.log("existing subscription", existingSubscription);
+      if (existingSubscription) {
+        console.log("existing subscription", existingSubscription);
+        return existingSubscription
+      }
       let matchingTransaction = await this.validateTransactions(
         packageName,
         transactionId
       );
       console.log("matchingTransaction", matchingTransaction);
-      // const price = matchingTransaction?.price / 1000;
+      let price =
+        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+          ?.recurringPrice?.units;
+      console.log("price", price);
+      const currencyCode = matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
+      console.log("currencyCode", currencyCode);
+      const currencyIdRes =
+        await this.helperService.getCurrencyId(currencyCode);
+      const currencyResponse = currencyIdRes?.data?.[0];
+      console.log("currencyResponse", currencyResponse);
+
       // let currencyId = await this.helperService.getCurrencyId(
       //   bodyData.currencyCode
       // );
       // let currencyResponse = currencyId?.data?.[0];
       let provider = EProviderId.google
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId,provider);
-
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
+      const subscriptionEnd = matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime;
       let subscriptionData = {
         userId: token.id,
         planId: data.planId,
         startAt: data.startAt,
-        endAt: matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime,
+        endAt: subscriptionEnd,
         providerId: data.providerId,
         provider: data.provider,
-        amount: 99,
-        notes: data.notes,
+        amount: price,
+        notes: { itemId: item._id },
         subscriptionStatus: EsubscriptionStatus.active,
         createdBy: token?.id,
         updatedBy: token?.id,
         metaData: matchingTransaction?.transactionInfo,
         externalId: transactionId,
-        currencyCode: "INR",
-        currencyId: "6091525bf2d365fa107635e2",
+        currencyCode: currencyCode,
+        currencyId: currencyResponse?._id,
       };
 
       const createdSubscription = await this.subscriptionService.subscription(
@@ -443,33 +456,29 @@ export class SubscriptionFactory {
       //   badge: item?.additionalDetail?.badge,
       // };
       // await this.helperService.updateUser(userBody);
-      let currency =
-        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
-          ?.recurringPrice?.currencyCode;
-      let price =
-        matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
-          ?.recurringPrice?.units;
+
+      // let price =
+      //   matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
+      //     ?.recurringPrice?.units;
       let conversionRateAmt = await this.helperService.getConversionRate(
-        currency,
+        currencyCode,
         price
       );
       let baseAmount = parseInt((price * conversionRateAmt).toString());
-      let currencyIds = await this.helperService.getCurrencyId(currency);
-      let currencyResponses = currencyIds?.data?.[0];
-      // console.log(" latestOrderId:rtdn?.transactionInfo?.latestOrderId", rtdn?.transactionInfo?.latestOrderId);
+      console.log("baseAmount", baseAmount);
 
       const invoiceData = {
         itemId: item?._id,
         source_id: createdSubscription._id,
         source_type: "subscription",
-        sub_total: 99,
+        sub_total: price,
         document_status: EDocumentStatus.active,
-        grand_total: 99,
+        grand_total: price,
         user_id: token.id,
         created_by: token.id,
         updated_by: token.id,
-        currencyCode: "INR",
-        currency: "6091525bf2d365fa107635e2",
+        currencyCode: currencyCode,
+        currency: currencyResponse._id,
       };
       // console.log("invoiceData",invoiceData);
 
@@ -478,7 +487,7 @@ export class SubscriptionFactory {
         token.id
       );
       const paymentData = {
-        amount: 99,
+        amount: price,
         document_status: EDocumentStatus.completed,
         providerId: EProviderId.google,
         providerName: EProvider.google,
@@ -487,8 +496,8 @@ export class SubscriptionFactory {
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         transactionDate: new Date(),
-        currencyCode: "INR",
-        // currency: currencyResponse._id,
+        currencyCode: currencyCode,
+        currency: currencyResponse._id,
         baseAmount: baseAmount,
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
@@ -504,15 +513,15 @@ export class SubscriptionFactory {
         sourceId: createdSubscription._id,
         userId: token.id,
         paymentMethod: "ONLINE",
-        amount: 99,
+        amount: price,
         providerId: EProviderId.google,
-        currency: "INR",
+        currency: currencyCode,
         planId: data.planId,
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
         metaData: data.metaData,
         startDate: data.startAt,
-        endDate: data.endAt,
+        endDate: subscriptionEnd,
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
@@ -649,11 +658,11 @@ export class SubscriptionFactory {
 
   async getTransactionHistory(bodyData) {
     try {
-      // console.log("bodyData",bodyData);
+      console.log("bodyData", bodyData);
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      // console.log("purchaseInfo", purchaseInfo);
+      console.log("purchaseInfo", purchaseInfo);
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
@@ -709,11 +718,13 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-      } else if (bodyData.notificationType === EEventType.didCancel) {
+      }
+      else if (bodyData.notificationType === EEventType.didChangeRenewalStatus) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
-        // console.log("signedRenewalInfo", signedRenewalInfo);
+        console.log("signedRenewalInfo", signedRenewalInfo);
+
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
           transactionId: purchaseInfo?.parsed?.transactionId,
@@ -721,15 +732,16 @@ export class SubscriptionFactory {
           webOrderLineItemId: purchaseInfo?.parsed?.webOrderLineItemId,
           bundleId: purchaseInfo?.parsed?.bundleId,
           productId: purchaseInfo?.parsed?.productId,
-          revocationReason: purchaseInfo?.parsed?.revocationReason,
+          // revocationReason: purchaseInfo?.parsed?.revocationReason,
           subscriptionGroupIdentifier:
             purchaseInfo?.parsed?.subscriptionGroupIdentifier,
+          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
           purchaseDate: new Date(
             purchaseInfo?.parsed?.purchaseDate
           ).toISOString(),
-          revocationDate: new Date(
-            purchaseInfo?.parsed?.revocationDate
-          ).toISOString(),
+          // revocationDate: new Date(
+          //   purchaseInfo?.parsed?.revocationDate
+          // ).toISOString(),
           expiresDate: new Date(
             purchaseInfo?.parsed?.expiresDate
           ).toISOString(),
@@ -743,18 +755,18 @@ export class SubscriptionFactory {
           price: price,
           currency: purchaseInfo?.parsed?.currency,
           appTransactionId: purchaseInfo?.parsed?.appTransactionId,
-          appAccountToken: purchaseInfo?.parsed?.appAccountToken,
-          isUpgraded: purchaseInfo?.parsed?.isUpgraded,
+          // appAccountToken: purchaseInfo?.parsed?.appAccountToken,
+          // isUpgraded: purchaseInfo?.parsed?.isUpgraded,
         };
-        const renewalPrice = signedRenewalInfo?.renewalPrice;
+        // const renewalPrice = signedRenewalInfo?.renewalPrice;
         // console.log("renewalPrice",renewalPrice.toFixed(2));
         const renewalDetails = {
           originalTransactionId: signedRenewalInfo?.originalTransactionId,
           autoRenewProductId: signedRenewalInfo?.autoRenewProductId,
           productId: signedRenewalInfo?.productId,
           autoRenewStatus: signedRenewalInfo?.autoRenewStatus,
-          renewalPrice: renewalPrice,
-          currency: signedRenewalInfo?.currency,
+          // renewalPrice: renewalPrice,
+          // currency: signedRenewalInfo?.currency,
           signedDate: new Date(signedRenewalInfo?.signedDate).toISOString(),
           environment: signedRenewalInfo?.environment,
           recentSubscriptionStartDate: new Date(
