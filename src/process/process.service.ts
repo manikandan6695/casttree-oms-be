@@ -416,19 +416,22 @@ export class ProcessService {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         userId,
-        [EsubscriptionStatus.initiated, EsubscriptionStatus.expired, EsubscriptionStatus.failed]
+        [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.expired,
+          EsubscriptionStatus.failed,
+        ]
       );
       let paidInstances = [];
       if (!subscription) {
         let payment = await this.paymentService.getPaymentDetailBySource(
-
           userId,
           null,
           EPaymentSourceType.processInstance
         );
         payment.paymentData.map((data) => {
-          paidInstances.push(data.salesDocument.source_id.toString())
-        })
+          paidInstances.push(data.salesDocument.source_id.toString());
+        });
       }
       const mySeries: any = await this.processInstancesModel
         .find({ userId: userId, processStatus: status })
@@ -437,8 +440,8 @@ export class ProcessService {
       for (let i = 0; i < mySeries.length; i++) {
         if (subscription) {
           mySeries[i].currentTask.isLocked = false;
-
-        } if (paidInstances.length > 0) {
+        }
+        if (paidInstances.length > 0) {
           if (paidInstances.includes(mySeries[i]._id.toString())) {
             mySeries[i].currentTask.isLocked = false;
           }
@@ -481,7 +484,7 @@ export class ProcessService {
     }
   }
 
-  async getAllTasks(processId, token: UserToken) {
+  async getAllTasks(processId, skip: number, limit: number, token: UserToken) {
     try {
       let userProcessInstanceData: any = await this.processInstanceDetailsModel
         .find({ processId: processId, createdBy: token.id })
@@ -506,6 +509,8 @@ export class ProcessService {
           processId: processId,
         })
         .sort({ taskNumber: 1 })
+        .skip(skip)
+        .limit(limit)
         .lean();
       let createdInstanceTasks = [];
       userProcessInstanceData.map((data) => {

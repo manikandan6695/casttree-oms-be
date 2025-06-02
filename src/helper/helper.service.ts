@@ -758,11 +758,11 @@ export class HelperService {
       throw err;
     }
   }
-  async getNominations(id: string) {
+  async getNominations(id: string, skip: number, limit: number) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/nominations/award/${id}`
+          `${this.configService.get("CASTTREE_BASE_URL")}/nominations/award/${id}?skip=${skip}&limit=${limit}`
           // `http://localhost:3000/casttree/nominations/award/${id}`
         )
         .toPromise();
