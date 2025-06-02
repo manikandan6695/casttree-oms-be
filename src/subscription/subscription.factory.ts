@@ -299,12 +299,12 @@ export class SubscriptionFactory {
         token
       );
       // console.log("createdSubscription", createdSubscription);
-      // const userBody = {
-      //   userId: createdSubscription?.userId,
-      //   membership: item?.itemName,
-      //   badge: item?.additionalDetail?.badge,
-      // };
-      // await this.helperService.updateUser(userBody);
+      const userBody = {
+        userId: createdSubscription?.userId,
+        membership: item?.itemName,
+        badge: item?.additionalDetail?.badge,
+      };
+      await this.helperService.updateUser(userBody);
       const invoiceData = {
         itemId: item._id,
         source_id: createdSubscription._id,
@@ -450,12 +450,12 @@ export class SubscriptionFactory {
       // let item = await this.itemService.getItemDetail(
       //   createdSubscription?.notes?.itemId
       // );
-      // let userBody = {
-      //   userId: createdSubscription?.userId,
-      //   membership: item?.itemName,
-      //   badge: item?.additionalDetail?.badge,
-      // };
-      // await this.helperService.updateUser(userBody);
+      let userBody = {
+        userId: createdSubscription?.userId,
+        membership: item?.itemName,
+        badge: item?.additionalDetail?.badge,
+      };
+      await this.helperService.updateUser(userBody);
 
       // let price =
       //   matchingTransaction?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
