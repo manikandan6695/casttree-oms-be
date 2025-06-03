@@ -236,20 +236,20 @@ export class SubscriptionFactory {
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
-      let provider = EProviderId.apple
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
+      // let provider = EProviderId.apple
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, bodyData?.providerId);
       const subscriptionData = {
-        userId: token.id,
-        planId: data.planId,
+        userId: token?.id,
+        planId: data?.planId,
         startAt: new Date(),
         endAt: subscriptionEnd,
         providerId: data.providerId,
         provider: data.provider,
         amount: price,
-        notes: { itemId: item._id },
+        notes: { itemId: item?._id },
         subscriptionStatus: EsubscriptionStatus.active,
-        createdBy: token.id,
-        updatedBy: token.id,
+        createdBy: token?.id,
+        updatedBy: token?.id,
         metaData: {
           transaction: {
             transactionId: matchingTransaction?.transactionId,
@@ -283,8 +283,8 @@ export class SubscriptionFactory {
           planId: bodyData?.planId,
         },
         externalId: matchingTransaction?.originalTransactionId,
-        currencyCode: currencyResponse.currency_code,
-        currencyId: currencyResponse._id,
+        currencyCode: currencyResponse?.currency_code,
+        currencyId: currencyResponse?._id,
       };
       // console.log("subscriptionData", subscriptionData);
       const createdSubscription = await this.subscriptionService.subscription(
@@ -299,17 +299,17 @@ export class SubscriptionFactory {
       };
       await this.helperService.updateUser(userBody);
       const invoiceData = {
-        itemId: item._id,
-        source_id: createdSubscription._id,
+        itemId: item?._id,
+        source_id: createdSubscription?._id,
         source_type: "subscription",
         sub_total: price,
         document_status: EDocumentStatus.completed,
         grand_total: price,
-        user_id: token.id,
-        created_by: token.id,
-        updated_by: token.id,
-        currencyCode: currencyResponse.currency_code,
-        currency: currencyResponse._id,
+        user_id: token?.id,
+        created_by: token?.id,
+        updated_by: token?.id,
+        currencyCode: currencyResponse?.currency_code,
+        currency: currencyResponse?._id,
       };
       const invoice = await this.invoiceService.createInvoice(
         invoiceData,
@@ -328,11 +328,11 @@ export class SubscriptionFactory {
         providerName: EProvider.apple,
         transactionDate: new Date(),
         metaData: {
-          externalId: data.metaData.externalId,
+          externalId: data?.metaData?.externalId,
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
-        currencyCode: currencyResponse.currency_code,
-        currencyId: currencyResponse._id,
+        currencyCode: currencyResponse?.currency_code,
+        currencyId: currencyResponse?._id,
         baseAmount: baseAmount,
         baseCurrency: currencyCode,
         conversionRate: conversionRateAmt,
@@ -344,14 +344,14 @@ export class SubscriptionFactory {
       );
 
       const mandateData = {
-        sourceId: createdSubscription._id,
-        userId: token.id,
+        sourceId: createdSubscription?._id,
+        userId: token?.id,
         paymentMethod: "ONLINE",
         amount: price,
         providerId: EProviderId.apple,
-        currency: currencyResponse.currency_code,
-        planId: data.planId,
-        mandateStatus: EDocumentStatus.active,
+        currency: currencyResponse?.currency_code,
+        planId: data?.planId,
+        mandateStatus: EDocumentStatus?.active,
         status: EStatus.Active,
         metaData: {
           externalId: matchingTransaction?.originalTransactionId,
@@ -361,12 +361,12 @@ export class SubscriptionFactory {
       };
       const mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
+        mandateId: mandate?._id,
         mandateStatus: EDocumentStatus.active,
         status: EStatus.Active,
-        metaData: data.metaData,
-        createdBy: token.id,
-        updatedBy: token.id,
+        metaData: data?.metaData,
+        createdBy: token?.id,
+        updatedBy: token?.id,
       });
       // let mixPanelBody: any = {};
       // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
@@ -390,7 +390,7 @@ export class SubscriptionFactory {
 
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
-        await this.subscriptionService.findGoogleExternalId(transactionId);
+      await this.subscriptionService.findGoogleExternalId(transactionId,token?.id);
       if (existingSubscription) {
         return existingSubscription
       }
@@ -411,18 +411,18 @@ export class SubscriptionFactory {
       //   bodyData.currencyCode
       // );
       // let currencyResponse = currencyId?.data?.[0];
-      let provider = EProviderId.google
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
+      // let provider = EProviderId.google
+      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, bodyData?.providerId);
       const subscriptionEnd = matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime;
       let subscriptionData = {
-        userId: token.id,
-        planId: data.planId,
-        startAt: data.startAt,
+        userId: token?.id,
+        planId: data?.planId,
+        startAt: data?.startAt,
         endAt: subscriptionEnd,
-        providerId: data.providerId,
-        provider: data.provider,
+        providerId: data?.providerId,
+        provider: data?.provider,
         amount: price,
-        notes: { itemId: item._id },
+        notes: { itemId: item?._id },
         subscriptionStatus: EsubscriptionStatus.active,
         createdBy: token?.id,
         updatedBy: token?.id,
@@ -456,16 +456,16 @@ export class SubscriptionFactory {
       let baseAmount = parseInt((price * conversionRateAmt).toString());
       const invoiceData = {
         itemId: item?._id,
-        source_id: createdSubscription._id,
+        source_id: createdSubscription?._id,
         source_type: "subscription",
         sub_total: price,
         document_status: EDocumentStatus.active,
         grand_total: price,
-        user_id: token.id,
-        created_by: token.id,
-        updated_by: token.id,
+        user_id: token?.id,
+        created_by: token?.id,
+        updated_by: token?.id,
         currencyCode: currencyCode,
-        currency: currencyResponse._id,
+        currency: currencyResponse?._id,
       };
       // console.log("invoiceData",invoiceData);
 
