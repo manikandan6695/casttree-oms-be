@@ -2181,7 +2181,7 @@ export class SubscriptionService {
         const config = await this.helperService.getSystemConfig(itemId);
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
-          ? eligibilityList.some((e) => e._id === userItemId)
+          ? eligibilityList.some((e) => e._id.toString() === userItemId.toString())
           : false;
       }
       return {
