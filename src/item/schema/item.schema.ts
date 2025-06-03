@@ -72,6 +72,7 @@ export interface IItemModel extends mongoose.Document {
   status?: any;
   data_create_mode: string;
   comparePrice: number;
+  parentItemId: string;
 }
 
 export interface IStockDetails {
@@ -256,6 +257,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     itemGroupId: {
       type: mongoose.Schema.Types.ObjectId,
     },
+    parentItemId:{ type: mongoose.Schema.Types.ObjectId},
     additionalDetail: itemAdditionalDetailSchema,
     itemCommissionMarkupType: {
       type: String,

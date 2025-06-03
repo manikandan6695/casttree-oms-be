@@ -18,6 +18,17 @@ import { ItemService } from "./item.service";
 @Controller("item")
 export class ItemController {
   constructor(private itemService: ItemService) {}
+
+  @Get("parent-items")
+  async getParentItems(@Query("parentId") parentId: string) {
+    try {
+      let data = await this.itemService.getParentItemId(parentId);
+      return data;
+    } catch (error) {
+      return error;
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get("platformItem")
   async getPlatformItem(
@@ -46,9 +57,13 @@ export class ItemController {
   }
 
   @Get("get-item/:id")
-  async getItem(@Param("id") id: string) {
+  async getItem(
+    @Param("id") id: string,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number
+  ) {
     try {
-      let data = await this.itemService.getItem(id);
+      let data = await this.itemService.getItem(id, skip, limit);
       return data;
     } catch (err) {
       return err;
