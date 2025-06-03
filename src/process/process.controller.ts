@@ -75,8 +75,8 @@ export class ProcessController {
   async getAllTasks(
     @GetToken() token: UserToken,
     @Param("processId") processId: string,
-    @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("skip") skip: number,
+    @Query("limit") limit: number
   ) {
     try {
       let data = await this.processsService.getAllTasks(

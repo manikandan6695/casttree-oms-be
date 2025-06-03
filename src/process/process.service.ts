@@ -509,8 +509,8 @@ export class ProcessService {
           processId: processId,
         })
         .sort({ taskNumber: 1 })
-        .skip(skip)
-        .limit(limit)
+        .skip(skip || 0)
+        .limit(limit || 50)
         .lean();
       let createdInstanceTasks = [];
       userProcessInstanceData.map((data) => {
