@@ -66,6 +66,7 @@ export class SubscriptionService {
     try {
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
+      let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
       switch (body.provider) {
         case "razorpay":
           let item = await this.itemService.getItemDetail(body.itemId);
@@ -182,6 +183,7 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
+          body["mandateExpiryTime"] = mandateExpiryTime;
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
@@ -201,6 +203,7 @@ export class SubscriptionService {
           };
           break;
         case EProvider.google:
+          body["mandateExpiryTime"] = mandateExpiryTime;
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
