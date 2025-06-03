@@ -479,12 +479,12 @@ export class SubscriptionFactory {
         providerId: EProviderId.google,
         providerName: EProvider.google,
         metaData: {
-          externalId: data.metaData.externalId,
+          externalId: data?.metaData?.externalId,
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         transactionDate: new Date(),
         currencyCode: currencyCode,
-        currency: currencyResponse._id,
+        currency: currencyResponse?._id,
         baseAmount: baseAmount,
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
@@ -497,8 +497,8 @@ export class SubscriptionFactory {
         invoice
       );
       let mandateData = {
-        sourceId: createdSubscription._id,
-        userId: token.id,
+        sourceId: createdSubscription?._id,
+        userId: token?.id,
         paymentMethod: "ONLINE",
         amount: price,
         providerId: EProviderId.google,
@@ -512,12 +512,12 @@ export class SubscriptionFactory {
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
+        mandateId: mandate?._id,
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
         metaData: data.metaData,
-        createdBy: token.id,
-        updatedBy: token.id,
+        createdBy: token?.id,
+        updatedBy: token?.id,
       });
       // let mixPanelBody: any = {};
       // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
