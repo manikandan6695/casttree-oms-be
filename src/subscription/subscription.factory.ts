@@ -506,8 +506,8 @@ export class SubscriptionFactory {
         planId: data.planId,
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
-        metaData: data.metaData,
-        startDate: data.startAt,
+        metaData: data?.metaData,
+        startDate: data?.startAt,
         endDate: bodyData?.mandateExpiryTime,
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
