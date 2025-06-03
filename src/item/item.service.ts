@@ -64,8 +64,8 @@ export class ItemService {
       const awardId = awardData?._id;
       const nominationsData = await this.helperService.getNominations(
         awardId,
-        skip,
-        limit
+        skip || 0,
+        limit || 200
       );
       return {
         item: itemData,

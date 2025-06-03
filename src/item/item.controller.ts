@@ -59,8 +59,8 @@ export class ItemController {
   @Get("get-item/:id")
   async getItem(
     @Param("id") id: string,
-    @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("skip") skip: number,
+    @Query("limit") limit: number
   ) {
     try {
       let data = await this.itemService.getItem(id, skip, limit);
