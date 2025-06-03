@@ -15,6 +15,9 @@ import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
+import { Cron } from "@nestjs/schedule";
+import { HttpService } from "@nestjs/axios";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import {
   EPaymentSourceType,
   EPaymentStatus,
@@ -22,6 +25,10 @@ import {
   ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
+import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
+import { SubscriptionService } from "src/subscription/subscription.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { EVENT_RECONCILE_CASHFREE, EVENT_RECONCILE_RAZORPAY } from "src/shared/app.constants";
 
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -43,9 +50,13 @@ export class PaymentRequestService {
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
+    private http_service: HttpService,
+    @Inject(forwardRef(() => SubscriptionService))
+    private subscriptionService: SubscriptionService,
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
-    private serviceItemService: ServiceItemService
+    private serviceItemService: ServiceItemService,
+    private eventEmitter: EventEmitter2
   ) { }
 
   async initiatePayment(
@@ -554,54 +565,160 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  // Uncomment and implement if handling other statuses like failed
-  // async failPayment(ids) {
-  //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
-  //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
-  // }
+  private getProviderConfig(providerName: EProvider) {
+    const configs = {
+      [EProvider.razorpay]: {
+        key: this.configService.get("RAZORPAY_API_KEY"),
+        secret: this.configService.get("RAZORPAY_SECRET_KEY"),
+        baseUrl: this.configService.get("RAZORPAY_BASE_URL"),
+        paymentEndpoint: (orderId: string) => `/v1/orders/${orderId}/payments`
+      },
+      [EProvider.cashfree]: {
+        key: this.configService.get("CASHFREE_API_KEY"),
+        secret: this.configService.get("CASHFREE_SECRET_KEY"),
+        baseUrl: this.configService.get("CASHFREE_BASE_URL"),
+        paymentEndpoint: (orderId: string) => `/pg/orders/${orderId}/payments`
+      }
+    };
+    return configs[providerName];
+  }
+  private async getPendingOrders(providerName: EProvider) {
+    const filter = {
+      document_status: EDocumentStatus.pending,
+      providerName,
+    };
+    return this.paymentModel.find(filter);
+  }
 
-  // @Cron("00 5 * * * *")
-  // async handleCron() {
-  //   let paymentRequestData: any = this.getPaymentDetail(
-  //     "66cb5a55fd108b6e491595aa"
-  //   );
-  //   let orderId = await paymentRequestData.payment.payment_order_id;
+  private async reconcileOrder(order, providerConfig) {
+    try {
+      const orderId = order?.payment_order_id;
+      // console.log("orderId", orderId);
 
-  //   try {
-  //     const PaymentStatusResponse: any = await firstValueFrom(
-  //       this.httpService.get("https://api.razorpay.com/v1/orders/" + orderId, {
-  //         headers: {
-  //           Authorization:
-  //             `Basic ` +
-  //             Buffer.from(
-  //               `rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`
-  //             ).toString("base64"),
-  //         },
-  //       })
-  //     );
+      const paymentResponse = await this.http_service.get(
+        `${providerConfig.baseUrl}${providerConfig.paymentEndpoint(orderId)}`,
+        {
+          auth: {
+            username: providerConfig?.key,
+            password: providerConfig?.secret,
+          },
+        }
+      ).toPromise();
 
-  //     // Return the response data
+      const payments = paymentResponse.data?.items || [];
 
-  //     this.updatePaymentRequest(PaymentStatusResponse.data);
-  //   } catch (error) {
-  //     // Handle errors
+      for (const payment of payments) {
+        await this.handlePaymentUpdate(order, payment);
+      }
+    } catch (error) {
+      // console.log("error", error);
+      return error
+    }
+  }
 
-  //     throw error;
-  //   }
-  // }
+  private async handlePaymentUpdate(order, payment) {
+    const providerName = order.providerName;
+    const orderId = order.payment_order_id;
+    // console.log("orderId", orderId);
 
-  //   testhmac() {
-  //     /* var crypto = require('crypto');
-  // var hmac = crypto.createHmac('sha256', 'casttree@2024');
-  // var expected_signature = hmac.update(JSON.stringify({name:"pavan"}));*/
-  //     var crypto = require("crypto");
-  //     const hash = crypto
-  //       .createHmac("sha1", "casttree@2024")
-  //       .update(JSON.stringify({ name: "pavan" }))
-  //       .digest("hex");
+    if (providerName === EProvider.razorpay && payment.id) {
+      await this.paymentModel.updateOne(
+        {
+          payment_order_id: orderId,
+          status: EStatus.Active,
+          providerName: EProvider.razorpay,
+          providerId: EProviderId.razorpay,
+          document_status: EDocumentStatus.pending,
+        },
+        { $set: { referenceId: payment.id } }
+      );
+    }
 
-  //   }
-  // }
-  // function hmac(arg0: string, message: any, key: any) {
-  //   throw new Error("Function not implemented.");
+    const documentStatus = payment.status === "captured"
+      ? EDocumentStatus.completed
+      : EDocumentStatus.failed;
+
+    const reason = payment.status === "failed"
+      ? payment?.error_description
+      : payment?.error_description;
+
+    const paymentData = await this.paymentModel.findOneAndUpdate(
+      {
+        payment_order_id: orderId,
+        providerName,
+        document_status: EDocumentStatus.pending,
+      },
+      {
+        $set: { document_status: documentStatus, reason },
+      },
+      { new: true }
+    );
+    // console.log("paymentData", paymentData);
+
+    if (paymentData?.source_id) {
+      const body = {
+        id: paymentData?.source_id,
+        document_status: documentStatus,
+      };
+      const salesDocument = await this.invoiceService.updateSalesDocument(body);
+      // console.log("salesDocument", salesDocument)
+      await this.subscriptionService.updateSubscriptionData({
+        id: salesDocument?.source_id,
+        subscriptionStatus: documentStatus,
+        providerName,
+      });
+    }
+  }
+
+  @Cron("0 * * * *")
+  async handleRecon() {
+    try {
+      const supportedProviders = [EProvider.razorpay];
+
+      for (const providerName of supportedProviders) {
+        const eventMap = {
+          [EProvider.razorpay]: EVENT_RECONCILE_RAZORPAY,
+          [EProvider.cashfree]: EVENT_RECONCILE_CASHFREE,
+        };
+
+        const eventName = eventMap[providerName];
+        if (eventName) {
+          this.eventEmitter.emit(eventName); 
+          console.log(`[${providerName}] Reconciliation event emitted.`);
+        }
+      }
+    } catch (error) {
+      // console.error("Error in handleRecon:", error.message);
+      throw error;
+    }
+  }
+
+
+  @OnEvent(EVENT_RECONCILE_RAZORPAY)
+  async handleRazorpayReconciliation() {
+    await this.handleReconciliationEvent(EProvider.razorpay);
+  }
+
+  @OnEvent(EVENT_RECONCILE_CASHFREE)
+  async handleCashfreeReconciliation() {
+    await this.handleReconciliationEvent(EProvider.cashfree);
+  }
+  private async handleReconciliationEvent(providerName: EProvider) {
+    try {
+      const providerConfig = this.getProviderConfig(providerName);
+
+      const orders = await this.getPendingOrders(providerName);
+      // console.log(`[${providerName}] Pending Orders:`, orders.map(order => order._id));
+
+      for (const order of orders) {
+        await this.reconcileOrder(order, providerConfig);
+      }
+
+      // console.log(`[${providerName}] Reconciliation completed.`);
+    } catch (error) {
+      throw error;
+      // console.error(`[${providerName}] Reconciliation failed:`, error.message);
+    }
+  }
+
 }

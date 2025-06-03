@@ -48,6 +48,7 @@ export interface IPaymentModel extends mongoose.Document {
   baseCurrency: string;
   baseAmount: number;
   conversionRate: number;
+  referenceId: string;
   transactionDate: Date;
   metaData: any;
   created_by: any;
@@ -123,6 +124,9 @@ export const PaymentSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
+    },
+    referenceId: {
+      type: String,
     },
     total_tax_amount: {
       type: Number,

@@ -47,6 +47,7 @@ export class SubscriptionFactory {
     @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService
   ) {}
