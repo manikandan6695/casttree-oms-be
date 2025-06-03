@@ -364,7 +364,7 @@ export class SubscriptionFactory {
           externalId: matchingTransaction?.originalTransactionId,
         },
         startDate: new Date(),
-        endDate: subscriptionEnd,
+        endDate: bodyData?.mandateExpiryTime
       };
       const mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
@@ -521,7 +521,7 @@ export class SubscriptionFactory {
         status: EStatus.Active,
         metaData: data.metaData,
         startDate: data.startAt,
-        endDate: subscriptionEnd,
+        endDate: bodyData?.mandateExpiryTime
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
