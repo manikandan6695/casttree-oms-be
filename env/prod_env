@@ -103,4 +103,7 @@ KEY_ID="53Y2MPF778"
 BUNDLE_ID="com.billionfaces.casttree"
 FILEPATH="/opt/apple-iap-config/apple-subscription-key.p8"
 ENVIRONMENT="Production"
-
+# Google IAP
+GOOGLE_FILE_PATH="/opt/google-iap-config/google-config.json"
+PACKAGE_NAME="com.billionfaces.casttree"
+SCOPES="https://www.googleapis.com/auth/androidpublisher"

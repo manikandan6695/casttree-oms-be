@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model,Types } from "mongoose";
+import { Model, Types } from "mongoose";
 import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
 import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
 import { HelperService } from "src/helper/helper.service";
+import { EStatus } from "src/service-request/enum/service-request.enum";
 
 @Injectable()
 export class ItemService {
@@ -55,12 +56,16 @@ export class ItemService {
     }
   }
 
-  async getItem(id: string) {
+  async getItem(id: string, skip: number, limit: number) {
     try {
       const itemData = await this.itemModel.findOne({ _id: id }).lean();
       const awardData = await this.helperService.getAward(id);
       const awardId = awardData?._id;
-      const nominationsData = await this.helperService.getNominations(awardId);
+      const nominationsData = await this.helperService.getNominations(
+        awardId,
+        skip || 0,
+        limit || 200
+      );
       return {
         item: itemData,
         award: awardData,
@@ -92,7 +97,7 @@ export class ItemService {
       throw err;
     }
   }
-   async getParentItemId(parentId: string) {
+  async getParentItemId(parentId: string) {
     try {
       let filter: any = {};
       if (parentId) {
@@ -100,6 +105,24 @@ export class ItemService {
       }
       let itemData = await this.itemModel.find(filter).lean();
       return { itemData };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getItemByPlanConfig(planConfig: string, provider) {
+    try {
+      let data = await this.itemModel
+        .findOne({
+          status: EStatus.Active,
+          "additionalDetail.planConfig": {
+            $elemMatch: {
+              planId: planConfig,
+              providerId: provider,
+            },
+          },
+        })
+        .lean();
+      return data;
     } catch (error) {
       throw error;
     }
