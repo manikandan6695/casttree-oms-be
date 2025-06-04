@@ -284,7 +284,7 @@ export class HelperService {
 
   async addSubscription(body) {
     try {
-      console.log("addSubscription body is", body);
+      // console.log("addSubscription body is", body);
       let fv = {
         amount: body?.amount,
         currency: body?.currency,
@@ -296,7 +296,7 @@ export class HelperService {
           expire_at: body?.token.expire_at,
         },
       };
-      console.log("razorpay order creation fv", fv);
+      // console.log("razorpay order creation fv", fv);
 
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
@@ -308,7 +308,7 @@ export class HelperService {
           },
         })
         .toPromise();
-      console.log("response data is ==>", data.data);
+      // console.log("response data is ==>", data.data);
 
       return data.data;
     } catch (err) {

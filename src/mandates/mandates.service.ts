@@ -91,7 +91,7 @@ export class MandatesService {
 
   async updateMandateDetail(filter: any, criteria: any) {
     try {
-      console.log("inside mandate update service", filter, criteria);
+      // console.log("inside mandate update service", filter, criteria);
 
       await this.mandateModel.updateOne(filter, criteria);
       let mandate = await this.mandateModel.findOne(filter);
@@ -128,10 +128,10 @@ export class MandatesService {
       throw new Error(error);
     }
   }
-   async updateIapStatus(id, data) {
+  async updateIapStatus(id, data) {
     try {
       // console.log("data",data,id);
-      
+
       let updateStatus = await this.mandateModel.findOneAndUpdate(
         { "metaData.externalId": id },
         { $set: { mandateStatus: data.status, updatedAt: data.updatedAt } }
