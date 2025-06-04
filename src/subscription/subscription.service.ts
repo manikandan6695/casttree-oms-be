@@ -331,7 +331,6 @@ export class SubscriptionService {
           await this.handleAppleIAPRenew(decodeId);
         } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
           if (req.body.decodeId?.subtype===EEventType.autoRenewDisabled) {
-            console.log("cancel body",req?.body)
             let body = req.body.decodeId;
           await this.handleAppleIAPCancel(body);
           }
@@ -349,7 +348,6 @@ export class SubscriptionService {
         if (eventType.notificationType === EEventId.renew) {
           await this.handleGoogleIAPRenew(req.body);
         } else if (eventType.notificationType === EEventId.cancel) {
-          console.log(req?.body)
           await this.handleGoogleIAPCancel(req.body);
         }
         // else if (eventType.notificationType === EEventId.purchase) {
