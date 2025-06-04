@@ -2015,7 +2015,7 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async findAppleExternalId(originalTransactionId, transactionId) {
+  async findAppleExternalId(originalTransactionId, transactionId,userId) {
     try {
       let data = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId": transactionId,
@@ -2023,6 +2023,7 @@ export class SubscriptionService {
         providerId: EProviderId.apple,
         provider: EProvider.apple,
         status: EStatus.Active,
+        userId:userId
       });
       console.log("data", data);
 
