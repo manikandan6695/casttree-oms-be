@@ -218,7 +218,7 @@ export class SubscriptionFactory {
         data?.transactionDetails?.originalTransactionId;
       // console.log("originalTransactionId", originalTransactionId);
 
-      const existingSubscription = await this.subscriptionService.findAppleExternalId(originalTransactionId, transactionId);
+      const existingSubscription = await this.subscriptionService.findAppleExternalId(originalTransactionId, transactionId, token?.id);
       if (existingSubscription) {
         return existingSubscription
       }
