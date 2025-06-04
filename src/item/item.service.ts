@@ -109,15 +109,16 @@ export class ItemService {
       throw error;
     }
   }
-  async getItemByPlanConfig(planConfig: string, provider) {
+  async getItemByPlanConfig(planConfig: string, provider: any) {
     try {
+      let providerId = parseInt(provider);
       let data = await this.itemModel
         .findOne({
           status: EStatus.Active,
           "additionalDetail.planConfig": {
             $elemMatch: {
               planId: planConfig,
-              providerId: provider,
+              providerId: providerId,
             },
           },
         })
