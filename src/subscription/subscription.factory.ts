@@ -55,7 +55,7 @@ export class SubscriptionFactory {
   //   await this.init();
   // }
   getProvider(providerName: string): SubscriptionProvider {
-    console.log("providerName", providerName);
+    // console.log("providerName", providerName);
 
     const providers: Record<string, SubscriptionProvider> = {
       razorpay: {
@@ -158,7 +158,7 @@ export class SubscriptionFactory {
       let mandate = await this.mandateService.addMandate(mandateData, token);
 
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.initiated,
         status: EStatus.Active,
         metaData: auth,
@@ -211,7 +211,7 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      console.log("bodyData", bodyData);
+      // console.log("bodyData", bodyData);
 
       const transactionId = bodyData.transactionDetails?.originalTransactionId;
       const originalTransactionId =
@@ -224,7 +224,7 @@ export class SubscriptionFactory {
       }
       const matchingTransaction =
         await this.getTransactionHistoryById(originalTransactionId);
-      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
+      // console.log("matchingTransaction", JSON.stringify(matchingTransaction));
       // if (existingSubscription) {
       //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
@@ -336,6 +336,7 @@ export class SubscriptionFactory {
         baseAmount: baseAmount,
         baseCurrency: currencyCode,
         conversionRate: conversionRateAmt,
+        paymentType:"Auth"
       };
       await this.paymentService.createPaymentRecord(
         paymentData,
@@ -361,7 +362,7 @@ export class SubscriptionFactory {
       };
       const mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EDocumentStatus.active,
         status: EStatus.Active,
         metaData: data?.metaData,
@@ -398,7 +399,7 @@ export class SubscriptionFactory {
         packageName,
         transactionId
       );
-      console.log("matchingTransaction", matchingTransaction);
+      // console.log("matchingTransaction", matchingTransaction);
       let price =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.units;
@@ -488,6 +489,7 @@ export class SubscriptionFactory {
         baseAmount: baseAmount,
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
+        paymentType:"Auth"
       };
       // console.log("paymentData",paymentData);
 
@@ -512,7 +514,7 @@ export class SubscriptionFactory {
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.active,
         status: EStatus.Active,
         metaData: data.metaData,
@@ -553,11 +555,11 @@ export class SubscriptionFactory {
   //   );
   // }
   async getTransactionHistoryById(originalTransactionId) {
-    console.log(
-      "inside get transaction id",
-      typeof originalTransactionId,
-      originalTransactionId
-    );
+    // console.log(
+    //   "inside get transaction id",
+    //   typeof originalTransactionId,
+    //   originalTransactionId
+    // );
 
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
@@ -588,7 +590,7 @@ export class SubscriptionFactory {
     for (const { name, client } of clients) {
       try {
         let transactionId = originalTransactionId;
-        console.log("transactionId", transactionId);
+        // console.log("transactionId", transactionId);
 
         let response = null;
         let transactions: string[] = [];
@@ -613,16 +615,16 @@ export class SubscriptionFactory {
         const decodedTokens = await Promise.all(
           transactions.map((token) => this.parseJwt(token))
         );
-        console.log("decodedTokens", decodedTokens);
+        // console.log("decodedTokens", decodedTokens);
 
-        console.log(
-          "filter decode token",
-          decodedTokens.find(
-            (tx) =>
-              tx.originalTransactionId === transactionId &&
-              tx.transactionReason === "PURCHASE"
-          )
-        );
+        // console.log(
+        //   "filter decode token",
+        //   decodedTokens.find(
+        //     (tx) =>
+        //       tx.originalTransactionId === transactionId &&
+        //       tx.transactionReason === "PURCHASE"
+        //   )
+        // );
 
         const purchaseMatch = decodedTokens.find(
           (tx) =>
@@ -631,12 +633,13 @@ export class SubscriptionFactory {
         );
 
         if (purchaseMatch) {
-          console.log(`✅ Found in ${name}:`, purchaseMatch);
+          // console.log(`✅ Found in ${name}:`, purchaseMatch);
           return purchaseMatch;
         }
       } catch (err) {
+        throw err
         // console.warn(`⚠️ Error in ${name} environment: ${err}`);
-        console.log("Error in getTransactionHistoryById", JSON.stringify(err));
+        // console.log("Error in getTransactionHistoryById", JSON.stringify(err));
       }
     }
     // return "Sandbox receipt used in production";
@@ -645,11 +648,11 @@ export class SubscriptionFactory {
 
   async getTransactionHistory(bodyData) {
     try {
-      console.log("bodyData", bodyData);
+      // console.log("bodyData", bodyData);
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      console.log("purchaseInfo", purchaseInfo);
+      // console.log("purchaseInfo", purchaseInfo);
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
@@ -710,7 +713,7 @@ export class SubscriptionFactory {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
-        console.log("signedRenewalInfo", signedRenewalInfo);
+        // console.log("signedRenewalInfo", signedRenewalInfo);
 
         const price = purchaseInfo?.parsed?.price;
         let transactionDetails = {
@@ -947,7 +950,7 @@ export class SubscriptionFactory {
 
   async validateTransactions(packageName, data) {
     try {
-      console.log("packageName", packageName, data);
+      // console.log("packageName", packageName, data);
       const auth = new google.auth.GoogleAuth({
         keyFile: googleFile,
         scopes: [scopes],
@@ -1059,7 +1062,7 @@ export class SubscriptionFactory {
       let mandate = await this.mandateService.addMandate(mandateData, token);
 
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.initiated,
         status: EStatus.Active,
         metaData: { customerId: customerId },

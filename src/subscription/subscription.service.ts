@@ -264,11 +264,11 @@ export class SubscriptionService {
         return map[id];
       };
       const provider = getProviderName(providerId);
-      console.log("provider:", provider);
+      // console.log("provider:", provider);
       // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
-        console.log("event name", event);
+        // console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
           await this.handleRazorpaySubscriptionPayment(payload);
@@ -362,7 +362,7 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      console.log("transactionHistory", transactionHistory);
+      // console.log("transactionHistory", transactionHistory);
       const transactionId = transactionHistory?.transactions?.transactionId;
       const originalTransactionId =
         transactionHistory?.transactions?.originalTransactionId;
@@ -435,7 +435,7 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      console.log("transactionHistory", transactionHistory);
+      // console.log("transactionHistory", transactionHistory);
       const existingSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
         subscriptionStatus: EStatus.Active,
@@ -534,7 +534,7 @@ export class SubscriptionService {
       // console.log("payload", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      console.log("transactionHistory", transactionHistory);
+      // console.log("transactionHistory", transactionHistory);
       let existingSubscription = await this.subscriptionModel.findOne({
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
@@ -554,7 +554,7 @@ export class SubscriptionService {
           renewal: transactionHistory.renewalInfo,
         };
         await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandates?._id,
+          mandateId: mandates?._id.toString(),
           mandateStatus: EMandateStatus.cancelled,
           metaData: metaData,
           status: EStatus.Active,
@@ -571,7 +571,7 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-        console.log("transactionHistory",transactionHistory)
+        // console.log("transactionHistory",transactionHistory)
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
@@ -604,7 +604,7 @@ export class SubscriptionService {
     try {
       // console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("rtdn purchase",rtdn);
+      // console.log("rtdn purchase",rtdn);
       let subscription;
       if (rtdn.notificationType === EEventId.purchase) {
         let existingSubscription = await this.subscriptionModel.findOne({
@@ -689,7 +689,7 @@ export class SubscriptionService {
     try {
       // console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("RTDN Received for renew:", rtdn);
+      // console.log("RTDN Received for renew:", rtdn);
       if (rtdn.notificationType === EEventId.renew) {
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
@@ -796,7 +796,7 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("rtdn cancel",rtdn);
+      // console.log("rtdn cancel",rtdn);
       
       if (rtdn.notificationType === EEventId.cancel) {
         const body = {
@@ -810,7 +810,7 @@ export class SubscriptionService {
         );
         // console.log("mandate", mandate);
         await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandate?._id,
+          mandateId: mandate?._id.toString(),
           mandateStatus: EMandateStatus.cancelled,
           metaData: rtdn.transactionInfo,
           status: EStatus.Active,
@@ -882,7 +882,7 @@ export class SubscriptionService {
         }
       );
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.cancel_initiated,
         "metaData.additionalDetail": payload?.token?.entity,
         status: EStatus.Active,
@@ -908,7 +908,7 @@ export class SubscriptionService {
         }
       );
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.cancelled,
         "metaData.additionalDetail": payload?.token?.entity,
         status: EStatus.Active,
@@ -934,7 +934,7 @@ export class SubscriptionService {
         }
       );
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.rejected,
         "metaData.additionalDetail": payload?.token?.entity,
         status: EStatus.Active,
@@ -960,7 +960,7 @@ export class SubscriptionService {
         }
       );
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.paused,
         "metaData.additionalDetail": payload?.token?.entity,
         status: EStatus.Active,
@@ -1032,7 +1032,7 @@ export class SubscriptionService {
         }
       );
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
+        mandateId: mandate?._id.toString(),
         mandateStatus: EMandateStatus.active,
         "metaData.additionalDetail": payload?.token?.entity,
         status: EStatus.Active,
@@ -1085,7 +1085,7 @@ export class SubscriptionService {
               }
             );
             await this.mandateHistoryService.createMandateHistory({
-              mandateId: mandate?._id,
+              mandateId: mandate?._id.toString(),
               mandateStatus: EMandateStatus.active,
               "metaData.additionalDetail": payload?.token?.entity,
               status: EStatus.Active,
@@ -1211,7 +1211,7 @@ export class SubscriptionService {
       await mandate.save();
 
       await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
+        mandateId: mandate._id.toString(),
         mandateStatus: newStatus,
         metaData: payload,
       });
