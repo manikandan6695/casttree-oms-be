@@ -66,6 +66,7 @@ export class ItemService {
           award: awardData,
         };
       } else {
+        // console.log("inside else");
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
         const awardId = awardData?._id;
