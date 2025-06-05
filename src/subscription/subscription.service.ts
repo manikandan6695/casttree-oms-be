@@ -323,18 +323,21 @@ export class SubscriptionService {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
-        
+
         if (
           decodeId?.notificationType === EEventType.didRenew ||
           decodeId?.subtype === EEventType.subTypeRenew
         ) {
           await this.handleAppleIAPRenew(decodeId);
-        } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
-          if (req.body.decodeId?.subtype===EEventType.autoRenewDisabled) {
+        } else if (
+          req?.body?.decodeId &&
+          req.body.decodeId?.notificationType ===
+            EEventType.didChangeRenewalStatus
+        ) {
+          if (req.body.decodeId?.subtype === EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
-          await this.handleAppleIAPCancel(body);
+            await this.handleAppleIAPCancel(body);
           }
-          
         } else if (
           decodeId?.notificationType === EEventType.expired &&
           decodeId?.subtype === EEventType.expiredSubType
@@ -371,7 +374,6 @@ export class SubscriptionService {
       });
       // console.log("existingSubscription", existingSubscription);
 
-      
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
@@ -529,7 +531,7 @@ export class SubscriptionService {
     }
   }
 
-   async handleAppleIAPCancel(payload) {
+  async handleAppleIAPCancel(payload) {
     try {
       // console.log("payload", payload);
       const transactionHistory =
@@ -571,7 +573,7 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-        // console.log("transactionHistory",transactionHistory)
+      // console.log("transactionHistory",transactionHistory)
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
@@ -797,7 +799,7 @@ export class SubscriptionService {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       // console.log("rtdn cancel",rtdn);
-      
+
       if (rtdn.notificationType === EEventId.cancel) {
         const body = {
           status: EMandateStatus.cancelled,
@@ -1543,6 +1545,16 @@ export class SubscriptionService {
           },
         },
         {
+          $match: { status: EStatus.Active },
+        },
+        {
+          $match: {
+            subscriptionStatus: {
+              $ne: EsubscriptionStatus.failed,
+            },
+          },
+        },
+        {
           $group: {
             _id: "$userId",
             latestDocument: { $first: "$$ROOT" },
@@ -1671,22 +1683,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -2009,31 +2021,31 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async findAppleExternalId(originalTransactionId,transactionId,userId) {
+  async findAppleExternalId(originalTransactionId, transactionId, userId) {
     try {
       let data = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId": transactionId,
-        "transactionDetails.originalTransactionId":originalTransactionId,
-        providerId:EProviderId.apple,
+        "transactionDetails.originalTransactionId": originalTransactionId,
+        providerId: EProviderId.apple,
         provider: EProvider.apple,
         status: EStatus.Active,
-        userId:userId
+        userId: userId,
       });
       // console.log("data",data);
-      
+
       return data;
     } catch (error) {
       throw error;
     }
   }
-  async findGoogleExternalId(transactionId,userId) {
+  async findGoogleExternalId(transactionId, userId) {
     try {
       let externalIdData = await this.subscriptionModel.findOne({
         externalId: transactionId,
         providerId: EProviderId.google,
         provider: EProvider.google,
-        status:EStatus.Active,
-        userId: userId
+        status: EStatus.Active,
+        userId: userId,
       });
       return externalIdData;
     } catch (error) {
@@ -2183,7 +2195,9 @@ export class SubscriptionService {
         const config = await this.helperService.getSystemConfig(itemId);
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
-          ? eligibilityList.some((e) => e._id.toString() === userItemId.toString())
+          ? eligibilityList.some(
+              (e) => e._id.toString() === userItemId.toString()
+            )
           : false;
       }
       return {
@@ -2194,5 +2208,4 @@ export class SubscriptionService {
       throw error;
     }
   }
-
 }
