@@ -57,21 +57,30 @@ export class ItemService {
     }
   }
 
-  async getItem(id: string, skip: number, limit: number) {
+  async getItem(id: string, skip: number, limit: number, apiVersion: string) {
     try {
-      const itemData = await this.itemModel.findOne({ _id: id }).lean();
-      const awardData = await this.helperService.getAward(id);
-      const awardId = awardData?._id;
-      const nominationsData = await this.helperService.getNominations(
-        awardId,
-        skip || 0,
-        limit || 200
-      );
-      return {
-        item: itemData,
-        award: awardData,
-        participants: nominationsData,
-      };
+      if (apiVersion === "2") {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        return {
+          item: itemData,
+          award: awardData,
+        };
+      } else {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        const awardId = awardData?._id;
+        const nominationsData = await this.helperService.getNominations(
+          awardId,
+          skip || 0,
+          limit || 200
+        );
+        return {
+          item: itemData,
+          award: awardData,
+          participants: nominationsData,
+        };
+      }
     } catch (err) {
       throw err;
     }

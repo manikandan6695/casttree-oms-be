@@ -8,6 +8,7 @@ import {
   ValidationPipe,
   Headers,
   Req,
+  Version,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
@@ -58,12 +59,39 @@ export class ItemController {
 
   @Get("get-item/:id")
   async getItem(
+    @Req() req,
     @Param("id") id: string,
     @Query("skip") skip: number,
     @Query("limit") limit: number
   ) {
     try {
-      let data = await this.itemService.getItem(id, skip, limit);
+      let data = await this.itemService.getItem(
+        id,
+        skip,
+        limit,
+        req.headers["x-api-version"]
+      );
+      return data;
+    } catch (err) {
+      return err;
+    }
+  }
+
+  @Get("get-item/:id")
+  @Version("2")
+  async getItemV2(
+    @Req() req,
+    @Param("id") id: string,
+    @Query("skip") skip: number,
+    @Query("limit") limit: number
+  ) {
+    try {
+      let data = await this.itemService.getItem(
+        id,
+        skip,
+        limit,
+        req.headers["x-api-version"]
+      );
       return data;
     } catch (err) {
       return err;
