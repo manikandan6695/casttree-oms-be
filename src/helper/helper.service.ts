@@ -6,9 +6,13 @@ import { catchError, lastValueFrom, map } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
-
+import { SettlementService } from "src/settlement/settlement.service";
 @Injectable()
 export class HelperService {
+private readonly razorpayKeyId = process.env.RAZORPAY_API_KEY;
+private readonly razorpayKeySecret = process.env.RAZORPAY_SECRET_KEY;
+baseUrl = 'https://api.razorpay.com/v1/settlements/recon/combined?year=2025&month=06&day=04';
+
   constructor(
     private http_service: HttpService,
     private configService: ConfigService,
@@ -772,6 +776,31 @@ export class HelperService {
       throw err;
     }
   }
+
+  async getCombinedSettlementRecon(year: number, month: number, day: number): Promise<any> {
+    const url = `${this.baseUrl}/settlements/recon/combined`;
+
+    try {
+      const response = await axios.get(url, {
+        auth: {
+          username: this.razorpayKeyId,
+          password: this.razorpayKeySecret,
+        },
+        params: {
+          year,
+          month,
+          day,
+        },
+      });
+
+      console.log('Recon Combined Data:', response.data);
+      return response.data.items ?? [];
+    } catch (error) {
+      console.error('Error fetching combined recon:', error.response?.data || error.message);
+      return [];
+    }
+  }
+  
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {
