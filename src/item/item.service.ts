@@ -65,13 +65,11 @@ export class ItemService {
     accessToken?: string
   ) {
     try {
-      console.log("accessToken is", accessToken);
+      // console.log("accessToken is", accessToken);
 
       if (apiVersion === "2") {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
-        console.log("awardData is", awardData);
-
         const application = await this.helperService.getUserApplication(
           awardData?._id,
           accessToken

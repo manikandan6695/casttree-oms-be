@@ -69,7 +69,8 @@ export class ItemController {
         id,
         skip,
         limit,
-        req.headers["x-api-version"]
+        req.headers["x-api-version"],
+        req.headers["authorization"]
       );
       return data;
     } catch (err) {

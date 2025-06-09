@@ -779,7 +779,7 @@ export class HelperService {
           `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
           {
             headers: {
-              Authorization: `Bearer ${rawToken}`,
+              Authorization: `${rawToken}`,
             },
           }
         )
