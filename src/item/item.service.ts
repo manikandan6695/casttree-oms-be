@@ -57,14 +57,28 @@ export class ItemService {
     }
   }
 
-  async getItem(id: string, skip: number, limit: number, apiVersion: string) {
+  async getItem(
+    id: string,
+    skip: number,
+    limit: number,
+    apiVersion: string,
+    accessToken?: string
+  ) {
     try {
+      // console.log("accessToken is", accessToken);
+
       if (apiVersion === "2") {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
+        const application = await this.helperService.getUserApplication(
+          awardData?._id,
+          accessToken
+        );
+        const isSubmitted = application ? true : false;
         return {
           item: itemData,
           award: awardData,
+          isSubmitted: isSubmitted,
         };
       } else {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
