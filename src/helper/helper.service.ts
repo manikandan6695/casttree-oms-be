@@ -772,6 +772,25 @@ export class HelperService {
       throw err;
     }
   }
+  async getUserApplication(awardId: string, rawToken) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${rawToken}`,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      // console.log("err is", err);
+
+      throw err;
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {
