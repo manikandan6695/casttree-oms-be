@@ -74,7 +74,13 @@ export class ItemService {
           awardData?._id,
           accessToken
         );
-        const isSubmitted = application ? true : false;
+        // console.log("application is", application);
+
+        const isSubmitted =
+          application ||
+          new Date(itemData?.additionalDetail?.registrationExpiry) < new Date()
+            ? true
+            : false;
         return {
           item: itemData,
           award: awardData,
