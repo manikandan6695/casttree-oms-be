@@ -50,7 +50,7 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService
-  ) { }
+  ) {}
   // async onModuleInit() {
   //   await this.init();
   // }
@@ -112,7 +112,7 @@ export class SubscriptionFactory {
       };
       const auth = await this.helperService.createAuth(authData);
       let endDate = new Date(bodyData?.firstCharge);
-      let endAt = endDate.setHours(23, 59, 59, 999);
+      let endAt = endDate.setHours(18, 29, 59, 999);
       const subscriptionData = {
         userId: token.id,
         planId: subscription?.plan_details?.plan_id,
@@ -219,14 +219,20 @@ export class SubscriptionFactory {
         data?.transactionDetails?.originalTransactionId;
       // console.log("originalTransactionId", originalTransactionId);
 
-      const existingSubscription = await this.subscriptionService.findAppleExternalId(originalTransactionId, transactionId,token?.id);
+      const existingSubscription =
+        await this.subscriptionService.findAppleExternalId(
+          originalTransactionId,
+          transactionId,
+          token?.id
+        );
       console.log("existingSubscription", existingSubscription);
       // if (existingSubscription) {
       //   console.log("existingSubscription", existingSubscription);
       //   return existingSubscription
       // }
-      const matchingTransaction =
-        await this.getTransactionHistoryById(originalTransactionId);
+      const matchingTransaction = await this.getTransactionHistoryById(
+        originalTransactionId
+      );
       console.log("match transaction", matchingTransaction);
 
       console.log("matchingTransaction", JSON.stringify(matchingTransaction));
@@ -243,8 +249,11 @@ export class SubscriptionFactory {
       console.log("expiresDateRaw", expiresDateRaw);
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
       console.log("subscriptionEnd", subscriptionEnd);
-      let provider = EProviderId.apple
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
+      let provider = EProviderId.apple;
+      const item = await this.itemService.getItemByPlanConfig(
+        bodyData?.planId,
+        provider
+      );
       const subscriptionData = {
         userId: token.id,
         planId: data.planId,
@@ -364,7 +373,7 @@ export class SubscriptionFactory {
           externalId: matchingTransaction?.originalTransactionId,
         },
         startDate: new Date(),
-        endDate: bodyData?.mandateExpiryTime
+        endDate: bodyData?.mandateExpiryTime,
       };
       const mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
@@ -400,7 +409,7 @@ export class SubscriptionFactory {
         await this.subscriptionService.findGoogleExternalId(transactionId);
       if (existingSubscription) {
         console.log("existing subscription", existingSubscription);
-        return existingSubscription
+        return existingSubscription;
       }
       let matchingTransaction = await this.validateTransactions(
         packageName,
@@ -411,7 +420,9 @@ export class SubscriptionFactory {
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.units;
       console.log("price", price);
-      const currencyCode = matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
+      const currencyCode =
+        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+          ?.recurringPrice?.currencyCode;
       console.log("currencyCode", currencyCode);
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
@@ -422,9 +433,13 @@ export class SubscriptionFactory {
       //   bodyData.currencyCode
       // );
       // let currencyResponse = currencyId?.data?.[0];
-      let provider = EProviderId.google
-      const item = await this.itemService.getItemByPlanConfig(bodyData?.planId, provider);
-      const subscriptionEnd = matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime;
+      let provider = EProviderId.google;
+      const item = await this.itemService.getItemByPlanConfig(
+        bodyData?.planId,
+        provider
+      );
+      const subscriptionEnd =
+        matchingTransaction?.transactionInfo?.lineItems[0]?.expiryTime;
       let subscriptionData = {
         userId: token.id,
         planId: data.planId,
@@ -521,7 +536,7 @@ export class SubscriptionFactory {
         status: EStatus.Active,
         metaData: data.metaData,
         startDate: data.startAt,
-        endDate: bodyData?.mandateExpiryTime
+        endDate: bodyData?.mandateExpiryTime,
       };
       let mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
@@ -655,7 +670,6 @@ export class SubscriptionFactory {
     // return "Sandbox receipt used in production";
   }
 
-
   async getTransactionHistory(bodyData) {
     try {
       console.log("bodyData", bodyData);
@@ -718,8 +732,10 @@ export class SubscriptionFactory {
           transactions: transactionDetails,
           renewalInfo: renewalDetails,
         };
-      }
-      else if (bodyData.notificationType === EEventType.didChangeRenewalStatus&& bodyData.subtype===EEventType.autoRenewDisabled) {
+      } else if (
+        bodyData.notificationType === EEventType.didChangeRenewalStatus &&
+        bodyData.subtype === EEventType.autoRenewDisabled
+      ) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
         );
@@ -735,7 +751,9 @@ export class SubscriptionFactory {
           // revocationReason: purchaseInfo?.parsed?.revocationReason,
           subscriptionGroupIdentifier:
             purchaseInfo?.parsed?.subscriptionGroupIdentifier,
-          originalPurchaseDate: new Date(purchaseInfo?.parsed?.originalPurchaseDate).toISOString(),
+          originalPurchaseDate: new Date(
+            purchaseInfo?.parsed?.originalPurchaseDate
+          ).toISOString(),
           purchaseDate: new Date(
             purchaseInfo?.parsed?.purchaseDate
           ).toISOString(),
@@ -1025,7 +1043,7 @@ export class SubscriptionFactory {
 
       const subscription = await this.helperService.addSubscription(fv);
       let endDate = new Date(data?.firstCharge);
-      endDate.setHours(23, 59, 59, 999); // modifies in-place
+      endDate.setHours(18, 29, 59, 999); // modifies in-place
       let endAt = endDate;
       // console.log("endAt is", endAt);
 

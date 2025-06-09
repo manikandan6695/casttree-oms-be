@@ -1673,7 +1673,7 @@ export class SubscriptionService {
     const today = new Date();
     const startAt = new Date();
     startAt.setDate(today.getDate() + 1);
-    startAt.setHours(0, 0, 0, 0);
+    startAt.setHours(18, 30, 0, 0);
     // console.log("startAt", startAt);
 
     let endAt = new Date();
@@ -1702,7 +1702,7 @@ export class SubscriptionService {
 
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
-      endAt.setHours(0, 0, 0, 0);
+      endAt.setHours(18, 29, 59, 999);
       // console.log("start at ==>", startAt);
       // console.log("end at ==>", endAt);
       // console.log(
@@ -1845,7 +1845,7 @@ export class SubscriptionService {
       const today = new Date();
       const startAt = new Date();
       startAt.setDate(today.getDate() + 1);
-      startAt.setHours(0, 0, 0, 0);
+      startAt.setHours(18, 30, 0, 0);
       // console.log("startAt", startAt);
 
       let endAt = new Date();
@@ -1901,7 +1901,7 @@ export class SubscriptionService {
       // return true;
       if (recurringResponse) {
         endAt.setDate(endAt.getDate());
-        endAt.setHours(23, 59, 59, 999);
+        endAt.setHours(18, 29, 59, 999);
         const razorpaySubscriptionSequence =
           await this.sharedService.getNextNumber(
             "razorpay-subscription",
