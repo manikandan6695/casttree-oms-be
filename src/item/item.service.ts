@@ -77,8 +77,10 @@ export class ItemService {
         // console.log("application is", application);
 
         const isSubmitted =
-          application ||
-          new Date(itemData?.additionalDetail?.registrationExpiry) < new Date()
+          (itemData?.additionalDetail?.allowMulti &&
+            new Date(itemData?.additionalDetail?.registrationExpiry) <
+              new Date()) ||
+          application
             ? true
             : false;
         return {
