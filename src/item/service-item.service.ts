@@ -37,7 +37,7 @@ export class ServiceItemService {
     private itemService: ItemService,
     private subscriptionService: SubscriptionService,
     private mandateService: MandatesService
-  ) {}
+  ) { }
   async getServiceItemDetailbyItemId(itemId) {
     try {
       let data = await this.serviceItemModel
@@ -174,15 +174,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "price"
+              "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "currency"
+              "currency"
               ];
           }
         });
@@ -260,11 +260,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+            "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+            "currency"
             ];
         }
       }
@@ -423,15 +423,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "price"
+              "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-                "currency"
+              "currency"
               ];
           }
         });
@@ -478,11 +478,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+            "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+            "currency"
             ];
         }
       }
@@ -1161,7 +1161,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1247,7 +1247,7 @@ export class ServiceItemService {
         mandateData = await this.mandateService.getMandateByProvider(userId);
       }
       // console.log("mandateData", mandateData);
-
+      const isNewSubscription = subscriptionData ? true : false;
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -1284,7 +1284,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1313,6 +1313,13 @@ export class ServiceItemService {
         processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
         processPricingData.itemId.currency.currency_code;
+      if (isNewSubscription === true) {
+        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo = processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo"]
+        delete processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo1"];
+      } else {
+        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 = processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo1"]
+        delete processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo"];
+      }
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
       );
@@ -1361,7 +1368,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-                "comparePrice"
+              "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1393,7 +1400,7 @@ export class ServiceItemService {
         country_code
       );
       return priceListData;
-    } catch (err) {}
+    } catch (err) { }
   }
   async getServiceItemType(itemId: string) {
     try {
