@@ -648,16 +648,22 @@ export class ServiceItemService {
         key: "referral_banners",
       });
       let learnHomePageBanner;
+      let learnPageName;
       let premiumBanner;
+      let pageName ;
+      let processId;
       if (referralConfig && Array.isArray(referralConfig.value)) {
         const bannerObj = referralConfig.value.find(
           (b) => b.banner === "learnhomepage"
         );
-        learnHomePageBanner = bannerObj.imageUrl;
+        learnHomePageBanner = bannerObj?.imageUrl;
+        learnPageName= bannerObj?.screenName
         const premiumBannerObj = referralConfig.value.find(
           (b) => b.banner === "buypremium"
         );
         premiumBanner = premiumBannerObj?.imageUrl;
+        pageName = premiumBannerObj?.screenName;
+        processId = premiumBannerObj?.processId
       }
       // let featureCarouselData = {
       //   ListData: [],
@@ -845,6 +851,8 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: premiumBanner,
+            screenName:pageName,
+            processId:processId
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -902,6 +910,7 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: learnHomePageBanner,
+            screenName:learnPageName
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
