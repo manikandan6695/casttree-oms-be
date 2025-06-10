@@ -689,9 +689,9 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      console.log("renew payload", payload);
+      // console.log("renew payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("RTDN Received for renew:", JSON.stringify(rtdn));
+      // console.log("RTDN Received for renew:", JSON.stringify(rtdn));
       // if (rtdn.notificationType === EEventId.renew) {
       //   const existingSubscription = await this.subscriptionModel.findOne({
       //     providerId: EProviderId.google,
@@ -797,9 +797,9 @@ export class SubscriptionService {
 
   async handleGoogleIAPCancel(payload) {
     try {
-      console.log("payload cancel", payload);
+      // console.log("payload cancel", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("rtdn cancel", JSON.stringify(rtdn));
+      // console.log("rtdn cancel", JSON.stringify(rtdn));
 
       if (rtdn.notificationType === EEventId.cancel) {
         const body = {
