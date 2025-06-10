@@ -77,12 +77,10 @@ export class ItemService {
         // console.log("application is", application);
 
         const isSubmitted =
-          (itemData?.additionalDetail?.allowMulti &&
-            new Date(itemData?.additionalDetail?.registrationExpiry) <
-              new Date()) ||
-          application
-            ? true
-            : false;
+          itemData?.additionalDetail?.allowMulti ||
+          new Date() >=
+            new Date(itemData?.additionalDetail?.registrationExpiry) ||
+          !!application;
         return {
           item: itemData,
           award: awardData,
