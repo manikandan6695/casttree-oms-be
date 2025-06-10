@@ -11,3 +11,5 @@ export const UPDATE_NOMINATION_STATUS =
 export const ELIGIBLE_SUBSCRIPTION="Eligible for this Subscription";
 export const NOT_ELIGIBLE_SUBSCRIPTION="You are not a premium subscriber";
 export const SUBSCRIPTION_NOT_FOUND="Active Subscription not found";
+export const EVENT_RECONCILE_RAZORPAY = 'reconcile.razorpay';
+export const EVENT_RECONCILE_CASHFREE = 'reconcile.cashfree';
