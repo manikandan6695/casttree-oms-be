@@ -689,9 +689,9 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      // console.log("payload", payload);
+      console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      // console.log("RTDN Received for renew:", rtdn);
+      console.log("RTDN Received for renew:", rtdn);
       if (rtdn.notificationType === EEventId.renew) {
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
