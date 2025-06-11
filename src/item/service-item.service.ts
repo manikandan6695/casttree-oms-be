@@ -577,6 +577,16 @@ export class ServiceItemService {
 
   async getCourseHomeScreenData(userId) {
     try {
+      const userData = await this.helperService.getUserById(userId);
+      const countryCode = userData?.data?.country_code;
+
+      let learnHomePageBanner;
+      let learnPageName;
+      let premiumBanner;
+      let pageName;
+      let processId;
+      let taskId;
+
       const serviceItemData = await this.serviceItemModel.aggregate([
         {
           $match: {
@@ -647,23 +657,19 @@ export class ServiceItemService {
       let referralConfig = await this.systemConfigurationModel.findOne({
         key: "referral_banners",
       });
-      let learnHomePageBanner;
-      let learnPageName;
-      let premiumBanner;
-      let pageName ;
-      let processId;
       if (referralConfig && Array.isArray(referralConfig.value)) {
         const bannerObj = referralConfig.value.find(
           (b) => b.banner === "learnhomepage"
         );
         learnHomePageBanner = bannerObj?.imageUrl;
-        learnPageName= bannerObj?.screenName
+        learnPageName = countryCode === 'IN' ? bannerObj?.screenName : bannerObj?.iapScreenName;
         const premiumBannerObj = referralConfig.value.find(
           (b) => b.banner === "buypremium"
         );
         premiumBanner = premiumBannerObj?.imageUrl;
-        pageName = premiumBannerObj?.screenName;
-        processId = premiumBannerObj?.processId
+        pageName = countryCode === 'IN' ? premiumBannerObj?.screenName : premiumBannerObj?.iapScreenName;
+        processId = premiumBannerObj?.processId;
+        taskId = premiumBannerObj?.taskId;
       }
       // let featureCarouselData = {
       //   ListData: [],
@@ -851,8 +857,9 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: premiumBanner,
-            screenName:pageName,
-            processId:processId
+            screenName: pageName,
+            processId: processId,
+            taskId: taskId,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -910,7 +917,7 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: learnHomePageBanner,
-            screenName:learnPageName
+            screenName: learnPageName,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
