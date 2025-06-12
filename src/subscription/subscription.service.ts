@@ -692,103 +692,112 @@ export class SubscriptionService {
       // console.log("renew payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       // console.log("RTDN Received for renew:", JSON.stringify(rtdn));
-      // if (rtdn.notificationType === EEventId.renew) {
-      //   const existingSubscription = await this.subscriptionModel.findOne({
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     subscriptionStatus: EStatus.Active,
-      //     externalId: rtdn.purchaseToken,
-      //   });
-      //   let currency =
-      //     rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice
-      //       ?.currencyCode;
-      //   let price =
-      //     rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
-      //       ?.recurringPrice?.units;
-      //   let currencyId = await this.helperService.getCurrencyId(currency);
-      //   let currencyResponse = currencyId?.data?.[0];
-      //   let conversionRateAmt = await this.helperService.getConversionRate(
-      //     currency,
-      //     price
-      //   );
-      //   let baseAmount = parseInt((price * conversionRateAmt).toString());
-      //   const subscriptionData = {
-      //     userId: existingSubscription?.userId,
-      //     planId: existingSubscription?.planId,
-      //     subscriptionStatus: EStatus.Active,
-      //     startAt: new Date(rtdn.transactionInfo.startTime),
-      //     endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
-      //     amount: price,
-      //     status: EStatus.Active,
-      //     notes: { itemId: existingSubscription?.notes?.itemId },
-      //     createBy: existingSubscription?.userId,
-      //     updateBy: existingSubscription?.userId,
-      //     metaData: rtdn.transactionInfo,
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     externalId: rtdn.purchaseToken,
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     transactionDetails: {
-      //       transactionId: rtdn.purchaseToken,
-      //       authAmount:
-      //         rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
-      //           ?.recurringPrice?.units,
-      //       transactionDate: rtdn.transactionInfo.startTime,
-      //       planId: rtdn.transactionInfo.lineItems[0]?.productId,
-      //     },
-      //   };
-      //   let subscription =
-      //     await this.subscriptionModel.create(subscriptionData);
-      //   let item = await this.itemService.getItemDetail(
-      //     subscription?.notes?.itemId
-      //   );
-      //   let userBody = {
-      //     userId: subscription?.userId,
-      //     membership: item?.itemName,
-      //     badge: item?.additionalDetail?.badge,
-      //   };
-      //   await this.helperService.updateUser(userBody);
-      //   const invoiceData = {
-      //     itemId: existingSubscription?.notes.itemId,
-      //     source_id: subscription._id,
-      //     source_type: "subscription",
-      //     sub_total: price,
-      //     document_status: EDocumentStatus.completed,
-      //     grand_total: price,
-      //     user_id: subscription?.userId,
-      //     currencyCode: currencyResponse.currency_code,
-      //     created_by: subscription?.userId,
-      //     updated_by: subscription?.userId,
-      //   };
-      //   const invoice = await this.invoiceService.createInvoice(
-      //     invoiceData,
-      //     subscription?.userId
-      //   );
-      //   const paymentData = {
-      //     amount: price,
-      //     document_status: EDocumentStatus.completed,
-      //     providerId: EProviderId.google,
-      //     providerName: EProvider.google,
-      //     transactionDate: new Date(),
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     userId: existingSubscription?.userId,
-      //     baseAmount: baseAmount,
-      //     baseCurrency: "INR",
-      //     conversionRate: conversionRateAmt,
-      //     metaData: {
-      //       externalId: rtdn?.purchaseToken,
-      //       latestOrderId: rtdn?.transactionInfo?.latestOrderId,
-      //     },
-      //   };
-      //   await this.paymentService.createPaymentRecord(
-      //     paymentData,
-      //     null,
-      //     invoice
-      //   );
-      //   return subscription;
-      // }
+      if (rtdn.notificationType === EEventId.renew) {
+        const existingSubscription = await this.subscriptionModel.findOne({
+          providerId: EProviderId.google,
+          provider: EProvider.google,
+          subscriptionStatus: EStatus.Active,
+          externalId: rtdn.purchaseToken,
+        });
+        if (!existingSubscription) {
+          const userSubscription = await this.subscriptionModel.findOne({
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId,
+          });
+          let currency =
+            rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+              ?.recurringPrice?.currencyCode;
+          let price =
+            rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
+              ?.recurringPrice?.units;
+          let currencyId = await this.helperService.getCurrencyId(currency);
+          let currencyResponse = currencyId?.data?.[0];
+          let conversionRateAmt = await this.helperService.getConversionRate(
+            currency,
+            price
+          );
+          let baseAmount = parseInt((price * conversionRateAmt).toString());
+          const subscriptionData = {
+            userId: userSubscription?.userId,
+            planId: userSubscription?.planId,
+            subscriptionStatus: EStatus.Active,
+            startAt: userSubscription?.endAt,
+            endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
+            amount: price,
+            status: EStatus.Active,
+            notes: { itemId: userSubscription?.notes?.itemId },
+            createBy: userSubscription?.userId,
+            updateBy: userSubscription?.userId,
+            metaData: rtdn.transactionInfo,
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            externalId: rtdn.purchaseToken,
+            currencyCode: currencyResponse.currency_code,
+            currencyId: currencyResponse._id,
+            transactionDetails: {
+              transactionId: rtdn.purchaseToken,
+              authAmount:
+                rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
+                  ?.recurringPrice?.units,
+              transactionDate: rtdn.transactionInfo.startTime,
+              planId: rtdn.transactionInfo.lineItems[0]?.productId,
+            },
+          };
+          let subscription =
+            await this.subscriptionModel.create(subscriptionData);
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          const invoiceData = {
+            itemId: userSubscription?.notes.itemId,
+            source_id: subscription?._id,
+            source_type: "subscription",
+            sub_total: price,
+            document_status: EDocumentStatus.completed,
+            grand_total: price,
+            user_id: subscription?.userId,
+            currencyCode: currencyResponse.currency_code,
+            created_by: subscription?.userId,
+            updated_by: subscription?.userId,
+          };
+          const invoice = await this.invoiceService.createInvoice(
+            invoiceData,
+            subscription?.userId
+          );
+          const paymentData = {
+            amount: price,
+            document_status: EDocumentStatus.completed,
+            providerId: EProviderId.google,
+            providerName: EProvider.google,
+            transactionDate: new Date(),
+            currencyCode: currencyResponse.currency_code,
+            currencyId: currencyResponse._id,
+            userId: existingSubscription?.userId,
+            baseAmount: baseAmount,
+            baseCurrency: "INR",
+            conversionRate: conversionRateAmt,
+            metaData: {
+              externalId: rtdn?.purchaseToken,
+              latestOrderId: rtdn?.transactionInfo?.latestOrderId,
+            },
+          };
+          await this.paymentService.createPaymentRecord(
+            paymentData,
+            null,
+            invoice,
+            currencyResponse?.currency_code,
+            { order_id: rtdn?.transactionInfo?.latestOrderId }
+          );
+          return subscription;
+        }
+      }
     } catch (error) {
       // console.error("Error in handleGoogleIAPRenew:", error);
       throw error;
