@@ -78,7 +78,7 @@ export class SubscriptionService {
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
+                ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -331,7 +331,7 @@ export class SubscriptionService {
         } else if (
           req?.body?.decodeId &&
           req.body.decodeId?.notificationType ===
-            EEventType.didChangeRenewalStatus
+          EEventType.didChangeRenewalStatus
         ) {
           if (req.body.decodeId?.subtype === EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
@@ -443,23 +443,32 @@ export class SubscriptionService {
 
   async handleAppleIAPRenew(payload) {
     try {
-      const transactionHistory =
-        await this.subscriptionFactory.getTransactionHistory(payload);
-      // console.log("transactionHistory", transactionHistory);
+      const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
+      const existingRenewal = await this.subscriptionModel.findOne({
+        "transactionDetails.transactionId": transactionHistory?.transactions?.transactionId,
+        "transactionDetails.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
+        providerId: EProviderId.apple,
+        provider: EProvider.apple,
+      });
+
+      if (existingRenewal) {
+        return ;
+      }
+
       const existingSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
         subscriptionStatus: EStatus.Active,
-        "metaData.transaction.originalTransactionId":
-          transactionHistory?.transactions?.originalTransactionId,
+        "metaData.transaction.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
       });
+
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
       };
-      let currencyId = await this.helperService.getCurrencyId(
-        transactionHistory?.transactions?.currency
-      );
+
+      let currencyId = await this.helperService.getCurrencyId(transactionHistory?.transactions?.currency);
       let currencyResponse = currencyId?.data?.[0];
+
       const subscriptionData = {
         userId: existingSubscription?.userId,
         planId: existingSubscription?.planId,
@@ -479,17 +488,14 @@ export class SubscriptionService {
         currencyId: currencyResponse._id,
         transactionDetails: {
           transactionId: transactionHistory?.transactions?.transactionId,
-          originalTransactionId:
-            transactionHistory?.transactions?.originalTransactionId,
+          originalTransactionId: transactionHistory?.transactions?.originalTransactionId,
           authAmount: transactionHistory?.transactions?.price,
           transactionDate: transactionHistory?.transactions?.purchaseDate,
           planId: transactionHistory?.transactions?.productId,
         },
       };
       let subscription = await this.subscriptionModel.create(subscriptionData);
-      let item = await this.itemService.getItemDetail(
-        subscription?.notes?.itemId
-      );
+      let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
       let userBody = {
         userId: subscription?.userId,
         membership: item?.itemName,
@@ -508,17 +514,12 @@ export class SubscriptionService {
         created_by: existingSubscription?.userId,
         updated_by: existingSubscription?.userId,
       };
-      const invoice = await this.invoiceService.createInvoice(
-        invoiceData,
-        subscription?.userId
-      );
+      const invoice = await this.invoiceService.createInvoice(invoiceData, subscription?.userId);
       const conversionRateAmt = await this.helperService.getConversionRate(
         transactionHistory?.transactions?.currency,
         transactionHistory?.transactions?.price
       );
-      let amt = parseInt(
-        (transactionHistory?.transactions?.price * conversionRateAmt).toString()
-      );
+      let amt = parseInt((transactionHistory?.transactions?.price * conversionRateAmt).toString());
       const paymentData = {
         amount: transactionHistory?.transactions?.price,
         document_status: EDocumentStatus.completed,
@@ -533,7 +534,21 @@ export class SubscriptionService {
         conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
-      return { message: "Created Successfully" };
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = subscription?.userId;
+      mixPanelBody.properties = {
+        userId: subscription?.userId,
+        provider: subscription?.provider,
+        subscriptionId: subscription._id,
+        subscriptionStatus: subscription?.subscriptionStatus,
+        subscriptionDate: subscription?.startAt,
+        itemName: item?.itemName,
+        subscriptionExpired: subscription?.endAt
+      };
+      await this.helperService.mixPanel(mixPanelBody);
+
     } catch (error) {
       throw error;
     }
@@ -541,39 +556,56 @@ export class SubscriptionService {
 
   async handleAppleIAPCancel(payload) {
     try {
-      // console.log("payload", payload);
-      const transactionHistory =
-        await this.subscriptionFactory.getTransactionHistory(payload);
-      // console.log("transactionHistory", transactionHistory);
+      const transactionHistory = await this.subscriptionFactory.getTransactionHistory(payload);
       let existingSubscription = await this.subscriptionModel.findOne({
-        "metaData.transaction.originalTransactionId":
-          transactionHistory?.transactions?.originalTransactionId,
+        "metaData.transaction.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
       });
-      // console.log("existingSubscription", existingSubscription);
 
-      if (existingSubscription) {
-        let body = {
-          status: EMandateStatus.cancelled,
-          updatedAt: new Date(),
-        };
-        let mandates = await this.mandateService.updateIapStatusCancel(
-          existingSubscription?._id,
-          body
-        );
-        const metaData = {
-          transaction: transactionHistory.transactions,
-          renewal: transactionHistory.renewalInfo,
-        };
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandates?._id,
-          mandateStatus: EMandateStatus.cancelled,
-          metaData: metaData,
-          status: EStatus.Active,
-          createdBy: mandates?.userId,
-          updatedBy: mandates?.userId,
-        });
+      const existingCancellation = await this.mandateService.getMandatesByExternalId(
+        transactionHistory?.transactions?.originalTransactionId,
+        EMandateStatus.cancelled
+      );
+
+      if (existingCancellation.length >= 1) {
+        return
       }
-      return { message: "Updated Successfully" };
+      let body = {
+        status: EMandateStatus.cancelled,
+        updatedAt: new Date(),
+      };
+      let mandates = await this.mandateService.updateIapStatusCancel(
+        existingSubscription?._id,
+        body
+      );
+      const metaData = {
+        transaction: transactionHistory.transactions,
+        renewal: transactionHistory.renewalInfo,
+      };
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandates?._id,
+        mandateStatus: EMandateStatus.cancelled,
+        metaData: metaData,
+        status: EStatus.Active,
+        createdBy: mandates?.userId,
+        updatedBy: mandates?.userId,
+      });
+
+      let itemName = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId);
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = existingSubscription?.userId;
+      mixPanelBody.properties = {
+        mandateId: mandates?._id,
+        userId: existingSubscription?.userId,
+        mandateStatus: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        itemName: itemName?.itemName,
+        provider: EProvider.apple
+      };
+      await this.helperService.mixPanel(mixPanelBody);
+
+      return { message: "Cancellation processed successfully" };
     } catch (error) {
       throw error;
     }
@@ -696,9 +728,18 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      console.log("RTDN Received:", rtdn);
+
+      const existingRenewal = await this.subscriptionModel.findOne({
+        externalId: rtdn.purchaseToken,
+        providerId: EProviderId.google,
+        provider: EProvider.google,
+      });
+
+      if (existingRenewal) {
+        return 
+      }
+
       if (rtdn.notificationType === EEventId.renew) {
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
@@ -706,19 +747,16 @@ export class SubscriptionService {
           subscriptionStatus: EStatus.Active,
           externalId: rtdn.purchaseToken,
         });
-        let currency =
-          rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice
-            ?.currencyCode;
-        let price =
-          rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
-            ?.recurringPrice?.units;
+
+        let currency = rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
+        let price = rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan?.recurringPrice?.units;
+
         let currencyId = await this.helperService.getCurrencyId(currency);
         let currencyResponse = currencyId?.data?.[0];
-        let conversionRateAmt = await this.helperService.getConversionRate(
-          currency,
-          price
-        );
+
+        let conversionRateAmt = await this.helperService.getConversionRate(currency, price);
         let baseAmount = parseInt((price * conversionRateAmt).toString());
+
         const subscriptionData = {
           userId: existingSubscription?.userId,
           planId: existingSubscription?.planId,
@@ -738,18 +776,15 @@ export class SubscriptionService {
           currencyId: currencyResponse._id,
           transactionDetails: {
             transactionId: rtdn.purchaseToken,
-            authAmount:
-              rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
-                ?.recurringPrice?.units,
+            authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
             transactionDate: rtdn.transactionInfo.startTime,
             planId: rtdn.transactionInfo.lineItems[0]?.productId,
           },
         };
-        let subscription =
-          await this.subscriptionModel.create(subscriptionData);
-        let item = await this.itemService.getItemDetail(
-          subscription?.notes?.itemId
-        );
+
+        let subscription = await this.subscriptionModel.create(subscriptionData);
+
+        let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
         let userBody = {
           userId: subscription?.userId,
           membership: item?.itemName,
@@ -768,10 +803,7 @@ export class SubscriptionService {
           created_by: subscription?.userId,
           updated_by: subscription?.userId,
         };
-        const invoice = await this.invoiceService.createInvoice(
-          invoiceData,
-          subscription?.userId
-        );
+        const invoice = await this.invoiceService.createInvoice(invoiceData, subscription?.userId);
         const paymentData = {
           amount: price,
           document_status: EDocumentStatus.completed,
@@ -789,15 +821,25 @@ export class SubscriptionService {
             latestOrderId: rtdn?.transactionInfo?.latestOrderId,
           },
         };
-        await this.paymentService.createPaymentRecord(
-          paymentData,
-          null,
-          invoice
-        );
-        return subscription;
+
+        await this.paymentService.createPaymentRecord(paymentData, null, invoice);
+
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        mixPanelBody.distinctId = subscription?.userId;
+        mixPanelBody.properties = {
+          userId: subscription?.userId,
+          provider: subscription?.provider,
+          subscriptionId: subscription._id,
+          subscriptionStatus: subscription?.subscriptionStatus,
+          subscriptionDate: subscription?.startAt,
+          itemName: item?.itemName,
+          subscriptionExpired: subscription?.endAt
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+
       }
     } catch (error) {
-      // console.error("Error in handleGoogleIAPRenew:", error);
       throw error;
     }
   }
@@ -806,16 +848,18 @@ export class SubscriptionService {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       if (rtdn.notificationType === EEventId.cancel) {
+        const existingCancellation = await this.mandateService.getMandatesByExternalId(rtdn.purchaseToken, EMandateStatus.cancelled);
+        if (existingCancellation.length >= 1) {
+          return
+        }
+
         const body = {
           status: EMandateStatus.cancelled,
           updatedAt: new Date(),
         };
         const transactionId = rtdn.purchaseToken;
-        let mandate = await this.mandateService.updateIapStatus(
-          transactionId,
-          body
-        );
-        // console.log("mandate", mandate);
+        let mandate = await this.mandateService.updateIapStatus(transactionId, body);
+
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
@@ -824,8 +868,25 @@ export class SubscriptionService {
           createdBy: mandate?.userId,
           updatedBy: mandate?.userId,
         });
+
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: mandate?.sourceId
+        });
+        let itemName = await this.itemService.getItemDetail(subscriptionData?.notes?.itemId);
+
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandateId: mandate?._id,
+          userId: mandate?.userId,
+          mandateStatus: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          itemName: itemName?.itemName,
+          provider: EProvider.google
+        };
+        await this.helperService.mixPanel(mixPanelBody);
       }
-      return { message: "Cancelled Successfully" };
     } catch (error) {
       throw error;
     }
@@ -878,8 +939,6 @@ export class SubscriptionService {
 
   async handleRazorpayCancelledMandate(payload: any) {
     try {
-      // console.log("inside razorpay cancelled mandate", payload);
-
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
       let data = await this.mandateService.updateMandateDetail(
@@ -908,6 +967,11 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+
+      if (mandate?.mandateStatus === EMandateStatus.cancelled) {
+        return
+      }
+
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
         {
@@ -922,6 +986,24 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+
+      let subscriptionData = await this.subscriptionModel.findOne({
+        _id: mandate?.sourceId
+      });
+      let itemName = await this.itemService.getItemDetail(subscriptionData?.notes?.itemId);
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandate?.userId;
+      mixPanelBody.properties = {
+        mandateId: mandate?._id,
+        userId: mandate?.userId,
+        mandateStatus: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        itemName: itemName?.itemName,
+        provider: mandate?.provider
+      };
+      await this.helperService.mixPanel(mixPanelBody);
     } catch (err) {
       throw err;
     }
@@ -1052,28 +1134,26 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
-      // console.log("inside razorpay subscription payment");
-
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-      // console.log("rzpPaymentId", rzpPaymentId);
 
-      let paymentRequest =
-        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      // console.log("paymentRequest", paymentRequest);
+      let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
 
-      if (paymentRequest) {
-        let updatedStatus = await this.paymentService.completePayment({
-          invoiceId: paymentRequest?.source_id,
-          paymentId: paymentRequest?._id,
-        });
-        let invoice = await this.invoiceService.getInvoiceDetail(
-          paymentRequest?.source_id
-        );
-        let subscription = await this.subscriptionModel.findOne({
-          _id: invoice?.source_id,
-        });
-        if (subscription) {
-          subscription.subscriptionStatus = "Active";
+      if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
+        return 
+      }
+
+      let updatedStatus = await this.paymentService.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+
+      let invoice = await this.invoiceService.getInvoiceDetail(paymentRequest?.source_id);
+      let subscription = await this.subscriptionModel.findOne({
+        _id: invoice?.source_id,
+      });
+      if (subscription) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
 
           let tokenId = payload?.payment?.entity?.token_id;
@@ -1084,7 +1164,7 @@ export class SubscriptionService {
             }
           );
           let mandate = await this.mandateService.getMandateById(tokenId);
-          if (mandate.mandateStatus == EMandateStatus.initiated) {
+          if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
             let updatedMandate = await this.mandateService.updateMandateDetail(
               { _id: mandate._id },
               {
@@ -1100,10 +1180,8 @@ export class SubscriptionService {
               updatedBy: mandate?.updatedBy,
             });
           }
-          let item = await this.itemService.getItemDetail(
-            subscription?.notes?.itemId
-          );
 
+          let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
           let userBody = {
             userId: subscription?.userId,
             membership: item?.itemName,
@@ -1116,21 +1194,23 @@ export class SubscriptionService {
           mixPanelBody.properties = {
             userId: subscription?.userId,
             provider: EProvider.razorpay,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
+            subscriptionId: subscription._id,
+            subscriptionStatus: EsubscriptionStatus.active,
+            subscriptionDate: subscription?.startAt,
+            itemName: item?.itemName,
+            subscriptionExpired: subscription?.endAt
           };
           await this.helperService.mixPanel(mixPanelBody);
-          let userData = await this.helperService.getUserById(
-            subscription?.userId
-          );
+
+          let userData = await this.helperService.getUserById(subscription?.userId);
           await this.helperService.facebookEvents(
             userData.data.phoneNumber,
             invoice.currencyCode,
             invoice.grand_total
           );
         }
-        //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
       }
+
     } catch (err) {
       throw err;
     }
@@ -1240,70 +1320,70 @@ export class SubscriptionService {
 
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
-    const cfPaymentId = payload?.data?.cf_payment_id;
-    // console.log("inside handleCashfreeNewPayment is ===>", cfPaymentId);
+    try {
+      const cfPaymentId = payload?.data?.cf_payment_id;
 
-    let paymentRequest =
-      await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
-    if (paymentRequest) {
-      // console.log("invoice id is ==>", paymentRequest.source_id);
-      // console.log("paymentId is ==>", paymentRequest._id);
+      let paymentRequest = await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
+
+      if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
+        return 
+      }
 
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
       });
-      let invoice = await this.invoiceService.getInvoiceDetail(
-        paymentRequest?.source_id
-      );
+      let invoice = await this.invoiceService.getInvoiceDetail(paymentRequest?.source_id);
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,
       });
       if (subscription) {
-        subscription.subscriptionStatus = "Active";
-        await subscription.save();
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          subscription.subscriptionStatus = EsubscriptionStatus.active;
+          await subscription.save();
 
-        let item = await this.itemService.getItemDetail(
-          subscription?.notes?.itemId
-        );
+          let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
 
-        let mixPanelBodyData: any = {};
-        mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
-        mixPanelBodyData.distinctId = subscription?.userId;
-        mixPanelBodyData.properties = {
-          itemname: item.itemName,
-          amount: invoice.grand_total,
-          currency_code: invoice.currencyCode,
-          serviceItemType: "subscription",
-        };
-        await this.helperService.mixPanel(mixPanelBodyData);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscription?.userId;
-        mixPanelBody.properties = {
-          userId: subscription?.userId,
-          provider: EProvider.cashfree,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+          let mixPanelBodyData: any = {};
+          mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
+          mixPanelBodyData.distinctId = subscription?.userId;
+          mixPanelBodyData.properties = {
+            itemname: item.itemName,
+            amount: invoice.grand_total,
+            currency_code: invoice.currencyCode,
+            serviceItemType: "subscription",
+          };
+          await this.helperService.mixPanel(mixPanelBodyData);
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            userId: subscription?.userId,
+            provider: EProvider.cashfree,
+            subscriptionId: subscription._id,
+            subscriptionStatus: EsubscriptionStatus.active,
+            subscriptionDate: subscription?.startAt,
+            itemName: item?.itemName,
+            subscriptionExpired: subscription?.endAt
+          };
+          await this.helperService.mixPanel(mixPanelBody);
 
-        let userBody = {
-          userId: subscription?.userId,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.updateUser(userBody);
-        let userData = await this.helperService.getUserById(
-          subscription?.userId
-        );
-        await this.helperService.facebookEvents(
-          userData.data.phoneNumber,
-          invoice.currencyCode,
-          invoice.grand_total
-        );
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          let userData = await this.helperService.getUserById(subscription?.userId);
+          await this.helperService.facebookEvents(
+            userData.data.phoneNumber,
+            invoice.currencyCode,
+            invoice.grand_total
+          );
+        }
       }
-      //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -1384,11 +1464,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1682,22 +1762,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1854,22 +1934,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getDate() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
+          ?.validityType == EvalidityType.month
           ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          )
           : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1879,7 +1959,7 @@ export class SubscriptionService {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
           userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
+          "@casttree.com",
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
@@ -2189,8 +2269,8 @@ export class SubscriptionService {
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
           ? eligibilityList.some(
-              (e) => e._id.toString() === userItemId.toString()
-            )
+            (e) => e._id.toString() === userItemId.toString()
+          )
           : false;
       }
       return {
