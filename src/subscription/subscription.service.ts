@@ -450,7 +450,6 @@ export class SubscriptionService {
         providerId: EProviderId.apple,
         provider: EProvider.apple,
       });
-
       if (existingRenewal) {
         return ;
       }
@@ -460,7 +459,6 @@ export class SubscriptionService {
         subscriptionStatus: EStatus.Active,
         "metaData.transaction.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
       });
-
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
@@ -468,7 +466,6 @@ export class SubscriptionService {
 
       let currencyId = await this.helperService.getCurrencyId(transactionHistory?.transactions?.currency);
       let currencyResponse = currencyId?.data?.[0];
-
       const subscriptionData = {
         userId: existingSubscription?.userId,
         planId: existingSubscription?.planId,
@@ -532,20 +529,20 @@ export class SubscriptionService {
         baseAmount: amt,
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
-      };
+      };  
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
 
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = subscription?.userId;
       mixPanelBody.properties = {
-        userId: subscription?.userId,
+        user_id: subscription?.userId,
         provider: subscription?.provider,
-        subscriptionId: subscription._id,
-        subscriptionStatus: subscription?.subscriptionStatus,
-        subscriptionDate: subscription?.startAt,
-        itemName: item?.itemName,
-        subscriptionExpired: subscription?.endAt
+        subscription_id: subscription._id,
+        subscription_status: subscription?.subscriptionStatus,
+        subscription_date: subscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: subscription?.endAt
       };
       await this.helperService.mixPanel(mixPanelBody);
 
@@ -596,11 +593,11 @@ export class SubscriptionService {
       mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
       mixPanelBody.distinctId = existingSubscription?.userId;
       mixPanelBody.properties = {
-        mandateId: mandates?._id,
-        userId: existingSubscription?.userId,
-        mandateStatus: EMandateStatus.cancelled,
+        mandate_id: mandates?._id,
+        user_id: existingSubscription?.userId,
+        mandate_status: EMandateStatus.cancelled,
         date: new Date().toISOString(),
-        itemName: itemName?.itemName,
+        item_name: itemName?.itemName,
         provider: EProvider.apple
       };
       await this.helperService.mixPanel(mixPanelBody);
@@ -736,7 +733,7 @@ export class SubscriptionService {
         provider: EProvider.google,
       });
 
-      if (existingRenewal) {
+      if (existingRenewal) {  
         return 
       }
 
@@ -828,13 +825,13 @@ export class SubscriptionService {
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = subscription?.userId;
         mixPanelBody.properties = {
-          userId: subscription?.userId,
+          user_id: subscription?.userId,
           provider: subscription?.provider,
-          subscriptionId: subscription._id,
-          subscriptionStatus: subscription?.subscriptionStatus,
-          subscriptionDate: subscription?.startAt,
-          itemName: item?.itemName,
-          subscriptionExpired: subscription?.endAt
+          subscription_id: subscription._id,
+          subscription_status: subscription?.subscriptionStatus,
+          subscription_date: subscription?.startAt,
+          item_name: item?.itemName,
+          subscription_expired: subscription?.endAt
         };
         await this.helperService.mixPanel(mixPanelBody);
 
@@ -847,6 +844,7 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+        
       if (rtdn.notificationType === EEventId.cancel) {
         const existingCancellation = await this.mandateService.getMandatesByExternalId(rtdn.purchaseToken, EMandateStatus.cancelled);
         if (existingCancellation.length >= 1) {
@@ -878,11 +876,11 @@ export class SubscriptionService {
         mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
         mixPanelBody.distinctId = mandate?.userId;
         mixPanelBody.properties = {
-          mandateId: mandate?._id,
-          userId: mandate?.userId,
-          mandateStatus: EMandateStatus.cancelled,
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
           date: new Date().toISOString(),
-          itemName: itemName?.itemName,
+          item_name: itemName?.itemName,
           provider: EProvider.google
         };
         await this.helperService.mixPanel(mixPanelBody);
@@ -996,11 +994,11 @@ export class SubscriptionService {
       mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
       mixPanelBody.distinctId = mandate?.userId;
       mixPanelBody.properties = {
-        mandateId: mandate?._id,
-        userId: mandate?.userId,
-        mandateStatus: EMandateStatus.cancelled,
+        mandate_id: mandate?._id,
+        user_id: mandate?.userId,
+        mandate_status: EMandateStatus.cancelled,
         date: new Date().toISOString(),
-        itemName: itemName?.itemName,
+        item_name: itemName?.itemName,
         provider: mandate?.provider
       };
       await this.helperService.mixPanel(mixPanelBody);
@@ -1192,13 +1190,13 @@ export class SubscriptionService {
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
           mixPanelBody.properties = {
-            userId: subscription?.userId,
+            user_id: subscription?.userId,
             provider: EProvider.razorpay,
-            subscriptionId: subscription._id,
-            subscriptionStatus: EsubscriptionStatus.active,
-            subscriptionDate: subscription?.startAt,
-            itemName: item?.itemName,
-            subscriptionExpired: subscription?.endAt
+            subscription_id: subscription._id,
+            subscription_status: EsubscriptionStatus.active,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt
           };
           await this.helperService.mixPanel(mixPanelBody);
 
@@ -1358,13 +1356,13 @@ export class SubscriptionService {
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
           mixPanelBody.properties = {
-            userId: subscription?.userId,
+            user_id: subscription?.userId,
             provider: EProvider.cashfree,
-            subscriptionId: subscription._id,
-            subscriptionStatus: EsubscriptionStatus.active,
-            subscriptionDate: subscription?.startAt,
-            itemName: item?.itemName,
-            subscriptionExpired: subscription?.endAt
+            subscription_id: subscription._id,
+            subscription_status: EsubscriptionStatus.active,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt
           };
           await this.helperService.mixPanel(mixPanelBody);
 
@@ -1528,14 +1526,16 @@ export class SubscriptionService {
           { $set: { subscriptionStatus: EsubscriptionStatus.expired } }
         );
         for (let i in expiredSubscriptionsList) {
+          let item = await this.itemService.getItemDetail(expiredSubscriptionsList[i]?.notes?.itemId);
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_end;
           mixPanelBody.distinctId = expiredSubscriptionsList[i].userId;
           mixPanelBody.properties = {
             start_date: expiredSubscriptionsList[i].currentStart,
             end_date: expiredSubscriptionsList[i].endAt,
-            amount: expiredSubscriptionsList[i]?.notes?.amount,
             subscription_id: expiredSubscriptionsList[i]._id,
+            item_name: item?.itemName,
+            user_id: expiredSubscriptionsList[i].userId,
           };
           await this.helperService.mixPanel(mixPanelBody);
         }

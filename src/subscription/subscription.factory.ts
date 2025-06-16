@@ -387,13 +387,13 @@ export class SubscriptionFactory {
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = token.id;
       mixPanelBody.properties = {
-        userId: token?.id,
+        user_id: token?.id,
         provider: EProvider.apple,
-        subscriptionId: createdSubscription?._id,
-        subscriptionStatus: createdSubscription?.subscriptionStatus,
-        subscriptionDate: createdSubscription?.startAt,
-        itemName: item?.itemName,
-        subscriptionExpired: createdSubscription?.endAt
+        subscription_id: createdSubscription?._id,
+        subscription_status: createdSubscription?.subscriptionStatus,
+        subscription_date: createdSubscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: createdSubscription?.endAt
       };
       await this.helperService.mixPanel(mixPanelBody);
       return subscriptionData;
@@ -553,13 +553,13 @@ export class SubscriptionFactory {
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = token.id;
       mixPanelBody.properties = {
-        userId: token?.id,
+        user_id: token?.id,
         provider: EProvider.google,
-        subscriptionId: createdSubscription?._id,
-        subscriptionStatus: createdSubscription?.subscriptionStatus,
-        subscriptionDate: createdSubscription?.startAt,
-        itemName: item?.itemName,
-        subscriptionExpired: createdSubscription?.endAt
+        subscription_id: createdSubscription?._id,
+        subscription_status: createdSubscription?.subscriptionStatus,
+        subscription_date: createdSubscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: createdSubscription?.endAt
       };
       await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
