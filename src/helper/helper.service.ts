@@ -276,7 +276,7 @@ export class HelperService {
           `https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_API_KEY}&ip=${ipAddress}`
         )
         .toPromise();
-      return response.data["country_code2"];
+      return response.data;
     } catch (error) {
       return error;
     }
@@ -552,7 +552,9 @@ export class HelperService {
     try {
       // console.log("inisde update user additional", body);
 
-      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
+      const requestURL = 
+      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
+      // `http://localhost:3000/casttree/user/update-user-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
         .pipe(
