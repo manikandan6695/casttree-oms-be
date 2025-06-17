@@ -187,7 +187,7 @@ export class InvoiceService {
           new: true
       }
       );
-
+      // console.log("data",data)
       return data;
     } catch (error) {
       // console.error("Error updating sales document:", error);

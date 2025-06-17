@@ -329,9 +329,9 @@ export class SubscriptionService {
         } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
           if (req.body.decodeId?.subtype===EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
-          await this.handleAppleIAPCancel(body);
+            await this.handleAppleIAPCancel(body);
           }
-          
+
         } else if (
           decodeId?.notificationType === EEventType.didPurchase &&
           decodeId?.subtype === EEventType.subTypeInitial
@@ -534,7 +534,7 @@ export class SubscriptionService {
     }
   }
 
-   async handleAppleIAPCancel(payload) {
+  async handleAppleIAPCancel(payload) {
     try {
       // console.log("payload", payload);
       const transactionHistory =
@@ -2010,17 +2010,17 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async findAppleExternalId(originalTransactionId,transactionId) {
+  async findAppleExternalId(originalTransactionId, transactionId) {
     try {
       let data = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId": transactionId,
-        "transactionDetails.originalTransactionId":originalTransactionId,
-        providerId:EProviderId.apple,
+        "transactionDetails.originalTransactionId": originalTransactionId,
+        providerId: EProviderId.apple,
         provider: EProvider.apple,
         status: EStatus.Active
       });
-      console.log("data",data);
-      
+      console.log("data", data);
+
       return data;
     } catch (error) {
       throw error;
@@ -2032,7 +2032,7 @@ export class SubscriptionService {
         externalId: transactionId,
         providerId: EProviderId.google,
         provider: EProvider.google,
-        status:EStatus.Active
+        status: EStatus.Active
       });
       return externalIdData;
     } catch (error) {
@@ -2230,23 +2230,51 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async updateSubscriptionData(body){
+  async updateSubscriptionData(body) {
     try {
+      let query = {
+        _id: body.id,
+        subscriptionStatus: EsubscriptionStatus.initiated || EsubscriptionStatus.expired,
+        // provider: body.providerName,
+      }
+      let status;
+
+      if (body.providerName === EProvider.cashfree) {
+        switch (body.subscriptionStatus) {
+
+          case "Completed":
+            status = EDocumentStatus.active;
+            break;
+          case "Failed":
+            status = EDocumentStatus.failed;
+            break;
+          default:
+            status = EsubscriptionStatus.initiated;
+        }
+      } else if (body.providerName === EProvider.razorpay) {
+        switch (body.subscriptionStatus) {
+          case "Completed":
+            status = EDocumentStatus.active;
+            break;
+          case "Failed":
+            status = EDocumentStatus.failed;
+            break;
+          default:
+            status = EDocumentStatus.pending;
+        }
+      }
+
       let data = await this.subscriptionModel.findOneAndUpdate(
-        {
-          _id: body.id,
-          subscriptionStatus:EsubscriptionStatus.initiated,
-          provider: body.providerName,
-        },
+        query,
         {
           $set: {
-            subscriptionStatus: body.subscriptionStatus,
+            subscriptionStatus: status,
           },
-        },{new: true}
+        }, { new: true }
       );
       return data;
     } catch (error) {
-       throw error;
+      throw error;
     }
   }
 

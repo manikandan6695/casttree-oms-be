@@ -17,7 +17,6 @@ import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
 import { Cron } from "@nestjs/schedule";
 import { HttpService } from "@nestjs/axios";
-import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import {
   EPaymentSourceType,
   EPaymentStatus,
@@ -29,12 +28,11 @@ import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { EVENT_RECONCILE_CASHFREE, EVENT_RECONCILE_RAZORPAY } from "src/shared/app.constants";
-
+import { MandatesService } from "src/mandates/mandates.service";
+import { ReconcileQueueService } from "./reconcile.queue.service";
+import { OnEvent } from "@nestjs/event-emitter";
 const { ObjectId } = require("mongodb");
-const SimpleHMACAuth = require("simple-hmac-auth");
-const {
-  validateWebhookSignature,
-} = require("razorpay/dist/utils/razorpay-utils");
+let paymentStatus = []
 // const {
 //   validateWebhookSignature,
 // } = require("razorpay/dist/utils/razorpay-utils");
@@ -56,7 +54,8 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
-    private eventEmitter: EventEmitter2
+    private mandateService: MandatesService,
+    private reconcileQueue: ReconcileQueueService,
   ) {}
 
 
@@ -410,18 +409,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -566,63 +565,124 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  private getProviderConfig(providerName: EProvider) {
-    const configs = {
-      [EProvider.razorpay]: {
-        key: this.configService.get("RAZORPAY_API_KEY"),
-        secret: this.configService.get("RAZORPAY_SECRET_KEY"),
-        baseUrl: this.configService.get("RAZORPAY_BASE_URL"),
-        paymentEndpoint: (orderId: string) => `/v1/orders/${orderId}/payments`
-      },
-      [EProvider.cashfree]: {
-        key: this.configService.get("CASHFREE_API_KEY"),
-        secret: this.configService.get("CASHFREE_SECRET_KEY"),
-        baseUrl: this.configService.get("CASHFREE_BASE_URL"),
-        paymentEndpoint: (orderId: string) => `/pg/orders/${orderId}/payments`
-      }
-    };
-    return configs[providerName];
-  }
-  private async getPendingOrders(providerName: EProvider) {
-    const filter = {
-      document_status: EDocumentStatus.pending,
-      providerName,
-    };
-    return this.paymentModel.find(filter);
-  }
 
-  private async reconcileOrder(order, providerConfig) {
+  async reconcileOrder(order: any, provider: string) {
     try {
       const orderId = order?.payment_order_id;
-      // console.log("orderId", orderId);
+      const sourceId = order?.source_id;
 
-      const paymentResponse = await this.http_service.get(
-        `${providerConfig.baseUrl}${providerConfig.paymentEndpoint(orderId)}`,
-        {
-          auth: {
-            username: providerConfig?.key,
-            password: providerConfig?.secret,
-          },
+      let payments = [];
+
+      if (provider === EProvider.razorpay) {
+        // console.log("Processing Razorpay order:", orderId);
+
+        const razorpayData = await this.helperService.getRazorpayPaymentByOrderId(orderId);
+        // console.log("Razorpay API Response:", razorpayData);
+
+        payments = razorpayData?.items || [];
+
+      } else if (provider === EProvider.cashfree) {
+        const salesDocument = await this.invoiceService.getInvoiceDetail(sourceId);
+        const mandates = await this.mandateService.getMandatesBySourceId(salesDocument?.source_id);
+        const { subscription_id, payment_id } = mandates?.metaData || {};
+
+        if (subscription_id && payment_id) {
+          const paymentData = await this.reconcileQueue.enqueue(subscription_id, payment_id);
+          payments = paymentData;
+          // console.log("payments", payments);
         }
-      ).toPromise();
-
-      const payments = paymentResponse.data?.items || [];
-
-      for (const payment of payments) {
-        await this.handlePaymentUpdate(order, payment);
       }
+      if (payments.length >= 1) {
+        paymentStatus.push(payments.map(payment => payment.payment_status))
+        // console.log("payments", payments);
+
+        // for (const payment of payments) {
+        //   await this.handlePaymentUpdate(order, payment);
+        // }
+
+      }
+
+      // console.log(`Completed processing all payments for order ${order.payment_order_id}`);
     } catch (error) {
-      // console.log("error", error);
-      return error
+      console.error('Error in reconcileOrder:', error);
+      throw error;
     }
   }
 
-  private async handlePaymentUpdate(order, payment) {
-    const providerName = order.providerName;
-    const orderId = order.payment_order_id;
-    // console.log("orderId", orderId);
+  @Cron('0 */2 * * *')
+  async handleRecon() {
+    try {
+      const payments = await this.paymentModel.find({
+        document_status: EDocumentStatus.pending,
+        providerName: EProvider.cashfree  
+      }).lean();
 
-    if (providerName === EProvider.razorpay && payment.id) {
+      if (payments.length === 0) {
+        // console.log('No pending payments found');
+        return;
+      }
+
+      for (const order of payments) {
+        try {
+          await this.reconcileOrder(order, EProvider.cashfree);
+        } catch (error) {
+          console.error(`Error processing order ${order.payment_order_id}:`, error);
+          continue;
+        }
+      }
+      // console.log(`✅ Reconciliation completed for ${payments.length} orders`);
+    } catch (error) {
+      console.error('Error in handleRecon:', error);
+      throw error;
+    }
+  }
+
+  @OnEvent(EVENT_RECONCILE_RAZORPAY)
+  async handleRazorpayReconciliation(payments: any[]) {
+    await this.handleReconciliationEvent(EProvider.razorpay, payments);
+  }
+
+  @OnEvent(EVENT_RECONCILE_CASHFREE)
+  async handleCashfreeReconciliation(payments: any[]) {
+    await this.handleReconciliationEvent(EProvider.cashfree, payments);
+  }
+
+  private async handleReconciliationEvent(providerName: EProvider, payments: any[]) {
+    try {
+      // console.log(`[${providerName}] Processing ${payments.length} pending payments`);
+
+      for (const order of payments) {
+        try {
+          await this.reconcileOrder(order, providerName);
+        } catch (error) {
+          console.error(`[${providerName}] Error processing order ${order.payment_order_id}:`, error);
+          continue;
+        }
+      }
+
+      // console.log(`[${providerName}] Reconciliation completed for ${payments.length} orders`);
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async handlePaymentUpdate(order: any, payment: any) {
+    const { providerName, payment_order_id: orderId } = order;
+    let documentStatus;
+    let reason;
+
+    const existingPayment = await this.paymentModel.findOne({
+      payment_order_id: providerName === EProvider.cashfree ? payment?.cf_payment_id : orderId,
+      document_status: { $ne: EDocumentStatus.pending }
+    });
+
+    if (existingPayment) {
+      // console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
+      return;
+    }
+
+    if (providerName === EProvider.razorpay && payment?.id) {
       await this.paymentModel.updateOne(
         {
           payment_order_id: orderId,
@@ -633,93 +693,71 @@ export class PaymentRequestService {
         },
         { $set: { referenceId: payment.id } }
       );
+
+      switch (payment.status) {
+        case 'authorized':
+        case 'captured':
+          documentStatus = EDocumentStatus.completed;
+          break;
+        case 'failed':
+          documentStatus = EDocumentStatus.failed;
+          reason = payment?.error_description || null;
+          break;
+        default:
+          documentStatus = EDocumentStatus.pending;
+      }
+    }
+    else if (providerName === EProvider.cashfree) {
+      switch (payment.payment_status) {
+        case 'SUCCESS':
+          documentStatus = EDocumentStatus.completed;
+          break;
+        case 'FAILED':
+          documentStatus = EDocumentStatus.failed;
+          reason = payment?.failure_details?.failure_reason || null;
+          break;
+        case 'PENDING':
+          documentStatus = EDocumentStatus.pending;
+          break;
+        default:
+          documentStatus = EDocumentStatus.pending;
+      }
     }
 
-    const documentStatus = payment.status === "captured"
-      ? EDocumentStatus.completed
-      : EDocumentStatus.failed;
+    const matchQuery: any = {
+      providerName,
+      document_status: EDocumentStatus.pending,
+    };
 
-    const reason = payment.status === "failed"
-      ? payment?.error_description
-      : payment?.error_description;
+    if (providerName === EProvider.cashfree) {
+      matchQuery["payment_order_id"] = payment?.cf_payment_id;
+    } else {
+      matchQuery["payment_order_id"] = orderId;
+    }
 
-    const paymentData = await this.paymentModel.findOneAndUpdate(
-      {
-        payment_order_id: orderId,
-        providerName,
-        document_status: EDocumentStatus.pending,
-      },
+    const updatedPayment = await this.paymentModel.findOneAndUpdate(
+      matchQuery,
       {
         $set: { document_status: documentStatus, reason },
       },
       { new: true }
     );
-    // console.log("paymentData", paymentData);
 
-    if (paymentData?.source_id) {
+    if (updatedPayment?.source_id) {
       const body = {
-        id: paymentData?.source_id,
+        id: updatedPayment?.source_id,
         document_status: documentStatus,
       };
       const salesDocument = await this.invoiceService.updateSalesDocument(body);
-      // console.log("salesDocument", salesDocument)
       await this.subscriptionService.updateSubscriptionData({
         id: salesDocument?.source_id,
         subscriptionStatus: documentStatus,
         providerName,
       });
     }
-  }
-
-  @Cron("0 * * * *")
-  async handleRecon() {
-    try {
-      const supportedProviders = [EProvider.razorpay];
-
-      for (const providerName of supportedProviders) {
-        const eventMap = {
-          [EProvider.razorpay]: EVENT_RECONCILE_RAZORPAY,
-          [EProvider.cashfree]: EVENT_RECONCILE_CASHFREE,
-        };
-
-        const eventName = eventMap[providerName];
-        if (eventName) {
-          this.eventEmitter.emit(eventName); 
-          console.log(`[${providerName}] Reconciliation event emitted.`);
-        }
-      }
-    } catch (error) {
-      // console.error("Error in handleRecon:", error.message);
-      throw error;
-    }
-  }
-
-
-  @OnEvent(EVENT_RECONCILE_RAZORPAY)
-  async handleRazorpayReconciliation() {
-    await this.handleReconciliationEvent(EProvider.razorpay);
-  }
-
-  @OnEvent(EVENT_RECONCILE_CASHFREE)
-  async handleCashfreeReconciliation() {
-    await this.handleReconciliationEvent(EProvider.cashfree);
-  }
-  private async handleReconciliationEvent(providerName: EProvider) {
-    try {
-      const providerConfig = this.getProviderConfig(providerName);
-
-      const orders = await this.getPendingOrders(providerName);
-      // console.log(`[${providerName}] Pending Orders:`, orders.map(order => order._id));
-
-      for (const order of orders) {
-        await this.reconcileOrder(order, providerConfig);
-      }
-
-      // console.log(`[${providerName}] Reconciliation completed.`);
-    } catch (error) {
-      throw error;
-      // console.error(`[${providerName}] Reconciliation failed:`, error.message);
-    }
+    // console.log("paymentStatus", paymentStatus)
   }
 
 }
+
+
