@@ -6,7 +6,6 @@ import {
   skillSchema,
 } from "./language.schema";
 
-
 export interface expertiseModel {
   category_id: string;
   name: string;
@@ -16,37 +15,32 @@ export const expertiseSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "category",
   },
-
   name: {
     type: String,
   },
-})
+});
 
 export interface serviceItemAdditionalDetailModel {
-
   processId: string;
   thumbnail: string;
   ctaName: string;
   navigationURL: string;
 }
 export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
-
   processId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "processes",
   },
   thumbnail: {
-    type: String
+    type: String,
   },
   ctaName: {
-    type: String
+    type: String,
   },
   navigationURL: {
-    type: String
+    type: String,
   },
-
-
-})
+});
 
 export interface tagModel {
   category_id: string;
@@ -61,10 +55,7 @@ export const tagSchema = new mongoose.Schema<any>({
   name: {
     type: String,
   },
-
-})
-
-
+});
 
 export interface serviceitems {
   itemId: string;
@@ -78,8 +69,7 @@ export interface serviceitems {
   expertise: expertiseModel;
   tag: tagModel;
   additionalDetails: serviceItemAdditionalDetailModel;
-  priorityOrder:number
-
+  priorityOrder: number;
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
@@ -106,14 +96,11 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   },
   type: {
     type: String,
-
-
   },
   expertise: [expertiseSchema],
   tag: [tagSchema],
   additionalDetails: serviceItemAdditionalDetailSchema,
   priorityOrder: {
     type: Number,
-},
-
+  },
 });
