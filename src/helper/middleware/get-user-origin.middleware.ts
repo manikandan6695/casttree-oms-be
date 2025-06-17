@@ -39,17 +39,35 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       countryCode = userData?.data?.country_code;
       console.log("countryCode", countryCode);
       if (headers["x-real-ip"] && countryCode == undefined) {
-        countryCode = await this.helperService.getCountryCodeByIpAddress(
+        const ipData = await this.helperService.getCountryCodeByIpAddress(
           headers["x-real-ip"].toString()
         );
+        countryCode = ipData?.country_code2;
         await this.helperService.updateUserIpById(countryCode, userId);
+        let updatedData = {
+          metaData: {
+            ...ipData,
+          },
+          userId: userId,
+        };
+        // console.log("updatedData", updatedData);
+        await this.helperService.updateUserAdditional(updatedData);
       }
     } else {
       console.log("inside ip call is ==>");
       if (headers["x-real-ip"]) {
-        countryCode = await this.helperService.getCountryCodeByIpAddress(
+        const ipData = await this.helperService.getCountryCodeByIpAddress(
           headers["x-real-ip"].toString()
         );
+        countryCode = ipData?.country_code2;
+        let updatedData = {
+          metaData: {
+            ...ipData,  
+          },
+          userId: userId,
+        };
+        // console.log("updatedData", updatedData);
+        await this.helperService.updateUserAdditional(updatedData);
       }
     }
     request.headers["x-country-code"] = countryCode;
