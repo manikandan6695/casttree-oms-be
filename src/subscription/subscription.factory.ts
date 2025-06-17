@@ -298,12 +298,12 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse?.currency_code,
         currencyId: currencyResponse?._id,
       };
-      // console.log("subscriptionData", subscriptionData);
+      console.log("subscriptionData", subscriptionData);
       const createdSubscription = await this.subscriptionService.subscription(
         subscriptionData,
         token
       );
-      // console.log("createdSubscription", createdSubscription);
+      console.log("createdSubscription", createdSubscription);
       const userBody = {
         userId: createdSubscription?.userId,
         membership: item?.itemName,
@@ -323,6 +323,7 @@ export class SubscriptionFactory {
         currencyCode: currencyResponse?.currency_code,
         currency: currencyResponse?._id,
       };
+      console.log("invoiceData", invoiceData);
       const invoice = await this.invoiceService.createInvoice(
         invoiceData,
         token.id
@@ -350,6 +351,7 @@ export class SubscriptionFactory {
         conversionRate: conversionRateAmt,
         paymentType: "Auth",
       };
+      console.log("paymentData", paymentData);
       await this.paymentService.createPaymentRecord(
         paymentData,
         token,
@@ -372,6 +374,7 @@ export class SubscriptionFactory {
         startDate: new Date(),
         endDate: bodyData?.mandateExpiryTime,
       };
+      console.log("mandateData", mandateData);
       const mandate = await this.mandateService.addMandate(mandateData, token);
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate?._id.toString(),
