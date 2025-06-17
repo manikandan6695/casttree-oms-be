@@ -212,11 +212,13 @@ export class SubscriptionFactory {
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
       console.log("apple iap bodyData", bodyData);
+      console.log("apple iap data", data);
 
       const transactionId = bodyData.transactionDetails?.originalTransactionId;
+      console.log("transactionId", transactionId);
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
-      // console.log("originalTransactionId", originalTransactionId);
+      console.log("originalTransactionId", originalTransactionId);
 
       const existingSubscription =
         await this.subscriptionService.findAppleExternalId(
@@ -224,13 +226,14 @@ export class SubscriptionFactory {
           transactionId,
           token?.id
         );
+      console.log("existingSubscription", existingSubscription);
       if (existingSubscription) {
         return existingSubscription;
       }
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
-      // console.log("matchingTransaction", JSON.stringify(matchingTransaction));
+      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
       // if (existingSubscription) {
       //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
