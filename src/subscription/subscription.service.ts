@@ -953,6 +953,23 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+      let subscriptionData = await this.subscriptionModel.findOne({
+        _id: mandate?.sourceId
+      });
+      let itemName = await this.itemService.getItemDetail(subscriptionData?.notes?.itemId);
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandate?.userId;
+      mixPanelBody.properties = {
+        mandate_id: mandate?._id,
+        user_id: mandate?.userId,
+        mandate_status: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        item_name: itemName?.itemName,
+        provider: mandate?.provider
+      };
+      await this.helperService.mixPanel(mixPanelBody);
     } catch (err) {
       throw err;
     }
