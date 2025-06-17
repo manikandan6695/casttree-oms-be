@@ -385,7 +385,7 @@ export class SubscriptionFactory {
       });
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
+      mixPanelBody.distinctId = token?.id;
       mixPanelBody.properties = {
         user_id: token?.id,
         provider: EProvider.apple,
@@ -551,7 +551,7 @@ export class SubscriptionFactory {
       });
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = token.id;
+      mixPanelBody.distinctId = token?.id;
       mixPanelBody.properties = {
         user_id: token?.id,
         provider: EProvider.google,
