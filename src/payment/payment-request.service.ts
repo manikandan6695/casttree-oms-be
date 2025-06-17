@@ -15,6 +15,8 @@ import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
+import { Cron } from "@nestjs/schedule";
+import { HttpService } from "@nestjs/axios";
 import {
   EPaymentSourceType,
   EPaymentStatus,
@@ -22,12 +24,15 @@ import {
   ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
-
+import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
+import { SubscriptionService } from "src/subscription/subscription.service";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { EVENT_RECONCILE_CASHFREE, EVENT_RECONCILE_RAZORPAY } from "src/shared/app.constants";
+import { MandatesService } from "src/mandates/mandates.service";
+import { ReconcileQueueService } from "./reconcile.queue.service";
+import { OnEvent } from "@nestjs/event-emitter";
 const { ObjectId } = require("mongodb");
-const SimpleHMACAuth = require("simple-hmac-auth");
-const {
-  validateWebhookSignature,
-} = require("razorpay/dist/utils/razorpay-utils");
+let paymentStatus = []
 // const {
 //   validateWebhookSignature,
 // } = require("razorpay/dist/utils/razorpay-utils");
@@ -43,10 +48,16 @@ export class PaymentRequestService {
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
+    private http_service: HttpService,
+    @Inject(forwardRef(() => SubscriptionService))
+    private subscriptionService: SubscriptionService,
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
-    private serviceItemService: ServiceItemService
+    private serviceItemService: ServiceItemService,
+    private mandateService: MandatesService,
+    private reconcileQueue: ReconcileQueueService,
   ) {}
+
 
   async initiatePayment(
     body: paymentDTO,
@@ -398,18 +409,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -554,54 +565,199 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  // Uncomment and implement if handling other statuses like failed
-  // async failPayment(ids) {
-  //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);
-  //   await this.updatePaymentRequest({ id: ids.paymentId }, EDocumentStatus.failed);
-  // }
 
-  // @Cron("00 5 * * * *")
-  // async handleCron() {
-  //   let paymentRequestData: any = this.getPaymentDetail(
-  //     "66cb5a55fd108b6e491595aa"
-  //   );
-  //   let orderId = await paymentRequestData.payment.payment_order_id;
+  async reconcileOrder(order: any, provider: string) {
+    try {
+      const orderId = order?.payment_order_id;
+      const sourceId = order?.source_id;
 
-  //   try {
-  //     const PaymentStatusResponse: any = await firstValueFrom(
-  //       this.httpService.get("https://api.razorpay.com/v1/orders/" + orderId, {
-  //         headers: {
-  //           Authorization:
-  //             `Basic ` +
-  //             Buffer.from(
-  //               `rzp_test_n3mWjwFQzH7YDM:ipNWATmDo20pFsUhajVV4Ell`
-  //             ).toString("base64"),
-  //         },
-  //       })
-  //     );
+      let payments = [];
 
-  //     // Return the response data
+      if (provider === EProvider.razorpay) {
+        // console.log("Processing Razorpay order:", orderId);
 
-  //     this.updatePaymentRequest(PaymentStatusResponse.data);
-  //   } catch (error) {
-  //     // Handle errors
+        const razorpayData = await this.helperService.getRazorpayPaymentByOrderId(orderId);
+        // console.log("Razorpay API Response:", razorpayData);
 
-  //     throw error;
-  //   }
-  // }
+        payments = razorpayData?.items || [];
 
-  //   testhmac() {
-  //     /* var crypto = require('crypto');
-  // var hmac = crypto.createHmac('sha256', 'casttree@2024');
-  // var expected_signature = hmac.update(JSON.stringify({name:"pavan"}));*/
-  //     var crypto = require("crypto");
-  //     const hash = crypto
-  //       .createHmac("sha1", "casttree@2024")
-  //       .update(JSON.stringify({ name: "pavan" }))
-  //       .digest("hex");
+      } else if (provider === EProvider.cashfree) {
+        const salesDocument = await this.invoiceService.getInvoiceDetail(sourceId);
+        const mandates = await this.mandateService.getMandatesBySourceId(salesDocument?.source_id);
+        const { subscription_id, payment_id } = mandates?.metaData || {};
 
-  //   }
-  // }
-  // function hmac(arg0: string, message: any, key: any) {
-  //   throw new Error("Function not implemented.");
+        if (subscription_id && payment_id) {
+          const paymentData = await this.reconcileQueue.enqueue(subscription_id, payment_id);
+          payments = paymentData;
+          // console.log("payments", payments);
+        }
+      }
+      if (payments.length >= 1) {
+        paymentStatus.push(payments.map(payment => payment.payment_status))
+        // console.log("payments", payments);
+
+        // for (const payment of payments) {
+        //   await this.handlePaymentUpdate(order, payment);
+        // }
+
+      }
+
+      // console.log(`Completed processing all payments for order ${order.payment_order_id}`);
+    } catch (error) {
+      console.error('Error in reconcileOrder:', error);
+      throw error;
+    }
+  }
+
+  @Cron('0 */2 * * *')
+  async handleRecon() {
+    try {
+      const payments = await this.paymentModel.find({
+        document_status: EDocumentStatus.pending,
+        providerName: EProvider.cashfree  
+      }).lean();
+
+      if (payments.length === 0) {
+        // console.log('No pending payments found');
+        return;
+      }
+
+      for (const order of payments) {
+        try {
+          await this.reconcileOrder(order, EProvider.cashfree);
+        } catch (error) {
+          console.error(`Error processing order ${order.payment_order_id}:`, error);
+          continue;
+        }
+      }
+      // console.log(`✅ Reconciliation completed for ${payments.length} orders`);
+    } catch (error) {
+      console.error('Error in handleRecon:', error);
+      throw error;
+    }
+  }
+
+  @OnEvent(EVENT_RECONCILE_RAZORPAY)
+  async handleRazorpayReconciliation(payments: any[]) {
+    await this.handleReconciliationEvent(EProvider.razorpay, payments);
+  }
+
+  @OnEvent(EVENT_RECONCILE_CASHFREE)
+  async handleCashfreeReconciliation(payments: any[]) {
+    await this.handleReconciliationEvent(EProvider.cashfree, payments);
+  }
+
+  private async handleReconciliationEvent(providerName: EProvider, payments: any[]) {
+    try {
+      // console.log(`[${providerName}] Processing ${payments.length} pending payments`);
+
+      for (const order of payments) {
+        try {
+          await this.reconcileOrder(order, providerName);
+        } catch (error) {
+          console.error(`[${providerName}] Error processing order ${order.payment_order_id}:`, error);
+          continue;
+        }
+      }
+
+      // console.log(`[${providerName}] Reconciliation completed for ${payments.length} orders`);
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async handlePaymentUpdate(order: any, payment: any) {
+    const { providerName, payment_order_id: orderId } = order;
+    let documentStatus;
+    let reason;
+
+    const existingPayment = await this.paymentModel.findOne({
+      payment_order_id: providerName === EProvider.cashfree ? payment?.cf_payment_id : orderId,
+      document_status: { $ne: EDocumentStatus.pending }
+    });
+
+    if (existingPayment) {
+      // console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
+      return;
+    }
+
+    if (providerName === EProvider.razorpay && payment?.id) {
+      await this.paymentModel.updateOne(
+        {
+          payment_order_id: orderId,
+          status: EStatus.Active,
+          providerName: EProvider.razorpay,
+          providerId: EProviderId.razorpay,
+          document_status: EDocumentStatus.pending,
+        },
+        { $set: { referenceId: payment.id } }
+      );
+
+      switch (payment.status) {
+        case 'authorized':
+        case 'captured':
+          documentStatus = EDocumentStatus.completed;
+          break;
+        case 'failed':
+          documentStatus = EDocumentStatus.failed;
+          reason = payment?.error_description || null;
+          break;
+        default:
+          documentStatus = EDocumentStatus.pending;
+      }
+    }
+    else if (providerName === EProvider.cashfree) {
+      switch (payment.payment_status) {
+        case 'SUCCESS':
+          documentStatus = EDocumentStatus.completed;
+          break;
+        case 'FAILED':
+          documentStatus = EDocumentStatus.failed;
+          reason = payment?.failure_details?.failure_reason || null;
+          break;
+        case 'PENDING':
+          documentStatus = EDocumentStatus.pending;
+          break;
+        default:
+          documentStatus = EDocumentStatus.pending;
+      }
+    }
+
+    const matchQuery: any = {
+      providerName,
+      document_status: EDocumentStatus.pending,
+    };
+
+    if (providerName === EProvider.cashfree) {
+      matchQuery["payment_order_id"] = payment?.cf_payment_id;
+    } else {
+      matchQuery["payment_order_id"] = orderId;
+    }
+
+    const updatedPayment = await this.paymentModel.findOneAndUpdate(
+      matchQuery,
+      {
+        $set: { document_status: documentStatus, reason },
+      },
+      { new: true }
+    );
+
+    if (updatedPayment?.source_id) {
+      const body = {
+        id: updatedPayment?.source_id,
+        document_status: documentStatus,
+      };
+      const salesDocument = await this.invoiceService.updateSalesDocument(body);
+      await this.subscriptionService.updateSubscriptionData({
+        id: salesDocument?.source_id,
+        subscriptionStatus: documentStatus,
+        providerName,
+      });
+    }
+    // console.log("paymentStatus", paymentStatus)
+  }
+
 }
+
+

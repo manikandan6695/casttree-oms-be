@@ -179,4 +179,19 @@ export class InvoiceService {
       throw err;
     }
   }
+  async updateSalesDocument(body) {
+    try {
+      let data = await this.salesDocumentModel.findOneAndUpdate(
+        { _id: body.id},
+        { $set: { document_status: body.document_status } }, {
+          new: true
+      }
+      );
+      // console.log("data",data)
+      return data;
+    } catch (error) {
+      // console.error("Error updating sales document:", error);
+      throw error;
+    }
+  }
 }

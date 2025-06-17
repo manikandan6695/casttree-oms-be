@@ -52,6 +52,7 @@ export class SubscriptionService {
     private readonly subscriptionModel: Model<ISubscriptionModel>,
     private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
@@ -78,7 +79,7 @@ export class SubscriptionService {
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
+                ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -1384,11 +1385,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1879,7 +1880,7 @@ export class SubscriptionService {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
           userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
+          "@casttree.com",
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
@@ -2015,6 +2016,7 @@ export class SubscriptionService {
       throw err;
     }
   }
+
   async findAppleExternalId(originalTransactionId, transactionId, userId) {
     try {
       let data = await this.subscriptionModel.findOne({
@@ -2039,6 +2041,7 @@ export class SubscriptionService {
         providerId: EProviderId.google,
         provider: EProvider.google,
         status: EStatus.Active,
+
       });
       return externalIdData;
     } catch (error) {
@@ -2238,4 +2241,52 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async updateSubscriptionData(body) {
+    try {
+      let query = {
+        _id: body.id,
+        subscriptionStatus: EsubscriptionStatus.initiated || EsubscriptionStatus.expired,
+        // provider: body.providerName,
+      }
+      let status;
+
+      if (body.providerName === EProvider.cashfree) {
+        switch (body.subscriptionStatus) {
+
+          case "Completed":
+            status = EDocumentStatus.active;
+            break;
+          case "Failed":
+            status = EDocumentStatus.failed;
+            break;
+          default:
+            status = EsubscriptionStatus.initiated;
+        }
+      } else if (body.providerName === EProvider.razorpay) {
+        switch (body.subscriptionStatus) {
+          case "Completed":
+            status = EDocumentStatus.active;
+            break;
+          case "Failed":
+            status = EDocumentStatus.failed;
+            break;
+          default:
+            status = EDocumentStatus.pending;
+        }
+      }
+
+      let data = await this.subscriptionModel.findOneAndUpdate(
+        query,
+        {
+          $set: {
+            subscriptionStatus: status,
+          },
+        }, { new: true }
+      );
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
 }

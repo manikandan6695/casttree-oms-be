@@ -12,6 +12,12 @@ import { PaymentSchema } from "./schema/payment.schema";
 
 import { HttpModule } from "@nestjs/axios";
 import { ItemModule } from "src/item/item.module";
+import { SubscriptionModule } from "src/subscription/subscription.module";
+import { MandatesModule } from "src/mandates/mandates.module";
+import { ReconcileModule } from "./reconcile.module";
+import { ReconcileWorker } from "./reconcile.processor";
+import { BullModule } from '@nestjs/bullmq';
+import { ReconcileQueueService } from "./reconcile.queue.service";
 
 @Module({
   imports: [
@@ -20,12 +26,19 @@ import { ItemModule } from "src/item/item.module";
     AuthModule,
     InvoiceModule,
     HelperModule,
-    forwardRef(() =>  ServiceRequestModule),
+    forwardRef(() => ServiceRequestModule),
     HttpModule,
-    forwardRef(() =>ItemModule)
+    forwardRef(() => ItemModule),
+    forwardRef(() => SubscriptionModule),
+    MandatesModule,
+    forwardRef(() => ReconcileModule),
+    BullModule.registerQueue({
+      name: 'reconcile',
+      connection: { host: '127.0.0.1', port: 6380 },
+    })
   ],
-  providers: [PaymentRequestService, PaymentService],
+  providers: [PaymentRequestService, PaymentService, ReconcileQueueService, ReconcileWorker],
   controllers: [PaymentRequestController],
-  exports: [PaymentRequestService],
+  exports: [PaymentRequestService, ReconcileQueueService],
 })
-export class PaymentRequestModule {}
+export class PaymentRequestModule { }

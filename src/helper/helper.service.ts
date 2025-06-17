@@ -2,7 +2,7 @@ import { HttpService } from "@nestjs/axios";
 import { BadRequestException, Injectable, Req } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
-import { catchError, lastValueFrom, map } from "rxjs";
+import { catchError, delay, lastValueFrom, map, timeout } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
@@ -13,7 +13,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService
-  ) {}
+  ) { }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -772,23 +772,59 @@ export class HelperService {
       throw err;
     }
   }
-  async getUserApplication(awardId: string, rawToken) {
+
+
+  async getRazorpayPaymentByOrderId(orderId: string) {
     try {
+      console.log("orderId", orderId);
+
+      let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
+      let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
+          `${this.configService.get("RAZORPAY_BASE_URL")}/v1/orders/${orderId}/payments`,
           {
-            headers: {
-              Authorization: `${rawToken}`,
+            auth: {
+              username: razor_pay_key,
+              password: razor_pay_secret,
             },
           }
         )
         .toPromise();
-      return data.data;
-    } catch (err) {
-      // console.log("err is", err);
+      return data.data
+    } catch (error) {
+      throw error
+    }
+  }
+  async getCashfreePaymentByOrderId(subId: string, paymentId: string) {
+    try {
+      console.log("api body",subId,paymentId)
+      const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/${subId}/payments/${paymentId}`;
+      const headers = {
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "x-client-id": this.configService.get("CASHFREE_CLIENT_ID"),
+        "x-client-secret": this.configService.get("CASHFREE_CLIENT_SECRET"),
+      };
+      const request = this.http_service
+        .get(requestURL, { headers: headers })
+        .pipe(
+          map((res) => {
+            // console.log("response",res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
 
-      throw err;
+      const response = await lastValueFrom(request);
+      return response
+    } catch (error) {
+      throw error
     }
   }
   // @OnEvent(EVENT_UPDATE_USER)

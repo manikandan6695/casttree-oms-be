@@ -4,6 +4,7 @@ import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMandateStatus } from "./enum/mandate.enum";
 import { Mandate, MandateDocument } from "./schema/mandates.schema";
+import { EStatus } from "src/shared/enum/privacy.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class MandatesService {
@@ -200,6 +201,17 @@ export class MandatesService {
       return { mandate };
     } catch (err) {
       throw err;
+    }
+  }
+  async getMandatesBySourceId(sourceId) {
+    try {
+      let data = await this.mandateModel.findOne({
+        sourceId: new ObjectId(sourceId),
+        status: EStatus.Active
+      })
+      return data
+    } catch (error) {
+      throw error
     }
   }
 }

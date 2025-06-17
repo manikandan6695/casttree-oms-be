@@ -21,7 +21,8 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
-
+import { BullModule } from '@nestjs/bullmq';
+import { ReconcileModule } from "./payment/reconcile.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -34,6 +35,16 @@ import { SubscriptionModule } from "./subscription/subscription.module";
           limit: config.get("THROTTLE_LIMIT"),
         },
       ],
+    }),
+  
+    BullModule.forRoot({
+      connection: {
+        host: 'localhost',
+        port: 6380,
+      },
+    }),
+    BullModule.registerQueue({
+      name: 'reconcile',
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -63,6 +74,7 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     ScheduleModule.forRoot(),
     MandatesModule,
     TaxModule,
+    ReconcileModule
   ],
   controllers: [],
   providers: [
