@@ -104,6 +104,7 @@ export interface itemAdditionalDetailModel {
   defaultImage: IMedia[];
   workShopStartDate: Date;
   mode: string;
+  allowMulti: boolean;
   workShopEndDate: Date;
   startTime: String;
   endTime: String;
@@ -129,6 +130,7 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   mode: {
     type: String,
   },
+  allowMulti: { type: Boolean, default: false },
   workShopEndDate: { type: Date },
   startTime: {
     type: String,

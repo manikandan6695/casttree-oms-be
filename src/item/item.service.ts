@@ -57,21 +57,50 @@ export class ItemService {
     }
   }
 
-  async getItem(id: string, skip: number, limit: number) {
+  async getItem(
+    id: string,
+    skip: number,
+    limit: number,
+    apiVersion: string,
+    accessToken?: string
+  ) {
     try {
-      const itemData = await this.itemModel.findOne({ _id: id }).lean();
-      const awardData = await this.helperService.getAward(id);
-      const awardId = awardData?._id;
-      const nominationsData = await this.helperService.getNominations(
-        awardId,
-        skip,
-        limit
-      );
-      return {
-        item: itemData,
-        award: awardData,
-        participants: nominationsData,
-      };
+      // console.log("accessToken is", accessToken);
+
+      if (apiVersion === "2") {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        const application = await this.helperService.getUserApplication(
+          awardData?._id,
+          accessToken
+        );
+        // console.log("application is", application);
+
+        const isSubmitted =
+          itemData?.additionalDetail?.allowMulti ||
+          new Date() >=
+            new Date(itemData?.additionalDetail?.registrationExpiry) ||
+          !!application;
+        return {
+          item: itemData,
+          award: awardData,
+          isSubmitted: isSubmitted,
+        };
+      } else {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        const awardId = awardData?._id;
+        const nominationsData = await this.helperService.getNominations(
+          awardId,
+          skip || 0,
+          limit || 200
+        );
+        return {
+          item: itemData,
+          award: awardData,
+          participants: nominationsData,
+        };
+      }
     } catch (err) {
       throw err;
     }

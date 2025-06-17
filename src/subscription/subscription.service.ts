@@ -65,8 +65,9 @@ export class SubscriptionService {
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
-      // console.log("subscription creation body is ==>", body, body.provider);
+      console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
+      let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
       switch (body.provider) {
         case "razorpay":
           let item = await this.itemService.getItemDetail(body.itemId);
@@ -183,6 +184,7 @@ export class SubscriptionService {
           };
           break;
         case EProvider.apple:
+          body["mandateExpiryTime"] = mandateExpiryTime;
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
@@ -202,6 +204,7 @@ export class SubscriptionService {
           };
           break;
         case EProvider.google:
+          body["mandateExpiryTime"] = mandateExpiryTime;
           subscriptionData = {
             userId: token?.id,
             planId: body?.planId,
@@ -326,12 +329,15 @@ export class SubscriptionService {
           decodeId?.subtype === EEventType.subTypeRenew
         ) {
           await this.handleAppleIAPRenew(decodeId);
-        } else if (req?.body?.decodeId && req.body.decodeId?.notificationType === EEventType.didChangeRenewalStatus) {
-          if (req.body.decodeId?.subtype===EEventType.autoRenewDisabled) {
+        } else if (
+          req?.body?.decodeId &&
+          req.body.decodeId?.notificationType ===
+            EEventType.didChangeRenewalStatus
+        ) {
+          if (req.body.decodeId?.subtype === EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
             await this.handleAppleIAPCancel(body);
           }
-
         } else if (
           decodeId?.notificationType === EEventType.didPurchase &&
           decodeId?.subtype === EEventType.subTypeInitial
@@ -691,9 +697,9 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      // console.log("payload", payload);
+      console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      // console.log("RTDN Received:", rtdn);
+      console.log("RTDN Received:", rtdn);
       if (rtdn.notificationType === EEventId.renew) {
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
@@ -1668,7 +1674,7 @@ export class SubscriptionService {
     const today = new Date();
     const startAt = new Date();
     startAt.setDate(today.getDate() + 1);
-    startAt.setHours(0, 0, 0, 0);
+    startAt.setHours(18, 30, 0, 0);
     // console.log("startAt", startAt);
 
     let endAt = new Date();
@@ -1677,27 +1683,27 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
-      endAt.setHours(0, 0, 0, 0);
+      endAt.setHours(18, 29, 59, 999);
       // console.log("start at ==>", startAt);
       // console.log("end at ==>", endAt);
       // console.log(
@@ -1840,7 +1846,7 @@ export class SubscriptionService {
       const today = new Date();
       const startAt = new Date();
       startAt.setDate(today.getDate() + 1);
-      startAt.setHours(0, 0, 0, 0);
+      startAt.setHours(18, 30, 0, 0);
       // console.log("startAt", startAt);
 
       let endAt = new Date();
@@ -1849,22 +1855,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -1896,7 +1902,7 @@ export class SubscriptionService {
       // return true;
       if (recurringResponse) {
         endAt.setDate(endAt.getDate());
-        endAt.setHours(23, 59, 59, 999);
+        endAt.setHours(18, 29, 59, 999);
         const razorpaySubscriptionSequence =
           await this.sharedService.getNextNumber(
             "razorpay-subscription",
@@ -2010,14 +2016,16 @@ export class SubscriptionService {
       throw err;
     }
   }
-  async findAppleExternalId(originalTransactionId, transactionId) {
+
+  async findAppleExternalId(originalTransactionId, transactionId, userId) {
     try {
       let data = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId": transactionId,
         "transactionDetails.originalTransactionId": originalTransactionId,
         providerId: EProviderId.apple,
         provider: EProvider.apple,
-        status: EStatus.Active
+        status: EStatus.Active,
+        userId: userId,
       });
       console.log("data", data);
 
@@ -2032,7 +2040,8 @@ export class SubscriptionService {
         externalId: transactionId,
         providerId: EProviderId.google,
         provider: EProvider.google,
-        status: EStatus.Active
+        status: EStatus.Active,
+
       });
       return externalIdData;
     } catch (error) {
@@ -2182,7 +2191,9 @@ export class SubscriptionService {
         const config = await this.helperService.getSystemConfig(itemId);
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
-          ? eligibilityList.some((e) => e._id === userItemId)
+          ? eligibilityList.some(
+              (e) => e._id.toString() === userItemId.toString()
+            )
           : false;
       }
       return {
