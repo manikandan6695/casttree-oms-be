@@ -287,7 +287,7 @@ export class SubscriptionFactory {
           },
         },
         transactionDetails: {
-          transactionId: transactionId,
+          transactionId: matchingTransaction?.transactionId,
           originalTransactionId: matchingTransaction?.originalTransactionId,
           authAmount: bodyData?.authAmount,
           transactionDate: bodyData?.transactionDate,
