@@ -16,9 +16,10 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from "@nestjs/swagger";
-import { NavBarResponseDto } from "./dto/navbar-response.dto";
-import { UserRequestDto } from "./dto/user-request.dto";
+import { NavBarResponseDto } from "./interface/dto/navbar-response.dto";
+import { UserRequestDto } from "./interface/dto/user-request.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
+import { PageResponseDto } from "./interface/dto/page-response.dto";
 
 @ApiTags("Feed")
 @Controller("feed")
@@ -50,23 +51,28 @@ export class FeedController {
       );
     }
   }
+
   @Get(":pageId/page-details")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Get page details with components" })
+  @ApiResponse({
+    status: 200,
+    description: "Successfully retrieved page details",
+    type: PageResponseDto,
+  })
   async getPageDetails(
     @Req() req: Request,
     @Param("pageId") pageId: string,
     @GetToken() token: UserToken
-  ) {
+  ): Promise<PageResponseDto> {
     try {
-      let data = await this.feedService.getPageDetails(pageId, token.id);
-
-      return data;
+      return await this.feedService.getPageDetails(pageId, token.id);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException(
-        "Failed to fetch navigation bar details",
+        "Failed to fetch page details",
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

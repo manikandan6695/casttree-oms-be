@@ -49,22 +49,11 @@ export const ComponentSchema = new mongoose.Schema(
     navigation: {
       type: {
         type: String,
-        enum: [
-          "internal",
-          "external",
-          "deeplink",
-          "whatsapp",
-          "payment",
-          "series",
-          "modal",
-        ],
-        required: true,
       },
       pageId: { type: mongoose.Schema.Types.ObjectId },
       url: String,
       target: { type: String, enum: ["_self", "_blank"], default: "_self" },
-      params: mongoose.Schema.Types.Mixed,
-      modalContent: mongoose.Schema.Types.Mixed,
+      params: mongoose.Schema.Types.Mixed
     },
     media: [
       {

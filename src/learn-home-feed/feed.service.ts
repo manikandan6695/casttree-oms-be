@@ -6,10 +6,12 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.schema";
-import { NavBarResponseDto } from "./dto/navbar-response.dto";
-import { Status } from "./enums/status.enum";
+import { NavBarResponseDto } from "./interface/dto/navbar-response.dto";
+import { Status } from "./interface/enums/status.enum";
 import { IContentPage } from "./schema/page.schema";
-import { IPageComponent } from "./schema/component.schema";
+import { IComponent } from "./schema/component.schema";
+import { PageResponseDto } from "./interface/dto/page-response.dto";
+import { ComponentHandlerRegistry } from "./handlers/component-handler.registry";
 
 @Injectable()
 export class FeedService {
@@ -19,7 +21,8 @@ export class FeedService {
     @InjectModel("contentPage")
     private readonly contentPageModel: Model<IContentPage>,
     @InjectModel("pageComponent")
-    private readonly pageComponentModel: Model<IPageComponent>
+    private readonly pageComponentModel: Model<IComponent>,
+    private readonly componentHandlerRegistry: ComponentHandlerRegistry
   ) {}
 
   async getNavBarDetails(userId: string): Promise<NavBarResponseDto> {
@@ -98,27 +101,18 @@ export class FeedService {
         data: navBarDetails[0],
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        "Failed to fetch navigation bar details",
-        error.message
-      );
+      throw error;
     }
   }
 
-  async getPageDetails(pageId: string, userId: string) {
+  async getPageDetails(
+    pageId: string,
+    userId: string
+  ): Promise<PageResponseDto> {
     try {
       const page = await this.contentPageModel
         .findOne({ _id: pageId, status: Status.ACTIVE })
         .lean();
-
-      if (!page) {
-        throw new NotFoundException("Page not found");
-      }
-
-      // Get all components for the page
       const components = await this.pageComponentModel
         .find({
           _id: { $in: page.components },
@@ -127,22 +121,25 @@ export class FeedService {
         .sort({ order: 1 })
         .lean();
 
-      // Map components to their respective positions in the page
+      const processedComponents = await Promise.all(
+        components.map(async (component) => {
+          const handler = this.componentHandlerRegistry.getHandler(
+            component.componentKey
+          );
+          const processedComponent = await handler.handle(component, page);
+          return {
+            _id: component._id.toString(),
+            componentKey: component.componentKey,
+            ...processedComponent,
+          };
+        })
+      );
+
       const populatedPage = {
-        ...page,
-        components: components.map((component) => ({
-          _id: component._id,
-          componentKey: component.componentKey,
-          displayType: component.displayType,
-          type: component.type,
-          title: component.title,
-          subtitle: component.subtitle,
-          order: component.order,
-          apiSpec: component.apiSpec,
-          metaData: component.metaData,
-          navigation: component.navigation,
-          media: component.media,
-        })),
+        _id: page._id.toString(),
+        pageName: page.pageName,
+        key: page.key,
+        components: processedComponents,
       };
 
       return {
@@ -151,13 +148,7 @@ export class FeedService {
         data: populatedPage,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        "Failed to fetch page details",
-        error.message
-      );
+      throw error;
     }
   }
 }

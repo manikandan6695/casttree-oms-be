@@ -11,7 +11,10 @@ import { EServiceRequestStatus } from "src/service-request/enum/service-request.
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import {
+  FilterItemRequestDTO,
+  FilterServiceItemDTO,
+} from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
@@ -37,7 +40,7 @@ export class ServiceItemService {
     private itemService: ItemService,
     private subscriptionService: SubscriptionService,
     private mandateService: MandatesService
-  ) { }
+  ) {}
   async getServiceItemDetailbyItemId(itemId) {
     try {
       let data = await this.serviceItemModel
@@ -174,15 +177,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "price"
+                "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+                "currency"
               ];
           }
         });
@@ -260,11 +263,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "comparePrice"
+              "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "currency"
+              "currency"
             ];
         }
       }
@@ -423,15 +426,15 @@ export class ServiceItemService {
           if (itemListObjectWithUpdatedPrice[data.itemId._id.toString()]) {
             data.itemId["price"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "price"
+                "price"
               ];
             data.itemId["comparePrice"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data.itemId["currency"] =
               itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-              "currency"
+                "currency"
               ];
           }
         });
@@ -478,11 +481,11 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()]["price"];
           data.itemId["comparePrice"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "comparePrice"
+              "comparePrice"
             ];
           data.itemId["currency"] =
             itemListObjectWithUpdatedPrice[data.itemId._id.toString()][
-            "currency"
+              "currency"
             ];
         }
       }
@@ -650,20 +653,20 @@ export class ServiceItemService {
       let learnHomePageBanner;
       let learnPageName;
       let premiumBanner;
-      let pageName ;
+      let pageName;
       let processId;
       if (referralConfig && Array.isArray(referralConfig.value)) {
         const bannerObj = referralConfig.value.find(
           (b) => b.banner === "learnhomepage"
         );
         learnHomePageBanner = bannerObj?.imageUrl;
-        learnPageName= bannerObj?.screenName
+        learnPageName = bannerObj?.screenName;
         const premiumBannerObj = referralConfig.value.find(
           (b) => b.banner === "buypremium"
         );
         premiumBanner = premiumBannerObj?.imageUrl;
         pageName = premiumBannerObj?.screenName;
-        processId = premiumBannerObj?.processId
+        processId = premiumBannerObj?.processId;
       }
       // let featureCarouselData = {
       //   ListData: [],
@@ -851,8 +854,8 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: premiumBanner,
-            screenName:pageName,
-            processId:processId
+            screenName: pageName,
+            processId: processId,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -910,7 +913,7 @@ export class ServiceItemService {
           data: {
             listData: [],
             banner: learnHomePageBanner,
-            screenName:learnPageName
+            screenName: learnPageName,
           },
           horizontalScroll: true,
           componentType: EcomponentType.ColThumbnailList,
@@ -1170,7 +1173,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1293,7 +1296,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1323,11 +1326,21 @@ export class ServiceItemService {
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
         processPricingData.itemId.currency.currency_code;
       if (isNewSubscription === true) {
-        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo = processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo"]
-        delete processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo1"];
+        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo =
+          processPricingData.itemId.additionalDetail.promotionDetails[
+            "payWallVideo"
+          ];
+        delete processPricingData.itemId.additionalDetail.promotionDetails[
+          "payWallVideo1"
+        ];
       } else {
-        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 = processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo1"]
-        delete processPricingData.itemId.additionalDetail.promotionDetails["payWallVideo"];
+        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 =
+          processPricingData.itemId.additionalDetail.promotionDetails[
+            "payWallVideo1"
+          ];
+        delete processPricingData.itemId.additionalDetail.promotionDetails[
+          "payWallVideo"
+        ];
       }
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
@@ -1377,7 +1390,7 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
               itemListObjectWithUpdatedPrice[data._id.toString()][
-              "comparePrice"
+                "comparePrice"
               ];
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
@@ -1409,7 +1422,7 @@ export class ServiceItemService {
         country_code
       );
       return priceListData;
-    } catch (err) { }
+    } catch (err) {}
   }
   async getServiceItemType(itemId: string) {
     try {
@@ -1418,6 +1431,18 @@ export class ServiceItemService {
       });
       // console.log("type", type);
       return type;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getServiceItemByFilter(filter: FilterServiceItemDTO) {
+    try {
+      if (filter?.tag) {
+        filter["tag.category_id"] = { $in: filter?.tag };
+      }
+      let data = await this.serviceItemModel.find(filter).lean();
+      return data;
     } catch (error) {
       throw error;
     }

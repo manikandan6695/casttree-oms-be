@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Status } from "../enums/status.enum";
+import { Status } from "../interface/enums/status.enum";
 export interface IMediaModel {
   mediaId: any;
   mediaUrl: string;
