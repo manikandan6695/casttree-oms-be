@@ -213,10 +213,10 @@ export class SubscriptionFactory {
     try {
       console.log("apple iap bodyData", bodyData,data);
 
-      const transactionId = bodyData.transactionDetails?.transactionId;
+      const transactionId = bodyData.transactionDetails?.originalTransactionId;
       // console.log("transactionId", transactionId);
       const originalTransactionId =
-        data?.transactionDetails?.originalTransactionId;
+        data?.transactionDetails?.originalTransactionId || bodyData?.transactionDetails?.transactionId
       // console.log("originalTransactionId", originalTransactionId);
 
       const existingSubscription =
@@ -230,7 +230,7 @@ export class SubscriptionFactory {
         return existingSubscription;
       }
       const matchingTransaction = await this.getTransactionHistoryById(
-        originalTransactionId || transactionId
+        originalTransactionId
       );
       console.log("matchingTransaction", JSON.stringify(matchingTransaction));
       // if (existingSubscription) {
