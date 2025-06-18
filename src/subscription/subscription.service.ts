@@ -435,9 +435,10 @@ export class SubscriptionService {
 
   async handleAppleIAPRenew(payload) {
     try {
+      console.log("payload for apple iap renew", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      // console.log("transactionHistory", transactionHistory);
+      console.log("transactionHistory for apple iap renew", transactionHistory);
       const existingSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
         subscriptionStatus: EStatus.Active,
@@ -533,10 +534,10 @@ export class SubscriptionService {
 
   async handleAppleIAPCancel(payload) {
     try {
-      // console.log("payload", payload);
+      console.log("payload", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      // console.log("transactionHistory", transactionHistory);
+      console.log("transactionHistory for apple iap cancel", transactionHistory);
       let existingSubscription = await this.subscriptionModel.findOne({
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
@@ -797,9 +798,9 @@ export class SubscriptionService {
 
   async handleGoogleIAPCancel(payload) {
     try {
-      // console.log("payload cancel", payload);
+      console.log("payload cancel", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      // console.log("rtdn cancel", JSON.stringify(rtdn));
+      console.log("rtdn cancel", JSON.stringify(rtdn));
 
       if (rtdn.notificationType === EEventId.cancel) {
         const body = {
