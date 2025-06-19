@@ -21,7 +21,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
-import { FeedModule } from "./learn-home-feed/feed.module";
+import { FeedModule } from "./dynamic-ui/dynamic-ui.module";
 
 @Module({
   imports: [
