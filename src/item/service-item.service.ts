@@ -11,7 +11,7 @@ import { EServiceRequestStatus } from "src/service-request/enum/service-request.
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { FilterItemDTO, FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
@@ -1418,6 +1418,31 @@ export class ServiceItemService {
       });
       // console.log("type", type);
       return type;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async fetchSkillsAndTags(body: FilterItemDTO) {
+    try {
+      const filter: any = {};
+      const populationConfig = [];
+      if (body.skillId) {
+        filter["skill.skillId"] = Array.isArray(body.skillId)
+          ? { $in: body.skillId.map((id) => new mongoose.Types.ObjectId(id)) }
+          : new mongoose.Types.ObjectId(body.skillId);
+        populationConfig.push({ path: "skill.skillId", model: "skills" });
+      }
+      if (body.tagId) {
+        filter["tag.category_id"] = Array.isArray(body.tagId)
+          ? { $in: body.tagId.map((id) => new mongoose.Types.ObjectId(id)) }
+          : new mongoose.Types.ObjectId(body.tagId);
+        populationConfig.push({ path: "tag.category_id", model: "category" });
+      }
+      const data = await this.serviceItemModel
+        .find(filter)
+        .populate(populationConfig)
+        .lean({ virtuals: true });
+      return data;
     } catch (error) {
       throw error;
     }

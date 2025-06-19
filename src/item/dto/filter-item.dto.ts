@@ -22,3 +22,9 @@ export class FilterItemRequestDTO {
 
 
 }
+export class FilterItemDTO{
+  @IsOptional()
+  skillId: string | string[];
+  @IsOptional()
+  tagId: string | string[];
+}
