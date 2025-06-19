@@ -78,7 +78,7 @@ export class SubscriptionService {
           let authAmount =
             body?.refId || existingSubscription
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
+                ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -332,7 +332,7 @@ export class SubscriptionService {
         } else if (
           req?.body?.decodeId &&
           req.body.decodeId?.notificationType ===
-            EEventType.didChangeRenewalStatus
+          EEventType.didChangeRenewalStatus
         ) {
           if (req.body.decodeId?.subtype === EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
@@ -439,6 +439,17 @@ export class SubscriptionService {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       console.log("transactionHistory for apple iap renew", transactionHistory);
+
+      const existingRenewal = await this.subscriptionModel.findOne({
+        "transactionDetails.transactionId": transactionHistory?.transactions?.transactionId,
+        "transactionDetails.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
+        providerId: EProviderId.apple,
+        provider: EProvider.apple,
+      });
+      if (existingRenewal) {
+        // console.log("existingRenewal", existingRenewal);
+        return;
+      }
       const existingSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
         subscriptionStatus: EStatus.Active,
@@ -453,13 +464,14 @@ export class SubscriptionService {
         transactionHistory?.transactions?.currency
       );
       let currencyResponse = currencyId?.data?.[0];
+      let amount = transactionHistory?.transactions?.price / 1000;
       const subscriptionData = {
         userId: existingSubscription?.userId,
         planId: existingSubscription?.planId,
         subscriptionStatus: EStatus.Active,
         startAt: new Date(transactionHistory.transactions.purchaseDate),
         endAt: new Date(transactionHistory.transactions.expiresDate),
-        amount: transactionHistory?.transactions.price,
+        amount: amount,
         status: EStatus.Active,
         notes: { itemId: existingSubscription?.notes?.itemId },
         createdBy: existingSubscription?.userId,
@@ -474,7 +486,7 @@ export class SubscriptionService {
           transactionId: transactionHistory?.transactions?.transactionId,
           originalTransactionId:
             transactionHistory?.transactions?.originalTransactionId,
-          authAmount: transactionHistory?.transactions?.price,
+          authAmount: amount,
           transactionDate: transactionHistory?.transactions?.purchaseDate,
           planId: transactionHistory?.transactions?.productId,
         },
@@ -493,9 +505,9 @@ export class SubscriptionService {
         itemId: existingSubscription?.notes.itemId,
         source_id: subscription._id,
         source_type: "subscription",
-        sub_total: transactionHistory?.transactions?.price,
+        sub_total: amount,
         document_status: EDocumentStatus.completed,
-        grand_total: transactionHistory?.transactions?.price,
+        grand_total: amount,
         currencyCode: transactionHistory?.transactions?.currency,
         user_id: existingSubscription?.userId,
         created_by: existingSubscription?.userId,
@@ -507,13 +519,13 @@ export class SubscriptionService {
       );
       const conversionRateAmt = await this.helperService.getConversionRate(
         transactionHistory?.transactions?.currency,
-        transactionHistory?.transactions?.price
+        amount
       );
       let amt = parseInt(
-        (transactionHistory?.transactions?.price * conversionRateAmt).toString()
+        (amount * conversionRateAmt).toString()
       );
       const paymentData = {
-        amount: transactionHistory?.transactions?.price,
+        amount: amount,
         document_status: EDocumentStatus.completed,
         providerId: EProviderId.apple,
         providerName: EProvider.apple,
@@ -539,33 +551,37 @@ export class SubscriptionService {
         await this.subscriptionFactory.getTransactionHistory(payload);
       console.log("transactionHistory for apple iap cancel", transactionHistory);
       let existingSubscription = await this.subscriptionModel.findOne({
-        "metaData.transaction.originalTransactionId":
-          transactionHistory?.transactions?.originalTransactionId,
+        "metaData.transaction.originalTransactionId": transactionHistory?.transactions?.originalTransactionId,
       });
-
-      if (existingSubscription) {
-        let body = {
-          status: EMandateStatus.cancelled,
-          updatedAt: new Date(),
-        };
-        let mandates = await this.mandateService.updateIapStatusCancel(
-          existingSubscription?._id,
-          body
-        );
-        const metaData = {
-          transaction: transactionHistory.transactions,
-          renewal: transactionHistory.renewalInfo,
-        };
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandates?._id.toString(),
-          mandateStatus: EMandateStatus.cancelled,
-          metaData: metaData,
-          status: EStatus.Active,
-          createdBy: mandates?.userId,
-          updatedBy: mandates?.userId,
-        });
+      const existingCancellation = await this.mandateService.getMandatesByExternalId(
+        transactionHistory?.transactions?.originalTransactionId,
+        EMandateStatus.cancelled
+      );
+      if (existingCancellation.length > 0) {
+        // console.log("existingCancellation", existingCancellation);
+        return
       }
-      return { message: "Updated Successfully" };
+      let body = {
+        status: EMandateStatus.cancelled,
+        updatedAt: new Date(),
+      };
+      let mandates = await this.mandateService.updateIapStatusCancel(
+        existingSubscription?._id,
+        body
+      );
+      const metaData = {
+        transaction: transactionHistory.transactions,
+        renewal: transactionHistory.renewalInfo,
+      };
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandates?._id,
+        mandateStatus: EMandateStatus.cancelled,
+        metaData: metaData,
+        status: EStatus.Active,
+        createdBy: mandates?.userId,
+        updatedBy: mandates?.userId,
+      });
+      return { message: "Cancellation processed successfully" };
     } catch (error) {
       throw error;
     }
@@ -690,106 +706,103 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      // console.log("renew payload", payload);
+      console.log("renew payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      // console.log("RTDN Received for renew:", JSON.stringify(rtdn));
-      // if (rtdn.notificationType === EEventId.renew) {
-      //   const existingSubscription = await this.subscriptionModel.findOne({
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     subscriptionStatus: EStatus.Active,
-      //     externalId: rtdn.purchaseToken,
-      //   });
-      //   let currency =
-      //     rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice
-      //       ?.currencyCode;
-      //   let price =
-      //     rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
-      //       ?.recurringPrice?.units;
-      //   let currencyId = await this.helperService.getCurrencyId(currency);
-      //   let currencyResponse = currencyId?.data?.[0];
-      //   let conversionRateAmt = await this.helperService.getConversionRate(
-      //     currency,
-      //     price
-      //   );
-      //   let baseAmount = parseInt((price * conversionRateAmt).toString());
-      //   const subscriptionData = {
-      //     userId: existingSubscription?.userId,
-      //     planId: existingSubscription?.planId,
-      //     subscriptionStatus: EStatus.Active,
-      //     startAt: new Date(rtdn.transactionInfo.startTime),
-      //     endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
-      //     amount: price,
-      //     status: EStatus.Active,
-      //     notes: { itemId: existingSubscription?.notes?.itemId },
-      //     createBy: existingSubscription?.userId,
-      //     updateBy: existingSubscription?.userId,
-      //     metaData: rtdn.transactionInfo,
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     externalId: rtdn.purchaseToken,
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     transactionDetails: {
-      //       transactionId: rtdn.purchaseToken,
-      //       authAmount:
-      //         rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
-      //           ?.recurringPrice?.units,
-      //       transactionDate: rtdn.transactionInfo.startTime,
-      //       planId: rtdn.transactionInfo.lineItems[0]?.productId,
-      //     },
-      //   };
-      //   let subscription =
-      //     await this.subscriptionModel.create(subscriptionData);
-      //   let item = await this.itemService.getItemDetail(
-      //     subscription?.notes?.itemId
-      //   );
-      //   let userBody = {
-      //     userId: subscription?.userId,
-      //     membership: item?.itemName,
-      //     badge: item?.additionalDetail?.badge,
-      //   };
-      //   await this.helperService.updateUser(userBody);
-      //   const invoiceData = {
-      //     itemId: existingSubscription?.notes.itemId,
-      //     source_id: subscription._id,
-      //     source_type: "subscription",
-      //     sub_total: price,
-      //     document_status: EDocumentStatus.completed,
-      //     grand_total: price,
-      //     user_id: subscription?.userId,
-      //     currencyCode: currencyResponse.currency_code,
-      //     created_by: subscription?.userId,
-      //     updated_by: subscription?.userId,
-      //   };
-      //   const invoice = await this.invoiceService.createInvoice(
-      //     invoiceData,
-      //     subscription?.userId
-      //   );
-      //   const paymentData = {
-      //     amount: price,
-      //     document_status: EDocumentStatus.completed,
-      //     providerId: EProviderId.google,
-      //     providerName: EProvider.google,
-      //     transactionDate: new Date(),
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     userId: existingSubscription?.userId,
-      //     baseAmount: baseAmount,
-      //     baseCurrency: "INR",
-      //     conversionRate: conversionRateAmt,
-      //     metaData: {
-      //       externalId: rtdn?.purchaseToken,
-      //       latestOrderId: rtdn?.transactionInfo?.latestOrderId,
-      //     },
-      //   };
-      //   await this.paymentService.createPaymentRecord(
-      //     paymentData,
-      //     null,
-      //     invoice
-      //   );
-      //   return subscription;
-      // }
+      console.log("RTDN Received for renew:", JSON.stringify(rtdn));
+
+      const existingRenewal = await this.subscriptionModel.findOne({
+        externalId: rtdn.purchaseToken,
+        providerId: EProviderId.google,
+        provider: EProvider.google,
+      });
+
+      if (existingRenewal) {
+        return
+      }
+      if (rtdn.notificationType === EEventId.renew) {
+        const existingSubscription = await this.subscriptionModel.findOne({
+          providerId: EProviderId.google,
+          provider: EProvider.google,
+          subscriptionStatus: EStatus.Active,
+          externalId: rtdn.purchaseToken,
+        });
+
+        let currency = rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
+        let price = rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan?.recurringPrice?.units;
+
+        let currencyId = await this.helperService.getCurrencyId(currency);
+        let currencyResponse = currencyId?.data?.[0];
+
+        let conversionRateAmt = await this.helperService.getConversionRate(currency, price);
+        let baseAmount = parseInt((price * conversionRateAmt).toString());
+
+        const subscriptionData = {
+          userId: existingSubscription?.userId,
+          planId: existingSubscription?.planId,
+          subscriptionStatus: EStatus.Active,
+          startAt: new Date(rtdn.transactionInfo.startTime),
+          endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
+          amount: price,
+          status: EStatus.Active,
+          notes: { itemId: existingSubscription?.notes?.itemId },
+          createBy: existingSubscription?.userId,
+          updateBy: existingSubscription?.userId,
+          metaData: rtdn.transactionInfo,
+          providerId: EProviderId.google,
+          provider: EProvider.google,
+          externalId: rtdn.purchaseToken,
+          currencyCode: currencyResponse.currency_code,
+          currencyId: currencyResponse._id,
+          transactionDetails: {
+            transactionId: rtdn.purchaseToken,
+            authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
+            transactionDate: rtdn.transactionInfo.startTime,
+            planId: rtdn.transactionInfo.lineItems[0]?.productId,
+          },
+        };
+
+        let subscription = await this.subscriptionModel.create(subscriptionData);
+
+        let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
+        let userBody = {
+          userId: subscription?.userId,
+          membership: item?.itemName,
+          badge: item?.additionalDetail?.badge,
+        };
+        await this.helperService.updateUser(userBody);
+        const invoiceData = {
+          itemId: existingSubscription?.notes.itemId,
+          source_id: subscription._id,
+          source_type: "subscription",
+          sub_total: price,
+          document_status: EDocumentStatus.completed,
+          grand_total: price,
+          user_id: subscription?.userId,
+          currencyCode: currencyResponse.currency_code,
+          created_by: subscription?.userId,
+          updated_by: subscription?.userId,
+        };
+        const invoice = await this.invoiceService.createInvoice(invoiceData, subscription?.userId);
+        const paymentData = {
+          amount: price,
+          document_status: EDocumentStatus.completed,
+          providerId: EProviderId.google,
+          providerName: EProvider.google,
+          transactionDate: new Date(),
+          currencyCode: currencyResponse.currency_code,
+          currencyId: currencyResponse._id,
+          userId: existingSubscription?.userId,
+          baseAmount: baseAmount,
+          baseCurrency: "INR",
+          conversionRate: conversionRateAmt,
+          metaData: {
+            externalId: rtdn?.purchaseToken,
+            latestOrderId: rtdn?.transactionInfo?.latestOrderId,
+          },
+        };
+
+        await this.paymentService.createPaymentRecord(paymentData, null, invoice);
+      }
     } catch (error) {
       // console.error("Error in handleGoogleIAPRenew:", error);
       throw error;
@@ -798,23 +811,23 @@ export class SubscriptionService {
 
   async handleGoogleIAPCancel(payload) {
     try {
-      console.log("payload cancel", payload);
+      console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       console.log("rtdn cancel", JSON.stringify(rtdn));
-
+      const existingCancellation = await this.mandateService.getMandatesByExternalId(rtdn.purchaseToken, EMandateStatus.cancelled);
+      // console.log("existingCancellation", existingCancellation);
+      if (existingCancellation.length > 0) {
+        return
+      }
       if (rtdn.notificationType === EEventId.cancel) {
         const body = {
           status: EMandateStatus.cancelled,
           updatedAt: new Date(),
         };
         const transactionId = rtdn.purchaseToken;
-        let mandate = await this.mandateService.updateIapStatus(
-          transactionId,
-          body
-        );
-        // console.log("mandate", mandate);
+        let mandate = await this.mandateService.updateIapStatus(transactionId, body);
         await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandate?._id.toString(),
+          mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
           metaData: rtdn.transactionInfo,
           status: EStatus.Active,
@@ -822,7 +835,6 @@ export class SubscriptionService {
           updatedBy: mandate?.userId,
         });
       }
-      return { message: "Cancelled Successfully" };
     } catch (error) {
       throw error;
     }
@@ -1381,11 +1393,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-              duedate.getMonth() + subscriptionDetailsData.validity
-            )
+            duedate.getMonth() + subscriptionDetailsData.validity
+          )
           : duedate.setFullYear(
-              duedate.getFullYear() + subscriptionDetailsData.validity
-            );
+            duedate.getFullYear() + subscriptionDetailsData.validity
+          );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1685,22 +1697,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
+        endAt.getDate() +
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.validity
+      )
       : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
+        ?.validityType == EvalidityType.month
         ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getMonth() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
+          endAt.getFullYear() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1861,22 +1873,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
+          endAt.getDate() +
+          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validity
+        )
         : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
+          ?.validityType == EvalidityType.month
           ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
+            endAt.getMonth() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          )
           : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
+            endAt.getFullYear() +
+            planDetail?.additionalDetail?.promotionDetails
+              ?.subscriptionDetail?.validity
+          );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -2198,8 +2210,8 @@ export class SubscriptionService {
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
           ? eligibilityList.some(
-              (e) => e._id.toString() === userItemId.toString()
-            )
+            (e) => e._id.toString() === userItemId.toString()
+          )
           : false;
       }
       return {
