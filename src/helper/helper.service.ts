@@ -777,8 +777,8 @@ export class HelperService {
       console.log("rawToken", rawToken);
       let data = await this.http_service
         .get(
-          // `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
-          `http://localhost:3000/casttree/application/get-user-application/${awardId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
+          // `http://localhost:3000/casttree/application/get-user-application/${awardId}`,
           {
             headers: {
               Authorization: `${rawToken}`,

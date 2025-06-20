@@ -64,7 +64,6 @@ export class ItemService {
     accessToken?: string
   ) {
     try {
-      console.log("accessToken is", accessToken);
 
       if (apiVersion === "2") {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
