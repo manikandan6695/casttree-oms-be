@@ -213,7 +213,7 @@ export class SubscriptionFactory {
     try {
       console.log("apple iap bodyData", bodyData,data);
 
-      const transactionId = bodyData.transactionDetails?.originalTransactionId;
+      const transactionId = bodyData.transactionDetails?.transactionId;
       // console.log("transactionId", transactionId);
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId || bodyData?.transactionDetails?.transactionId
@@ -338,7 +338,7 @@ export class SubscriptionFactory {
         providerName: EProvider.apple,
         transactionDate: new Date(),
         metaData: {
-          externalId: matchingTransaction?.originalTransactionId,
+          externalId:matchingTransaction?.originalTransactionId ,
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         currencyCode: currencyResponse?.currency_code,
@@ -375,7 +375,9 @@ export class SubscriptionFactory {
         mandateId: mandate?._id.toString(),
         mandateStatus: EDocumentStatus.active,
         status: EStatus.Active,
-        metaData: data?.metaData,
+        metaData: {
+          externalId: matchingTransaction?.originalTransactionId,
+        },
         createdBy: token?.id,
         updatedBy: token?.id,
       });
@@ -586,7 +588,6 @@ export class SubscriptionFactory {
     //   typeof originalTransactionId,
     //   originalTransactionId
     // );
-
     const encodedKey = await new Promise<string>((res, rej) => {
       readFile(filePath, (err, data) => {
         if (err) return rej(err);
@@ -600,7 +601,7 @@ export class SubscriptionFactory {
       bundleId,
       prodEnvironment
     );
-
+    
     const sandboxClient = new AppStoreServerAPIClient(
       encodedKey,
       keyId,
@@ -663,8 +664,8 @@ export class SubscriptionFactory {
           return purchaseMatch;
         }
       } catch (err) {
-        throw err;
         // console.warn(`⚠️ Error in ${name} environment: ${err}`);
+        throw err;
         // console.log("Error in getTransactionHistoryById", JSON.stringify(err));
       }
     }
