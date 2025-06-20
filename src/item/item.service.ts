@@ -56,17 +56,36 @@ export class ItemService {
     }
   }
 
-  async getItem(id: string, skip: number, limit: number, apiVersion: string) {
+  async getItem(
+    id: string,
+    skip: number,
+    limit: number,
+    apiVersion: string,
+    accessToken?: string
+  ) {
     try {
+      console.log("accessToken is", accessToken);
+
       if (apiVersion === "2") {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
+        const application = await this.helperService.getUserApplication(
+          awardData?._id,
+          accessToken
+        );
+        // console.log("application is", application);
+
+        const isSubmitted =
+          itemData?.additionalDetail?.allowMulti ||
+          new Date() >=
+            new Date(itemData?.additionalDetail?.registrationExpiry) ||
+          !!application;
         return {
           item: itemData,
           award: awardData,
+          isSubmitted: isSubmitted,
         };
       } else {
-        // console.log("inside else");
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
         const awardId = awardData?._id;

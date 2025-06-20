@@ -772,6 +772,27 @@ export class HelperService {
       throw err;
     }
   }
+  async getUserApplication(awardId: string, rawToken) {
+    try {
+      console.log("rawToken", rawToken);
+      let data = await this.http_service
+        .get(
+          // `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
+          `http://localhost:3000/casttree/application/get-user-application/${awardId}`,
+          {
+            headers: {
+              Authorization: `${rawToken}`,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      // console.log("err is", err);
+
+      throw err;
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {
