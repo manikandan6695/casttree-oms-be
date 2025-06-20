@@ -1,6 +1,6 @@
-export enum Status {
+export enum EStatus {
   ACTIVE = "Active",
   INACTIVE = "Inactive",
-  DRAFT = "Draft",
-  ARCHIVED = "Archived",
 }
+
+export const ESStatus = [EStatus.ACTIVE, EStatus.INACTIVE];

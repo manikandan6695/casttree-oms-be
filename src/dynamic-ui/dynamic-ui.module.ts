@@ -1,31 +1,20 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
+import { CqrsModule } from "@nestjs/cqrs";
 import { DynamicUIController } from "./dynamic-ui.controller";
-import { FeedService } from "./feed.service";
-import { AppNavBarSchema } from "./infrastructure/entity/app-navbar.schema";
-import { ContentPageSchema } from "./infrastructure/entity/page.schema";
-import { ComponentSchema } from "./infrastructure/entity/component.schema";
-import { ComponentHandlerRegistry } from "./handlers/component-handler.registry";
-import { TrendingSeriesHandler } from "./handlers/trending-series.handler";
+import { DynamicUIRepository } from "./infra/dynamic-ui.repository";
+import { GetPageConfigHandler } from "./application/query/handler/get-page-config.handler";
+import { InjectionToken } from "./application/injection-token.enum";
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: "appNavBar", schema: AppNavBarSchema },
-      { name: "contentPage", schema: ContentPageSchema },
-      { name: "pageComponent", schema: ComponentSchema },
-    ]),
-  ],
+  imports: [CqrsModule],
   controllers: [DynamicUIController],
-  providers: [FeedService, ComponentHandlerRegistry, TrendingSeriesHandler],
-  exports: [FeedService],
+  providers: [
+    DynamicUIRepository,
+    GetPageConfigHandler,
+    {
+      provide: InjectionToken.DYNAMIC_UI_REPOSITORY,
+      useClass: DynamicUIRepository,
+    },
+  ],
 })
-export class FeedModule {
-  constructor(
-    private readonly componentHandlerRegistry: ComponentHandlerRegistry,
-    private readonly trendingSeriesHandler: TrendingSeriesHandler
-  ) {
-    // Register component handlers
-    this.componentHandlerRegistry.register(this.trendingSeriesHandler);
-  }
-}
+export class DynamicUIModule {}

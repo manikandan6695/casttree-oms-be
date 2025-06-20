@@ -1447,4 +1447,12 @@ export class ServiceItemService {
       throw error;
     }
   }
+
+  public async getComponentData(
+    componentKey: string,
+    userId: string
+  ): Promise<any[]> {
+    // TODO: Implement actual logic to fetch service item data for the component
+    return [];
+  }
 }

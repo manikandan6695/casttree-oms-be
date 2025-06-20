@@ -1,50 +1,30 @@
-import { UserToken } from "src/auth/dto/usertoken.dto";
-import { GetToken } from "src/shared/decorator/getuser.decorator";
-import { QueryBus } from "@nestjs/cqrs";
+import { GetNavBarDetailsQuery } from "./application/query/impl/get-navbar-details.query";
 import {
   Controller,
   Get,
-  UseGuards,
+  Param,
   Req,
+  UseGuards,
   HttpException,
   HttpStatus,
-  Param,
 } from "@nestjs/common";
-import { FeedService } from "./feed.service";
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiInternalServerErrorResponse,
-} from "@nestjs/swagger";
-import { NavBarResponseDto } from "./interface/dto/navbar-response.dto";
-import { UserRequestDto } from "./interface/dto/user-request.dto";
-import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
-import { PageResponseDto } from "./interface/dto/page-response.dto";
-import { ResponseSerializationDecorator } from "src/common/decorators/response.decorator";
-import { ResponseDefaultSerialization } from "src/common/constants/response.default.serialization";
-import { ResponseDescription } from "src/common/constants/response.descriptor";
-import { FindPageByIdRequestParam } from "./interface/dto/findPageByIdRequestParam.interface";
-import { FindPageByIdQuery } from "./infrastructure/query/impl/FindPageByIdQuery.command";
-import { FindPageByIdResponseDTO } from "./interface/dto/learnHomeFeedResponse.dto";
+import { QueryBus } from "@nestjs/cqrs";
+import { JwtAuthGuard } from "../auth/guard/jwt-auth.guard";
+import { GetToken } from "../shared/decorator/getuser.decorator";
+import { UserToken } from "../auth/dto/usertoken.dto";
+// import { NavBarResponseDto } from "./dto/navbar-response.dto"; // Uncomment and adjust as needed
+// import { FindPageByIdRequestParam, FindPageByIdResponseDTO, ResponseDefaultSerialization } from "./dto/page-response.dto"; // Uncomment and adjust as needed
+// import { ResponseSerializationDecorator } from "../shared/decorator/response-serialization.decorator"; // Uncomment and adjust as needed
+// import { ResponseDescription } from "../shared/app.constants"; // Uncomment and adjust as needed
+import { GetPageConfigQuery } from "./application/query/impl/get-page-config.query";
 
-@ApiTags("Dynamic-UI")
 @Controller("dynamic-ui")
 export class DynamicUIController {
-  constructor(
-    private readonly feedService: FeedService,
-    readonly queryBus: QueryBus
-  ) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
-  @Get()
+  @Get("navbar-details")
   @UseGuards(JwtAuthGuard)
-  async getNavBarDetails(
-    @Req() req: Request,
-    @GetToken() token: UserToken
-  ): Promise<NavBarResponseDto> {
+  async getNavBarDetails(@Req() req, @GetToken() token: UserToken) {
     try {
       if (!token.id) {
         throw new HttpException(
@@ -53,7 +33,7 @@ export class DynamicUIController {
         );
       }
 
-      return await this.feedService.getNavBarDetails(token.id);
+      return await this.queryBus.execute(new GetNavBarDetailsQuery(token.id));
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -65,43 +45,13 @@ export class DynamicUIController {
     }
   }
 
-  @ApiBadRequestResponse({ description: ResponseDescription.BAD_REQUEST })
-  @ApiNotFoundResponse({ description: ResponseDescription.NOT_FOUND })
-  @ApiInternalServerErrorResponse({
-    description: ResponseDescription.INTERNAL_SERVER_ERROR,
-  })
-  @ResponseSerializationDecorator(FindPageByIdResponseDTO)
   @UseGuards(JwtAuthGuard)
   @Get(":pageId/get-page-detail")
   async findUserByIdAsync(
-    @Param() param: FindPageByIdRequestParam
-  ): Promise<ResponseDefaultSerialization> {
-    return this.queryBus.execute(new FindPageByIdQuery(param.id));
-  }
-
-  @Get(":pageId/page-details")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "Get page details with components" })
-  @ApiResponse({
-    status: 200,
-    description: "Successfully retrieved page details",
-    type: PageResponseDto,
-  })
-  async getPageDetails(
-    @Req() req: Request,
     @Param("pageId") pageId: string,
     @GetToken() token: UserToken
-  ): Promise<PageResponseDto> {
-    try {
-      return await this.feedService.getPageDetails(pageId, token.id);
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException(
-        "Failed to fetch page details",
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
+  ) {
+    // Pass userId to the CQRS query for page details
+    return this.queryBus.execute(new GetPageConfigQuery(pageId, token.id));
   }
 }

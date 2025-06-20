@@ -743,4 +743,9 @@ export class ProcessService {
       throw err;
     }
   }
+
+  public async getContinueWatchingData(userId: string): Promise<any[]> {
+    // TODO: Implement actual logic to fetch continue watching data
+    return [];
+  }
 }
