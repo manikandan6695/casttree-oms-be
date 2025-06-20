@@ -238,6 +238,7 @@ export class SubscriptionFactory {
       //   return existingSubscription;
       // }
       const price = matchingTransaction?.price / 1000;
+      const formattedPrice = Number(price.toFixed(2));
       const currencyCode = matchingTransaction?.currency;
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
@@ -256,7 +257,7 @@ export class SubscriptionFactory {
         endAt: subscriptionEnd,
         providerId: data.providerId,
         provider: data.provider,
-        amount: price,
+        amount: formattedPrice,
         notes: { itemId: item?._id },
         subscriptionStatus: EsubscriptionStatus.active,
         createdBy: token?.id,
@@ -311,9 +312,9 @@ export class SubscriptionFactory {
         itemId: item?._id,
         source_id: createdSubscription?._id,
         source_type: "subscription",
-        sub_total: price,
+        sub_total: formattedPrice,
         document_status: EDocumentStatus.completed,
-        grand_total: price,
+        grand_total: formattedPrice,
         user_id: token?.id,
         created_by: token?.id,
         updated_by: token?.id,
@@ -329,20 +330,20 @@ export class SubscriptionFactory {
         currencyCode,
         price
       );
-      const baseAmount = Math.round(price * conversionRateAmt);
+      const baseAmount = Math.round((formattedPrice * conversionRateAmt));
       const paymentData = {
-        amount: price,
+        amount: formattedPrice,
         document_status: EDocumentStatus.completed,
         providerId: EProviderId.apple,
         providerName: EProvider.apple,
         transactionDate: new Date(),
         metaData: {
-          externalId: data?.metaData?.externalId,
+          externalId: matchingTransaction?.originalTransactionId,
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         currencyCode: currencyResponse?.currency_code,
         currencyId: currencyResponse?._id,
-        baseAmount: baseAmount,
+        baseAmount: baseAmount.toFixed(2),
         baseCurrency: currencyCode,
         conversionRate: conversionRateAmt,
         paymentType: "Auth",
@@ -357,7 +358,7 @@ export class SubscriptionFactory {
         sourceId: createdSubscription?._id,
         userId: token?.id,
         paymentMethod: "ONLINE",
-        amount: price,
+        amount: formattedPrice,
         providerId: EProviderId.apple,
         currency: currencyResponse?.currency_code,
         planId: data?.planId,
@@ -412,9 +413,10 @@ export class SubscriptionFactory {
         transactionId
       );
       // console.log("matchingTransaction", matchingTransaction);
-      let price =
-        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
-          ?.recurringPrice?.units;
+      const rawPrice =
+        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units;
+        const price = Number(rawPrice);
+      const formattedPrice = Number(price.toFixed(2));
       const currencyCode =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.currencyCode;
@@ -440,12 +442,18 @@ export class SubscriptionFactory {
         endAt: subscriptionEnd,
         providerId: data?.providerId,
         provider: data?.provider,
-        amount: price,
+        amount: formattedPrice,
         notes: { itemId: item?._id },
         subscriptionStatus: EsubscriptionStatus.active,
         createdBy: token?.id,
         updatedBy: token?.id,
         metaData: matchingTransaction?.transactionInfo,
+        transactionDetails: {
+          transactionId: transactionId,
+          authAmount: formattedPrice,
+          transactionDate: matchingTransaction?.transactionInfo?.startTime,
+          planId: bodyData?.planId,
+        },
         externalId: transactionId,
         currencyCode: currencyCode,
         currencyId: currencyResponse?._id,
@@ -470,16 +478,16 @@ export class SubscriptionFactory {
       //     ?.recurringPrice?.units;
       let conversionRateAmt = await this.helperService.getConversionRate(
         currencyCode,
-        price
+        formattedPrice
       );
-      let baseAmount = parseInt((price * conversionRateAmt).toString());
+      let baseAmount = parseInt((formattedPrice * conversionRateAmt).toString());
       const invoiceData = {
         itemId: item?._id,
         source_id: createdSubscription?._id,
         source_type: "subscription",
-        sub_total: price,
+        sub_total: formattedPrice,
         document_status: EDocumentStatus.active,
-        grand_total: price,
+        grand_total: formattedPrice,
         user_id: token?.id,
         created_by: token?.id,
         updated_by: token?.id,
@@ -493,7 +501,7 @@ export class SubscriptionFactory {
         token.id
       );
       const paymentData = {
-        amount: price,
+        amount: Number(formattedPrice),
         document_status: EDocumentStatus.completed,
         providerId: EProviderId.google,
         providerName: EProvider.google,
@@ -504,7 +512,7 @@ export class SubscriptionFactory {
         transactionDate: new Date(),
         currencyCode: currencyCode,
         currency: currencyResponse?._id,
-        baseAmount: baseAmount,
+        baseAmount: baseAmount.toFixed(2),
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
         paymentType: "Auth",
@@ -520,7 +528,7 @@ export class SubscriptionFactory {
         sourceId: createdSubscription?._id,
         userId: token?.id,
         paymentMethod: "ONLINE",
-        amount: price,
+        amount: formattedPrice,
         providerId: EProviderId.google,
         currency: currencyCode,
         planId: data.planId,
