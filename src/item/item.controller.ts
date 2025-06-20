@@ -67,7 +67,8 @@ export class ItemController {
         id,
         skip,
         limit,
-        req.headers["x-api-version"]
+        req.headers["x-api-version"],
+        req.headers["authorization"]
       );
       return data;
     } catch (err) {
@@ -75,6 +76,7 @@ export class ItemController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("get-item/:id")
   @Version("2")
   async getItemV2(
@@ -88,7 +90,8 @@ export class ItemController {
         id,
         skip,
         limit,
-        req.headers["x-api-version"]
+        req.headers["x-api-version"],
+        req.headers["authorization"]
       );
       return data;
     } catch (err) {
