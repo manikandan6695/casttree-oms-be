@@ -86,11 +86,10 @@ export class DynamicUiService {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
         }
-        if (comp.componentKey == "single-ad-banner" || "full-size-banner") {
+        if (comp.type == "userPreferenceBanner") {
           comp.media = singleAdBanner?.media;
           comp.navigation = {
             ...singleAdBanner?.navigation,
-            ...comp.navigation,
           };
         }
         const tagName = comp?.tag?.tagName;
@@ -449,6 +448,7 @@ export class DynamicUiService {
             media: { mediaUrl: premiumBannerObj.imageUrl, mediaId: "" },
             navigation: {
               page: getScreenName(premiumBannerObj),
+              type: "internal",
               params: {
                 processId: premiumBannerObj.processId,
                 taskId: premiumBannerObj.taskId,
