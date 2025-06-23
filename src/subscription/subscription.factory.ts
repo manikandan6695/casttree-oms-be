@@ -211,12 +211,13 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      console.log("apple iap bodyData", bodyData,data);
+      console.log("apple iap bodyData", bodyData, data);
 
       const transactionId = bodyData.transactionDetails?.transactionId;
       // console.log("transactionId", transactionId);
       const originalTransactionId =
-        data?.transactionDetails?.originalTransactionId || bodyData?.transactionDetails?.transactionId
+        data?.transactionDetails?.originalTransactionId ||
+        bodyData?.transactionDetails?.transactionId;
       // console.log("originalTransactionId", originalTransactionId);
 
       const existingSubscription =
@@ -330,7 +331,7 @@ export class SubscriptionFactory {
         currencyCode,
         price
       );
-      const baseAmount = Math.round((formattedPrice * conversionRateAmt));
+      const baseAmount = Math.round(formattedPrice * conversionRateAmt);
       const paymentData = {
         amount: formattedPrice,
         document_status: EDocumentStatus.completed,
@@ -338,7 +339,7 @@ export class SubscriptionFactory {
         providerName: EProvider.apple,
         transactionDate: new Date(),
         metaData: {
-          externalId:matchingTransaction?.originalTransactionId ,
+          externalId: matchingTransaction?.originalTransactionId,
           latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
         },
         currencyCode: currencyResponse?.currency_code,
@@ -416,8 +417,9 @@ export class SubscriptionFactory {
       );
       // console.log("matchingTransaction", matchingTransaction);
       const rawPrice =
-        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units;
-        const price = Number(rawPrice);
+        matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+          ?.recurringPrice?.units;
+      const price = Number(rawPrice);
       const formattedPrice = Number(price.toFixed(2));
       const currencyCode =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
@@ -482,7 +484,9 @@ export class SubscriptionFactory {
         currencyCode,
         formattedPrice
       );
-      let baseAmount = parseInt((formattedPrice * conversionRateAmt).toString());
+      let baseAmount = parseInt(
+        (formattedPrice * conversionRateAmt).toString()
+      );
       const invoiceData = {
         itemId: item?._id,
         source_id: createdSubscription?._id,
@@ -601,7 +605,7 @@ export class SubscriptionFactory {
       bundleId,
       prodEnvironment
     );
-    
+
     const sandboxClient = new AppStoreServerAPIClient(
       encodedKey,
       keyId,
@@ -949,10 +953,10 @@ export class SubscriptionFactory {
     }
   }
   // google iap
-  async googleRtdn(message) {
+  async googleRtdn(payload) {
     try {
-      // console.log("message", message);
-      const pubSubMessage = message;
+      console.log("payload", payload);
+      const pubSubMessage = payload?.message;
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
       // console.log("notification", notification);

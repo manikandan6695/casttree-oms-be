@@ -15,6 +15,8 @@ export class MandateHistoryService {
 
   async createMandateHistory(body) {
     try {
+      console.log("mandate history body", body);
+
       let mandateHistory = await this.mandateHistoryModel.create(body);
       return mandateHistory;
     } catch (error) {
