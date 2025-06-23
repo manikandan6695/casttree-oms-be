@@ -1,34 +1,10 @@
 import * as mongoose from "mongoose";
-export interface ISubscriptionModel extends mongoose.Document {
-  subscriptionId: string;
-  totalCount: number;
-  currentStart: Date;
-  quantity: number;
-  currentEnd: Date;
-  startAt: Date;
-  amount: number;
+export interface IWebhookModel extends mongoose.Document {
   providerId: number;
   provider: string;
-  scheduleChangeAt: string;
-  endAt: Date;
-  paidCount: number;
-  expireBy: Date;
-  notes: any;
-  subscriptionStatus: string;
-  metaData: any;
+  transaction: any;
+  webhookPayload: any;
   status: string;
-  externalId: string;
-  transactionDetails: {
-    transactionId: string;
-    originalTransactionId: string;
-    authAmount: number;
-    transactionDate: Date;
-    planId: string;
-  };
-  currencyId: string;
-  currencyCode: string;
-  createdBy: string;
-  updatedBy: string;
 }
 export const webhookSchema = new mongoose.Schema(
   {
@@ -41,7 +17,7 @@ export const webhookSchema = new mongoose.Schema(
     provider: {
       type: String,
     },
-    webhook: {
+    webhookPayload: {
       type: mongoose.Schema.Types.Mixed,
     },
   },
