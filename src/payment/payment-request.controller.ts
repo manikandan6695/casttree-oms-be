@@ -122,6 +122,20 @@ export class PaymentRequestController {
     }
   }
   
+  @Get("verify-payment/:paymentId")
+  async getCoinValueUpdate(@Param("paymentId") paymentId: string, @Res() res: Response) {
+    try {
+      const data = await this.paymentRequestService.updateCoinValue(paymentId);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+  
   //   @Get("test/pavan")
   //   async testhmac()
   // {

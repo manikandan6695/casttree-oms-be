@@ -106,21 +106,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    async pushCoinPurchaseResponse(data: any, coinTransactionId: string) {
-        // console.log("data", data);
-        if (!this.isConnected) {
-            // console.log("⚠️  Redis not connected, cannot push response");
-            return;
-        }
-        try {
-            // console.log("id", coinTransactionId);
-            let res = await this.client.lPush(`${ERedisEventType.coinPurchaseResponse}:${coinTransactionId}`, JSON.stringify(data));
-            // console.log("📤 Pushed response to coin_purchase_response:", data, res);
-        } catch (error) {
-            throw error;
-            // console.error("Error pushing response:", error);
-        }
-    }
 
     async pushToCoinPurchaseQueue(data: any, queueName: string = ERedisEventType.coinPurchase) {
         if (!this.isConnected) {
