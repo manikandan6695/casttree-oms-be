@@ -15,8 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { any } from "joi";
-
+const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
   constructor(
@@ -71,7 +70,13 @@ export class DynamicUiService {
           status: EStatus.Active,
         })
         .lean();
-      let serviceItemData = await this.fetchServiceItemDetails(data, token.id);
+      let serviceItemData = await this.fetchServiceItemDetails(
+        data,
+        token.id,
+        false,
+        0,
+        0
+      );
       let continueWatching = await this.fetchContinueWatching(token.id);
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
@@ -81,7 +86,7 @@ export class DynamicUiService {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
         }
-        if (comp.componentKey == "single-ad-banner") {
+        if (comp.componentKey == "single-ad-banner" || "full-size-banner") {
           comp.media = singleAdBanner?.media;
           comp.navigation = {
             ...singleAdBanner?.navigation,
@@ -103,25 +108,75 @@ export class DynamicUiService {
     }
   }
 
-  async getComponent(token: UserToken, componentId: string) {
+  async getComponent(
+    token: UserToken,
+    componentId: string,
+    skip: number,
+    limit: number
+  ) {
     try {
+      let component = await this.componentModel
+        .findOne({
+          _id: componentId,
+          status: EStatus.Active,
+        })
+        .lean();
+      let page = await this.contentPageModel
+        .findOne({ "components.componentId": componentId })
+        .lean();
+      let serviceItemData = await this.fetchServiceItemDetails(
+        page,
+        token.id,
+        true,
+        skip,
+        limit
+      );
+      const tagName = component?.tag?.tagName;
+      if (tagName && serviceItemData?.finalData?.[tagName]) {
+        component.actionData = serviceItemData.finalData[tagName];
+        component["totalCount"] = serviceItemData?.count;
+      }
+      return { component };
     } catch (err) {
       throw err;
     }
   }
-  async fetchServiceItemDetails(data, userId: string) {
+  async fetchServiceItemDetails(
+    data,
+    userId: string,
+    isPagination = false,
+    skip,
+    limit
+  ) {
     try {
       let filter = {
         type: EserviceItemType.courses,
-        "skill.skillId": { $in: [data.metaData?.skillId] },
+        "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      //   console.log("filter", filter);
-
-      const serviceItemData = await this.serviceItemModel.aggregate([
-        {
-          $match: filter,
+      let aggregationPipeline = [];
+      aggregationPipeline.push({
+        $match: filter,
+      });
+      let countPipe = [...aggregationPipeline];
+      if (isPagination) {
+        aggregationPipeline.push({
+          $sort: { _id: -1 },
+        });
+        aggregationPipeline.push({ $skip: skip });
+        aggregationPipeline.push({ $limit: limit });
+      } else {
+        aggregationPipeline.push({
+          $sort: { _id: -1 },
+        });
+      }
+      countPipe.push({
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
         },
+      });
+      aggregationPipeline.push(
         {
           $addFields: {
             tagNames: {
@@ -156,16 +211,25 @@ export class DynamicUiService {
           },
         },
         {
-          $sort: { _id: -1 },
-        },
-        {
           $project: {
             _id: 0,
             tagName: "$_id",
             details: 1,
           },
-        },
-      ]);
+        }
+      );
+
+      console.log("aggregationPipeline", aggregationPipeline);
+
+      const serviceItemData =
+        await this.serviceItemModel.aggregate(aggregationPipeline);
+      let totalCount = await this.serviceItemModel.aggregate(countPipe);
+      console.log("totalCount", totalCount);
+      let count;
+      if (totalCount.length) {
+        count = totalCount[0].count;
+      }
+
       //   const serviceItemData = await this.serviceItemModel.aggregate([
       //     {
       //       $match: filter,
@@ -310,7 +374,7 @@ export class DynamicUiService {
         a[c.tagName] = c.details;
         return a;
       }, {});
-      return { finalData };
+      return { finalData, count };
     } catch (err) {
       throw err;
     }
