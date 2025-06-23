@@ -10,6 +10,7 @@ export enum EPaymentSourceType {
   invoice = "Invoice",
   subscription = "subscription",
   processInstance = "processInstance",
+  coinTransaction = "coinTransaction",
 }
 
 export const ESPaymentSourceType = [

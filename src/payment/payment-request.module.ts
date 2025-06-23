@@ -12,6 +12,7 @@ import { PaymentSchema } from "./schema/payment.schema";
 
 import { HttpModule } from "@nestjs/axios";
 import { ItemModule } from "src/item/item.module";
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { ItemModule } from "src/item/item.module";
     HelperModule,
     forwardRef(() =>  ServiceRequestModule),
     HttpModule,
-    forwardRef(() =>ItemModule)
+    forwardRef(() =>ItemModule),
+    RedisModule
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

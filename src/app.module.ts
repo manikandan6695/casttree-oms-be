@@ -21,7 +21,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
-
+import { RedisModule } from "./redis/redis.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -59,6 +59,7 @@ import { SubscriptionModule } from "./subscription/subscription.module";
     PaymentRequestModule,
     InvoiceModule,
     ProcessModule,
+    RedisModule,
     SubscriptionModule,
     ScheduleModule.forRoot(),
     MandatesModule,
