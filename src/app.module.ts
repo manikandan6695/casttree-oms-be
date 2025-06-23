@@ -22,6 +22,8 @@ import { ServiceResponseModule } from "./service-response/service-response.modul
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
 import { RedisModule } from "./redis/redis.module";
+import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -64,6 +66,7 @@ import { RedisModule } from "./redis/redis.module";
     ScheduleModule.forRoot(),
     MandatesModule,
     TaxModule,
+    DynamicUiModule,
   ],
   controllers: [],
   providers: [
