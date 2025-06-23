@@ -21,6 +21,7 @@ import { ServiceResponseFormatModule } from "./service-response-format/service-r
 import { ServiceResponseModule } from "./service-response/service-response.module";
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
+import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 
 @Module({
@@ -60,6 +61,7 @@ import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
     PaymentRequestModule,
     InvoiceModule,
     ProcessModule,
+    RedisModule,
     SubscriptionModule,
     ScheduleModule.forRoot(),
     MandatesModule,

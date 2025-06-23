@@ -43,7 +43,7 @@ export class InvoiceService {
         sales_document_number: invoice_number,
         document_number: invoice_number,
       };
-
+      
       let gstData;
       if (countryCode === "IN") {
         gstData = await this.calculateGST(body.itemId, body.grand_total);
@@ -174,6 +174,17 @@ export class InvoiceService {
         _id: id,
       });
 
+      return invoice;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getSalesDocumentBySource(sourceId: string, sourceType: string) {
+    try {
+      let invoice = await this.salesDocumentModel.findOne({
+        source_id:new ObjectId(sourceId),
+        source_type: sourceType,
+      });
       return invoice;
     } catch (err) {
       throw err;

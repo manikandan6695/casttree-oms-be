@@ -22,7 +22,9 @@ import {
   ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
-
+import { RedisService } from "../redis/redis.service";
+import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
+const jwt = require('jsonwebtoken');
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -45,8 +47,52 @@ export class PaymentRequestService {
     private configService: ConfigService,
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
-    private serviceItemService: ServiceItemService
+    private serviceItemService: ServiceItemService,
+    private redisService: RedisService
   ) {}
+
+  async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
+    try {
+      if (coinPurchaseData?.key === 'coin_purchase_queue') {
+        // console.log("coinPurchaseData!", coinPurchaseData?.element);
+        const parsedElement = JSON.parse(coinPurchaseData.element);
+        const accessTokenData = parsedElement?.authToken;
+        const token = accessTokenData?.replace(/^Bearer\s+/i, '');
+        const payload = parsedElement?.payload;
+        const existingData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        if (existingData) {
+          // console.log("Existing data Found:", existingData);
+          return existingData;
+        }
+        const bodyData: paymentDTO = {
+          amount: payload?.amount,
+          paymentMode: payload?.paymentMode,
+          userId: payload?.userId,
+          itemId: payload?.itemId,
+          currencyCode: payload?.currencyCode,
+          transactionDate: new Date(),
+          providerId: EProviderId.razorpay,
+          providerName: EProvider.razorpay,
+          document_status: EPaymentStatus.initiated,
+          invoiceDetail: {
+            sourceType: EPaymentSourceType.coinTransaction,
+            sourceId: payload?.coinTransactionId,
+          },
+          paymentType: "Auth"
+        };
+        
+        // console.log("Payment Payload:", bodyData);
+        const decodedToken = jwt.decode(token) as UserToken;
+        // console.log("decodedToken",decodedToken);
+        await this.initiatePayment(bodyData, decodedToken, accessTokenData);
+      }
+      
+    } catch (err) {
+      console.error("Error handling coin purchase from Redis:", err);
+      throw err;
+    }
+  }
+  
 
   async initiatePayment(
     body: paymentDTO,
@@ -58,7 +104,7 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceId?.toString(),
       //   body?.invoiceDetail?.sourceType
       // );
-
+      
       let serviceRequest;
       if (body.serviceRequest) {
         serviceRequest = await this.serviceRequestService.createServiceRequest(
@@ -163,6 +209,7 @@ export class PaymentRequestService {
         currencyCode: body.currencyCode,
         document_status: EDocumentStatus.pending,
         grand_total: grand_total,
+        user_id: body?.userId || token?.id,
       },
       token.id
     );
@@ -398,18 +445,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -604,4 +651,46 @@ export class PaymentRequestService {
   // }
   // function hmac(arg0: string, message: any, key: any) {
   //   throw new Error("Function not implemented.");
+
+  async handlePaymentSuccess(payload: any) {
+    try {
+      const rzpPaymentId = payload?.payment?.entity?.order_id;
+      let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
+
+      if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
+        return 
+      }
+      await this.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+      let existingData = await this.paymentModel.findOne({
+        payment_order_id: rzpPaymentId,
+        document_status: EDocumentStatus.completed,
+      })
+      if (existingData) {
+        return existingData;
+      }
+      let redisData = {
+        key: "coin_purchase_response",
+        element:{
+          amount: paymentRequest?.amount,
+          userId: paymentRequest?.user_id,
+          currency: paymentRequest?.currencyCode,
+          sourceId: paymentRequest?.source_id,
+          paymentOrderId: rzpPaymentId,
+          paymentStatus: "success",
+          // amount: 199,
+          // userId: "6815a7145e7bf4e41d59a8fd",
+          // currency: "INR",
+          // sourceId: "6857cfd77bb42e6a9791bd4e",
+          // paymentOrderId: "order_QjtwvIBIVIl8Nm",
+          // paymentStatus: "success",
+        }
+      }
+      await this.redisService.pushCoinPurchaseResponse(redisData,paymentRequest?.source_id);
+    } catch (err) {
+      throw err;
+    }
+  }
 }
