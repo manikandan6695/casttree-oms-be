@@ -219,12 +219,12 @@ export class DynamicUiService {
         }
       );
 
-      console.log("aggregationPipeline", aggregationPipeline);
+      // console.log("aggregationPipeline", aggregationPipeline);
 
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
       let totalCount = await this.serviceItemModel.aggregate(countPipe);
-      console.log("totalCount", totalCount);
+      // console.log("totalCount", totalCount);
       let count;
       if (totalCount.length) {
         count = totalCount[0].count;
@@ -347,14 +347,10 @@ export class DynamicUiService {
       const processIds = serviceItemData.flatMap((item) =>
         item.details.map((detail) => detail.processId)
       );
-      //   const uniqueProcessIds = [...new Set(processIds)];
-
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
-      //   console.log("firstTasks", firstTasks);
-
       const taskMap = new Map(
         firstTasks.map((task) => [task.processId.toString(), task])
       );
@@ -363,7 +359,6 @@ export class DynamicUiService {
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
           const matchingTask = taskMap.get(detail.processId.toString());
-          //   console.log("matchingTask", matchingTask);
           return {
             ...detail,
             taskDetail: matchingTask || null,
