@@ -68,7 +68,7 @@ export class DynamicUiService {
       let componentDocs = await this.componentModel
         .find({
           _id: { $in: componentIds },
-          //   status: EStatus.Active,
+          status: EStatus.Active,
         })
         .lean();
       let serviceItemData = await this.fetchServiceItemDetails(data, token.id);
@@ -106,7 +106,7 @@ export class DynamicUiService {
     try {
       let filter = {
         type: EserviceItemType.courses,
-        "role.roleId": { $in: [data.metaData?.roleId] },
+        "skill.skillId": { $in: [data.metaData?.skillId] },
         status: Estatus.Active,
       };
       //   console.log("filter", filter);
