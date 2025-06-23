@@ -102,6 +102,13 @@ export class DynamicUiService {
       throw err;
     }
   }
+
+  async getComponent(token: UserToken, componentId: string) {
+    try {
+    } catch (err) {
+      throw err;
+    }
+  }
   async fetchServiceItemDetails(data, userId: string) {
     try {
       let filter = {
