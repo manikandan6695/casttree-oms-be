@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
 import { createClient, RedisClientType } from 'redis';
+import { ERedisEventType } from 'src/payment/enum/payment.enum';
 import { PaymentRequestService } from 'src/payment/payment-request.service';
 
 @Injectable()
@@ -22,9 +23,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                 }
             });
 
-            this.client.on('error', (err) => {
-                console.error('❌ Redis publisher client error:', err);
-            });
+            // this.client.on('error', (err) => {
+            //     console.error('❌ Redis publisher client error:', err);
+            // });
 
             await this.client.connect();
             // console.log("✅ Redis publisher connected");
@@ -38,9 +39,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                 }
             });
 
-            this.subscriberClient.on('error', (err) => {
-                console.error('❌ Redis subscriber client error:', err);
-            });
+            // this.subscriberClient.on('error', (err) => {
+            //     console.error('❌ Redis subscriber client error:', err);
+            // });
 
             await this.subscriberClient.connect();
             // console.log("✅ Redis subscriber connected");
@@ -49,7 +50,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             this.startQueuePolling();
 
         } catch (error) {
-            console.error("❌ Failed to connect to Redis:", error.message);
+            // console.error("❌ Failed to connect to Redis:", error.message);
             // console.log("⚠️  Application will continue without Redis functionality");
             this.isConnected = false;
         }
@@ -70,16 +71,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     async startQueuePolling() {
         while (this.isPolling) {
             try {
-                const result = await this.subscriberClient.blPop('coin_purchase_queue', 1);
+                const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, 1);
                 if (result) {
-                    console.log("BLPOP result:", result);
+                    // console.log("BLPOP result:", result);
                     await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
                 } else {
-                    // No data, wait a bit before next poll
                     await new Promise(res => setTimeout(res, 500));
                 }
             } catch (error) {
-                console.error("Error polling queue:", error);
+                // console.error("Error polling queue:", error);
                 // Wait a bit before retrying in case of error
                 await new Promise(res => setTimeout(res, 1000));
             }
@@ -99,7 +99,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             return;
         }
         try {
-            await this.client.publish('coin_purchase_response', JSON.stringify(data));
+            await this.client.publish(ERedisEventType.coinPurchaseResponse, JSON.stringify(data));
             // console.log("📤 Published response to coin_purchase_response:", data);
         } catch (error) {
             console.error("Error publishing response:", error);
@@ -114,10 +114,26 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         }
         try {
             // console.log("id", coinTransactionId);
-            let res = await this.client.lPush(`coin_purchase_response:${coinTransactionId}`, JSON.stringify(data));
+            let res = await this.client.lPush(`${ERedisEventType.coinPurchaseResponse}:${coinTransactionId}`, JSON.stringify(data));
             // console.log("📤 Pushed response to coin_purchase_response:", data, res);
         } catch (error) {
             console.error("Error pushing response:", error);
         }
+    }
+
+    async pushToCoinPurchaseQueue(orderId: string, queueName: string = ERedisEventType.coinPurchase) {
+        if (!this.isConnected) {
+            return;
+        }
+        try {
+            await this.client.lPush(queueName, orderId);
+            // console.log(`📤 Pushed orderId to ${queueName}:`, orderId);
+        } catch (error) {
+            console.error(`Error pushing orderId to ${queueName}:`, error);
+        }
+    }
+
+    async pushToIntermediateTransferQueue(orderId: string) {
+        await this.pushToCoinPurchaseQueue(orderId, ERedisEventType.intermediateTransfer);
     }
 }

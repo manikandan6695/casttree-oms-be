@@ -57,3 +57,15 @@ export enum EPaymentType {
 }
 
 export const ESPaymentType = [EPaymentType.auth, EPaymentType.charge];
+
+export enum ERedisEventType {
+  coinPurchase = "coin_purchase_queue",
+  coinPurchaseResponse = "coin_purchase_response",
+  intermediateTransfer = "intermediate_transfer",
+}
+
+export const ERedisEventTypes = [
+  ERedisEventType.coinPurchase,
+  ERedisEventType.coinPurchaseResponse,
+  ERedisEventType.intermediateTransfer,
+];
