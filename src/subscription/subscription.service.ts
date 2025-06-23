@@ -359,7 +359,7 @@ export class SubscriptionService {
         const eventType = await this.subscriptionFactory.googleRtdn(req?.body);
         console.log("eventType", eventType);
         let webhookExist = await this.webhookModel.findOne({
-          transaction: eventType?.purchaseToken,
+          "transaction.purchaseToken": eventType?.purchaseToken,
         });
         if (!webhookExist) {
           await this.webhookModel.create({
@@ -837,19 +837,19 @@ export class SubscriptionService {
 
   async handleGoogleIAPCancel(payload) {
     try {
-      console.log("payload for google cancel", payload);
+      // console.log("payload for google cancel", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload);
-      console.log("rtdn cancel", JSON.stringify(rtdn));
+      // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
         await this.mandateService.getMandatesByExternalId(
           rtdn.purchaseToken,
           EMandateStatus.cancelled
         );
-      console.log("existingCancellation", existingCancellation);
-      if (existingCancellation.length > 0) {
-        return;
-      }
-      if (rtdn.notificationType === EEventId.cancel) {
+      // console.log("existingCancellation", existingCancellation);
+      if (
+        existingCancellation.length != 0 &&
+        rtdn.notificationType === EEventId.cancel
+      ) {
         const body = {
           status: EMandateStatus.cancelled,
           updatedAt: new Date(),
