@@ -10,6 +10,7 @@ import { ISalesDocumentModel } from "./schema/sales-document.schema";
 import { ItemService } from "src/item/item.service";
 import { IItemModel } from "src/item/schema/item.schema";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { EDocumentStatus } from "./enum/document-status.enum";
 const { ObjectId } = require("mongodb");
 
 @Injectable()
@@ -184,6 +185,17 @@ export class InvoiceService {
       let invoice = await this.salesDocumentModel.findOne({
         source_id:new ObjectId(sourceId),
         source_type: sourceType,
+      });
+      return invoice;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getSalesDocumentByUserId(userId: string) {
+    try {
+      let invoice = await this.salesDocumentModel.find({
+        user_id: new ObjectId(userId),
+        document_status: { $in: [EDocumentStatus.pending, EDocumentStatus.completed] },
       });
       return invoice;
     } catch (err) {

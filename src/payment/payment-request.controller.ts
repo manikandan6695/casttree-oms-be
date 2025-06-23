@@ -121,6 +121,16 @@ export class PaymentRequestController {
       throw err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("transaction-history")
+  async handleTransactionHistory(@GetToken() token: UserToken){
+    try {
+      let data = await this.paymentRequestService.handleTransactionHistory(token);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
   
   //   @Get("test/pavan")
   //   async testhmac()

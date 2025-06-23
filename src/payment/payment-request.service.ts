@@ -707,4 +707,18 @@ export class PaymentRequestService {
       throw err;
     }
   }
+  async handleTransactionHistory(token: UserToken){
+    try {
+      let getInvoiceData = await this.invoiceService.getSalesDocumentByUserId(token?.id);
+      console.log("getInvoiceData",getInvoiceData);
+      // let getPaymentData = await this.paymentModel.find({
+      //   user_id: token?.id,
+      //   sou
+      //   document_status: EDocumentStatus.completed,
+      // });
+      return getInvoiceData;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
