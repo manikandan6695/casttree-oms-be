@@ -97,7 +97,7 @@ export class PaymentRequestService {
          })
         //  console.log("orderId",orderId?.payment_order_id);
         if (orderId) {
-          await this.redisService.pushToIntermediateTransferQueue(orderId?.payment_order_id);
+          await this.redisService.pushToIntermediateTransferQueue(orderId);
         }
       }
       
