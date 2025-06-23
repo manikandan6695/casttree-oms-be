@@ -356,20 +356,20 @@ export class SubscriptionService {
           await this.handleIapExpired(decodeId);
         }
       } else if (provider == EProvider.google) {
-        const eventType = await this.subscriptionFactory.googleRtdn(
-          req?.body?.message
-        );
-        const rtdn = await this.subscriptionFactory.googleRtdn(req?.body);
+        const eventType = await this.subscriptionFactory.googleRtdn(req?.body);
+        console.log("eventType", eventType);
         let webhookExist = await this.webhookModel.findOne({
-          transaction: rtdn,
+          transaction: eventType?.purchaseToken,
         });
-        await this.webhookModel.create({
-          transaction: rtdn,
-          provider: EProvider.google,
-          providerId: EProviderId.google,
-          webhookPayload: eventType,
-          status: EStatus.Active,
-        });
+        if (!webhookExist) {
+          await this.webhookModel.create({
+            transaction: eventType,
+            provider: EProvider.google,
+            providerId: EProviderId.google,
+            webhookPayload: eventType,
+            status: EStatus.Active,
+          });
+        }
         if (eventType.notificationType === EEventId.renew) {
           await this.handleGoogleIAPRenew(req.body);
         } else if (eventType.notificationType === EEventId.cancel) {
@@ -733,7 +733,7 @@ export class SubscriptionService {
   async handleGoogleIAPRenew(payload) {
     try {
       console.log("renew payload", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       console.log("RTDN Received for renew:", JSON.stringify(rtdn));
 
       // const existingRenewal = await this.subscriptionModel.findOne({
@@ -838,14 +838,14 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       console.log("payload for google cancel", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
         await this.mandateService.getMandatesByExternalId(
           rtdn.purchaseToken,
           EMandateStatus.cancelled
         );
-      // console.log("existingCancellation", existingCancellation);
+      console.log("existingCancellation", existingCancellation);
       if (existingCancellation.length > 0) {
         return;
       }
@@ -859,6 +859,8 @@ export class SubscriptionService {
           transactionId,
           body
         );
+        console.log("mandate", mandate);
+
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
