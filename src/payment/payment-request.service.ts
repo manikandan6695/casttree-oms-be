@@ -19,6 +19,7 @@ import {
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
+  ERedisEventType,
   ESourceType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
@@ -53,7 +54,7 @@ export class PaymentRequestService {
 
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
     try {
-      if (coinPurchaseData?.key === 'coin_purchase_queue') {
+      if (coinPurchaseData?.key === ERedisEventType.coinPurchase) {
         // console.log("coinPurchaseData!", coinPurchaseData?.element);
         const parsedElement = JSON.parse(coinPurchaseData.element);
         const accessTokenData = parsedElement?.authToken;
@@ -84,11 +85,24 @@ export class PaymentRequestService {
         // console.log("Payment Payload:", bodyData);
         const decodedToken = jwt.decode(token) as UserToken;
         // console.log("decodedToken",decodedToken);
-        await this.initiatePayment(bodyData, decodedToken, accessTokenData);
+         await this.initiatePayment(bodyData, decodedToken, accessTokenData);
+         let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId,EPaymentSourceType.coinTransaction);
+         let orderId = await this.paymentModel.findOne({
+          user_id: payload?.userId,
+          source_id:new ObjectId(invoiceData?._id),
+          source_type: EDocumentTypeName.invoice,
+          document_status: EPaymentStatus.initiated,
+          providerId: EProviderId.razorpay,
+          providerName: EProvider.razorpay,
+         })
+        //  console.log("orderId",orderId?.payment_order_id);
+        if (orderId) {
+          await this.redisService.pushToIntermediateTransferQueue(orderId?.payment_order_id);
+        }
       }
       
     } catch (err) {
-      console.error("Error handling coin purchase from Redis:", err);
+      // console.error("Error handling coin purchase from Redsis:", err);
       throw err;
     }
   }
@@ -672,7 +686,7 @@ export class PaymentRequestService {
         return existingData;
       }
       let redisData = {
-        key: "coin_purchase_response",
+        key: ERedisEventType.coinPurchaseResponse,
         element:{
           amount: paymentRequest?.amount,
           userId: paymentRequest?.user_id,
