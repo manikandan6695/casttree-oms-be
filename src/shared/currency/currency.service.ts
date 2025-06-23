@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ICurrencyModel } from "../schema/currency.schema";
+const { ObjectId } = require("mongodb");
 
 @Injectable()
 export class CurrencyService {
@@ -44,6 +45,17 @@ export class CurrencyService {
       let data = await this.currency_model.findOne({
         is_default: true,
       });
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getCurrencyByCurrencyName( currency_id: string, currency_name: string) {
+    try {
+      let data = await this.currency_model.findOne({
+        _id:new ObjectId(currency_id),
+        currency_name: currency_name,
+      }).lean();
       return data;
     } catch (err) {
       throw err;
