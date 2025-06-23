@@ -702,7 +702,7 @@ export class PaymentRequestService {
           userId: payment?.user_id,
           coinValue: coinPurchaseData?.coinValue
         })
-        let totalBalance = updateUserAdditionalData?.purchasedBalance + updateUserAdditionalData?.earnedBalance;
+        let totalBalance = (updateUserAdditionalData?.purchasedBalance || 0) + (updateUserAdditionalData?.earnedBalance || 0);
          await this.coinTransactionModel.findOneAndUpdate({
           _id:coinPurchaseData?._id
         },{
