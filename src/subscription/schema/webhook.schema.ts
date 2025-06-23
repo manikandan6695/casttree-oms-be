@@ -17,6 +17,9 @@ export const webhookSchema = new mongoose.Schema(
     provider: {
       type: String,
     },
+    status: {
+      type: String,
+    },
     webhookPayload: {
       type: mongoose.Schema.Types.Mixed,
     },

@@ -326,7 +326,15 @@ export class SubscriptionService {
         const decodeId = await this.subscriptionFactory.parseJwt(
           req?.body?.signedPayload
         );
-
+        let transaction =
+          await this.subscriptionFactory.getTransactionHistory(decodeId);
+        await this.webhookModel.create({
+          transaction: transaction,
+          provider: EProvider.apple,
+          providerId: EProviderId.apple,
+          webhookPayload: decodeId,
+          status: EStatus.Active,
+        });
         if (
           decodeId?.notificationType === EEventType.didRenew ||
           decodeId?.subtype === EEventType.subTypeRenew
@@ -351,6 +359,17 @@ export class SubscriptionService {
         const eventType = await this.subscriptionFactory.googleRtdn(
           req?.body?.message
         );
+        const rtdn = await this.subscriptionFactory.googleRtdn(req?.body);
+        let webhookExist = await this.webhookModel.findOne({
+          transaction: rtdn,
+        });
+        await this.webhookModel.create({
+          transaction: rtdn,
+          provider: EProvider.google,
+          providerId: EProviderId.google,
+          webhookPayload: eventType,
+          status: EStatus.Active,
+        });
         if (eventType.notificationType === EEventId.renew) {
           await this.handleGoogleIAPRenew(req.body);
         } else if (eventType.notificationType === EEventId.cancel) {

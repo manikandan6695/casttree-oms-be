@@ -11,23 +11,22 @@ import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
 
-
 import { SubscriptionFactory } from "./subscription.factory";
+import { webhookSchema } from "./schema/webhook.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "subscription", schema: subscriptionSchema },
+      { name: "webhook", schema: webhookSchema },
     ]),
     SharedModule,
     AuthModule,
     HelperModule,
     InvoiceModule,
     PaymentRequestModule,
-
-    forwardRef(() =>  ItemModule),
-    MandatesModule
-
+    forwardRef(() => ItemModule),
+    MandatesModule,
   ],
   controllers: [SubscriptionController],
   providers: [
