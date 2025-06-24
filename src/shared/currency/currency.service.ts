@@ -8,7 +8,7 @@ const { ObjectId } = require("mongodb");
 export class CurrencyService {
   constructor(
     @InjectModel("currency") private currency_model: Model<ICurrencyModel>
-  ) {}
+  ) { }
   async getCurrency(search: string, skip: number, limit: number) {
     try {
       let cond = [];
@@ -50,15 +50,25 @@ export class CurrencyService {
       throw err;
     }
   }
-  async getCurrencyByCurrencyName( currency_id: string, currency_name: string) {
+  async getCurrencySymbolByCode(currencyCode: string): Promise<string> {
+    try {
+      const currency = await this.currency_model.findOne({ currency_code: currencyCode });
+      return currency?.currency_symbol;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCurrencyByCurrencyName(currency_id: string, currency_name: string) {
     try {
       let data = await this.currency_model.findOne({
-        _id:new ObjectId(currency_id),
+        _id: new ObjectId(currency_id),
         currency_name: currency_name,
       }).lean();
       return data;
     } catch (err) {
       throw err;
+
     }
   }
 }
