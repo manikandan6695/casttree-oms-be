@@ -62,6 +62,25 @@ export class HelperService {
       throw err;
     }
   }
+  async getUserByUserId( accessToken: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user`,
+          //  `http://localhost:3000/casttree/profile/get-profile-list`,
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
   async getCurrencyId(currency, skip = 0, limit = 1) {
     try {
       let data = await this.http_service
