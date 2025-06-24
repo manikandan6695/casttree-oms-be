@@ -16,15 +16,19 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
 import {
+  EFilterType,
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
   ERedisEventType,
   ESourceType,
+  ETransactionState,
+  ETransactionType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 import { RedisService } from "../redis/redis.service";
 import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
+import { ISalesDocumentModel } from "src/invoice/schema/sales-document.schema";
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -39,6 +43,8 @@ export class PaymentRequestService {
   constructor(
     @InjectModel("payment")
     private readonly paymentModel: Model<IPaymentModel>,
+    @InjectModel("salesDocument")
+    private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
     @Inject(forwardRef(() => ServiceRequestService))
@@ -694,12 +700,6 @@ export class PaymentRequestService {
           sourceId: paymentRequest?.source_id,
           paymentOrderId: rzpPaymentId,
           paymentStatus: "success",
-          // amount: 199,
-          // userId: "6815a7145e7bf4e41d59a8fd",
-          // currency: "INR",
-          // sourceId: "6857cfd77bb42e6a9791bd4e",
-          // paymentOrderId: "order_QjtwvIBIVIl8Nm",
-          // paymentStatus: "success",
         }
       }
       await this.redisService.pushCoinPurchaseResponse(redisData,paymentRequest?.source_id);
@@ -707,16 +707,67 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async handleTransactionHistory(token: UserToken){
+
+  async handleTransactionHistory(token: UserToken, skip, limit, filterType: EFilterType = EFilterType.all) {
     try {
-      let getInvoiceData = await this.invoiceService.getSalesDocumentByUserId(token?.id);
-      console.log("getInvoiceData",getInvoiceData);
-      // let getPaymentData = await this.paymentModel.find({
-      //   user_id: token?.id,
-      //   sou
-      //   document_status: EDocumentStatus.completed,
-      // });
-      return getInvoiceData;
+      const statusFilter = [EPaymentStatus.pending, EPaymentStatus.completed];
+      const paymentQuery: any = {
+        user_id: new ObjectId(token?.id),
+        document_status: { $in: statusFilter },
+      };
+      if (filterType === EFilterType.purchase) {
+        paymentQuery.transaction_type = ETransactionState.Out;
+      } else if (filterType === EFilterType.withdrawal) {
+        paymentQuery.transaction_type = ETransactionState.In;
+      }
+      const payments = await this.paymentModel.find(paymentQuery)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const getCurrencySymbol = async (currencyCode: string) => {
+        return await this.currency_service.getCurrencySymbolByCode(currencyCode);
+      };
+
+      const getTitleFromSourceType = (sourceType: string) => {
+        switch (sourceType) {
+          case EPaymentSourceType.coinTransaction:
+            return ETransactionType.coinPurchased;
+          case EPaymentSourceType.subscription:
+            return ETransactionType.subscriptionPurchased;
+          case EPaymentSourceType.feedBack:
+            return ETransactionType.feedbackPurchased;
+          case EPaymentSourceType.workShop:
+            return ETransactionType.workshopPurchased;
+          default:
+            return ETransactionType.salesDocument;
+        }
+      };
+
+      const results = await Promise.all(payments.map(async (value) => {
+        let salesDoc = null;
+        if (value?.source_id) {
+          salesDoc = await this.salesDocumentModel.findOne({
+            _id: new ObjectId(value?.source_id),
+            user_id: new ObjectId(token?.id),
+          }).lean();
+        }
+        const title = getTitleFromSourceType(salesDoc?.source_type);
+        const currencySymbol = await getCurrencySymbol(value?.currencyCode);
+        return {
+          currencySymple: currencySymbol,
+          title,
+          amount: value.amount,
+          purchaseDate: value.transactionDate || value['created_at'],
+          documentStatus: value.document_status,
+          type: filterType,
+        };
+      }));
+
+      if (results.length === 0) {
+        return { message: 'No purchase found', totalCount: 0 };
+      }
+      return { data: results, totalCount: results.length };
     } catch (error) {
       throw error;
     }

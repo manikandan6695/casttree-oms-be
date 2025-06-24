@@ -49,4 +49,13 @@ export class CurrencyService {
       throw err;
     }
   }
+
+  async getCurrencySymbolByCode(currencyCode: string): Promise<string> {
+    try {
+      const currency = await this.currency_model.findOne({ currency_code: currencyCode });
+      return currency?.currency_symbol;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
