@@ -271,12 +271,6 @@ export class SubscriptionService {
         console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
-          const rzpPaymentId = payload?.payment?.entity?.order_id;
-          let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-          let salesDoc = await this.invoiceService.getSalesDocumentBySource(paymentRequest?.source_id,EPaymentSourceType.coinTransaction );
-          if(salesDoc){
-            await this.paymentService.handlePaymentSuccess(payload);
-          }   
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
@@ -1142,9 +1136,8 @@ export class SubscriptionService {
 
       let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
 
-      if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
-        return 
-      }
+      if (paymentRequest.document_status === EPaymentStatus.initiated) {
+        
 
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
@@ -1214,6 +1207,7 @@ export class SubscriptionService {
           );
         }
       }
+    }
 
     } catch (err) {
       throw err;

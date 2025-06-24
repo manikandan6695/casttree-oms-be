@@ -685,22 +685,22 @@ export class PaymentRequestService {
   // function hmac(arg0: string, message: any, key: any) {
   //   throw new Error("Function not implemented.");
 
-  async handlePaymentSuccess(payload: any) {
-    try {
-      const rzpPaymentId = payload?.payment?.entity?.order_id;
-      let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
+  // async handlePaymentSuccess(payload: any) {
+  //   try {
+  //     const rzpPaymentId = payload?.payment?.entity?.order_id;
+  //     let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
 
-      if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
-        return
-      }
-      await this.completePayment({
-        invoiceId: paymentRequest?.source_id,
-        paymentId: paymentRequest?._id,
-      });
-    } catch (err) {
-      throw err;
-    }
-  }
+  //     if (paymentRequest.document_status === EPaymentStatus.initiated && paymentRequest?.payment_order_id===rzpPaymentId) {
+  //       await this.completePayment({
+  //         invoiceId: paymentRequest?.source_id,
+  //         paymentId: paymentRequest?._id,
+  //       });
+  //     }
+     
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
   async updateCoinValue(paymentId: string) {
     try {
       let payment = await this.paymentModel.findOne({
