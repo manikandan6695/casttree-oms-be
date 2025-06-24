@@ -1,7 +1,12 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
 import { createClient, RedisClientType } from 'redis';
-import { ERedisEventType } from 'src/payment/enum/payment.enum';
+import { ECoinStatus, ERedisEventType } from 'src/payment/enum/payment.enum';
 import { PaymentRequestService } from 'src/payment/payment-request.service';
+import { Model } from 'mongoose';
+import { IEventOutBox } from './schema/eventOutBox';
+import { InjectModel } from '@nestjs/mongoose';
+const { ObjectId } = require("mongodb");
+
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -10,6 +15,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     private coinPurchaseCallback: (data: any) => void;
     private isConnected = false;
     private isPolling = false;
+    @InjectModel('eventOutBox') private eventOutBoxModel: Model<IEventOutBox>;
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService;
 
@@ -22,11 +28,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                     timeout: 5000
                 }
             });
-
-            // this.client.on('error', (err) => {
-            //     console.error('❌ Redis publisher client error:', err);
-            // });
-
             await this.client.connect();
             // console.log("✅ Redis publisher connected");
             this.isConnected = true;
@@ -74,6 +75,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
                 const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, 1);
                 if (result) {
                     // console.log("BLPOP result:", result);
+                    await this.updateEventOutBox(result);
                     await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
                 } else {
                     await new Promise(res => setTimeout(res, 500));
@@ -93,47 +95,78 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    async publishCoinPurchaseResponse(data: any) {
-        if (!this.isConnected) {
-            // console.log("⚠️  Redis not connected, cannot publish response");
-            return;
-        }
+    async publishCoinPurchaseResponse(data: any) {  
         try {
             await this.client.publish(ERedisEventType.coinPurchaseResponse, JSON.stringify(data));
             // console.log("📤 Published response to coin_purchase_response:", data);
         } catch (error) {
-            console.error("Error publishing response:", error);
+            throw error;
+            // console.esrror("Error publishing response:", error);
         }
     }
 
-    async pushCoinPurchaseResponse(data: any, coinTransactionId: string) {
-        // console.log("data", data);
-        if (!this.isConnected) {
-            // console.log("⚠️  Redis not connected, cannot push response");
-            return;
-        }
+
+    async pushToCoinPurchaseQueue(data: any, queueName: string = ERedisEventType.coinPurchase,orderId:any) {
         try {
-            // console.log("id", coinTransactionId);
-            let res = await this.client.lPush(`${ERedisEventType.coinPurchaseResponse}:${coinTransactionId}`, JSON.stringify(data));
-            // console.log("📤 Pushed response to coin_purchase_response:", data, res);
+            let payload = {
+                userId: data?.userId,
+                eventName: data?.eventName,
+                payload: data?.payload,
+                status: ECoinStatus.active,
+                documentStatus: ECoinStatus.pending,
+                triggeredAt: new Date(),
+                sourceId: data?.sourceId,
+                sourceType: data?.sourceType,
+                consumer: data?.consumer,
+            }
+            let createEvent = await this.createEventOutBox(payload);
+            const queuePayload = {
+                orderId,
+                eventOutBoxId: createEvent?._id
+            };
+            await this.client.lPush(queueName, JSON.stringify(queuePayload));
+            // console.log(`📤 Pushed data to ${queueName}:`, queuePayload);
         } catch (error) {
-            console.error("Error pushing response:", error);
+            throw error;
+            // console.error(`Error pushing data to ${queueName}:`, error);
         }
     }
-
-    async pushToCoinPurchaseQueue(orderId: string, queueName: string = ERedisEventType.coinPurchase) {
-        if (!this.isConnected) {
-            return;
+    async pushToIntermediateTransferQueue(data: any,orderId:any) {
+        try{
+            await this.pushToCoinPurchaseQueue(data, ERedisEventType.intermediateTransfer,orderId);
+        }catch(error){
+            throw error;
         }
+    }
+    async updateEventOutBox(payload: any) {
         try {
-            await this.client.lPush(queueName, orderId);
-            // console.log(`📤 Pushed orderId to ${queueName}:`, orderId);
+            const parsed = JSON.parse(payload?.element);
+            const eventOutBoxId = parsed.eventOutBoxId;
+            let updateData = await this.eventOutBoxModel.updateOne({
+                _id:new ObjectId(eventOutBoxId),
+                status: ECoinStatus.active,
+                userId:new ObjectId(parsed.payload?.userId),
+                documentStatus: ECoinStatus.pending,
+                // eventName: ERedisEventType.coinPurchase,
+            }, {
+                $set: {
+                    documentStatus: ECoinStatus.completed,
+                    updatedAt: new Date(),
+                }
+            });
+            return updateData;
         } catch (error) {
-            console.error(`Error pushing orderId to ${queueName}:`, error);
+            throw error;
+            // console.error("Error pushing data to eventOutBox:", error);
         }
     }
-
-    async pushToIntermediateTransferQueue(orderId: string) {
-        await this.pushToCoinPurchaseQueue(orderId, ERedisEventType.intermediateTransfer);
+    async createEventOutBox(payload: any) {
+        try {
+            let createData = await this.eventOutBoxModel.create(payload);
+            return createData;
+        } catch (error) {
+            // console.error("Error creating eventOutBox:", error);
+            throw error;
+        }
     }
 }

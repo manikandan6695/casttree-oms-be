@@ -48,4 +48,25 @@ export class DynamicUiController {
       throw err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("component/:componentId")
+  async getComponent(
+    @Req() req,
+    @Param("componentId") componentId: string,
+    @GetToken() token: UserToken,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number
+  ) {
+    try {
+      let data = await this.dynamicUIService.getComponent(
+        token,
+        componentId,
+        skip,
+        limit
+      );
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

@@ -5,7 +5,7 @@ import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
-import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { EDocumentStatus, ESDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
@@ -17,6 +17,7 @@ import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO } from "./dto/payment.dto";
 import {
   EFilterType,
+  ECurrencyName,
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
@@ -29,6 +30,8 @@ import { IPaymentModel } from "./schema/payment.schema";
 import { RedisService } from "../redis/redis.service";
 import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { ISalesDocumentModel } from "src/invoice/schema/sales-document.schema";
+import { EsubscriptionStatus } from "src/process/enums/process.enum";
+import { ICoinTransaction } from "./schema/coinPurchase.schema";
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -45,6 +48,8 @@ export class PaymentRequestService {
     private readonly paymentModel: Model<IPaymentModel>,
     @InjectModel("salesDocument")
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
+    @InjectModel("coinTransaction")
+    private readonly coinTransactionModel: Model<ICoinTransaction>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
     @Inject(forwardRef(() => ServiceRequestService))
@@ -87,32 +92,40 @@ export class PaymentRequestService {
           },
           paymentType: "Auth"
         };
-        
+
         // console.log("Payment Payload:", bodyData);
         const decodedToken = jwt.decode(token) as UserToken;
         // console.log("decodedToken",decodedToken);
-         await this.initiatePayment(bodyData, decodedToken, accessTokenData);
-         let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId,EPaymentSourceType.coinTransaction);
-         let orderId = await this.paymentModel.findOne({
+        await this.initiatePayment(bodyData, decodedToken, accessTokenData);
+        let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        let orderId = await this.paymentModel.findOne({
           user_id: payload?.userId,
-          source_id:new ObjectId(invoiceData?._id),
+          source_id: new ObjectId(invoiceData?._id),
           source_type: EDocumentTypeName.invoice,
           document_status: EPaymentStatus.initiated,
           providerId: EProviderId.razorpay,
           providerName: EProvider.razorpay,
-         })
-        //  console.log("orderId",orderId?.payment_order_id);
+        })
         if (orderId) {
-          await this.redisService.pushToIntermediateTransferQueue(orderId?.payment_order_id);
+          let consumer = await this.helperService.getUserByUserId(accessTokenData);
+          let eventOutBoxPayload = { 
+            userId: payload?.userId,
+            eventName: ERedisEventType.intermediateTransfer,
+            sourceId: new ObjectId(invoiceData?._id),
+            sourceType: EDocumentTypeName.invoice,
+            consumer:consumer?.userName,
+            payload:orderId
+          }
+          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload,orderId);
         }
       }
-      
+
     } catch (err) {
       // console.error("Error handling coin purchase from Redsis:", err);
       throw err;
     }
   }
-  
+
 
   async initiatePayment(
     body: paymentDTO,
@@ -124,7 +137,7 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceId?.toString(),
       //   body?.invoiceDetail?.sourceType
       // );
-      
+
       let serviceRequest;
       if (body.serviceRequest) {
         serviceRequest = await this.serviceRequestService.createServiceRequest(
@@ -678,32 +691,61 @@ export class PaymentRequestService {
       let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
 
       if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
-        return 
+        return
       }
       await this.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
       });
-      let existingData = await this.paymentModel.findOne({
-        payment_order_id: rzpPaymentId,
-        document_status: EDocumentStatus.completed,
-      })
-      if (existingData) {
-        return existingData;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async updateCoinValue(paymentId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        _id: new ObjectId(paymentId)
+      });
+      let invoiceData = await this.invoiceService.getInvoiceDetail(payment?.source_id);
+      if(payment?.document_status===EDocumentStatus.completed && invoiceData?.document_status===EDocumentStatus.completed){
+        let coinPurchaseData = await this.coinTransactionModel.findOne({
+          _id:invoiceData?.source_id,
+          documentStatus: EsubscriptionStatus.pending
+        })
+        let updateUserAdditionalData = await this.helperService.updateUserPurchaseCoin({
+          userId: payment?.user_id,
+          coinValue: coinPurchaseData?.coinValue
+        })
+        let totalBalance = (updateUserAdditionalData?.purchasedBalance || 0) + (updateUserAdditionalData?.earnedBalance || 0);
+         await this.coinTransactionModel.findOneAndUpdate({
+          _id:coinPurchaseData?._id
+        },{
+          $set:{
+            documentStatus: EPaymentStatus.completed,
+            updatedAt: new Date(),
+            currentBalance: totalBalance
+          }
+        })
+        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId,ECurrencyName.casttreeCoin)
+        let finalResponse = {
+          coinValue: coinPurchaseData?.coinValue,
+          totalBalance: totalBalance,
+          coinMedia: coinData?.media,
+          paymentData: payment
+        }
+        // console.log("finalResponse",finalResponse);
+        return finalResponse;
       }
-      let redisData = {
-        key: ERedisEventType.coinPurchaseResponse,
-        element:{
-          amount: paymentRequest?.amount,
-          userId: paymentRequest?.user_id,
-          currency: paymentRequest?.currencyCode,
-          sourceId: paymentRequest?.source_id,
-          paymentOrderId: rzpPaymentId,
-          paymentStatus: "success",
+      else{
+        return {
+          coinValue: 0,
+          totalBalance: 0,
+          paymentData: payment
         }
       }
-      await this.redisService.pushCoinPurchaseResponse(redisData,paymentRequest?.source_id);
-    } catch (err) {
+
+    }
+    catch (err) {
       throw err;
     }
   }
