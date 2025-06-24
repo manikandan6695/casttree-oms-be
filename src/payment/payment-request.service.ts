@@ -764,9 +764,6 @@ export class PaymentRequestService {
         };
       }));
 
-      if (results.length === 0) {
-        return { message: 'No purchase found', totalCount: 0 };
-      }
       return { data: results, totalCount: results.length };
     } catch (error) {
       throw error;
