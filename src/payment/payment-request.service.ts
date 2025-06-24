@@ -100,9 +100,17 @@ export class PaymentRequestService {
           providerId: EProviderId.razorpay,
           providerName: EProvider.razorpay,
         })
-        //  console.log("orderId",orderId?.payment_order_id);
         if (orderId) {
-          await this.redisService.pushToIntermediateTransferQueue(orderId);
+          let consumer = await this.helperService.getUserByUserId(accessTokenData);
+          let eventOutBoxPayload = { 
+            userId: payload?.userId,
+            eventName: ERedisEventType.intermediateTransfer,
+            sourceId: new ObjectId(invoiceData?._id),
+            sourceType: EDocumentTypeName.invoice,
+            consumer:consumer?.userName,
+            payload:orderId
+          }
+          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload,orderId);
         }
       }
 
