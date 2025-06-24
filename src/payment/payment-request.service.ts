@@ -14,7 +14,7 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO } from "./dto/payment.dto";
+import { filterTypeDTO, paymentDTO } from "./dto/payment.dto";
 import {
   EFilterType,
   ECurrencyName,
@@ -750,23 +750,51 @@ export class PaymentRequestService {
     }
   }
 
-  async handleTransactionHistory(token: UserToken, skip, limit, filterType: EFilterType = EFilterType.all) {
+  async handleTransactionHistory(
+    token: UserToken,
+    skip: number,
+    limit: number,
+    filterType?: EFilterType
+  ) {
     try {
       const statusFilter = [EPaymentStatus.pending, EPaymentStatus.completed];
-      const paymentQuery: any = {
+      const filterData: any = {
         user_id: new ObjectId(token?.id),
         document_status: { $in: statusFilter },
       };
       if (filterType === EFilterType.purchase) {
-        paymentQuery.transaction_type = ETransactionState.Out;
+        filterData.transaction_type = ETransactionState.Out;
       } else if (filterType === EFilterType.withdrawal) {
-        paymentQuery.transaction_type = ETransactionState.In;
+        filterData.transaction_type = ETransactionState.In;
       }
-      const payments = await this.paymentModel.find(paymentQuery)
-        .skip(skip)
-        .limit(limit)
-        .lean();
-
+      else{
+        filterData.transaction_type = { $in: [ETransactionState.Out, ETransactionState.In] };
+      }
+      const payments = await this.paymentModel.aggregate([
+        { $match: filterData },
+        {
+          $lookup: {
+            from: 'salesDocument',
+            localField: 'source_id',
+            foreignField: '_id',
+            as: 'salesDoc',
+          },
+        },
+        { $unwind: { path: '$salesDoc', preserveNullAndEmptyArrays: true } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            amount: 1,
+            currencyCode: 1,
+            transactionDate: 1,
+            created_at: 1,
+            document_status: 1,
+            transaction_type: 1,
+            source_type: '$salesDoc.source_type',
+          },
+        },
+      ]);
       const getCurrencySymbol = async (currencyCode: string) => {
         return await this.currency_service.getCurrencySymbolByCode(currencyCode);
       };
@@ -785,30 +813,28 @@ export class PaymentRequestService {
             return ETransactionType.salesDocument;
         }
       };
-
-      const results = await Promise.all(payments.map(async (value) => {
-        let salesDoc = null;
-        if (value?.source_id) {
-          salesDoc = await this.salesDocumentModel.findOne({
-            _id: new ObjectId(value?.source_id),
-            user_id: new ObjectId(token?.id),
-          }).lean();
-        }
-        const title = getTitleFromSourceType(salesDoc?.source_type);
-        const currencySymbol = await getCurrencySymbol(value?.currencyCode);
-        return {
-          currencySymple: currencySymbol,
-          title,
-          amount: value.amount,
-          purchaseDate: value.transactionDate || value['created_at'],
-          documentStatus: value.document_status,
-          type: filterType,
-        };
-      }));
-
-      return { data: results, totalCount: results.length };
+  
+      const results = await Promise.all(
+        payments.map(async (payment) => {
+          const currencyCode = await getCurrencySymbol(payment.currencyCode);
+          const title = getTitleFromSourceType(payment.source_type);
+          return {
+            currencyCode,
+            title,
+            amount: payment.amount,
+            purchaseDate: payment.transactionDate || payment.created_at,
+            documentStatus: payment.document_status,
+            type: payment.transaction_type,
+          };
+        })
+      );
+  
+      return {
+        data: results,
+        totalCount: results.length, 
+      };
     } catch (error) {
       throw error;
     }
-  }
+  } 
 }

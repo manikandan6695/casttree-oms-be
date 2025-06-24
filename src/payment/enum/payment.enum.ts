@@ -74,7 +74,7 @@ export const ERedisEventTypes = [
 
 
 export enum EFilterType {
-  all = "All",
+  // all = "All",
   purchase = "Purchase",
   withdrawal = "Withdrawal",
 }

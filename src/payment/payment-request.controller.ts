@@ -17,7 +17,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { paymentDTO } from "./dto/payment.dto";
+import { filterTypeDTO, paymentDTO } from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
 import { EFilterType } from "./enum/payment.enum";
 
@@ -60,10 +60,16 @@ export class PaymentRequestController {
     @GetToken() token: UserToken,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number,
-    @Query("filterType", new ParseEnumPipe(EFilterType)) filterType: EFilterType,
+    @Query("filterType") filterTypeRaw: string,
     @Res() res: Response
   ) {
     try {
+      let filterType: EFilterType | undefined;
+  
+      if (filterTypeRaw && Object.values(EFilterType).includes(filterTypeRaw as EFilterType)) {
+        filterType = filterTypeRaw as EFilterType;
+      }
+  
       const data = await this.paymentRequestService.handleTransactionHistory(
         token,
         skip,
