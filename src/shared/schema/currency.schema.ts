@@ -10,6 +10,7 @@ export interface ICurrencyModel extends mongoose.Document {
   base_conversion_factor: number;
   rounding: number;
   is_default: boolean;
+  media: any;
 }
 
 export const CurrencySchema = new mongoose.Schema(
@@ -23,6 +24,7 @@ export const CurrencySchema = new mongoose.Schema(
     base_conversion_factor: { type: Number },
     rounding: { type: Number },
     is_default: { type: Boolean },
+    media: { type: mongoose.Schema.Types.Mixed },
   },
   {
     collection: "currency",

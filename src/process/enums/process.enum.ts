@@ -47,6 +47,7 @@ export enum EsubscriptionStatus {
   active = "Active",
   pending = "Pending",
   failed = "Failed",
+  completed = "completed",
 }
 export const ESsubscriptionStatus = [
   EsubscriptionStatus.initiated,

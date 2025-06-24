@@ -72,6 +72,7 @@ export const ERedisEventTypes = [
   ERedisEventType.intermediateTransfer,
 ];
 
+
 export enum EFilterType {
   all = "All",
   purchase = "Purchase",
@@ -90,3 +91,40 @@ export enum ETransactionState {
   In= "IN",
   Out= "OUT",
 }
+
+export enum ECurrencyName {
+  casttreeCoin = "Casttree Coin",
+  currencyId = "6852c906a72125c5fcf9f61f"
+}
+export enum ECoinStatus{
+  active = "Active",
+  pending = "Pending",
+  completed = "Completed",
+  failed = "Failed",
+  inactive = "Inactive",
+}
+export const ESCoinStatus = [
+  ECoinStatus.pending,
+  ECoinStatus.failed,
+  ECoinStatus.completed,
+  ECoinStatus.active,
+  ECoinStatus.inactive,
+];
+export enum EDocumentStatus{
+  pending = "Pending",
+  failed = "Failed",
+  completed = "Completed",
+}
+export enum ETransactionType{
+  In = "In",
+  Out = "Out",
+  earned = "earned",
+  spent = "spent",
+  withdrawn = "withdrawn",
+  purchased = "purchased",
+}
+export const ETransactionTypes = [
+  ETransactionType.In,
+  ETransactionType.Out,
+];
+
