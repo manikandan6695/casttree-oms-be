@@ -123,8 +123,4 @@ export enum ETransactionType{
   withdrawn = "withdrawn",
   purchased = "purchased",
 }
-export const ETransactionTypes = [
-  ETransactionType.In,
-  ETransactionType.Out,
-];
 
