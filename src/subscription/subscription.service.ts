@@ -271,7 +271,12 @@ export class SubscriptionService {
         console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
-          await this.paymentService.handlePaymentSuccess(payload);
+          const rzpPaymentId = payload?.payment?.entity?.order_id;
+          let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+          let salesDoc = await this.invoiceService.getSalesDocumentBySource(paymentRequest?.source_id,EPaymentSourceType.coinTransaction );
+          if(salesDoc){
+            await this.paymentService.handlePaymentSuccess(payload);
+          }   
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
