@@ -88,6 +88,10 @@ export class DynamicUiService {
         }
         if (comp.type == "userPreferenceBanner") {
           comp.media = singleAdBanner?.media;
+          comp.banner = {
+            ...comp.banner,
+            bannerImage : singleAdBanner?.media?.mediaUrl
+          }
           comp.navigation = {
             ...singleAdBanner?.navigation,
           };

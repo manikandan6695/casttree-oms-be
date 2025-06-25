@@ -13,6 +13,7 @@ export interface IComponent extends Document {
   navigation: any;
   tag: any;
   media: any;
+  banner: any;
   createdBy: any;
   updatedBy: any;
   created_at: Date;
@@ -29,6 +30,7 @@ export const ComponentSchema = new mongoose.Schema(
     title: String,
     subtitle: String,
     order: Number,
+    banner: { type: String },
     tag: [
       {
         type: mongoose.Schema.Types.Mixed,
