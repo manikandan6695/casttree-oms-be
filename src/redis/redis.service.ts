@@ -6,6 +6,8 @@ import { PaymentRequestService } from 'src/payment/payment-request.service';
 import { ECoinStatus, ERedisEventType } from 'src/payment/enum/payment.enum';
 import { EventOutBoxService } from '../event-outbox/event-outbox.service';
 import { IEventOutBox } from 'src/event-outbox/schema/event-outbox.schema';
+import { EConfigType } from './enum/type.enum';
+import { HelperService } from 'src/helper/helper.service';
 const { ObjectId } = require("mongodb");
 
 @Injectable()
@@ -22,6 +24,7 @@ export class RedisService implements OnModuleDestroy {
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService,
     private eventOutBoxService: EventOutBoxService,
+    private helperService: HelperService
   ) { }
 
   async initRedisClients() {
@@ -68,8 +71,10 @@ export class RedisService implements OnModuleDestroy {
   private async startQueuePolling() {
     while (this.isPolling) {
       try {
-        const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, 1);
-        console.log("result", result);
+        let timeOut = await this.helperService.getSystemConfigByKey(EConfigType.key);
+        // console.log("timeOut", timeOut?.value, typeof timeOut?.value);
+        const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, timeOut?.value);
+        // console.log("result", result);
         if (result) {
           await this.eventOutBoxService.updateEventOutBox(result);
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);

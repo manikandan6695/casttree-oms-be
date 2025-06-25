@@ -275,6 +275,7 @@ export class SubscriptionService {
         console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
+          console.log("payload", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
@@ -1183,27 +1184,28 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
+      console.log("payload for razorpay  payment", payload);
       const rzpPaymentId = payload?.payment?.entity?.order_id;
 
-      let paymentRequest =
-        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+      console.log("rzpPaymentId", rzpPaymentId);
+      let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
 
-      if (paymentRequest.document_status === EPaymentStatus.initiated) {
-        let updatedStatus = await this.paymentService.completePayment({
-          invoiceId: paymentRequest?.source_id,
-          paymentId: paymentRequest?._id,
-        });
+      if (paymentRequest.document_status === EPaymentStatus.pending) {
+        console.log("paymentRequest", paymentRequest);
 
-        let invoice = await this.invoiceService.getInvoiceDetail(
-          paymentRequest?.source_id
-        );
-        let subscription = await this.subscriptionModel.findOne({
-          _id: invoice?.source_id,
-        });
-        if (subscription) {
-          if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
-            subscription.subscriptionStatus = EsubscriptionStatus.active;
-            await subscription.save();
+      let updatedStatus = await this.paymentService.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+      let invoice = await this.invoiceService.getInvoiceDetail(paymentRequest?.source_id);
+      let subscription = await this.subscriptionModel.findOne({
+        _id: invoice?.source_id,
+      });
+      if (subscription) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          subscription.subscriptionStatus = EsubscriptionStatus.active;
+          await subscription.save();
+
 
             let tokenId = payload?.payment?.entity?.token_id;
             let updatedMandate = await this.mandateService.updateMandateDetail(
