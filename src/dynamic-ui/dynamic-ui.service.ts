@@ -441,11 +441,11 @@ export class DynamicUiService {
 
       const banner = isNewSubscription
         ? {
-            media: { mediaUrl: learnBanner.imageUrl, mediaId: "" },
-            navigation: { page: getScreenName(learnBanner), params: {} },
+            media: { mediaUrl: learnBanner.imageUrl },
+            navigation: { page: getScreenName(learnBanner) },
           }
         : {
-            media: { mediaUrl: premiumBannerObj.imageUrl, mediaId: "" },
+            media: { mediaUrl: premiumBannerObj.imageUrl },
             navigation: {
               page: getScreenName(premiumBannerObj),
               type: "internal",
