@@ -1138,7 +1138,7 @@ export class SubscriptionService {
       console.log("rzpPaymentId", rzpPaymentId);
       let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
 
-      if (paymentRequest.document_status === EPaymentStatus.initiated) {
+      if (paymentRequest.document_status === EPaymentStatus.pending) {
         console.log("paymentRequest", paymentRequest);
 
       let updatedStatus = await this.paymentService.completePayment({
