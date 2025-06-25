@@ -507,6 +507,7 @@ export class PaymentRequestService {
   }
 
   async completePayment(ids) {
+    console.log("ids", ids);
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
       EDocumentStatus.completed
@@ -782,7 +783,7 @@ export class PaymentRequestService {
       else{
         filterData.transaction_type = { $in: [ETransactionState.Out, ETransactionState.In] };
       }
-      const payments = await this.paymentModel.aggregate([
+      const [result] = await this.paymentModel.aggregate([
         { $match: filterData },
         {
           $lookup: {
@@ -793,20 +794,32 @@ export class PaymentRequestService {
           },
         },
         { $unwind: { path: '$salesDoc', preserveNullAndEmptyArrays: true } },
-        { $skip: skip },
-        { $limit: limit },
         {
-          $project: {
-            amount: 1,
-            currencyCode: 1,
-            transactionDate: 1,
-            created_at: 1,
-            document_status: 1,
-            transaction_type: 1,
-            source_type: '$salesDoc.source_type',
-          },
-        },
+          $facet: {
+            paginatedResults: [
+              { $skip: skip },
+              { $limit: limit },
+              {
+                $project: {
+                  amount: 1,
+                  currencyCode: 1,
+                  transactionDate: 1,
+                  created_at: 1,
+                  document_status: 1,
+                  transaction_type: 1,
+                  source_type: '$salesDoc.source_type',
+                },
+              },
+            ],
+            totalCount: [
+              { $count: 'count' }
+            ]
+          }
+        }
       ]);
+
+      const payments = result.paginatedResults;
+      const totalCount = result.totalCount[0]?.count || 0;
 
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
@@ -840,7 +853,7 @@ export class PaymentRequestService {
   
       return {
         data: results,
-        totalCount: results.length, 
+        totalCount: totalCount, 
       };
     } catch (error) {
       throw error;

@@ -271,6 +271,7 @@ export class SubscriptionService {
         console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
+          console.log("payload", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
@@ -1132,18 +1133,18 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
+      console.log("payload for razorpay  payment", payload);
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-
+      console.log("rzpPaymentId", rzpPaymentId);
       let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
 
       if (paymentRequest.document_status === EPaymentStatus.initiated) {
-        
+        console.log("paymentRequest", paymentRequest);
 
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
       });
-
       let invoice = await this.invoiceService.getInvoiceDetail(paymentRequest?.source_id);
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,

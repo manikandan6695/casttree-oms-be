@@ -793,6 +793,18 @@ export class HelperService {
       throw err;
     }
   }
+  async getSystemConfigByKey(key: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
   async getAward(itemId: string) {
     try {
       let data = await this.http_service
