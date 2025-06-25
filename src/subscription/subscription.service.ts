@@ -538,7 +538,7 @@ export class SubscriptionService {
       mixPanelBody.properties = {
         user_id: subscription?.userId,
         provider: subscription?.provider,
-        subscription_id: subscription._id,
+        subscription_id: subscription?._id,
         subscription_status: subscription?.subscriptionStatus,
         subscription_date: subscription?.startAt,
         item_name: item?.itemName,
@@ -827,7 +827,7 @@ export class SubscriptionService {
         mixPanelBody.properties = {
           user_id: subscription?.userId,
           provider: subscription?.provider,
-          subscription_id: subscription._id,
+          subscription_id: subscription?._id,
           subscription_status: subscription?.subscriptionStatus,
           subscription_date: subscription?.startAt,
           item_name: item?.itemName,
@@ -953,6 +953,23 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+      let subscriptionData = await this.subscriptionModel.findOne({
+        _id: mandate?.sourceId
+      });
+      let itemName = await this.itemService.getItemDetail(subscriptionData?.notes?.itemId);
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandate?.userId;
+      mixPanelBody.properties = {
+        mandate_id: mandate?._id,
+        user_id: mandate?.userId,
+        mandate_status: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        item_name: itemName?.itemName,
+        provider: mandate?.provider
+      };
+      await this.helperService.mixPanel(mixPanelBody);
     } catch (err) {
       throw err;
     }
@@ -1191,7 +1208,7 @@ export class SubscriptionService {
           mixPanelBody.properties = {
             user_id: subscription?.userId,
             provider: EProvider.razorpay,
-            subscription_id: subscription._id,
+            subscription_id: subscription?._id,
             subscription_status: EsubscriptionStatus.active,
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
@@ -1358,7 +1375,7 @@ export class SubscriptionService {
           mixPanelBody.properties = {
             user_id: subscription?.userId,
             provider: EProvider.cashfree,
-            subscription_id: subscription._id,
+            subscription_id: subscription?._id,
             subscription_status: EsubscriptionStatus.active,
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
@@ -1529,13 +1546,13 @@ export class SubscriptionService {
           let item = await this.itemService.getItemDetail(expiredSubscriptionsList[i]?.notes?.itemId);
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_end;
-          mixPanelBody.distinctId = expiredSubscriptionsList[i].userId;
+          mixPanelBody.distinctId = expiredSubscriptionsList[i]?.userId;
           mixPanelBody.properties = {
-            start_date: expiredSubscriptionsList[i].currentStart,
-            end_date: expiredSubscriptionsList[i].endAt,
-            subscription_id: expiredSubscriptionsList[i]._id,
+            start_date: expiredSubscriptionsList[i]?.startAt,
+            end_date: expiredSubscriptionsList[i]?.endAt,
+            subscription_id: expiredSubscriptionsList[i]?._id,
             item_name: item?.itemName,
-            user_id: expiredSubscriptionsList[i].userId,
+            user_id: expiredSubscriptionsList[i]?.userId,
           };
           await this.helperService.mixPanel(mixPanelBody);
         }
