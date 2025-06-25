@@ -77,15 +77,17 @@ export class DynamicUiService {
         0,
         0
       );
+      console.log("serviceItemData", serviceItemData);
+
       let continueWatching = await this.fetchContinueWatching(token.id);
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id
       );
       componentDocs.forEach((comp) => {
-        if (comp.type == "userPreference") {
-          comp.actionData = continueWatching?.actionData;
-        }
+        // if (comp.type == "userPreference") {
+        //   comp.actionData = continueWatching?.actionData;
+        // }
         if (comp.type == "userPreferenceBanner") {
           comp.media = singleAdBanner?.media;
           comp.navigation = {

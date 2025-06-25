@@ -69,7 +69,7 @@ export class RedisService implements OnModuleDestroy {
     while (this.isPolling) {
       try {
         const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, 1);
-        console.log("result", result);
+        // console.log("result", result);
         if (result) {
           await this.eventOutBoxService.updateEventOutBox(result);
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
