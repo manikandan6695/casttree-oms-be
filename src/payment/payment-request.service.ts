@@ -807,9 +807,6 @@ export class PaymentRequestService {
           },
         },
       ]);
-      const getCurrencySymbol = async (currencyCode: string) => {
-        return await this.currency_service.getCurrencySymbolByCode(currencyCode);
-      };
 
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
@@ -828,15 +825,15 @@ export class PaymentRequestService {
   
       const results = await Promise.all(
         payments.map(async (payment) => {
-          const currencyCode = await getCurrencySymbol(payment.currencyCode);
+          let transactionType = payment?.transaction_type === ETransactionState.Out? ETransactionType.purchased : ETransactionType.withdrawal
           const title = getTitleFromSourceType(payment.source_type);
           return {
-            currencyCode,
+            currencyCode:payment?.currencyCode,
             title,
             amount: payment.amount,
             purchaseDate: payment.transactionDate || payment.created_at,
             documentStatus: payment.document_status,
-            type: payment.transaction_type,
+            type: transactionType,
           };
         })
       );
