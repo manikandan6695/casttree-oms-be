@@ -75,14 +75,19 @@ export class SubscriptionService {
             EsubscriptionStatus.failed,
           ]);
 
-          let authAmount =
-            body?.refId ||
-            existingSubscription ||
-            item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
-              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
-              : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
-          // console.log("auth amount is", authAmount);
+          let authAmount: number;
+          const authDetailAmount =
+            item?.additionalDetail?.promotionDetails?.authDetail?.amount;
+          const subscriptionDetailAmount =
+            item?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount;
+
+          const useSubscriptionAmount =
+            !!body?.refId || !!existingSubscription || authDetailAmount === 0;
+
+          authAmount = useSubscriptionAmount
+            ? subscriptionDetailAmount
+            : authDetailAmount;
 
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
