@@ -54,5 +54,4 @@ export const EventOutBoxSchema = new mongoose.Schema({
 },  {
     collection: 'eventOutBox',
     timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
-  });
-
+  }); 
