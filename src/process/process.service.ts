@@ -358,7 +358,7 @@ export class ProcessService {
     }
   }
 
-  async pendingProcess(userId) {
+  async pendingProcess(userId, processIds?: string[]) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
         userId,
@@ -380,9 +380,20 @@ export class ProcessService {
           paidInstances.push(data.salesDocument.source_id.toString());
         });
       }
+      let filter;
+      if (processIds.length) {
+        filter = {
+          userId: userId,
+          processStatus: EprocessStatus.Started,
+          processId: { $in: processIds },
+        };
+      } else {
+        filter = { userId: userId, processStatus: EprocessStatus.Started };
+      }
+      console.log("filter is", filter);
 
       const pendingTasks: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: EprocessStatus.Started })
+        .find()
         .populate("currentTask")
         .sort({ updated_at: -1 })
         .lean();
@@ -391,7 +402,11 @@ export class ProcessService {
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
         });
+        // console.log("totalTasks", totalTasks,pendingTasks[i].processId);
+
         if (subscription) {
+          // console.log("check isLocked", pendingTasks[i].currentTask.isLocked);
+
           pendingTasks[i].currentTask.isLocked = false;
         }
         if (paidInstances.length > 0) {
@@ -743,12 +758,12 @@ export class ProcessService {
       throw err;
     }
   }
-  async getTaskDetailByTaskId(taskId){
+  async getTaskDetailByTaskId(taskId) {
     try {
       console.log("taskId", taskId);
-      let id = new ObjectId(taskId)
-      let taskData = await this.tasksModel.findOne({_id:id}).lean();
-      return taskData
+      let id = new ObjectId(taskId);
+      let taskData = await this.tasksModel.findOne({ _id: id }).lean();
+      return taskData;
     } catch (error) {
       throw error;
     }

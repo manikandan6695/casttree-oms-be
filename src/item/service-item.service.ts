@@ -809,7 +809,7 @@ export class ServiceItemService {
       });
       let sections = [];
       let pendingProcessInstanceData =
-        await this.processService.pendingProcess(userId);
+        await this.processService.pendingProcess(userId,[]);
       console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWhereYouLeftData = {

@@ -79,7 +79,6 @@ export class DynamicUiService {
       );
       console.log("serviceItemData", serviceItemData);
 
-      let continueWatching = await this.fetchContinueWatching(token.id);
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id
@@ -348,6 +347,12 @@ export class DynamicUiService {
       const processIds = serviceItemData.flatMap((item) =>
         item.details.map((detail) => detail.processId)
       );
+      console.log("processIds",processIds.length);
+      
+      let continueWatching = await this.fetchContinueWatching(
+        userId,
+        processIds
+      );
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
@@ -355,7 +360,7 @@ export class DynamicUiService {
       const taskMap = new Map(
         firstTasks.map((task) => [task.processId.toString(), task])
       );
-      //   console.log("taskMap", taskMap);
+        console.log("taskMap", taskMap);
 
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
@@ -375,10 +380,12 @@ export class DynamicUiService {
       throw err;
     }
   }
-  async fetchContinueWatching(userId: string) {
+  async fetchContinueWatching(userId: string, processIds?: string[]) {
     try {
-      let pendingProcessInstanceData =
-        await this.processService.pendingProcess(userId);
+      let pendingProcessInstanceData = await this.processService.pendingProcess(
+        userId,
+        []
+      );
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
