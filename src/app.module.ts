@@ -23,6 +23,9 @@ import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
 import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
+import { RedisInitializer } from "./redis/redis.initializer";
+import { PaymentRequestService } from "./payment/payment-request.service";
+import { EventOutBoxModule } from './event-outbox/event-outbox.module';
 
 @Module({
   imports: [
@@ -67,6 +70,8 @@ import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
     MandatesModule,
     TaxModule,
     DynamicUiModule,
+    EventOutBoxModule,
+    RedisModule,
   ],
   controllers: [],
   providers: [
@@ -74,6 +79,7 @@ import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
     },
+    RedisInitializer,
   ],
 })
 export class AppModule {

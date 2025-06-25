@@ -108,15 +108,17 @@ export class PaymentRequestService {
         })
         if (orderId) {
           let consumer = await this.helperService.getUserByUserId(accessTokenData);
-          let eventOutBoxPayload = { 
+          let eventOutBoxPayload = {
             userId: payload?.userId,
             eventName: ERedisEventType.intermediateTransfer,
             sourceId: new ObjectId(invoiceData?._id),
             sourceType: EDocumentTypeName.invoice,
-            consumer:consumer?.userName,
-            payload:orderId
+            consumer: consumer?.userName,
+            payload: orderId
           }
-          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload,orderId);
+          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
+          // console.log("existingData", coinTransactionId?.source_id);
+          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload, orderId, coinTransactionId?.source_id.toString());
         }
       }
 
@@ -198,7 +200,7 @@ export class PaymentRequestService {
           userId: body.userId,
         }
       );
-
+      // console.log("orderDetail", orderDetail);
       const paymentData = await this.createPaymentRecord(
         body,
         token,
@@ -707,9 +709,9 @@ export class PaymentRequestService {
         _id: new ObjectId(paymentId)
       });
       let invoiceData = await this.invoiceService.getInvoiceDetail(payment?.source_id);
-      if(payment?.document_status===EDocumentStatus.completed && invoiceData?.document_status===EDocumentStatus.completed){
+      if (payment?.document_status === EDocumentStatus.completed && invoiceData?.document_status === EDocumentStatus.completed) {
         let coinPurchaseData = await this.coinTransactionModel.findOne({
-          _id:invoiceData?.source_id,
+          _id: invoiceData?.source_id,
           documentStatus: EsubscriptionStatus.pending
         })
         let updateUserAdditionalData = await this.helperService.updateUserPurchaseCoin({
@@ -717,26 +719,36 @@ export class PaymentRequestService {
           coinValue: coinPurchaseData?.coinValue
         })
         let totalBalance = (updateUserAdditionalData?.purchasedBalance || 0) + (updateUserAdditionalData?.earnedBalance || 0);
-         await this.coinTransactionModel.findOneAndUpdate({
-          _id:coinPurchaseData?._id
-        },{
-          $set:{
+        await this.coinTransactionModel.findOneAndUpdate({
+          _id: coinPurchaseData?._id
+        }, {
+          $set: {
             documentStatus: EPaymentStatus.completed,
             updatedAt: new Date(),
             currentBalance: totalBalance
           }
         })
-        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId,ECurrencyName.casttreeCoin)
+        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId, ECurrencyName.casttreeCoin)
         let finalResponse = {
           coinValue: coinPurchaseData?.coinValue,
           totalBalance: totalBalance,
           coinMedia: coinData?.media,
           paymentData: payment
         }
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+        mixPanelBody.distinctId = updateUserAdditionalData?.userId;
+        mixPanelBody.properties = {
+          user_id:updateUserAdditionalData?.userId,
+          amount:payment?.amount,
+          currency:invoiceData?.currencyCode,
+          coin_value:coinPurchaseData?.coinValue
+        };
+        await this.helperService.mixPanel(mixPanelBody);
         // console.log("finalResponse",finalResponse);
         return finalResponse;
       }
-      else{
+      else {
         return {
           coinValue: 0,
           totalBalance: 0,
