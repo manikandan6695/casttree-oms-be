@@ -9,6 +9,7 @@ import { SharedModule } from "src/shared/shared.module";
 import { PaymentRequestController } from "./payment-request.controller";
 import { PaymentRequestService } from "./payment-request.service";
 import { PaymentSchema } from "./schema/payment.schema";
+import { SalesDocumentSchema } from "src/invoice/schema/sales-document.schema";
 
 import { HttpModule } from "@nestjs/axios";
 import { ItemModule } from "src/item/item.module";
@@ -17,7 +18,10 @@ import { CoinTransactionSchema } from "./schema/coinPurchase.schema";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: "payment", schema: PaymentSchema }]),
+    MongooseModule.forFeature([
+      { name: "payment", schema: PaymentSchema },
+      { name: "salesDocument", schema: SalesDocumentSchema },
+    ]),
     SharedModule,
     AuthModule,
     InvoiceModule,

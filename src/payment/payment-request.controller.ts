@@ -8,14 +8,18 @@ import {
   Res,
   UseGuards,
   ValidationPipe,
+  Query,
+  ParseIntPipe,
+  ParseEnumPipe,
 } from "@nestjs/common";
 import { Response } from "express";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { paymentDTO } from "./dto/payment.dto";
+import { filterTypeDTO, paymentDTO } from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
+import { EFilterType } from "./enum/payment.enum";
 
 @Controller("payment-request")
 export class PaymentRequestController {
@@ -50,6 +54,38 @@ export class PaymentRequestController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get("transaction-history")
+  async getCombinedTransactions(
+    @GetToken() token: UserToken,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number,
+    @Query("filterType") filterTypeRaw: string,
+    @Res() res: Response
+  ) {
+    try {
+      let filterType: EFilterType | undefined;
+  
+      if (filterTypeRaw && Object.values(EFilterType).includes(filterTypeRaw as EFilterType)) {
+        filterType = filterTypeRaw as EFilterType;
+      }
+  
+      const data = await this.paymentRequestService.handleTransactionHistory(
+        token,
+        skip,
+        limit,
+        filterType
+      );
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+  
   //@UseGuards(JwtAuthGuard)
   @Get(":id")
   async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {

@@ -11,6 +11,8 @@ export enum EPaymentSourceType {
   subscription = "subscription",
   processInstance = "processInstance",
   coinTransaction = "coinTransaction",
+  feedBack = "feedBack",
+  workShop = "workShop",
 }
 
 export const ESPaymentSourceType = [
@@ -69,6 +71,27 @@ export const ERedisEventTypes = [
   ERedisEventType.coinPurchaseResponse,
   ERedisEventType.intermediateTransfer,
 ];
+
+
+export enum EFilterType {
+  // all = "All",
+  purchase = "Purchase",
+  withdrawal = "Withdrawal",
+}
+export enum ETransactionType {
+  subscriptionPurchased = "Subscription Purchased",
+  coinPurchased = "Coin Purchased",
+  feedbackPurchased = "Feedback Purchased",
+  workshopPurchased = "Workshop Purchased",
+  salesDocument = "Sales Document",
+}
+
+export const ETransactionTypes = [ETransactionType.subscriptionPurchased, ETransactionType.coinPurchased, ETransactionType.feedbackPurchased, ETransactionType.workshopPurchased, ETransactionType.salesDocument];
+export enum ETransactionState {
+  In= "IN",
+  Out= "OUT",
+}
+
 export enum ECurrencyName {
   casttreeCoin = "Casttree Coin",
   currencyId = "6852c906a72125c5fcf9f61f"
@@ -100,7 +123,4 @@ export enum ETransactionType{
   withdrawn = "withdrawn",
   purchased = "purchased",
 }
-export const ETransactionTypes = [
-  ETransactionType.In,
-  ETransactionType.Out,
-];
+

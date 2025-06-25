@@ -14,18 +14,22 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO } from "./dto/payment.dto";
+import { filterTypeDTO, paymentDTO } from "./dto/payment.dto";
 import {
+  EFilterType,
   ECurrencyName,
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
   ERedisEventType,
   ESourceType,
+  ETransactionState,
+  ETransactionType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 import { RedisService } from "../redis/redis.service";
 import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
+import { ISalesDocumentModel } from "src/invoice/schema/sales-document.schema";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 const jwt = require('jsonwebtoken');
@@ -42,6 +46,8 @@ export class PaymentRequestService {
   constructor(
     @InjectModel("payment")
     private readonly paymentModel: Model<IPaymentModel>,
+    @InjectModel("salesDocument")
+    private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private sharedService: SharedService,
@@ -685,13 +691,14 @@ export class PaymentRequestService {
   //   try {
   //     const rzpPaymentId = payload?.payment?.entity?.order_id;
   //     let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
-  //     if (!paymentRequest || paymentRequest.document_status === EDocumentStatus.completed) {
-  //       return
+
+  //     if (paymentRequest.document_status === EPaymentStatus.initiated && paymentRequest?.payment_order_id===rzpPaymentId) {
+  //       await this.completePayment({
+  //         invoiceId: paymentRequest?.source_id,
+  //         paymentId: paymentRequest?._id,
+  //       });
   //     }
-  //     await this.completePayment({
-  //       invoiceId: paymentRequest?.source_id,
-  //       paymentId: paymentRequest?._id,
-  //     });
+     
   //   } catch (err) {
   //     throw err;
   //   }
@@ -754,4 +761,92 @@ export class PaymentRequestService {
       throw err;
     }
   }
+
+  async handleTransactionHistory(
+    token: UserToken,
+    skip: number,
+    limit: number,
+    filterType?: EFilterType
+  ) {
+    try {
+      const statusFilter = [EPaymentStatus.pending, EPaymentStatus.completed];
+      const filterData: any = {
+        user_id: new ObjectId(token?.id),
+        document_status: { $in: statusFilter },
+      };
+      if (filterType === EFilterType.purchase) {
+        filterData.transaction_type = ETransactionState.Out;
+      } else if (filterType === EFilterType.withdrawal) {
+        filterData.transaction_type = ETransactionState.In;
+      }
+      else{
+        filterData.transaction_type = { $in: [ETransactionState.Out, ETransactionState.In] };
+      }
+      const payments = await this.paymentModel.aggregate([
+        { $match: filterData },
+        {
+          $lookup: {
+            from: 'salesDocument',
+            localField: 'source_id',
+            foreignField: '_id',
+            as: 'salesDoc',
+          },
+        },
+        { $unwind: { path: '$salesDoc', preserveNullAndEmptyArrays: true } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            amount: 1,
+            currencyCode: 1,
+            transactionDate: 1,
+            created_at: 1,
+            document_status: 1,
+            transaction_type: 1,
+            source_type: '$salesDoc.source_type',
+          },
+        },
+      ]);
+      const getCurrencySymbol = async (currencyCode: string) => {
+        return await this.currency_service.getCurrencySymbolByCode(currencyCode);
+      };
+
+      const getTitleFromSourceType = (sourceType: string) => {
+        switch (sourceType) {
+          case EPaymentSourceType.coinTransaction:
+            return ETransactionType.coinPurchased;
+          case EPaymentSourceType.subscription:
+            return ETransactionType.subscriptionPurchased;
+          case EPaymentSourceType.feedBack:
+            return ETransactionType.feedbackPurchased;
+          case EPaymentSourceType.workShop:
+            return ETransactionType.workshopPurchased;
+          default:
+            return ETransactionType.salesDocument;
+        }
+      };
+  
+      const results = await Promise.all(
+        payments.map(async (payment) => {
+          const currencyCode = await getCurrencySymbol(payment.currencyCode);
+          const title = getTitleFromSourceType(payment.source_type);
+          return {
+            currencyCode,
+            title,
+            amount: payment.amount,
+            purchaseDate: payment.transactionDate || payment.created_at,
+            documentStatus: payment.document_status,
+            type: payment.transaction_type,
+          };
+        })
+      );
+  
+      return {
+        data: results,
+        totalCount: results.length, 
+      };
+    } catch (error) {
+      throw error;
+    }
+  } 
 }
