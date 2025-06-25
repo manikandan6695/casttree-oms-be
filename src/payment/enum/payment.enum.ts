@@ -120,7 +120,7 @@ export enum ETransactionType{
   Out = "Out",
   earned = "earned",
   spent = "spent",
-  withdrawn = "withdrawn",
+  withdrawal = "Withdrawal",
   purchased = "purchased",
 }
 

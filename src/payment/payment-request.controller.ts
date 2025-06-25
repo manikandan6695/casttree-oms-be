@@ -60,14 +60,14 @@ export class PaymentRequestController {
     @GetToken() token: UserToken,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number,
-    @Query("filterType") filterTypeRaw: string,
+    @Query("filterType") type: string,
     @Res() res: Response
   ) {
     try {
-      let filterType: EFilterType | undefined;
+      let filterType: EFilterType;
   
-      if (filterTypeRaw && Object.values(EFilterType).includes(filterTypeRaw as EFilterType)) {
-        filterType = filterTypeRaw as EFilterType;
+      if (type && Object.values(EFilterType).includes(type as EFilterType)) {
+        filterType = type as EFilterType;
       }
   
       const data = await this.paymentRequestService.handleTransactionHistory(
