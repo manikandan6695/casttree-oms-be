@@ -107,3 +107,6 @@ ENVIRONMENT="Production"
 GOOGLE_FILE_PATH="/opt/google-iap-config/google-config.json"
 PACKAGE_NAME="com.billionfaces.casttree"
 SCOPES="https://www.googleapis.com/auth/androidpublisher"
+#redis server 
+REDIS_URL = 'redis://:creedom_redis_prod@redis-prod.casttree.com:6379'
+REDIS_CONNECTION_TIMEOUT = 6000
