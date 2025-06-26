@@ -97,8 +97,5 @@ BUNDLE_ID="com.billionfaces.casttree"
 FILEPATH="apple-subscription-key.p8"
 ENVIRONMENT=SANDBOX
 #redis server 
-REDIS_URL = 'redis://:1LVQo3SBw7NNfW2mChJ8ZQvAOJJvfFbcIAzCaNKUJQY=@bluesense.redis.cache.windows.net:6380'
-REDIS_HOST = "bluesense.redis.cache.windows.net"
-REDIS_PORT = 6380
+REDIS_URL = 'redis://:creedom_redis_dev@2025@20.193.249.9:6379'
 REDIS_CONNECTION_TIMEOUT = 6000
-REDIS_TIMEOUT = 6000
