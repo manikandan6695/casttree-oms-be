@@ -89,7 +89,6 @@ export class PaymentRequestService {
             sourceType: EPaymentSourceType.coinTransaction,
             sourceId: payload?.coinTransactionId,
           },
-          paymentType: "Auth"
         };
 
         // console.log("Payment Payload:", bodyData);
