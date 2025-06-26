@@ -3,7 +3,10 @@ import {
   Controller,
   Get,
   Param,
+  ParseEnumPipe,
+  ParseIntPipe,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -16,6 +19,7 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
 import { paymentDTO } from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
+import { EFilterType } from "./enum/payment.enum";
 
 @Controller("payment-request")
 export class PaymentRequestController {
@@ -50,6 +54,50 @@ export class PaymentRequestController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get("transaction-history")
+  async getCombinedTransactions(
+    @GetToken() token: UserToken,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number,
+    @Query("filterType") type: string,
+    @Res() res: Response
+  ) {
+    try {
+      let filterType: EFilterType;
+  
+      if (type && Object.values(EFilterType).includes(type as EFilterType)) {
+        filterType = type as EFilterType;
+      }
+  
+      const data = await this.paymentRequestService.handleTransactionHistory(
+        token,
+        skip,
+        limit,
+        filterType
+      );
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
+  @Get("verify-payment/:paymentId")
+  async getCoinValueUpdate(@Param("paymentId") paymentId: string, @Res() res: Response) {
+    try {
+      const data = await this.paymentRequestService.updateCoinValue(paymentId);
+      return res.json(data);
+    } catch (err) {
+      const { code, response } = await this.sservice.processError(
+        err,
+        this.constructor.name
+      );
+      return res.status(code).json(response);
+    }
+  }
   //@UseGuards(JwtAuthGuard)
   @Get(":id")
   async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {

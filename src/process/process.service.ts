@@ -743,4 +743,14 @@ export class ProcessService {
       throw err;
     }
   }
+  async getTaskDetailByTaskId(taskId){
+    try {
+      console.log("taskId", taskId);
+      let id = new ObjectId(taskId)
+      let taskData = await this.tasksModel.findOne({_id:id}).lean();
+      return taskData
+    } catch (error) {
+      throw error;
+    }
+  }
 }

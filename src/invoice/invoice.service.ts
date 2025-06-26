@@ -173,4 +173,15 @@ export class InvoiceService {
       throw err;
     }
   }
+  async getSalesDocumentBySource(sourceId: string, sourceType: string) {
+    try {
+      let invoice = await this.salesDocumentModel.findOne({
+        source_id:new ObjectId(sourceId),
+        source_type: sourceType,
+      });
+      return invoice;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

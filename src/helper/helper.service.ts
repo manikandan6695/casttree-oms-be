@@ -276,7 +276,7 @@ export class HelperService {
           `https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_API_KEY}&ip=${ipAddress}`
         )
         .toPromise();
-      return response.data["country_code2"];
+      return response.data;
     } catch (error) {
       return error;
     }
@@ -552,8 +552,8 @@ export class HelperService {
     try {
       // console.log("inisde update user additional", body);
 
-      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
-      const request = this.http_service
+      const requestURL = 
+      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;      const request = this.http_service
         .patch(requestURL, body)
         .pipe(
           map((res) => {
@@ -792,6 +792,66 @@ export class HelperService {
 
       throw err;
     }
+  }
+  async getUserByUserId( accessToken: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user`,
+          //  `http://localhost:3000/casttree/profile/get-profile-list`,
+          {
+            headers: {
+              Authorization: accessToken,
+            },
+          }
+        )
+        .toPromise();
+
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async getSystemConfigByKey(key: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  async updateUserPurchaseCoin(body) {
+    try {
+      // console.log("getUserAdditionalDetails body is", body);
+
+      const requestURL = 
+      // `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
+      `http://localhost:3000/casttree/user/update-purchased-balance/${body.userId}`;
+      const request = this.http_service
+        .patch(requestURL, body)
+        .pipe(
+          map((res) => {
+            // console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+
   }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
