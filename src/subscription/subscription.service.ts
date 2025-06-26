@@ -558,6 +558,7 @@ export class SubscriptionService {
         userId: existingSubscription.userId,
         baseAmount: amt,
         baseCurrency: "INR",
+        paymentType: EPaymentType.charge,
         conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
