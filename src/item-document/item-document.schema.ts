@@ -37,7 +37,7 @@ export const ESItemSourceType = [
 export interface IItemCompositionModel extends mongoose.Document {
   reference_item_id: string;
   organization_id: any;
-  source_id: string;
+  source_id: mongoose.Types.ObjectId | string;
   source_type: string;
   transaction_type: string;
   item_id: any;

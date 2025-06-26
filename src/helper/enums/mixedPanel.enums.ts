@@ -8,7 +8,7 @@ export enum EMixedPanelEvents {
     series_complete="series_complete",
     subscription_end = "subscription_end",
     subscription_add = "subscription_add",
-
+    coin_purchase_success="coin_purchase_success"
  
   }
   

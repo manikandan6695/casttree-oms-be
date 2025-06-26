@@ -211,7 +211,7 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      console.log("apple iap bodyData", bodyData, data);
+      // console.log("apple iap bodyData", bodyData, data);
 
       const transactionId = bodyData.transactionDetails?.transactionId;
       // console.log("transactionId", transactionId);
@@ -233,7 +233,7 @@ export class SubscriptionFactory {
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
-      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
+      // console.log("matchingTransaction", JSON.stringify(matchingTransaction));
       // if (existingSubscription) {
       //   // console.log("existingSubscription", existingSubscription);
       //   return existingSubscription;
@@ -682,7 +682,7 @@ export class SubscriptionFactory {
       const purchaseInfo = await this.validatePurchase(
         bodyData?.data?.signedTransactionInfo
       );
-      console.log("purchaseInfo", JSON.stringify(purchaseInfo));
+      // console.log("purchaseInfo", JSON.stringify(purchaseInfo));
       if (bodyData.notificationType === EEventType.didPurchase) {
         let signedRenewalInfo = await this.parseJwt(
           bodyData?.data?.signedRenewalInfo
@@ -955,7 +955,7 @@ export class SubscriptionFactory {
   // google iap
   async googleRtdn(payload) {
     try {
-      console.log("payload", payload);
+      // console.log("payload", payload);
       const pubSubMessage = payload?.message;
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());

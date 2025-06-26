@@ -96,4 +96,13 @@ export class ProcessController {
       throw err;
     }
   }
+  @Get('get-task-details/:taskId')
+  async getTaskDetailByTaskId(@Param('taskId') taskId: string) {
+    try {
+      const data = await this.processsService.getTaskDetailByTaskId(taskId);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

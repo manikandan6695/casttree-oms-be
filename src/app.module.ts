@@ -21,7 +21,10 @@ import { ServiceResponseModule } from "./service-response/service-response.modul
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
 import { TaxModule } from "./tax/tax.module";
-
+import { RedisInitializer } from "./redis/redis.initializer";
+import { EventOutBoxModule } from './event-outbox/event-outbox.module';
+import { RedisModule } from "./redis/redis.module";
+import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -63,6 +66,9 @@ import { TaxModule } from "./tax/tax.module";
     ScheduleModule.forRoot(),
     MandatesModule,
     TaxModule,
+    EventOutBoxModule,
+    RedisModule,
+    DynamicUiModule
   ],
   controllers: [],
   providers: [
@@ -70,6 +76,7 @@ import { TaxModule } from "./tax/tax.module";
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
     },
+    RedisInitializer,
   ],
 })
 export class AppModule {
