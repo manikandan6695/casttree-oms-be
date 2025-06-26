@@ -79,7 +79,9 @@ export class SubscriptionService {
           ]);
 
           let authAmount =
-            body?.refId || existingSubscription||
+            body?.refId ||
+            existingSubscription ||
+
             item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
                   ?.amount
@@ -557,6 +559,7 @@ export class SubscriptionService {
         userId: existingSubscription.userId,
         baseAmount: amt,
         baseCurrency: "INR",
+        paymentType: EPaymentType.charge,
         conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
