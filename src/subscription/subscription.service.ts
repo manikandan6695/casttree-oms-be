@@ -79,7 +79,9 @@ export class SubscriptionService {
           ]);
 
           let authAmount =
-            body?.refId || existingSubscription
+            body?.refId ||
+            existingSubscription ||
+            item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
                   ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
