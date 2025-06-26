@@ -119,6 +119,27 @@ export class PaymentRequestService {
           let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
           // console.log("existingData", coinTransactionId?.source_id);
           await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload, orderId, coinTransactionId?.source_id.toString());
+          let coinTransaction = await this.coinTransactionModel.findOne({
+            _id: new ObjectId(payload?.casttreeCoinTransactionId)
+          })
+          if (coinTransaction) {
+            let updateUserAdditionalData = await this.helperService.updateAdminCoinValue({
+              userId: coinTransaction?.userId,
+              coinValue: coinTransaction?.coinValue
+            })
+            let updatedCoinTransaction = await this.coinTransactionModel.findOneAndUpdate({
+              _id: new ObjectId(coinTransaction?._id)
+            }, {
+              $set: {
+                documentStatus: EPaymentStatus.completed,
+                updatedAt: new Date(),
+                currentBalance: updateUserAdditionalData?.purchasedBalance
+              },
+            }, {
+              new: true
+            })
+            return updatedCoinTransaction
+          }
         }
       }
 
