@@ -86,6 +86,10 @@ export class RedisService implements OnModuleDestroy {
         }
       } catch (error) {
         console.error('[Queue Polling Error]', error.message || error);
+        if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
+          this.isConnected = false;
+          await this.initRedisClients();
+        }
         await new Promise((res) => setTimeout(res, 1000));
       }
     }
