@@ -770,10 +770,10 @@ export class PaymentRequestService {
     filterType?: EFilterType
   ) {
     try {
-      const statusFilter = [EPaymentStatus.pending, EPaymentStatus.completed];
+      let title;
       const filterData: any = {
         user_id: new ObjectId(token?.id),
-        document_status: { $in: statusFilter },
+        document_status: EPaymentStatus.completed,
       };
       if (filterType === EFilterType.purchase) {
         filterData.transaction_type = ETransactionState.Out;
@@ -808,6 +808,7 @@ export class PaymentRequestService {
                   document_status: 1,
                   transaction_type: 1,
                   source_type: '$salesDoc.source_type',
+                  salesDocId: '$salesDoc.source_id',
                 },
               },
             ],
@@ -820,26 +821,39 @@ export class PaymentRequestService {
 
       const payments = result.paginatedResults;
       const totalCount = result.totalCount[0]?.count || 0;
-
+    
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
             return ETransactionType.coinPurchased;
           case EPaymentSourceType.subscription:
             return ETransactionType.subscriptionPurchased;
-          case EPaymentSourceType.feedBack:
+          case EPaymentSourceType.serviceRequest:
             return ETransactionType.feedbackPurchased;
-          case EPaymentSourceType.workShop:
-            return ETransactionType.workshopPurchased;
+          case EPaymentSourceType.processInstance:
+            return ETransactionType.coursePurchased;
           default:
-            return ETransactionType.salesDocument;
+            return null;
         }
       };
-  
+      // if(getTitleFromSourceType?. === EPaymentSourceType.serviceRequest){
+      //   let serviceRequest = await this.serviceRequestService.getServiceRequestDetail(payments?.salesDocId);
+      //   console.log("serviceRequest", serviceRequest);
+      // }
+   
+      const validPayments = payments.filter(payment => getTitleFromSourceType(payment.source_type) !== null);
       const results = await Promise.all(
-        payments.map(async (payment) => {
+        validPayments.map(async (payment) => {
           let transactionType = payment?.transaction_type === ETransactionState.Out? ETransactionType.purchased : ETransactionType.withdrawal
-          const title = getTitleFromSourceType(payment.source_type);
+           title = getTitleFromSourceType(payment.source_type);
+          if (payment.source_type === EPaymentSourceType.serviceRequest && payment.salesDocId) {
+            const serviceRequestDetail = await this.serviceRequestService.getServiceRequestDetail(payment.salesDocId);
+            if(serviceRequestDetail?.data?.type===EPaymentSourceType.feedback){
+              title = ETransactionType.feedbackPurchased;
+            }else if(serviceRequestDetail?.data?.type===EPaymentSourceType.processInstance){
+              title = ETransactionType.coursePurchased;
+            }
+          }
           return {
             currencyCode:payment?.currencyCode,
             title,
