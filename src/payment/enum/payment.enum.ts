@@ -5,18 +5,15 @@ export enum ESourceType {
 export const ESSourceType = [ESourceType.serviceRequest];
 
 export enum EPaymentSourceType {
-  salesDocument = "salesDocument",
   serviceRequest = "serviceRequest",
   invoice = "Invoice",
   subscription = "subscription",
   processInstance = "processInstance",
   coinTransaction = "coinTransaction",
-  feedBack = "feedBack",
-  workShop = "workShop",
+  feedback = "feedback",
 }
 
 export const ESPaymentSourceType = [
-  EPaymentSourceType.salesDocument,
   EPaymentSourceType.processInstance,
   EPaymentSourceType.serviceRequest,
   EPaymentSourceType.invoice,
@@ -83,10 +80,10 @@ export enum ETransactionType {
   coinPurchased = "Coin Purchased",
   feedbackPurchased = "Feedback Purchased",
   workshopPurchased = "Workshop Purchased",
-  salesDocument = "Sales Document",
+  coursePurchased = "Course Purchased",
 }
 
-export const ETransactionTypes = [ETransactionType.subscriptionPurchased, ETransactionType.coinPurchased, ETransactionType.feedbackPurchased, ETransactionType.workshopPurchased, ETransactionType.salesDocument];
+export const ETransactionTypes = [ETransactionType.subscriptionPurchased, ETransactionType.coinPurchased, ETransactionType.feedbackPurchased, ETransactionType.workshopPurchased, ETransactionType.coursePurchased];
 export enum ETransactionState {
   In= "IN",
   Out= "OUT",
