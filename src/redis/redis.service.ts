@@ -8,7 +8,6 @@ import { EventOutBoxService } from '../event-outbox/event-outbox.service';
 import { IEventOutBox } from 'src/event-outbox/schema/event-outbox.schema';
 import { EConfigType } from './enum/type.enum';
 import { HelperService } from 'src/helper/helper.service';
-const { ObjectId } = require("mongodb");
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -31,31 +30,35 @@ export class RedisService implements OnModuleDestroy {
     this.client = createClient({
       url: process.env.REDIS_URL,
       socket: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT),
-        connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
-        timeout: parseInt(process.env.REDIS_TIMEOUT),
-        tls: true,
-        rejectUnauthorized: false,
+          connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
       }
     });
 
     this.subscriberClient = createClient({
       url: process.env.REDIS_URL,
       socket: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT),
-        connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
-        timeout: parseInt(process.env.REDIS_TIMEOUT),
-        tls: true,
-        rejectUnauthorized: false,
+          connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
       }
     });
 
-    await this.client.connect();
-    await this.subscriberClient.connect();
-    this.isConnected = true;
-    console.log("✅ Redis clients connected");
+    this.client.on('error', (err) => {
+      console.error('[Redis Client Error]', err.message || err);
+    });
+
+    this.subscriberClient.on('error', (err) => {
+      console.error('[Redis Subscriber Error]', err.message || err);
+    });
+
+    try {
+      await this.client.connect();
+      await this.subscriberClient.connect();
+      this.isConnected = true;
+      console.log('Redis clients connected');
+      console.log('Redis subscriber connected');
+    } catch (err) {
+      console.error('Failed to connect to Redis:', err.message || err);
+      this.isConnected = false;
+    }
   }
 
   public async startPolling() {
@@ -71,29 +74,41 @@ export class RedisService implements OnModuleDestroy {
   private async startQueuePolling() {
     while (this.isPolling) {
       try {
-        let timeOut = await this.helperService.getSystemConfigByKey(EConfigType.key);
-        // console.log("timeOut", timeOut?.value, typeof timeOut?.value);
-        const result = await this.subscriberClient.blPop(ERedisEventType.coinPurchase, timeOut?.value);
-        // console.log("result", result);
+        const timeOut = await this.helperService.getSystemConfigByKey(EConfigType.key);
+        const result = await this.subscriberClient.blPop(
+          ERedisEventType.coinPurchase,
+          timeOut?.value
+        );
         if (result) {
+          // console.log("result", result);
           await this.eventOutBoxService.updateEventOutBox(result);
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
         }
       } catch (error) {
-        await new Promise(res => setTimeout(res, 1000));
+        console.error('[Queue Polling Error]', error.message || error);
+        await new Promise((res) => setTimeout(res, 1000));
       }
     }
   }
 
   async publishCoinPurchaseResponse(data: any) {
     try {
-      await this.client.publish(ERedisEventType.coinPurchaseResponse, JSON.stringify(data));
+      await this.client.publish(
+        ERedisEventType.coinPurchaseResponse,
+        JSON.stringify(data)
+      );
     } catch (error) {
+      console.error('[Publish Error]', error.message || error);
       throw error;
     }
   }
 
-  async pushToCoinPurchaseQueue(data: any, queueName: string = ERedisEventType.coinPurchase, orderId: any, sourceId: string) {
+  async pushToCoinPurchaseQueue(
+    data: any,
+    queueName: string = ERedisEventType.coinPurchase,
+    orderId: any,
+    sourceId: string
+  ) {
     try {
       const payload = {
         userId: data?.userId,
@@ -104,23 +119,34 @@ export class RedisService implements OnModuleDestroy {
         triggeredAt: new Date(),
         sourceId: data?.sourceId,
         sourceType: data?.sourceType,
-        consumer: data?.consumer,
+        consumer: data?.consumer
       };
 
       const createEvent = await this.eventOutBoxService.createEventOutBox(payload);
       const queuePayload = {
         orderId,
-        eventOutBoxId: createEvent?._id,
+        eventOutBoxId: createEvent?._id
       };
-      console.log("event", `${queueName}:${sourceId}`)
+
+      // console.log('event', `${queueName}:${sourceId}`);
       await this.client.lPush(`${queueName}:${sourceId}`, JSON.stringify(queuePayload));
     } catch (error) {
+      console.error('[Push Queue Error]', error.message || error);
       throw error;
     }
   }
 
-  async pushToIntermediateTransferQueue(data: any, orderId: any, sourceId: string) {
-    return this.pushToCoinPurchaseQueue(data, ERedisEventType.intermediateTransfer, orderId, sourceId);
+  async pushToIntermediateTransferQueue(
+    data: any,
+    orderId: any,
+    sourceId: string
+  ) {
+    return this.pushToCoinPurchaseQueue(
+      data,
+      ERedisEventType.intermediateTransfer,
+      orderId,
+      sourceId
+    );
   }
 
   async onModuleDestroy() {
