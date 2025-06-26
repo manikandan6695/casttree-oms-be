@@ -852,6 +852,34 @@ export class HelperService {
       throw err;
     }
   }
+  async updateAdminCoinValue(body) {
+    try {
+      // console.log("getUserAdditionalDetails body is", body);
+
+      const requestURL = 
+      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-admin-additional/${body.userId}`;
+      // `http://localhost:3000/casttree/user/update-admin-additional/${body.userId}`;
+      const request = this.http_service
+        .patch(requestURL, body)
+        .pipe(
+          map((res) => {
+            // console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            // console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {
