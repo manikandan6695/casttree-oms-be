@@ -4,6 +4,7 @@ export enum EserviceItemType {
   courses = "courses",
   subscription = "subscription",
   contest = "contest",
+  coins = "coins"
 }
 
 export const ESserviceItemType = [
@@ -12,4 +13,5 @@ export const ESserviceItemType = [
   EserviceItemType.courses,
   EserviceItemType.subscription,
   EserviceItemType.contest,
+  EserviceItemType.coins
 ];
