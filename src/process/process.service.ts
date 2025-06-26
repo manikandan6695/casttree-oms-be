@@ -745,7 +745,7 @@ export class ProcessService {
   }
   async getTaskDetailByTaskId(taskId){
     try {
-      console.log("taskId", taskId);
+      // console.log("taskId", taskId);
       let id = new ObjectId(taskId)
       let taskData = await this.tasksModel.findOne({_id:id}).lean();
       return taskData

@@ -19,6 +19,7 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
+import { MandatesModule } from "src/mandates/mandates.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ServiceItemService } from "./service-item.service";
     AuthModule,
     HelperModule,
     SubscriptionModule,
+    MandatesModule,
     forwardRef(() => ServiceRequestModule),
     forwardRef(() => ProcessModule),
   ],

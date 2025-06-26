@@ -5,7 +5,7 @@ import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
-import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { EDocumentStatus, ESDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
@@ -14,8 +14,7 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO } from "./dto/payment.dto";
-const jwt = require('jsonwebtoken');
+import { paymentDTO, filterTypeDTO } from "./dto/payment.dto";
 import {
   ECurrencyName,
   EFilterType,
@@ -33,7 +32,7 @@ import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
-
+const jwt = require('jsonwebtoken');
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -62,7 +61,72 @@ export class PaymentRequestService {
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private redisService: RedisService
-  ) {}
+  ) { }
+  async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
+    try {
+      if (coinPurchaseData?.key === ERedisEventType.coinPurchase) {
+        // console.log("coinPurchaseData!", coinPurchaseData?.element);
+        const parsedElement = JSON.parse(coinPurchaseData.element);
+        const accessTokenData = parsedElement?.authToken;
+        const token = accessTokenData?.replace(/^Bearer\s+/i, '');
+        const payload = parsedElement?.payload;
+        const existingData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        if (existingData) {
+          // console.log("Existing data Found:", existingData);
+          return existingData;
+        }
+        const bodyData: paymentDTO = {
+          amount: payload?.amount,
+          paymentMode: payload?.paymentMode,
+          userId: payload?.userId,
+          itemId: payload?.itemId,
+          currencyCode: payload?.currencyCode,
+          transactionDate: new Date(),
+          providerId: EProviderId.razorpay,
+          providerName: EProvider.razorpay,
+          document_status: EPaymentStatus.initiated,
+          invoiceDetail: {
+            sourceType: EPaymentSourceType.coinTransaction,
+            sourceId: payload?.coinTransactionId,
+          },
+          paymentType: "Auth"
+        };
+
+        // console.log("Payment Payload:", bodyData);
+        const decodedToken = jwt.decode(token) as UserToken;
+        // console.log("decodedToken",decodedToken);
+        await this.initiatePayment(bodyData, decodedToken, accessTokenData);
+        let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        let orderId = await this.paymentModel.findOne({
+          user_id: payload?.userId,
+          source_id: new ObjectId(invoiceData?._id),
+          source_type: EDocumentTypeName.invoice,
+          document_status: EPaymentStatus.initiated,
+          providerId: EProviderId.razorpay,
+          providerName: EProvider.razorpay,
+        })
+        if (orderId) {
+          let consumer = await this.helperService.getUserByUserId(accessTokenData);
+          let eventOutBoxPayload = {
+            userId: payload?.userId,
+            eventName: ERedisEventType.intermediateTransfer,
+            sourceId: new ObjectId(invoiceData?._id),
+            sourceType: EDocumentTypeName.invoice,
+            consumer: consumer?.userName,
+            payload: orderId
+          }
+          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
+          // console.log("existingData", coinTransactionId?.source_id);
+          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload, orderId, coinTransactionId?.source_id.toString());
+        }
+      }
+
+    } catch (err) {
+      // console.error("Error handling coin purchase from Redsis:", err);
+      throw err;
+    }
+  }
+
 
   async initiatePayment(
     body: paymentDTO,
@@ -414,18 +478,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_id": new ObjectId(sourceId),
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          })
+          $match: {
+            "salesDocument.source_id": new ObjectId(sourceId),
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        })
         : aggregation_pipeline.push({
-            $match: {
-              "salesDocument.source_type": EPaymentSourceType.processInstance,
-              "salesDocument.document_status": EPaymentStatus.completed,
-            },
-          });
+          $match: {
+            "salesDocument.source_type": EPaymentSourceType.processInstance,
+            "salesDocument.document_status": EPaymentStatus.completed,
+          },
+        });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -570,107 +634,52 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
-    try {
-      if (coinPurchaseData?.key === ERedisEventType.coinPurchase) {
-        // console.log("coinPurchaseData!", coinPurchaseData?.element);
-        const parsedElement = JSON.parse(coinPurchaseData.element);
-        const accessTokenData = parsedElement?.authToken;
-        const token = accessTokenData?.replace(/^Bearer\s+/i, '');
-        const payload = parsedElement?.payload;
-        const existingData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
-        if (existingData) {
-          // console.log("Existing data Found:", existingData);
-          return existingData;
-        }
-        const bodyData: paymentDTO = {
-          amount: payload?.amount,
-          paymentMode: payload?.paymentMode,
-          userId: payload?.userId,
-          itemId: payload?.itemId,
-          currencyCode: payload?.currencyCode,
-          transactionDate: new Date(),
-          providerId: EProviderId.razorpay,
-          providerName: EProvider.razorpay,
-          document_status: EPaymentStatus.initiated,
-          invoiceDetail: {
-            sourceType: EPaymentSourceType.coinTransaction,
-            sourceId: payload?.coinTransactionId,
-          },
-          paymentType: "Auth"
-        };
-
-        // console.log("Payment Payload:", bodyData);
-        const decodedToken = jwt.decode(token) as UserToken;
-        // console.log("decodedToken",decodedToken);
-        await this.initiatePayment(bodyData, decodedToken, accessTokenData);
-        let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
-        let orderId = await this.paymentModel.findOne({
-          user_id: payload?.userId,
-          source_id: new ObjectId(invoiceData?._id),
-          source_type: EDocumentTypeName.invoice,
-          document_status: EPaymentStatus.initiated,
-          providerId: EProviderId.razorpay,
-          providerName: EProvider.razorpay,
-        })
-        if (orderId) {
-          let consumer = await this.helperService.getUserByUserId(accessTokenData);
-          let eventOutBoxPayload = { 
-            userId: payload?.userId,
-            eventName: ERedisEventType.intermediateTransfer,
-            sourceId: new ObjectId(invoiceData?._id),
-            sourceType: EDocumentTypeName.invoice,
-            consumer:consumer?.userName,
-            payload:orderId
-          }
-          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
-          // console.log("existingData",coinTransactionId?.source_id);
-          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload,orderId,coinTransactionId?.source_id.toString());
-        }
-      }
-
-    } catch (err) {
-      // console.error("Error handling coin purchase from Redsis:", err);
-      throw err;
-    }
-  }
   async updateCoinValue(paymentId: string) {
     try {
       let payment = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId)
       });
       let invoiceData = await this.invoiceService.getInvoiceDetail(payment?.source_id);
-      if(payment?.document_status===EDocumentStatus.completed && invoiceData?.document_status===EDocumentStatus.completed){
+      if (payment?.document_status === EDocumentStatus.completed && invoiceData?.document_status === EDocumentStatus.completed) {
         let coinPurchaseData = await this.coinTransactionModel.findOne({
-          _id:invoiceData?.source_id,
+          _id: invoiceData?.source_id,
           documentStatus: EsubscriptionStatus.pending
         })
         let updateUserAdditionalData = await this.helperService.updateUserPurchaseCoin({
           userId: payment?.user_id,
           coinValue: coinPurchaseData?.coinValue
         })
-        console.log("updateUserAdditionalData",updateUserAdditionalData);
         let totalBalance = (updateUserAdditionalData?.purchasedBalance || 0) + (updateUserAdditionalData?.earnedBalance || 0);
-         await this.coinTransactionModel.findOneAndUpdate({
-          _id:coinPurchaseData?._id
-        },{
-          $set:{
+        await this.coinTransactionModel.findOneAndUpdate({
+          _id: coinPurchaseData?._id
+        }, {
+          $set: {
             documentStatus: EPaymentStatus.completed,
             updatedAt: new Date(),
             currentBalance: totalBalance
           }
         })
-        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId,ECurrencyName.casttreeCoin)
+        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId, ECurrencyName.casttreeCoin)
         let finalResponse = {
           coinValue: coinPurchaseData?.coinValue,
           totalBalance: totalBalance,
           coinMedia: coinData?.media,
           paymentData: payment
         }
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+        mixPanelBody.distinctId = updateUserAdditionalData?.userId;
+        mixPanelBody.properties = {
+          user_id: updateUserAdditionalData?.userId,
+          amount: payment?.amount,
+          currency: invoiceData?.currencyCode,
+          coin_value: coinPurchaseData?.coinValue
+        };
+        await this.helperService.mixPanel(mixPanelBody);
         // console.log("finalResponse",finalResponse);
         return finalResponse;
       }
-      else{
+      else {
         return {
           coinValue: 0,
           totalBalance: 0,
@@ -701,7 +710,7 @@ export class PaymentRequestService {
       } else if (filterType === EFilterType.withdrawal) {
         filterData.transaction_type = ETransactionState.In;
       }
-      else{
+      else {
         filterData.transaction_type = { $in: [ETransactionState.Out, ETransactionState.In] };
       }
       const [result] = await this.paymentModel.aggregate([
@@ -742,7 +751,7 @@ export class PaymentRequestService {
 
       const payments = result.paginatedResults;
       const totalCount = result.totalCount[0]?.count || 0;
-    
+
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
@@ -761,22 +770,22 @@ export class PaymentRequestService {
       //   let serviceRequest = await this.serviceRequestService.getServiceRequestDetail(payments?.salesDocId);
       //   console.log("serviceRequest", serviceRequest);
       // }
-   
+
       const validPayments = payments.filter(payment => getTitleFromSourceType(payment.source_type) !== null);
       const results = await Promise.all(
         validPayments.map(async (payment) => {
-          let transactionType = payment?.transaction_type === ETransactionState.Out? ETransactionType.purchased : ETransactionType.withdrawal
-           title = getTitleFromSourceType(payment.source_type);
+          let transactionType = payment?.transaction_type === ETransactionState.Out ? ETransactionType.purchased : ETransactionType.withdrawal
+          title = getTitleFromSourceType(payment.source_type);
           if (payment.source_type === EPaymentSourceType.serviceRequest && payment.salesDocId) {
             const serviceRequestDetail = await this.serviceRequestService.getServiceRequestDetail(payment.salesDocId);
-            if(serviceRequestDetail?.data?.type===EPaymentSourceType.feedback){
+            if (serviceRequestDetail?.data?.type === EPaymentSourceType.feedback) {
               title = ETransactionType.feedbackPurchased;
-            }else if(serviceRequestDetail?.data?.type===EPaymentSourceType.processInstance){
+            } else if (serviceRequestDetail?.data?.type === EPaymentSourceType.processInstance) {
               title = ETransactionType.coursePurchased;
             }
           }
           return {
-            currencyCode:payment?.currencyCode,
+            currencyCode: payment?.currencyCode,
             title,
             amount: payment.amount,
             purchaseDate: payment.transactionDate || payment.created_at,
@@ -785,15 +794,15 @@ export class PaymentRequestService {
           };
         })
       );
-  
+
       return {
         data: results,
-        totalCount: totalCount, 
+        totalCount: totalCount,
       };
     } catch (error) {
       throw error;
     }
-  } 
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

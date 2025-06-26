@@ -184,4 +184,15 @@ export class InvoiceService {
       throw err;
     }
   }
+  // async getSalesDocumentByUserId(token: UserToken) {
+  //   try {
+  //     let invoice = await this.salesDocumentModel.find({
+  //       user_id: new ObjectId(token?.id),
+  //       document_status: { $in: [EDocumentStatus.pending, EDocumentStatus.completed] },
+  //     }).lean();      
+  //     return invoice;
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
 }

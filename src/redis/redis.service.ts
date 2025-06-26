@@ -80,7 +80,7 @@ export class RedisService implements OnModuleDestroy {
           timeOut?.value
         );
         if (result) {
-          // console.log("result", result);
+          console.log("result", result);
           await this.eventOutBoxService.updateEventOutBox(result);
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
         }

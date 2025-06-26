@@ -553,7 +553,8 @@ export class HelperService {
       // console.log("inisde update user additional", body);
 
       const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;      const request = this.http_service
+      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;      
+      const request = this.http_service
         .patch(requestURL, body)
         .pipe(
           map((res) => {
@@ -774,7 +775,7 @@ export class HelperService {
   }
   async getUserApplication(awardId: string, rawToken) {
     try {
-      console.log("rawToken", rawToken);
+      // console.log("rawToken", rawToken);
       let data = await this.http_service
         .get(
           `${this.configService.get("CASTTREE_BASE_URL")}/application/get-user-application/${awardId}`,
@@ -829,8 +830,8 @@ export class HelperService {
       // console.log("getUserAdditionalDetails body is", body);
 
       const requestURL = 
-      // `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
-      `http://localhost:3000/casttree/user/update-purchased-balance/${body.userId}`;
+      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
+      // `http://localhost:3000/casttree/user/update-purchased-balance/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
         .pipe(
@@ -841,7 +842,7 @@ export class HelperService {
         )
         .pipe(
           catchError((err) => {
-            console.log(err);
+            // console.log(err);
             throw new BadRequestException("API not available");
           })
         );

@@ -8,8 +8,7 @@ import {
   IsString,
 } from "class-validator";
 import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
-import { EPaymentSourceType } from "../enum/payment.enum";
-
+import { EFilterType, EPaymentSourceType } from "../enum/payment.enum";
 export class InvoiceDTO {
   @IsOptional()
   @IsString()
@@ -79,4 +78,9 @@ export class paymentDTO {
   @IsOptional()
   @IsISO8601()
   transactionDate?: Date;
+}
+export class filterTypeDTO{
+  @IsOptional()
+  @IsEnum(EFilterType)
+  filterType?: EFilterType;
 }

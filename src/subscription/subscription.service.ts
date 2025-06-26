@@ -456,10 +456,10 @@ export class SubscriptionService {
 
   async handleAppleIAPRenew(payload) {
     try {
-      console.log("payload for apple iap renew", payload);
+      // console.log("payload for apple iap renew", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      console.log("transactionHistory for apple iap renew", transactionHistory);
+      // console.log("transactionHistory for apple iap renew", transactionHistory);
 
       const existingRenewal = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId":
@@ -567,13 +567,13 @@ export class SubscriptionService {
 
   async handleAppleIAPCancel(payload) {
     try {
-      console.log("payload for apple cancel", payload);
+      // console.log("payload for apple cancel", payload);
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      console.log(
-        "transactionHistory for apple iap cancel",
-        transactionHistory
-      );
+      // console.log(
+      //   "transactionHistory for apple iap cancel",
+      //   transactionHistory
+      // );
       let existingSubscription = await this.subscriptionModel.findOne({
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
@@ -732,9 +732,9 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      console.log("renew payload", payload);
+      // console.log("renew payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload);
-      console.log("RTDN Received for renew:", JSON.stringify(rtdn));
+      // console.log("RTDN Received for renew:", JSON.stringify(rtdn));
 
       // const existingRenewal = await this.subscriptionModel.findOne({
       //   externalId: rtdn.purchaseToken,
@@ -859,7 +859,7 @@ export class SubscriptionService {
           transactionId,
           body
         );
-        console.log("mandate", mandate);
+        // console.log("mandate", mandate);
 
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
