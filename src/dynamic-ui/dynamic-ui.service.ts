@@ -90,10 +90,11 @@ export class DynamicUiService {
           comp.media = singleAdBanner?.media;
           comp.banner = {
             ...comp.banner,
-            bannerImage : singleAdBanner?.media?.mediaUrl
-          }
+            bannerImage: singleAdBanner?.media?.mediaUrl,
+          };
           comp.navigation = {
             ...singleAdBanner?.navigation,
+            type: comp?.navigation?.type,
           };
         }
         const tagName = comp?.tag?.tagName;
