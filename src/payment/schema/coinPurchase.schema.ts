@@ -9,6 +9,8 @@ export interface ICoinTransaction extends mongoose.Document {
     transactionType: ETransactionType;
     currentBalance: number;
     documentStatus: ECoinStatus;
+    sourceType: string;
+    sourceId: any;
     transactionDate: Date;
     status: ECoinStatus;
     coinValue: number;
@@ -46,6 +48,13 @@ export const CoinTransactionSchema = new mongoose.Schema(
     currentBalance: {
       type: Number,
       required: true,
+    },
+    sourceType: {
+      type: String,
+      required: true,
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
     },
     documentStatus: {
       type: String,

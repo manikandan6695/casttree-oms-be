@@ -14,10 +14,11 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { filterTypeDTO, paymentDTO } from "./dto/payment.dto";
+import { paymentDTO, filterTypeDTO } from "./dto/payment.dto";
 import {
-  EFilterType,
+  ECoinStatus,
   ECurrencyName,
+  EFilterType,
   EPaymentSourceType,
   EPaymentStatus,
   ERazorpayPaymentStatus,
@@ -27,11 +28,11 @@ import {
   ETransactionType,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
-import { RedisService } from "../redis/redis.service";
-import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { ISalesDocumentModel } from "src/invoice/schema/sales-document.schema";
+import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
+import { RedisService } from "src/redis/redis.service";
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -46,10 +47,6 @@ export class PaymentRequestService {
   constructor(
     @InjectModel("payment")
     private readonly paymentModel: Model<IPaymentModel>,
-    @InjectModel("salesDocument")
-    private readonly salesDocumentModel: Model<ISalesDocumentModel>,
-    @InjectModel("coinTransaction")
-    private readonly coinTransactionModel: Model<ICoinTransaction>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
     @Inject(forwardRef(() => ServiceRequestService))
@@ -60,22 +57,24 @@ export class PaymentRequestService {
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
+    @InjectModel("salesDocument")
+    private readonly salesDocumentModel: Model<ISalesDocumentModel>,
+    @InjectModel("coinTransaction")
+    private readonly coinTransactionModel: Model<ICoinTransaction>,
     private redisService: RedisService
   ) {}
 
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
     try {
       if (coinPurchaseData?.key === ERedisEventType.coinPurchase) {
+
         // console.log("coinPurchaseData!", coinPurchaseData?.element);
         const parsedElement = JSON.parse(coinPurchaseData.element);
         const accessTokenData = parsedElement?.authToken;
         const token = accessTokenData?.replace(/^Bearer\s+/i, '');
         const payload = parsedElement?.payload;
         const existingData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
-        if (existingData) {
-          // console.log("Existing data Found:", existingData);
-          return existingData;
-        }
+        if (!existingData) {
         const bodyData: paymentDTO = {
           amount: payload?.amount,
           paymentMode: payload?.paymentMode,
@@ -90,9 +89,7 @@ export class PaymentRequestService {
             sourceType: EPaymentSourceType.coinTransaction,
             sourceId: payload?.coinTransactionId,
           },
-          paymentType: "Auth"
         };
-
         // console.log("Payment Payload:", bodyData);
         const decodedToken = jwt.decode(token) as UserToken;
         // console.log("decodedToken",decodedToken);
@@ -116,30 +113,14 @@ export class PaymentRequestService {
             consumer: consumer?.userName,
             payload: orderId
           }
-          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
+          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);    
           // console.log("existingData", coinTransactionId?.source_id);
           await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload, orderId, coinTransactionId?.source_id.toString());
-          let coinTransaction = await this.coinTransactionModel.findOne({
-            _id: new ObjectId(payload?.casttreeCoinTransactionId)
-          })
-          if (coinTransaction) {
-            let updateUserAdditionalData = await this.helperService.updateAdminCoinValue({
-              userId: coinTransaction?.userId,
-              coinValue: coinTransaction?.coinValue
-            })
-            let updatedCoinTransaction = await this.coinTransactionModel.findOneAndUpdate({
-              _id: new ObjectId(coinTransaction?._id)
-            }, {
-              $set: {
-                documentStatus: EPaymentStatus.completed,
-                updatedAt: new Date(),
-                currentBalance: updateUserAdditionalData?.purchasedBalance
-              },
-            }, {
-              new: true
-            })
-            return updatedCoinTransaction
-          }
+        }
+        }
+        else{
+          // console.log("existingData found");
+          return existingData;
         }
       }
 
@@ -221,7 +202,7 @@ export class PaymentRequestService {
           userId: body.userId,
         }
       );
-      // console.log("orderDetail", orderDetail);
+  // console.log("orderDetail", orderDetail);
       const paymentData = await this.createPaymentRecord(
         body,
         token,
@@ -528,7 +509,6 @@ export class PaymentRequestService {
   }
 
   async completePayment(ids) {
-    console.log("ids", ids);
     await this.invoiceService.updateInvoice(
       ids.invoiceId,
       EDocumentStatus.completed
@@ -565,7 +545,7 @@ export class PaymentRequestService {
 
   async updateStatus(paymentId, body) {
     try {
-      console.log("body", paymentId, body);
+      // console.log("body", paymentId, body);
 
       const updateFields: any = {
         reason: body?.reason?.failureReason,
@@ -708,66 +688,79 @@ export class PaymentRequestService {
   // }
   // function hmac(arg0: string, message: any, key: any) {
   //   throw new Error("Function not implemented.");
-
-  // async handlePaymentSuccess(payload: any) {
-  //   try {
-  //     const rzpPaymentId = payload?.payment?.entity?.order_id;
-  //     let paymentRequest = await this.fetchPaymentByOrderId(rzpPaymentId);
-
-  //     if (paymentRequest.document_status === EPaymentStatus.initiated && paymentRequest?.payment_order_id===rzpPaymentId) {
-  //       await this.completePayment({
-  //         invoiceId: paymentRequest?.source_id,
-  //         paymentId: paymentRequest?._id,
-  //       });
-  //     }
-     
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // }
   async updateCoinValue(paymentId: string) {
     try {
       let payment = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId)
       });
+      let totalBalance ;
       let invoiceData = await this.invoiceService.getInvoiceDetail(payment?.source_id);
       if (payment?.document_status === EDocumentStatus.completed && invoiceData?.document_status === EDocumentStatus.completed) {
-        let coinPurchaseData = await this.coinTransactionModel.findOne({
-          _id: invoiceData?.source_id,
-          documentStatus: EsubscriptionStatus.pending
-        })
-        let updateUserAdditionalData = await this.helperService.updateUserPurchaseCoin({
-          userId: payment?.user_id,
-          coinValue: coinPurchaseData?.coinValue
-        })
-        let totalBalance = (updateUserAdditionalData?.purchasedBalance || 0) + (updateUserAdditionalData?.earnedBalance || 0);
-        await this.coinTransactionModel.findOneAndUpdate({
-          _id: coinPurchaseData?._id
-        }, {
-          $set: {
-            documentStatus: EPaymentStatus.completed,
-            updatedAt: new Date(),
-            currentBalance: totalBalance
-          }
-        })
+      
         let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId, ECurrencyName.casttreeCoin)
+       
+        let coinTransaction = await this.coinTransactionModel.findOne({
+          sourceId: new ObjectId(invoiceData?._id),
+          transactionType: ETransactionType.In,
+          type: ETransactionType.purchased
+        })
+        if(coinTransaction?.documentStatus === ECoinStatus.pending&&coinTransaction?.transactionType === ETransactionType.In){
+            let updateUserAdditional = await this.helperService.updateUserPurchaseCoin({
+              userId: coinTransaction?.userId,
+              coinValue: coinTransaction?.coinValue
+            })
+            await this.coinTransactionModel.updateOne({
+              sourceId: new ObjectId(invoiceData?._id),
+              transactionType: ETransactionType.In,
+              documentStatus: ECoinStatus.pending
+            },{
+              $set:{
+                documentStatus: ECoinStatus.completed,
+                updatedAt: new Date(),
+                currentBalance: updateUserAdditional?.purchasedBalance
+              }
+            })
+             totalBalance = (updateUserAdditional?.purchasedBalance || 0) + (updateUserAdditional?.earnedBalance || 0);
+          
+        }
+        let coinTransactionOut = await this.coinTransactionModel.findOne({
+          sourceId: new ObjectId(invoiceData?._id),
+          transactionType: ETransactionType.Out,
+          type: ETransactionType.withdrawn
+        })
+        if(coinTransactionOut?.documentStatus === ECoinStatus.pending&&coinTransactionOut?.transactionType === ETransactionType.Out){
+          let updateUserAdditionalData = await this.helperService.updateAdminCoinValue({
+            userId: coinTransactionOut?.userId,
+            coinValue: coinTransactionOut?.coinValue
+          })
+          await this.coinTransactionModel.updateOne({
+            sourceId: new ObjectId(invoiceData?._id),
+            transactionType: ETransactionType.Out,
+            documentStatus: ECoinStatus.pending
+          },{
+            $set:{
+              documentStatus: ECoinStatus.completed,
+              updatedAt: new Date(),
+              currentBalance: updateUserAdditionalData?.purchasedBalance
+            }
+          })
+        }
         let finalResponse = {
-          coinValue: coinPurchaseData?.coinValue,
+          coinValue: coinTransaction?.coinValue,
           totalBalance: totalBalance,
           coinMedia: coinData?.media,
           paymentData: payment
         }
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
-        mixPanelBody.distinctId = updateUserAdditionalData?.userId;
+        mixPanelBody.distinctId = coinTransaction?.userId;
         mixPanelBody.properties = {
-          user_id:updateUserAdditionalData?.userId,
-          amount:payment?.amount,
-          currency:invoiceData?.currencyCode,
-          coin_value:coinPurchaseData?.coinValue
+          user_id: coinTransaction?.userId,
+          amount: payment?.amount,
+          currency: invoiceData?.currencyCode,
+          coin_value: coinTransaction?.coinValue
         };
         await this.helperService.mixPanel(mixPanelBody);
-        // console.log("finalResponse",finalResponse);
         return finalResponse;
       }
       else {
@@ -842,7 +835,7 @@ export class PaymentRequestService {
 
       const payments = result.paginatedResults;
       const totalCount = result.totalCount[0]?.count || 0;
-    
+
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
@@ -861,12 +854,12 @@ export class PaymentRequestService {
       //   let serviceRequest = await this.serviceRequestService.getServiceRequestDetail(payments?.salesDocId);
       //   console.log("serviceRequest", serviceRequest);
       // }
-   
+
       const validPayments = payments.filter(payment => getTitleFromSourceType(payment.source_type) !== null);
       const results = await Promise.all(
         validPayments.map(async (payment) => {
           let transactionType = payment?.transaction_type === ETransactionState.Out? ETransactionType.purchased : ETransactionType.withdrawal
-           title = getTitleFromSourceType(payment.source_type);
+          title = getTitleFromSourceType(payment.source_type);
           if (payment.source_type === EPaymentSourceType.serviceRequest && payment.salesDocId) {
             const serviceRequestDetail = await this.serviceRequestService.getServiceRequestDetail(payment.salesDocId);
             if(serviceRequestDetail?.data?.type===EPaymentSourceType.feedback){
@@ -885,13 +878,13 @@ export class PaymentRequestService {
           };
         })
       );
-  
+
       return {
         data: results,
-        totalCount: totalCount, 
+        totalCount: totalCount,
       };
     } catch (error) {
       throw error;
     }
-  } 
+  }
 }
