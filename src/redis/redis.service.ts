@@ -16,8 +16,8 @@ export class RedisService implements OnModuleDestroy {
   private isConnected = false;
   private isPolling = false;
 
-  @InjectModel('eventOutBox')
-  private eventOutBoxModel: Model<IEventOutBox>;
+  // @InjectModel('eventOutBox')
+  // private eventOutBoxModel: Model<IEventOutBox>;
 
   constructor(
     @Inject(forwardRef(() => PaymentRequestService))
@@ -80,7 +80,7 @@ export class RedisService implements OnModuleDestroy {
           timeOut?.value
         );
         if (result) {
-          console.log("result", result);
+          // console.log("result", result);
           await this.eventOutBoxService.updateEventOutBox(result);
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
         }
@@ -95,17 +95,17 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  async publishCoinPurchaseResponse(data: any) {
-    try {
-      await this.client.publish(
-        ERedisEventType.coinPurchaseResponse,
-        JSON.stringify(data)
-      );
-    } catch (error) {
-      console.error('[Publish Error]', error.message || error);
-      throw error;
-    }
-  }
+  // async publishCoinPurchaseResponse(data: any) {
+  //   try {
+  //     await this.client.publish(
+  //       ERedisEventType.coinPurchaseResponse,
+  //       JSON.stringify(data)
+  //     );
+  //   } catch (error) {
+  //     console.error('[Publish Error]', error.message || error);
+  //     throw error;
+  //   }
+  // }
 
   async pushToCoinPurchaseQueue(
     data: any,
