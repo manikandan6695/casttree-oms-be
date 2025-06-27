@@ -61,12 +61,14 @@ export enum ERedisEventType {
   coinPurchase = "coin_purchase_queue",
   coinPurchaseResponse = "coin_purchase_response",
   intermediateTransfer = "intermediate_transfer",
+  coinTrancationId = "coin_trancation_id",
 }
 
 export const ERedisEventTypes = [
   ERedisEventType.coinPurchase,
   ERedisEventType.coinPurchaseResponse,
   ERedisEventType.intermediateTransfer,
+  ERedisEventType.coinTrancationId,
 ];
 
 
@@ -74,6 +76,7 @@ export enum EFilterType {
   // all = "All",
   purchase = "Purchase",
   withdrawal = "Withdrawal",
+  withdrawn = "withdrawn"
 }
 export enum ETransactionType {
   subscriptionPurchased = "Subscription Purchased",
@@ -119,5 +122,6 @@ export enum ETransactionType{
   spent = "spent",
   withdrawal = "Withdrawal",
   purchased = "purchased",
+  withdrawn = "withdrawn"
 }
 
