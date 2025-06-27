@@ -709,6 +709,7 @@ export class PaymentRequestService {
               userId: coinTransaction?.userId,
               coinValue: coinTransaction?.coinValue
             })
+            totalBalance = (updateUserAdditional?.purchasedBalance || 0) + (updateUserAdditional?.earnedBalance || 0);
             await this.coinTransactionModel.updateOne({
               sourceId: new ObjectId(invoiceData?._id),
               transactionType: ETransactionType.In,
@@ -717,10 +718,9 @@ export class PaymentRequestService {
               $set:{
                 documentStatus: ECoinStatus.completed,
                 updatedAt: new Date(),
-                currentBalance: updateUserAdditional?.purchasedBalance
+                currentBalance: totalBalance
               }
             })
-             totalBalance = (updateUserAdditional?.purchasedBalance || 0) + (updateUserAdditional?.earnedBalance || 0);
           
         }
         let coinTransactionOut = await this.coinTransactionModel.findOne({
