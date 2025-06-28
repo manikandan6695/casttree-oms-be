@@ -52,6 +52,7 @@ export class DynamicUiService {
         await this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
           EsubscriptionStatus.failed,
+          EsubscriptionStatus.expired,
         ]);
       const isNewSubscription = subscriptionData ? true : false;
 
@@ -447,7 +448,16 @@ export class DynamicUiService {
       const banner = isNewSubscription
         ? {
             media: { mediaUrl: learnBanner.imageUrl },
-            navigation: { page: getScreenName(learnBanner) },
+            navigation: {
+              page: getScreenName(learnBanner),
+              type: "internal",
+              ...(getScreenName(learnBanner) !== "ReferralScreen" && {
+                params: {
+                  processId: learnBanner.processId,
+                  taskId: learnBanner.taskId,
+                },
+              }),
+            },
           }
         : {
             media: { mediaUrl: premiumBannerObj.imageUrl },
