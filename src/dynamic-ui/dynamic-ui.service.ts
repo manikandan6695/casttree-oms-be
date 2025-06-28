@@ -52,8 +52,12 @@ export class DynamicUiService {
         await this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
           EsubscriptionStatus.failed,
+          EsubscriptionStatus.expired,
         ]);
+      console.log("subscriptionData", subscriptionData);
+
       const isNewSubscription = subscriptionData ? true : false;
+      console.log("isNewSubscription", isNewSubscription);
 
       let data = await this.contentPageModel
         .findOne({
@@ -443,11 +447,19 @@ export class DynamicUiService {
       const premiumBannerObj = bannerMap["buypremium"];
 
       if (!learnBanner || !premiumBannerObj) return;
-
       const banner = isNewSubscription
         ? {
             media: { mediaUrl: learnBanner.imageUrl },
-            navigation: { page: getScreenName(learnBanner) },
+            navigation: {
+              page: getScreenName(learnBanner),
+              type: "internal",
+              ...(getScreenName(learnBanner) !== "ReferralScreen" && {
+                params: {
+                  processId: learnBanner.processId,
+                  taskId: learnBanner.taskId,
+                },
+              }),
+            },
           }
         : {
             media: { mediaUrl: premiumBannerObj.imageUrl },
