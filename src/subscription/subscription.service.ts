@@ -1110,81 +1110,80 @@ export class SubscriptionService {
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       // console.log("paymentRequest", paymentRequest);
 
-      if (paymentRequest.document_status === EPaymentStatus.pending) {
-        let updatedStatus = await this.paymentService.completePayment({
-          invoiceId: paymentRequest?.source_id,
-          paymentId: paymentRequest?._id,
-        });
-        let invoice = await this.invoiceService.getInvoiceDetail(
-          paymentRequest?.source_id
-        );
-        let subscription = await this.subscriptionModel.findOne({
-          _id: invoice?.source_id,
-        });
-        if (subscription) {
-          if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
-            subscription.subscriptionStatus = EsubscriptionStatus.active;
-            await subscription.save();
+      // if (paymentRequest.document_status === EPaymentStatus.pending) {
+      let updatedStatus = await this.paymentService.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+      let invoice = await this.invoiceService.getInvoiceDetail(
+        paymentRequest?.source_id
+      );
+      let subscription = await this.subscriptionModel.findOne({
+        _id: invoice?.source_id,
+      });
+      if (subscription) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          subscription.subscriptionStatus = EsubscriptionStatus.active;
+          await subscription.save();
 
-            let tokenId = payload?.payment?.entity?.token_id;
+          let tokenId = payload?.payment?.entity?.token_id;
+          let updatedMandate = await this.mandateService.updateMandateDetail(
+            { "metaData.subscriptionId": subscription?.subscriptionId },
+            {
+              referenceId: tokenId,
+            }
+          );
+          let mandate = await this.mandateService.getMandateById(tokenId);
+          if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
             let updatedMandate = await this.mandateService.updateMandateDetail(
-              { "metaData.subscriptionId": subscription?.subscriptionId },
+              { _id: mandate._id },
               {
-                referenceId: tokenId,
+                mandateStatus: EMandateStatus.active,
               }
             );
-            let mandate = await this.mandateService.getMandateById(tokenId);
-            if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
-              let updatedMandate =
-                await this.mandateService.updateMandateDetail(
-                  { _id: mandate._id },
-                  {
-                    mandateStatus: EMandateStatus.active,
-                  }
-                );
-              await this.mandateHistoryService.createMandateHistory({
-                mandateId: mandate?._id,
-                mandateStatus: EMandateStatus.active,
-                "metaData.additionalDetail": payload?.token?.entity,
-                status: EStatus.Active,
-                createdBy: mandate?.createdBy,
-                updatedBy: mandate?.updatedBy,
-              });
-            }
-
-            let item = await this.itemService.getItemDetail(
-              subscription?.notes?.itemId
-            );
-            let userBody = {
-              userId: subscription?.userId,
-              membership: item?.itemName,
-              badge: item?.additionalDetail?.badge,
-            };
-            await this.helperService.updateUser(userBody);
-            // let mixPanelBody: any = {};
-            // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-            // mixPanelBody.distinctId = subscription?.userId;
-            // mixPanelBody.properties = {
-            //   user_id: subscription?.userId,
-            //   provider: EProvider.razorpay,
-            //   subscription_id: subscription._id,
-            //   subscription_status: EsubscriptionStatus.active,
-            //   subscription_date: subscription?.startAt,
-            //   item_name: item?.itemName,
-            //   subscription_expired: subscription?.endAt
-            // };
-            // await this.helperService.mixPanel(mixPanelBody);
-
-            let userData = await this.helperService.getUserById(
-              subscription?.userId
-            );
-            await this.helperService.facebookEvents(
-              userData.data.phoneNumber,
-              invoice.currencyCode,
-              invoice.grand_total
-            );
+            await this.mandateHistoryService.createMandateHistory({
+              mandateId: mandate?._id,
+              mandateStatus: EMandateStatus.active,
+              "metaData.additionalDetail": payload?.token?.entity,
+              status: EStatus.Active,
+              createdBy: mandate?.createdBy,
+              updatedBy: mandate?.updatedBy,
+            });
           }
+
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          // let mixPanelBody: any = {};
+          // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          // mixPanelBody.distinctId = subscription?.userId;
+          // mixPanelBody.properties = {
+          //   user_id: subscription?.userId,
+          //   provider: EProvider.razorpay,
+          //   subscription_id: subscription._id,
+          //   subscription_status: EsubscriptionStatus.active,
+          //   subscription_date: subscription?.startAt,
+          //   item_name: item?.itemName,
+          //   subscription_expired: subscription?.endAt
+          // };
+          // await this.helperService.mixPanel(mixPanelBody);
+
+          let userData = await this.helperService.getUserById(
+            subscription?.userId
+          );
+          await this.helperService.facebookEvents(
+            userData.data.phoneNumber,
+            invoice.currencyCode,
+            invoice.grand_total
+          );
         }
+        // }
       }
     } catch (err) {
       throw err;
