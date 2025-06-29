@@ -101,7 +101,9 @@ export class SubscriptionService {
           // console.log("inside subscription service", subscriptionNumber);
           let expiryDate = this.sharedService.getFutureYearISO(10);
           let detail =
-            body?.refId || existingSubscription
+            body?.refId ||
+            existingSubscription ||
+            item?.additionalDetail?.promotionDetails?.authDetail?.validity == 0
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
               : item?.additionalDetail?.promotionDetails?.authDetail;
           let chargeDate = await this.getFutureDate(detail);
@@ -1123,7 +1125,7 @@ export class SubscriptionService {
           if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
             subscription.subscriptionStatus = EsubscriptionStatus.active;
             await subscription.save();
-  
+
             let tokenId = payload?.payment?.entity?.token_id;
             let updatedMandate = await this.mandateService.updateMandateDetail(
               { "metaData.subscriptionId": subscription?.subscriptionId },
@@ -1133,12 +1135,13 @@ export class SubscriptionService {
             );
             let mandate = await this.mandateService.getMandateById(tokenId);
             if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
-              let updatedMandate = await this.mandateService.updateMandateDetail(
-                { _id: mandate._id },
-                {
-                  mandateStatus: EMandateStatus.active,
-                }
-              );
+              let updatedMandate =
+                await this.mandateService.updateMandateDetail(
+                  { _id: mandate._id },
+                  {
+                    mandateStatus: EMandateStatus.active,
+                  }
+                );
               await this.mandateHistoryService.createMandateHistory({
                 mandateId: mandate?._id,
                 mandateStatus: EMandateStatus.active,
@@ -1148,8 +1151,10 @@ export class SubscriptionService {
                 updatedBy: mandate?.updatedBy,
               });
             }
-  
-            let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
+
+            let item = await this.itemService.getItemDetail(
+              subscription?.notes?.itemId
+            );
             let userBody = {
               userId: subscription?.userId,
               membership: item?.itemName,
@@ -1169,8 +1174,10 @@ export class SubscriptionService {
             //   subscription_expired: subscription?.endAt
             // };
             // await this.helperService.mixPanel(mixPanelBody);
-  
-            let userData = await this.helperService.getUserById(subscription?.userId);
+
+            let userData = await this.helperService.getUserById(
+              subscription?.userId
+            );
             await this.helperService.facebookEvents(
               userData.data.phoneNumber,
               invoice.currencyCode,
