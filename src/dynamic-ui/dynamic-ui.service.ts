@@ -442,7 +442,10 @@ export class DynamicUiService {
 
       const learnBanner = bannerMap["learnhomepage"];
       const premiumBannerObj = bannerMap["buypremium"];
-
+      let premiumBanner =
+        countryCode === "IN"
+          ? premiumBannerObj?.imageUrl
+          : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
 
       const banner = isNewSubscription
@@ -460,7 +463,7 @@ export class DynamicUiService {
             },
           }
         : {
-            media: { mediaUrl: premiumBannerObj.imageUrl },
+            media: { mediaUrl: premiumBanner },
             navigation: {
               page: getScreenName(premiumBannerObj),
               type: "internal",
