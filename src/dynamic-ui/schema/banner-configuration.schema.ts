@@ -5,8 +5,6 @@ export interface IBannerConfiguration extends mongoose.Document {
   navigation: any;
   key: string;
   status: string;
-  created_at: Date;
-  updated_at: Date;
 }
 
 export const BannerConfigurationSchema = new mongoose.Schema(

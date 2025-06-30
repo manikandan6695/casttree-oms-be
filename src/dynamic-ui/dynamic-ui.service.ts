@@ -73,7 +73,9 @@ export class DynamicUiService {
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
+        .populate("interactionData.items.banner")
         .lean();
+      console.log("component ", JSON.stringify(componentDocs));
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -139,6 +141,7 @@ export class DynamicUiService {
         skip,
         limit
       );
+
       const tagName = component?.tag?.tagName;
       if (tagName && serviceItemData?.finalData?.[tagName]) {
         component.actionData = serviceItemData.finalData[tagName];
@@ -427,7 +430,7 @@ export class DynamicUiService {
     }
   }
 
-  async fetchBannerDetails(isNewSubscription: boolean, userId: string) {
+  async fetchUserPreferenceBanner(isNewSubscription: boolean, userId: string) {
     try {
     } catch (err) {
       throw err;
