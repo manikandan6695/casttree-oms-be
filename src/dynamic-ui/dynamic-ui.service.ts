@@ -54,10 +54,10 @@ export class DynamicUiService {
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
         ]);
-      console.log("subscriptionData", subscriptionData);
+      // console.log("subscriptionData", subscriptionData);
 
       const isNewSubscription = subscriptionData ? true : false;
-      console.log("isNewSubscription", isNewSubscription);
+      // console.log("isNewSubscription", isNewSubscription);
 
       let data = await this.contentPageModel
         .findOne({
