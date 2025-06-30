@@ -149,6 +149,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+
   async fetchServiceItemDetails(
     data,
     userId: string,
@@ -421,6 +422,13 @@ export class DynamicUiService {
       }
 
       return continueWatching;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async fetchBannerDetails(isNewSubscription: boolean, userId: string) {
+    try {
     } catch (err) {
       throw err;
     }
