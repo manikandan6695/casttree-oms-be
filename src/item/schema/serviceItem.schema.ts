@@ -5,6 +5,8 @@ import {
   languageSchema,
   skillSchema,
 } from "./language.schema";
+import { EStatus } from "src/shared/enum/privacy.enum";
+import { MediaSchema } from "./platform-item.schema";
 
 
 export interface expertiseModel {

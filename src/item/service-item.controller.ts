@@ -13,7 +13,7 @@ import {
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
-import { FilterItemRequestDTO } from "./dto/filter-item.dto";
+import { FilterItemDTO, FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { processIdListDTO } from "./dto/filter-platformItem.dto";
 import { ServiceItemService } from "./service-item.service";
 
@@ -174,7 +174,18 @@ export class ServiceItemController {
       return data;
     } catch (err) { throw err }
   }
-
-
+  @UseGuards(JwtAuthGuard)
+  @Post("getSkillDetail")
+  async getSkillsAndTags(
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ whitelist: true })) body: FilterItemDTO
+  ) {
+    try {
+      const data = await this.serviceItemService.fetchSkillsAndTags(body);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 
 }

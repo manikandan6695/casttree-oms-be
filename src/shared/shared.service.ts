@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import mongoose, { Model } from "mongoose";
 import { CustomLogger } from "src/logger/customlogger.service";
 import { AppException } from "./app-exception";
 import { CurrencyService } from "./currency/currency.service";
@@ -541,3 +541,41 @@ export enum TypeMapping {
   boolean = "isBooleanString",
   number = "isNumber",
 }
+
+export interface ICategoryModel extends mongoose.Document {
+  category_name: string;
+  category_icon: string;
+  category_color: string;
+  category_value: string;
+  category_type: string;
+  category_desc?: string;
+  parent_category?: string;
+  media: any[];
+  status?: string;
+  created_by: any;
+  updated_by: any;
+  priorityOrder: number;
+  sort: string;
+}
+const ObjectId = mongoose.Schema.Types.ObjectId;
+export const CategorySchema = new mongoose.Schema<any>(
+  {
+    category_name: { type: String },
+    category_icon: { type: String },
+    category_color: { type: String },
+    category_value: { type: String },
+    category_type: { type: String },
+    category_desc: { type: String },
+    media: [],
+    parent_category: { type: mongoose.Schema.Types.ObjectId, ref: "category" },
+    created_by: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    updated_by: { type: ObjectId, ref: "user" },
+    status: { type: String,  default: "Active" },
+    priorityOrder: { type: Number },
+    sort: { type: String },
+  },
+  {
+    collection: "category",
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+  }
+);

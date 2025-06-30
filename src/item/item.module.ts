@@ -20,6 +20,8 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
+import { skillSchema } from "./schema/language.schema";
+import { CategorySchema } from "src/shared/shared.service";
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { ServiceItemService } from "./service-item.service";
       { name: "platformItem", schema: platformItemSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
       { name: "systemConfiguration", schema: SystemConfigurationSchema },
+      {name: "skills", schema: skillSchema},
+      {name: "category", schema: CategorySchema}
     ]),
     AuthModule,
     HelperModule,
