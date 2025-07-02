@@ -58,7 +58,9 @@ export class DynamicUiService {
 
       const isNewSubscription = subscriptionData ? true : false;
       console.log("isNewSubscription", isNewSubscription);
-
+      const { data: { country_code: countryCode } = {} } =
+        await this.helperService.getUserById(token.id);
+      let country_code = countryCode;
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -75,7 +77,7 @@ export class DynamicUiService {
         })
         .populate("interactionData.items.banner")
         .lean();
-      console.log("component ", JSON.stringify(componentDocs));
+      // console.log("component ", JSON.stringify(componentDocs));
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -84,9 +86,18 @@ export class DynamicUiService {
         0
       );
       let continueWatching = await this.fetchContinueWatching(token.id);
+      // console.log("continue watch data", JSON.stringify(continueWatching));
+
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id
+      );
+      await this.fetchUserPreferenceBanner(
+        isNewSubscription,
+        token.id,
+        continueWatching,
+        componentDocs,
+        country_code
       );
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
@@ -430,8 +441,63 @@ export class DynamicUiService {
     }
   }
 
-  async fetchUserPreferenceBanner(isNewSubscription: boolean, userId: string) {
+  async fetchUserPreferenceBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    userProcessedSeries,
+    components,
+    country_code: string
+  ) {
     try {
+      const data = components.find((e) => e.type === "userPreferenceBanner");
+
+      if (!data?.interactionData?.items) return [];
+
+      const filtered = data.interactionData.items.reduce((result, item) => {
+        const rule = item.rule || {};
+        const isSubscribedRule = rule.isSubscribed;
+        const ruleCountry = rule.country;
+
+        const isLocked =
+          userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked === false;
+
+        const bannerData = {
+          banner: item?.banner?.banner,
+          navigation: item?.banner?.navigation,
+        };
+
+        const logPrefix = `[Banner Check]`;
+
+        if (isSubscribedRule === isNewSubscription) {
+          if (this.evaluateCountryRule(ruleCountry, country_code) || isLocked) {
+            result.push(bannerData);
+          }
+        } else if (isSubscribedRule === false && country_code.trim() !== "IN") {
+          result.push(bannerData);
+        }
+
+        return result;
+      }, []);
+
+      console.log("Filtered Banners:", filtered);
+      return filtered;
+    } catch (err) {
+      console.error("Error in fetchUserPreferenceBanner:", err);
+      throw err;
+    }
+  }
+
+  async evaluateCountryRule(ruleCountry, userCountry) {
+    try {
+      if (!ruleCountry) return true;
+
+      // Handle Mongo-style operator
+      if (typeof ruleCountry === "object" && "$ne" in ruleCountry) {
+        return userCountry !== ruleCountry["$ne"];
+      }
+      console.log("country",ruleCountry,userCountry, ruleCountry === userCountry);
+
+      return ruleCountry === userCountry;
     } catch (err) {
       throw err;
     }
