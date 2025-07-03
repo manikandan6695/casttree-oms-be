@@ -453,31 +453,64 @@ export class DynamicUiService {
 
       if (!data?.interactionData?.items) return [];
 
-      const filtered = data.interactionData.items.reduce((result, item) => {
+      const filtered: any[] = [];
+
+      for (const item of data.interactionData.items) {
         const rule = item.rule || {};
         const isSubscribedRule = rule.isSubscribed;
         const ruleCountry = rule.country;
+        const ruleIsLocked = rule.isLocked;
 
         const isLocked =
-          userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked === false;
+          userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
 
-        const bannerData = {
-          banner: item?.banner?.banner,
-          navigation: item?.banner?.navigation,
-        };
+        const isSubscriptionMatch = isSubscribedRule === isNewSubscription;
 
-        const logPrefix = `[Banner Check]`;
+        const isCountryMatch =
+          typeof ruleCountry === "object" && "$ne" in ruleCountry
+            ? country_code !== ruleCountry["$ne"]
+            : country_code === ruleCountry;
 
-        if (isSubscribedRule === isNewSubscription) {
-          if (this.evaluateCountryRule(ruleCountry, country_code) || isLocked) {
-            result.push(bannerData);
-          }
-        } else if (isSubscribedRule === false && country_code.trim() !== "IN") {
-          result.push(bannerData);
+        let matchType: "isLocked" | "country" | null = null;
+
+        if (
+          isSubscriptionMatch &&
+          typeof ruleIsLocked === "boolean" &&
+          isLocked === ruleIsLocked
+        ) {
+          matchType = "isLocked";
+        } else if (isSubscriptionMatch && isCountryMatch) {
+          matchType = "country";
         }
 
-        return result;
-      }, []);
+        switch (matchType) {
+          case "isLocked":
+            filtered.push({
+              banner: item?.banner?.banner,
+              navigation: item?.banner?.navigation,
+              matchedBy: "isLocked",
+            });
+            item._matchResolved = true;
+            break;
+          case "country":
+            if (filtered.length === 0) {
+              filtered.push({
+                banner: item?.banner?.banner,
+                navigation: item?.banner?.navigation,
+                matchedBy: "country",
+              });
+            }
+            break;
+          default:
+            // No match
+            break;
+        }
+
+        // Stop processing if best match found
+        if (filtered.length && filtered[0].matchedBy === "isLocked") {
+          break;
+        }
+      }
 
       console.log("Filtered Banners:", filtered);
       return filtered;
@@ -492,10 +525,21 @@ export class DynamicUiService {
       if (!ruleCountry) return true;
 
       // Handle Mongo-style operator
-      if (typeof ruleCountry === "object" && "$ne" in ruleCountry) {
+      if (
+        typeof ruleCountry === "object" &&
+        "$ne" in ruleCountry &&
+        ruleCountry !== undefined
+      ) {
+        // console.log("other country", ruleCountry["$ne"], ruleCountry);
+
         return userCountry !== ruleCountry["$ne"];
       }
-      console.log("country",ruleCountry,userCountry, ruleCountry === userCountry);
+      // console.log(
+      //   "country",
+      //   ruleCountry,
+      //   userCountry,
+      //   ruleCountry === userCountry
+      // );
 
       return ruleCountry === userCountry;
     } catch (err) {
