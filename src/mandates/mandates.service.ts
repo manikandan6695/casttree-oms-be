@@ -213,4 +213,15 @@ export class MandatesService {
       throw err;
     }
   }
+  async getMandateBySourceId(token, status) {
+    try {
+      let mandates = await this.mandateModel.findOne({
+        "metaData.externalId": token,
+        mandateStatus: status
+      });
+      return mandates;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

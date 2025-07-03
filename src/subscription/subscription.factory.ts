@@ -210,10 +210,10 @@ export class SubscriptionFactory {
 
   private async handleAppleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      console.log("bodyData", bodyData);
+      // console.log("bodyData", bodyData);
 
       const transactionId = bodyData.transactionDetails?.originalTransactionId;
-      console.log("transactionId", transactionId);
+      // console.log("transactionId", transactionId);
       const originalTransactionId =
         data?.transactionDetails?.originalTransactionId;
       // console.log("originalTransactionId", originalTransactionId);
@@ -224,30 +224,19 @@ export class SubscriptionFactory {
           transactionId,
           token?.id
         );
-      console.log("existingSubscription", existingSubscription);
-      if (existingSubscription) {
-        // console.log("existingSubscription", existingSubscription);
-        return existingSubscription
-      }
-      const matchingTransaction = await this.getTransactionHistoryById(
+      if (!existingSubscription) {
+        const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
-      console.log("match transaction", matchingTransaction);
-
-      console.log("matchingTransaction", JSON.stringify(matchingTransaction));
-      // if (existingSubscription) {
-      //   // console.log("existingSubscription", existingSubscription);
-      //   return existingSubscription;
-      // }
       const price = matchingTransaction?.price / 1000;
       const currencyCode = matchingTransaction?.currency;
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
       const expiresDateRaw = matchingTransaction?.expiresDate;
-      console.log("expiresDateRaw", expiresDateRaw);
+      // console.log("expiresDateRaw", expiresDateRaw);
       const subscriptionEnd = new Date(expiresDateRaw).toISOString();
-      console.log("subscriptionEnd", subscriptionEnd);
+      // console.log("subscriptionEnd", subscriptionEnd);
       let provider = EProviderId.apple;
       const item = await this.itemService.getItemByPlanConfig(
         bodyData?.planId,
@@ -396,7 +385,9 @@ export class SubscriptionFactory {
         subscription_expired: createdSubscription?.endAt
       };
       await this.helperService.mixPanel(mixPanelBody);
-      return subscriptionData;
+        return subscriptionData;
+      }
+      return existingSubscription;
     } catch (error) {
       throw error;
     }
@@ -409,27 +400,24 @@ export class SubscriptionFactory {
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
         await this.subscriptionService.findGoogleExternalId(transactionId);
-      if (existingSubscription) {
-        console.log("existing subscription", existingSubscription);
-        return existingSubscription;
-      }
+      if (!existingSubscription) {
       let matchingTransaction = await this.validateTransactions(
         packageName,
         transactionId
       );
-      console.log("matchingTransaction", matchingTransaction);
+      // console.log("matchingTransaction", matchingTransaction);
       let price =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.units;
-      console.log("price", price);
+      // console.log("price", price);
       const currencyCode =
         matchingTransaction?.transactionInfo?.lineItems[0]?.autoRenewingPlan
           ?.recurringPrice?.currencyCode;
-      console.log("currencyCode", currencyCode);
+      // console.log("currencyCode", currencyCode);
       const currencyIdRes =
         await this.helperService.getCurrencyId(currencyCode);
       const currencyResponse = currencyIdRes?.data?.[0];
-      console.log("currencyResponse", currencyResponse);
+      // console.log("currencyResponse", currencyResponse);
 
       // let currencyId = await this.helperService.getCurrencyId(
       //   bodyData.currencyCode
@@ -482,7 +470,7 @@ export class SubscriptionFactory {
         price
       );
       let baseAmount = parseInt((price * conversionRateAmt).toString());
-      console.log("baseAmount", baseAmount);
+      // console.log("baseAmount", baseAmount);
 
       const invoiceData = {
         itemId: item?._id,
@@ -563,6 +551,8 @@ export class SubscriptionFactory {
       };
       await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
+    } 
+      return existingSubscription;
     } catch (error) {
       throw error;
     }

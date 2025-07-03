@@ -1333,23 +1333,11 @@ export class ServiceItemService {
         processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
         processPricingData.itemId.currency.currency_code;
-      if (isNewSubscription === true) {
-        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo =
-          processPricingData.itemId.additionalDetail.promotionDetails[
-            "payWallVideo"
-          ];
-        delete processPricingData.itemId.additionalDetail.promotionDetails[
-          "payWallVideo1"
-        ];
-      } else {
-        processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 =
-          processPricingData.itemId.additionalDetail.promotionDetails[
-            "payWallVideo1"
-          ];
-        delete processPricingData.itemId.additionalDetail.promotionDetails[
-          "payWallVideo"
-        ];
-      }
+        const promoDetails = processPricingData.itemId.additionalDetail.promotionDetails;
+        promoDetails.payWallVideo = isNewSubscription === true
+          ? promoDetails["payWallVideo"] 
+          : promoDetails["payWallVideo1"];
+        delete promoDetails["payWallVideo1"]; 
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
       );
