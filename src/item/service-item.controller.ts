@@ -178,7 +178,6 @@ export class ServiceItemController {
   @Get("item/:itemId")  
   async getServiceItemType(@Param("itemId") itemId: string) {
     try {
-      console.log("itemId", itemId);
       let data = await this.serviceItemService.getServiceItemType(itemId);
       return data;
     } catch (err) { throw err }
