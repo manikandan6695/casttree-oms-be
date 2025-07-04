@@ -92,13 +92,14 @@ export class DynamicUiService {
         isNewSubscription,
         token.id
       );
-      await this.fetchUserPreferenceBanner(
+      let banners = await this.fetchUserPreferenceBanner(
         isNewSubscription,
         token.id,
         continueWatching,
         componentDocs,
         country_code
       );
+      console.log("🚨 Banners from fetchUserPreferenceBanner:", banners);
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -450,73 +451,52 @@ export class DynamicUiService {
   ) {
     try {
       const data = components.find((e) => e.type === "userPreferenceBanner");
+      if (!data?.interactionData?.items?.length) return [];
 
-      if (!data?.interactionData?.items) return [];
+      const isLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+      console.log("isLocked", isLocked);
 
-      const filtered: any[] = [];
+      let bestMatch: any = null;
 
       for (const item of data.interactionData.items) {
         const rule = item.rule || {};
         const isSubscribedRule = rule.isSubscribed;
+
+        // 1. Check subscription match
+        if (isSubscribedRule !== isNewSubscription) continue;
+
         const ruleCountry = rule.country;
         const ruleIsLocked = rule.isLocked;
 
-        const isLocked =
-          userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
-
-        const isSubscriptionMatch = isSubscribedRule === isNewSubscription;
+        const isLockedMatch =
+          typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
 
         const isCountryMatch =
           typeof ruleCountry === "object" && "$ne" in ruleCountry
             ? country_code !== ruleCountry["$ne"]
             : country_code === ruleCountry;
 
-        let matchType: "isLocked" | "country" | null = null;
+        const bannerData = {
+          banner: item?.banner?.banner,
+          navigation: item?.banner?.navigation,
+        };
 
-        if (
-          isSubscriptionMatch &&
-          typeof ruleIsLocked === "boolean" &&
-          isLocked === ruleIsLocked
-        ) {
-          matchType = "isLocked";
-        } else if (isSubscriptionMatch && isCountryMatch) {
-          matchType = "country";
+        if (isLockedMatch) {
+          // Return immediately on best match
+          return [bannerData];
         }
 
-        switch (matchType) {
-          case "isLocked":
-            filtered.push({
-              banner: item?.banner?.banner,
-              navigation: item?.banner?.navigation,
-              matchedBy: "isLocked",
-            });
-            item._matchResolved = true;
-            break;
-          case "country":
-            if (filtered.length === 0) {
-              filtered.push({
-                banner: item?.banner?.banner,
-                navigation: item?.banner?.navigation,
-                matchedBy: "country",
-              });
-            }
-            break;
-          default:
-            // No match
-            break;
-        }
-
-        // Stop processing if best match found
-        if (filtered.length && filtered[0].matchedBy === "isLocked") {
-          break;
+        // Save the first country match only if no better match
+        if (isCountryMatch && !bestMatch) {
+          bestMatch = bannerData;
         }
       }
-
-      console.log("Filtered Banners:", filtered);
-      return filtered;
+      console.log("🔥 Final filtered banner to return:", bestMatch);
+      return bestMatch ? [bestMatch] : [];
     } catch (err) {
       console.error("Error in fetchUserPreferenceBanner:", err);
-      throw err;
+      return [];
     }
   }
 
