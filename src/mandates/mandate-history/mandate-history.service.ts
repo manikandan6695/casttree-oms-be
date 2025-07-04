@@ -43,4 +43,15 @@ export class MandateHistoryService {
       throw err;
     }
   }
+  async getMandateHistoryByMandateId(token, status){
+    try {
+      let mandateHistory = await this.mandateHistoryModel.findOne({
+        "metaData.externalId": token,
+        mandateStatus: status,
+      });
+      return mandateHistory;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
