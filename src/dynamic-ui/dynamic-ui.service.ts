@@ -15,6 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
+import { EComponentType } from "./enum/component.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -54,10 +55,8 @@ export class DynamicUiService {
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
         ]);
-      console.log("subscriptionData", subscriptionData);
 
       const isNewSubscription = subscriptionData ? true : false;
-      console.log("isNewSubscription", isNewSubscription);
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
       let country_code = countryCode;
@@ -99,7 +98,7 @@ export class DynamicUiService {
         componentDocs,
         country_code
       );
-      console.log("🚨 Banners from fetchUserPreferenceBanner:", banners);
+     
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -114,6 +113,10 @@ export class DynamicUiService {
             ...singleAdBanner?.navigation,
             type: comp?.navigation?.type,
           };
+        }
+
+        if (comp.type == EComponentType.personalizedBanner) {
+          comp.interactionData = { items: banners };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
@@ -450,53 +453,59 @@ export class DynamicUiService {
     country_code: string
   ) {
     try {
-      const data = components.find((e) => e.type === "userPreferenceBanner");
+      const data = components.find(
+        (e) => e.type === EComponentType.personalizedBanner
+      );
       if (!data?.interactionData?.items?.length) return [];
 
       const isLocked =
         userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
-      console.log("isLocked", isLocked);
 
       let bestMatch: any = null;
+      let referralBanner: any = null;
 
       for (const item of data.interactionData.items) {
         const rule = item.rule || {};
         const isSubscribedRule = rule.isSubscribed;
-
-        // 1. Check subscription match
-        if (isSubscribedRule !== isNewSubscription) continue;
-
         const ruleCountry = rule.country;
         const ruleIsLocked = rule.isLocked;
-
-        const isLockedMatch =
-          typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
-
-        const isCountryMatch =
-          typeof ruleCountry === "object" && "$ne" in ruleCountry
-            ? country_code !== ruleCountry["$ne"]
-            : country_code === ruleCountry;
 
         const bannerData = {
           banner: item?.banner?.banner,
           navigation: item?.banner?.navigation,
         };
 
-        if (isLockedMatch) {
-          // Return immediately on best match
-          return [bannerData];
+        const isLockedMatch =
+          typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
+
+        if (isSubscribedRule === isNewSubscription && isLockedMatch) {
+          return [bannerData]; 
         }
 
-        // Save the first country match only if no better match
-        if (isCountryMatch && !bestMatch) {
-          bestMatch = bannerData;
+        const isCountryMatch =
+          typeof ruleCountry === "object" && "$ne" in ruleCountry
+            ? country_code !== ruleCountry["$ne"]
+            : country_code === ruleCountry;
+
+        if (
+          isSubscribedRule === isNewSubscription &&
+          isCountryMatch &&
+          !bestMatch
+        ) {
+          bestMatch = bannerData; 
+        }
+        if (isSubscribedRule === true && !referralBanner) {
+          referralBanner = bannerData;
         }
       }
-      console.log("🔥 Final filtered banner to return:", bestMatch);
-      return bestMatch ? [bestMatch] : [];
+
+      if (bestMatch) return [bestMatch];
+      if (referralBanner) return [referralBanner];
+
+      return [];
     } catch (err) {
       console.error("Error in fetchUserPreferenceBanner:", err);
-      return [];
+      throw err;
     }
   }
 
@@ -504,22 +513,13 @@ export class DynamicUiService {
     try {
       if (!ruleCountry) return true;
 
-      // Handle Mongo-style operator
       if (
         typeof ruleCountry === "object" &&
         "$ne" in ruleCountry &&
         ruleCountry !== undefined
       ) {
-        // console.log("other country", ruleCountry["$ne"], ruleCountry);
-
         return userCountry !== ruleCountry["$ne"];
       }
-      // console.log(
-      //   "country",
-      //   ruleCountry,
-      //   userCountry,
-      //   ruleCountry === userCountry
-      // );
 
       return ruleCountry === userCountry;
     } catch (err) {
