@@ -15,6 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
+import { EComponentType } from "./enum/component.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -54,11 +55,11 @@ export class DynamicUiService {
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
         ]);
-      // console.log("subscriptionData", subscriptionData);
 
       const isNewSubscription = subscriptionData ? true : false;
-      // console.log("isNewSubscription", isNewSubscription);
-
+      const { data: { country_code: countryCode } = {} } =
+        await this.helperService.getUserById(token.id);
+      let country_code = countryCode;
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -73,7 +74,9 @@ export class DynamicUiService {
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
+        .populate("interactionData.items.banner")
         .lean();
+      // console.log("component ", JSON.stringify(componentDocs));
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -82,10 +85,20 @@ export class DynamicUiService {
         0
       );
       let continueWatching = await this.fetchContinueWatching(token.id);
+      // console.log("continue watch data", JSON.stringify(continueWatching));
+
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id
       );
+      let banners = await this.fetchUserPreferenceBanner(
+        isNewSubscription,
+        token.id,
+        continueWatching,
+        componentDocs,
+        country_code
+      );
+     
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -100,6 +113,10 @@ export class DynamicUiService {
             ...singleAdBanner?.navigation,
             type: comp?.navigation?.type,
           };
+        }
+
+        if (comp.type == EComponentType.personalizedBanner) {
+          comp.interactionData = { items: banners };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
@@ -139,6 +156,7 @@ export class DynamicUiService {
         skip,
         limit
       );
+
       const tagName = component?.tag?.tagName;
       if (tagName && serviceItemData?.finalData?.[tagName]) {
         component.actionData = serviceItemData.finalData[tagName];
@@ -149,6 +167,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+
   async fetchServiceItemDetails(
     data,
     userId: string,
@@ -421,6 +440,88 @@ export class DynamicUiService {
       }
 
       return continueWatching;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async fetchUserPreferenceBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    userProcessedSeries,
+    components,
+    country_code: string
+  ) {
+    try {
+      const data = components.find(
+        (e) => e.type === EComponentType.personalizedBanner
+      );
+      if (!data?.interactionData?.items?.length) return [];
+
+      const isLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+
+      let bestMatch: any = null;
+      let referralBanner: any = null;
+
+      for (const item of data.interactionData.items) {
+        const rule = item.rule || {};
+        const isSubscribedRule = rule.isSubscribed;
+        const ruleCountry = rule.country;
+        const ruleIsLocked = rule.isLocked;
+
+        const bannerData = {
+          banner: item?.banner?.banner,
+          navigation: item?.banner?.navigation,
+        };
+
+        const isLockedMatch =
+          typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
+
+        if (isSubscribedRule === isNewSubscription && isLockedMatch) {
+          return [bannerData]; 
+        }
+
+        const isCountryMatch =
+          typeof ruleCountry === "object" && "$ne" in ruleCountry
+            ? country_code !== ruleCountry["$ne"]
+            : country_code === ruleCountry;
+
+        if (
+          isSubscribedRule === isNewSubscription &&
+          isCountryMatch &&
+          !bestMatch
+        ) {
+          bestMatch = bannerData; 
+        }
+        if (isSubscribedRule === true && !referralBanner) {
+          referralBanner = bannerData;
+        }
+      }
+
+      if (bestMatch) return [bestMatch];
+      if (referralBanner) return [referralBanner];
+
+      return [];
+    } catch (err) {
+      console.error("Error in fetchUserPreferenceBanner:", err);
+      throw err;
+    }
+  }
+
+  async evaluateCountryRule(ruleCountry, userCountry) {
+    try {
+      if (!ruleCountry) return true;
+
+      if (
+        typeof ruleCountry === "object" &&
+        "$ne" in ruleCountry &&
+        ruleCountry !== undefined
+      ) {
+        return userCountry !== ruleCountry["$ne"];
+      }
+
+      return ruleCountry === userCountry;
     } catch (err) {
       throw err;
     }

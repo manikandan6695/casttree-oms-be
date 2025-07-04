@@ -12,11 +12,13 @@ import { DynamicUiService } from "./dynamic-ui.service";
 import { AppNavBarSchema } from "./schema/app-navbar.entity";
 import { ComponentSchema } from "./schema/component.entity";
 import { ContentPageSchema } from "./schema/page-content.entity";
+import { BannerConfigurationSchema } from "./schema/banner-configuration.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "appNavBar", schema: AppNavBarSchema },
+      { name: "bannerConfiguration", schema: BannerConfigurationSchema },
       { name: "component", schema: ComponentSchema },
       { name: "contentPage", schema: ContentPageSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
