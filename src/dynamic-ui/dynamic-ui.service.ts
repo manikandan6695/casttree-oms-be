@@ -15,6 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
+import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -39,7 +40,13 @@ export class DynamicUiService {
         key: key,
         status: "Active",
       });
-
+      if (key == "learn-home-header") {
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
+        mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = {};
+        await this.helperService.mixPanel(mixPanelBody);
+      }
       return { data };
     } catch (err) {
       throw err;
