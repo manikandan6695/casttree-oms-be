@@ -233,61 +233,67 @@ export class DynamicUiService {
       aggregationPipeline.push(
         {
           $addFields: {
-            tagNames: {
-              $cond: {
-                if: { $isArray: "$tag.name" },
-                then: "$tag.name",
-                else: ["$tag.name"],
-              },
-            },
-            tagOrder: "$tag.order",
-          },
+            tagPairs: {
+              $zip: {
+                inputs: [
+                  { $cond: [{ $isArray: "$tag.name" }, "$tag.name", ["$tag.name"]] },
+                  { $cond: [{ $isArray: "$tag.order" }, "$tag.order", ["$tag.order"]] }
+                ]
+              }
+            }
+          }
         },
         {
-          $unwind: "$tagNames",
+          $unwind: "$tagPairs"
+        },
+        {
+          $addFields: {
+            tagName: { $arrayElemAt: ["$tagPairs", 0] },
+            tagOrder: { $arrayElemAt: ["$tagPairs", 1] }
+          }
         },
         {
           $group: {
             _id: {
-              tagName: "$tagNames",
-              processId: "$additionalDetails.processId",
+              tagName: "$tagName",
+              processId: "$additionalDetails.processId"
             },
             detail: {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder" },
-                ],
-              },
+                  { tagOrder: "$tagOrder", tagName: "$tagName" }
+                ]
+              }
             },
-            priorityOrder: { $first: "$priorityOrder" },
-          },
+            priorityOrder: { $first: "$priorityOrder" }
+          }
         },
         {
-          $sort: { priorityOrder: 1, _id: -1 },
+          $sort: { priorityOrder: 1, "_id.processId": -1 }
         },
         {
           $group: {
             _id: "$_id.tagName",
-            details: { $push: "$detail" },
-          },
+            details: { $push: "$detail" }
+          }
         },
         {
           $addFields: {
             details: {
               $sortArray: {
                 input: "$details",
-                sortBy: { tagOrder: 1 },
-              },
-            },
-          },
+                sortBy: { tagOrder: 1 }
+              }
+            }
+          }
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
-            details: 1,
-          },
+            details: 1
+          }
         }
       );
 
