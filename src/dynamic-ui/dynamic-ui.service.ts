@@ -260,7 +260,7 @@ export class DynamicUiService {
         }
       );
 
-      console.log("aggregationPipeline", JSON.stringify(aggregationPipeline));
+      // console.log("aggregationPipeline", JSON.stringify(aggregationPipeline));
 
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
