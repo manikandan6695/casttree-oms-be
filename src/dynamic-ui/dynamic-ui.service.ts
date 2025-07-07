@@ -91,7 +91,27 @@ export class DynamicUiService {
         0,
         0
       );
-      let continueWatching = await this.fetchContinueWatching(token.id);
+      // console.log("serviceItemData", JSON.stringify(serviceItemData));
+      const processIds = [];
+
+      const serviceItem = serviceItemData.finalData;
+      for (const category in serviceItem) {
+        if (Array.isArray(serviceItem[category])) {
+          serviceItem[category].forEach((item) => {
+            if (item.processId) {
+              processIds.push(item.processId);
+            }
+          });
+        }
+      }
+
+      let unquieProcessIds = [...new Set(processIds)];
+      // console.log("unquieProcessIds", unquieProcessIds);
+
+      let continueWatching = await this.fetchContinueWatching(
+        token.id,
+        unquieProcessIds
+      );
       // console.log("continue watch data", JSON.stringify(continueWatching));
 
       let singleAdBanner = await this.fetchSingleAdBanner(
@@ -428,10 +448,10 @@ export class DynamicUiService {
       throw err;
     }
   }
-  async fetchContinueWatching(userId: string) {
+  async fetchContinueWatching(userId: string, processIds: string[]) {
     try {
       let pendingProcessInstanceData =
-        await this.processService.pendingProcess(userId);
+        await this.processService.allPendingProcess(userId, processIds);
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
