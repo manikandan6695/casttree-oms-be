@@ -764,7 +764,7 @@ export class SubscriptionService {
             currency,
             price
           );
-          let baseAmount = parseInt((price * conversionRateAmt).toString());
+          const baseAmount = Math.round(price * conversionRateAmt);
 
           const subscriptionData = {
             userId: existingSubscription?.userId,
@@ -1166,7 +1166,6 @@ export class SubscriptionService {
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-
       let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
@@ -1177,7 +1176,8 @@ export class SubscriptionService {
         _id: invoice?.source_id,
       });
       if (subscription) {
-        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active && subscription.subscriptionStatus !== EsubscriptionStatus.expired) {
+          // console.log("subscription", subscription);
           subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
 
