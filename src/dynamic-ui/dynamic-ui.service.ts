@@ -232,9 +232,15 @@ export class DynamicUiService {
               tagName: "$tagNames",
               processId: "$additionalDetails.processId",
             },
-            detail: { $first: "$additionalDetails" },
+            detail: {
+              $first: {
+                $mergeObjects: [
+                  "$additionalDetails",
+                  { tagOrder: "$tagOrder" },
+                ],
+              },
+            },
             priorityOrder: { $first: "$priorityOrder" },
-            tagOrder: { $first: "$tagOrder" },
           },
         },
         {
@@ -244,18 +250,23 @@ export class DynamicUiService {
           $group: {
             _id: "$_id.tagName",
             details: { $push: "$detail" },
-            tagOrder: { $first: "$tagOrder" },
           },
         },
         {
-          $sort: { tagOrder: 1 },
+          $addFields: {
+            details: {
+              $sortArray: {
+                input: "$details",
+                sortBy: { tagOrder: 1 },
+              },
+            },
+          },
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
             details: 1,
-            tagOrder: 1,
           },
         }
       );
@@ -264,6 +275,8 @@ export class DynamicUiService {
 
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
+      // console.log("serviceItemData", JSON.stringify(serviceItemData));
+
       let totalCount = await this.serviceItemModel.aggregate(countPipe);
       // console.log("totalCount", totalCount);
       let count;
