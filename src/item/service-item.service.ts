@@ -1432,7 +1432,7 @@ export class ServiceItemService {
       throw error;
     }
   }
-  async getServiceItem(skip: number, limit: number) {
+  async getServiceItem() {
     try {
       const query = { type: EserviceItemType.courses, status: Estatus.Active };
       const serviceItemData: any = await this.serviceItemModel
@@ -1442,8 +1442,6 @@ export class ServiceItemService {
           select: "itemName itemDescription"
         })
         .sort({ priorityOrder: 1 })
-        .skip(skip)
-        .limit(limit)
         .lean();
       const processIds = serviceItemData
         .filter(item => item.additionalDetails?.processId)

@@ -117,14 +117,10 @@ export class ServiceItemController {
       return err;
     }
   }
-
-
-
   @Get("service-items")
-  async getServiceItem( @Query("skip", ParseIntPipe) skip: number,
-  @Query("limit", ParseIntPipe) limit: number,) {
+  async getServiceItem() {
     try {
-      let data = await this.serviceItemService.getServiceItem(skip, limit);
+      let data = await this.serviceItemService.getServiceItem();
       return data;
     } catch (err) { throw err }
   }

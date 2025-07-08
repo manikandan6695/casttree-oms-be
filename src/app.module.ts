@@ -1,6 +1,6 @@
 import { TaxModule } from "./tax/tax.module";
 //import { CacheModule } from "@nestjs/cache-manager";
-import { MiddlewareConsumer, Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, RequestMethod } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -22,10 +22,10 @@ import { ServiceResponseModule } from "./service-response/service-response.modul
 import { SharedModule } from "./shared/shared.module";
 import { SubscriptionModule } from "./subscription/subscription.module";
 import { RedisModule } from "./redis/redis.module";
-import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
+import { DynamicUiModule } from "./dynamic-ui/dynamic-ui.module";
 import { RedisInitializer } from "./redis/redis.initializer";
 import { PaymentRequestService } from "./payment/payment-request.service";
-import { EventOutBoxModule } from './event-outbox/event-outbox.module';
+import { EventOutBoxModule } from "./event-outbox/event-outbox.module";
 
 @Module({
   imports: [
@@ -84,6 +84,12 @@ import { EventOutBoxModule } from './event-outbox/event-outbox.module';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(GetUserOriginMiddleware).forRoutes("/service-item");
+    consumer
+      .apply(GetUserOriginMiddleware)
+      .exclude(
+        { path: "service-item/promotion-details", method: RequestMethod.GET },
+        { path: "service-item/service-items", method: RequestMethod.GET }
+      )
+      .forRoutes("/service-item");
   }
 }
