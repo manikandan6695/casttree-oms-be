@@ -1450,6 +1450,7 @@ export class ServiceItemService {
         .map(item => item.additionalDetails.processId);
       
       const firstTasks = await this.processService.getFirstTask(processIds, null);
+      let count = firstTasks.filter(task => task.isLocked !== true).length;
       const firstTaskData = firstTasks.reduce((acc, task) => {
         acc[task.processId] = task;
         return acc;
@@ -1475,8 +1476,11 @@ export class ServiceItemService {
             isTrendingSeries
           };
         })
-        .filter(item => item.isLocked !== true); 
-      return {data: filteredData, count: filteredData.length};
+        .filter(item => 
+          item.isLocked !== true && 
+          !(Array.isArray(item.tag) && item.tag.some(t => t.name === EItemTag.upcomingseries))
+        ); 
+      return {data: filteredData, count: count};
     } catch (error) {
       throw error;
     }
