@@ -33,6 +33,15 @@ export class ServiceItemController {
       throw err;
     }
   }
+  @Get("promotion-details")
+  async getPromotionDetailsV2() {
+    try {
+      let data = await this.serviceItemService.getPromotionDetailsV2();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 
   //@UseGuards(JwtAuthGuard)
   @Get("getPromotionDetails/:processId")
@@ -111,6 +120,14 @@ export class ServiceItemController {
 
 
 
+  @Get("service-items")
+  async getServiceItem( @Query("skip", ParseIntPipe) skip: number,
+  @Query("limit", ParseIntPipe) limit: number,) {
+    try {
+      let data = await this.serviceItemService.getServiceItem(skip, limit);
+      return data;
+    } catch (err) { throw err }
+  }
   @Get(":id")
   async getServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {

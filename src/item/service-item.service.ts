@@ -21,6 +21,7 @@ import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
 import { serviceitems } from "./schema/serviceItem.schema";
+import { EItemName } from "./enum/item-type.enum";
 
 @Injectable()
 export class ServiceItemService {
@@ -1428,6 +1429,77 @@ export class ServiceItemService {
       // console.log("type", type);
       return type;
     } catch (error) {
+      throw error;
+    }
+  }
+  async getServiceItem(skip: number, limit: number) {
+    try {
+      const query = { type: EserviceItemType.courses, status: Estatus.Active };
+      const serviceItemData: any = await this.serviceItemModel
+        .find(query)
+        .populate({
+          path: "itemId",
+          select: "itemName itemDescription"
+        })
+        .sort({ priorityOrder: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+      const processIds = serviceItemData
+        .filter(item => item.additionalDetails?.processId)
+        .map(item => item.additionalDetails.processId);
+      
+      const firstTasks = await this.processService.getFirstTask(processIds, null);
+      const firstTaskData = firstTasks.reduce((acc, task) => {
+        acc[task.processId] = task;
+        return acc;
+      }, {});
+      
+      const filteredData = serviceItemData.map(item => {
+        const firstTask = item.additionalDetails?.processId && firstTaskData[item.additionalDetails.processId] 
+          ? firstTaskData[item.additionalDetails.processId] 
+          : null;
+          const isTrendingSeries = Array.isArray(item?.tag) &&
+          item.tag.some(t => t.name === EItemName.trendingSeries);
+        return  {
+          thumbnail: item.additionalDetails?.thumbnail,
+          itemName: item.itemId?.itemName,
+          processId: item.additionalDetails?.processId,
+          taskId: firstTask?._id,
+          taskDetails: firstTask?.taskMetaData,
+          title: firstTask?.title,
+          itemDesc: item.itemId?.itemDescription,
+          tag: item?.tag,
+          isTrendingSeries
+        };
+      });
+      return {data: filteredData, count: serviceItemData.length};
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getPromotionDetailsV2() {
+    try{
+      let itemData = await this.itemService.getItemByItemName(EItemName.pro)
+      let provider = await this.systemConfigurationModel.findOne({
+        key: EItemName.subscription_payment_provider
+      })
+      let finalResponse = {
+        payWallVideo: itemData?.additionalDetail?.promotionDetails?.payWallVideo,
+        authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
+        subscriptionInfo: itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
+        premiumThumbnails: itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
+        provider: provider?.value?.provider,
+        provideId: provider?.value?.providerId,
+        itemId: itemData?._id,
+        itemName: itemData?.itemName,
+        price: itemData?.price,
+        currency_code: itemData?.currency?.currency_code,
+        comparePrice: itemData?.comparePrice,
+      }
+      return {data: finalResponse}
+    }
+     catch (error) {
       throw error;
     }
   }
