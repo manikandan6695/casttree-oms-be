@@ -612,6 +612,35 @@ export class HelperService {
       return null;
     }
   }
+  async cancelRazorpaySubscription(customerId: string, tokenId: string) {
+    try {
+      // console.log("customer id is", customerId, typeof customerId);
+      // console.log("tokenId  is", tokenId, typeof tokenId);
+
+      const razorpayKey = this.configService.get<string>("RAZORPAY_API_KEY");
+      const razorpaySecret = this.configService.get<string>(
+        "RAZORPAY_SECRET_KEY"
+      );
+      const baseUrl = this.configService.get<string>("RAZORPAY_BASE_URL");
+
+      const url = `${baseUrl}/v1/customers/${customerId}/tokens/${tokenId}/cancel`;
+
+      const data = await this.http_service
+        .put(url, null, {
+          auth: {
+            username: razorpayKey,
+            password: razorpaySecret,
+          },
+        })
+        .toPromise();
+      // console.log("response data is ==>", data);
+
+      return data;
+    } catch (err) {
+      // console.log("err is", err, err?.response);
+      throw err;
+    }
+  }
   async cancelSubscription(subReferenceId: string) {
     try {
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/${subReferenceId}/manage`;
