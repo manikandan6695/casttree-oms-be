@@ -80,7 +80,7 @@ export class SubscriptionService {
             existingSubscription ||
             item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
               ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount
+                  ?.amount
               : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           // console.log("auth amount is", authAmount);
 
@@ -336,7 +336,7 @@ export class SubscriptionService {
         } else if (
           req?.body?.decodeId &&
           req.body.decodeId?.notificationType ===
-          EEventType.didChangeRenewalStatus
+            EEventType.didChangeRenewalStatus
         ) {
           if (req.body.decodeId?.subtype === EEventType.autoRenewDisabled) {
             let body = req.body.decodeId;
@@ -456,7 +456,10 @@ export class SubscriptionService {
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
       });
-      if (matchedSubscription?.metaData?.transaction?.transactionId !== transactionHistory?.transactions?.transactionId) {
+      if (
+        matchedSubscription?.metaData?.transaction?.transactionId !==
+        transactionHistory?.transactions?.transactionId
+      ) {
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.apple,
           "metaData.transaction.originalTransactionId":
@@ -498,7 +501,8 @@ export class SubscriptionService {
             planId: transactionHistory?.transactions?.productId,
           },
         };
-        let subscription = await this.subscriptionModel.create(subscriptionData);
+        let subscription =
+          await this.subscriptionModel.create(subscriptionData);
         let item = await this.itemService.getItemDetail(
           subscription?.notes?.itemId
         );
@@ -528,9 +532,7 @@ export class SubscriptionService {
           transactionHistory?.transactions?.currency,
           price
         );
-        let amt = parseInt(
-          (price * conversionRateAmt).toString()
-        );
+        let amt = parseInt((price * conversionRateAmt).toString());
         const paymentData = {
           amount: price,
           document_status: EDocumentStatus.completed,
@@ -544,7 +546,11 @@ export class SubscriptionService {
           baseCurrency: "INR",
           conversionRate: conversionRateAmt,
         };
-        await this.paymentService.createPaymentRecord(paymentData, null, invoice);
+        await this.paymentService.createPaymentRecord(
+          paymentData,
+          null,
+          invoice
+        );
 
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
@@ -569,7 +575,10 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      const existingMandate = await this.mandateService.getMandateBySourceId(transactionHistory?.transactions?.originalTransactionId, EMandateStatus.active);
+      const existingMandate = await this.mandateService.getMandateBySourceId(
+        transactionHistory?.transactions?.originalTransactionId,
+        EMandateStatus.active
+      );
       if (existingMandate?.mandateStatus === EMandateStatus.active) {
         let existingSubscription = await this.subscriptionModel.findOne({
           "metaData.transaction.originalTransactionId":
@@ -735,8 +744,7 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      const rtdn = 
-      await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       if (rtdn.notificationType === EEventId.renew) {
         const matchedSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
@@ -744,15 +752,18 @@ export class SubscriptionService {
           subscriptionStatus: EStatus.Active,
           externalId: rtdn.purchaseToken,
         });
-        if (matchedSubscription?.metaData?.latestOrderId !== rtdn?.transactionInfo?.latestOrderId) {
+        if (
+          matchedSubscription?.metaData?.latestOrderId !==
+          rtdn?.transactionInfo?.latestOrderId
+        ) {
           const existingSubscription = await this.subscriptionModel.findOne({
             providerId: EProviderId.google,
             provider: EProvider.google,
             externalId: rtdn.purchaseToken,
           });
           let currency =
-            rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice
-              ?.currencyCode;
+            rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+              ?.recurringPrice?.currencyCode;
           let price =
             rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
               ?.recurringPrice?.units;
@@ -864,8 +875,14 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
-      let existingMandate = await this.mandateService.getMandateBySourceId(rtdn?.purchaseToken, EMandateStatus.active);
-      if (rtdn.notificationType === EEventId.cancel && existingMandate?.mandateStatus === EMandateStatus.active) {
+      let existingMandate = await this.mandateService.getMandateBySourceId(
+        rtdn?.purchaseToken,
+        EMandateStatus.active
+      );
+      if (
+        rtdn.notificationType === EEventId.cancel &&
+        existingMandate?.mandateStatus === EMandateStatus.active
+      ) {
         const body = {
           status: EMandateStatus.cancelled,
           updatedAt: new Date(),
@@ -972,9 +989,11 @@ export class SubscriptionService {
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
       let subscriptionData = await this.subscriptionModel.findOne({
-        _id: new ObjectId(mandate?.sourceId)
+        _id: new ObjectId(mandate?.sourceId),
       });
-      let itemName = await this.itemService.getItemDetail(subscriptionData?.notes?.itemId);
+      let itemName = await this.itemService.getItemDetail(
+        subscriptionData?.notes?.itemId
+      );
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
       mixPanelBody.distinctId = mandate?.userId;
@@ -999,7 +1018,6 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-
 
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
@@ -1166,12 +1184,15 @@ export class SubscriptionService {
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-      let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+      let paymentRequest =
+        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
       });
-      let invoice = await this.invoiceService.getInvoiceDetail(paymentRequest?.source_id);
+      let invoice = await this.invoiceService.getInvoiceDetail(
+        paymentRequest?.source_id
+      );
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,
       });
@@ -1180,7 +1201,6 @@ export class SubscriptionService {
           // console.log("subscription", subscription);
           subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
-
 
           let tokenId = payload?.payment?.entity?.token_id;
           let updatedMandate = await this.mandateService.updateMandateDetail(
@@ -1191,13 +1211,12 @@ export class SubscriptionService {
           );
           let mandate = await this.mandateService.getMandateById(tokenId);
           if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
-            let updatedMandate =
-              await this.mandateService.updateMandateDetail(
-                { _id: mandate._id },
-                {
-                  mandateStatus: EMandateStatus.active,
-                }
-              );
+            let updatedMandate = await this.mandateService.updateMandateDetail(
+              { _id: mandate._id },
+              {
+                mandateStatus: EMandateStatus.active,
+              }
+            );
             await this.mandateHistoryService.createMandateHistory({
               mandateId: mandate?._id,
               mandateStatus: EMandateStatus.active,
@@ -1504,11 +1523,11 @@ export class SubscriptionService {
         ? duedate.setDate(now.getDate() + subscriptionDetailsData.validity)
         : subscriptionDetailsData.validityType == EvalidityType.month
           ? duedate.setMonth(
-            duedate.getMonth() + subscriptionDetailsData.validity
-          )
+              duedate.getMonth() + subscriptionDetailsData.validity
+            )
           : duedate.setFullYear(
-            duedate.getFullYear() + subscriptionDetailsData.validity
-          );
+              duedate.getFullYear() + subscriptionDetailsData.validity
+            );
       let fv = {
         userId: token.id,
         planId: itemDetails.additionalDetail.planId,
@@ -1583,8 +1602,8 @@ export class SubscriptionService {
           };
           await this.helperService.mixPanel(mixPanelBody);
         }
-        
-          // console.log(userIds);
+
+        // console.log(userIds);
 
         let updateBody = {
           userId: badgeRemovalUserIds,
@@ -1631,21 +1650,49 @@ export class SubscriptionService {
       // console.log("user id is", token.id);
 
       let mandates = await this.mandateService.getUserMandates(token.id);
+      console.log("mandates", mandates[0]);
+
       // console.log("subReferenceIds", subReferenceIds);
       // for (const subRefId of subReferenceIds) {
       const subRefId = mandates[0]?.metaData?.subscription_id;
       // console.log("subRefId", subRefId);
       try {
-        const data = await this.helperService.cancelSubscription(subRefId);
+        let data;
+        if (mandates[0]?.providerId == 2) {
+          data = await this.helperService.cancelSubscription(subRefId);
+        }
+        if (mandates[0]?.providerId == 1) {
+          let userAdditionalData =
+            await this.helperService.getUserAdditionalDetails({
+              userId: token.id,
+            });
+          let tokenId = mandates[0]?.referenceId;
+          // console.log("userAdditionalData is", userAdditionalData);
+
+          let customerId = userAdditionalData?.userAdditional?.referenceId;
+          data = await this.helperService.cancelRazorpaySubscription(
+            customerId,
+            tokenId
+          );
+        }
+        // console.log("data is", data);
+
         await this.mandateService.updateMandate(mandates[0]._id, {
           cancelDate: new Date().toISOString(),
           cancelReason: body?.reason,
         });
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandates[0]?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          status: EStatus.Active,
+          createdBy: token.id,
+          updatedBy: token.id,
+        });
         return {
           subRefId,
-          status: "Subscription canceled",
-          subscriptionId: data.subscription_id,
-          subscriptionStatus: data.subscription_status,
+          status: "Subscription cancelled",
+          subscriptionId: data?.subscription_id,
+          subscriptionStatus: data?.subscription_status,
         };
       } catch (error) {
         return { subRefId, status: "FAILED", error: error.message };
@@ -1806,22 +1853,22 @@ export class SubscriptionService {
     planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
       ?.validityType == EvalidityType.day
       ? endAt.setDate(
-        endAt.getDate() +
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validity
-      )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-          endAt.getMonth() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
+          endAt.getDate() +
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validity
         )
+      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+            ?.validityType == EvalidityType.month
+        ? endAt.setMonth(
+            endAt.getMonth() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
         : endAt.setFullYear(
-          endAt.getFullYear() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        );
+            endAt.getFullYear() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          );
     let chargeResponse = await this.helperService.createAuth(authBody);
 
     if (chargeResponse) {
@@ -1917,18 +1964,18 @@ export class SubscriptionService {
         subscriptionData?.notes?.itemId
       );
       let mixPanelBody: any = {};
-          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-          mixPanelBody.distinctId = subscriptionData?.userId;
-          mixPanelBody.properties = {
-            user_id: subscriptionData?.userId,
-            provider: subscriptionData?.provider,
-            subscription_id: subscription?._id,
-            subscription_status: EsubscriptionStatus.active,
-            subscription_date: subscription?.startAt,
-            item_name: item?.itemName,
-            subscription_expired: subscription?.endAt,
-          };
-          await this.helperService.mixPanel(mixPanelBody);
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = subscriptionData?.userId;
+      mixPanelBody.properties = {
+        user_id: subscriptionData?.userId,
+        provider: subscriptionData?.provider,
+        subscription_id: subscription?._id,
+        subscription_status: EsubscriptionStatus.active,
+        subscription_date: subscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: subscription?.endAt,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
     }
   }
 
@@ -1994,22 +2041,22 @@ export class SubscriptionService {
       planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
         ?.validityType == EvalidityType.day
         ? endAt.setDate(
-          endAt.getDate() +
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validity
-        )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-            endAt.getMonth() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
           )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
           : endAt.setFullYear(
-            endAt.getFullYear() +
-            planDetail?.additionalDetail?.promotionDetails
-              ?.subscriptionDetail?.validity
-          );
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
       // console.log("auth body for razorpay is ==>", authBody);
 
       let chargeResponse = await this.helperService.addSubscription(authBody);
@@ -2019,7 +2066,7 @@ export class SubscriptionService {
         email:
           userAdditionalData?.userAdditional?.userId?.emailId ||
           userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-          "@casttree.com",
+            "@casttree.com",
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
@@ -2345,8 +2392,8 @@ export class SubscriptionService {
         const eligibilityList = config?.data?.eligibility;
         isEligible = Array.isArray(eligibilityList)
           ? eligibilityList.some(
-            (e) => e._id.toString() === userItemId.toString()
-          )
+              (e) => e._id.toString() === userItemId.toString()
+            )
           : false;
       }
       return {

@@ -62,7 +62,7 @@ export class HelperService {
       throw err;
     }
   }
-  async getUserByUserId( accessToken: string) {
+  async getUserByUserId(accessToken: string) {
     try {
       let data = await this.http_service
         .get(
@@ -570,8 +570,7 @@ export class HelperService {
     try {
       // console.log("getUserAdditionalDetails body is", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
       // `http://localhost:3000/casttree/user/update-purchased-balance/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -599,8 +598,7 @@ export class HelperService {
     try {
       // console.log("inisde update user additional", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
       // `http://localhost:3000/casttree/user/update-user-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -658,6 +656,35 @@ export class HelperService {
     } catch (error: any) {
       console.error("Failed to fetch conversion rate:", error.message);
       return null;
+    }
+  }
+  async cancelRazorpaySubscription(customerId: string, tokenId: string) {
+    try {
+      // console.log("customer id is", customerId, typeof customerId);
+      // console.log("tokenId  is", tokenId, typeof tokenId);
+
+      const razorpayKey = this.configService.get<string>("RAZORPAY_API_KEY");
+      const razorpaySecret = this.configService.get<string>(
+        "RAZORPAY_SECRET_KEY"
+      );
+      const baseUrl = this.configService.get<string>("RAZORPAY_BASE_URL");
+
+      const url = `${baseUrl}/v1/customers/${customerId}/tokens/${tokenId}/cancel`;
+
+      const data = await this.http_service
+        .put(url, null, {
+          auth: {
+            username: razorpayKey,
+            password: razorpaySecret,
+          },
+        })
+        .toPromise();
+      // console.log("response data is ==>", data);
+
+      return data;
+    } catch (err) {
+      // console.log("err is", err, err?.response);
+      throw err;
     }
   }
   async cancelSubscription(subReferenceId: string) {
@@ -856,8 +883,7 @@ export class HelperService {
     try {
       // console.log("getUserAdditionalDetails body is", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-admin-additional/${body.userId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-admin-additional/${body.userId}`;
       // `http://localhost:3000/casttree/user/update-admin-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
