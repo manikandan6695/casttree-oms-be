@@ -73,6 +73,8 @@ export interface IItemModel extends mongoose.Document {
   data_create_mode: string;
   comparePrice: number;
   parentItemId: string;
+  price: number;
+  currency: any;
 }
 
 export interface IStockDetails {
@@ -312,6 +314,8 @@ export const ItemSchema = new mongoose.Schema<any>(
     variant: VariantSchema,
     stock_details: [StockDetailsSchema],
     status: { type: String, default: "Active" },
+    price: { type: Number },
+    currency: { type: mongoose.Schema.Types.ObjectId, ref: "currency" },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",

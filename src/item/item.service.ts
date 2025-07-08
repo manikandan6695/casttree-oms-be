@@ -156,4 +156,12 @@ export class ItemService {
       throw error;
     }
   }
+  async getItemByItemName(itemName: string) {
+    try {
+      const data = await this.itemModel.findOne({ itemName: itemName }).lean();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
