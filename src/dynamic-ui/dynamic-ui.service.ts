@@ -38,14 +38,16 @@ export class DynamicUiService {
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
-      let data = await this.appNavBarModel.findOne({
-        key: key,
-        status: EStatus.Active,
-      });
+      let data = await this.appNavBarModel
+        .findOne({
+          key: key,
+          status: EStatus.Active,
+        })
+        .lean();
       console.log("app nav bar", JSON.stringify(data));
       let tabs = await this.matchRoleByUser(token, data.tabs);
       console.log("tabs ===>", JSON.stringify(tabs));
-
+      data["tabs"] = tabs;
       if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
@@ -61,24 +63,26 @@ export class DynamicUiService {
 
   async matchRoleByUser(token, tabs) {
     try {
-      // Fetch the user's profile (roles)
       const profileArr = await this.helperService.getProfileByIdTl([token.id]);
       const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
-      const userRoleIds = (profile?.roles || []).map((role) => role._id);
+      const userRoleIds = (profile?.roles || []).map(
+        (role) => new ObjectId(role._id)
+      );
 
-      // If no roles or no tabs, return as is
       if (!userRoleIds.length || !Array.isArray(tabs)) return tabs;
 
-      // Tabs with a matching roleId come first, preserving their order
       const matchingTabs = [];
       const nonMatchingTabs = [];
+      const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
       for (const tab of tabs) {
-        if (tab.roleId && userRoleIds.includes(tab.roleId)) {
+        console.log("role id is", tab.roleId);
+        if (userRoleIdSet.has(tab.roleId.toString())) {
           matchingTabs.push(tab);
         } else {
           nonMatchingTabs.push(tab);
         }
       }
+
       return [...matchingTabs, ...nonMatchingTabs];
     } catch (err) {
       throw err;
