@@ -82,6 +82,8 @@ export class MandatesService {
 
   async updateMandate(_id: any, body: any) {
     try {
+      // console.log("mandate cancel",_id , body);
+      
       let mandate = await this.mandateModel.updateOne({ _id: _id }, body);
 
       return { message: "Updated Successfully" };
