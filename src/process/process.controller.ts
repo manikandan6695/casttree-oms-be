@@ -105,4 +105,13 @@ export class ProcessController {
       throw err;
     }
   }
+  @Get(":processId/tasks")
+  async getFirstTaskByProcess(@Param("processId") processId: string) {
+    try {
+      let data = await this.processsService.getFirstTaskByProcess(processId)
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

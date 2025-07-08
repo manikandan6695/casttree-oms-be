@@ -753,4 +753,15 @@ export class ProcessService {
       throw error;
     }
   }
+  async getFirstTaskByProcess(processId: string) {
+    try {
+      let data = await this.tasksModel.find({
+        processId: processId,
+        taskNumber: 1,
+      });
+      return { data };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
