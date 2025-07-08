@@ -108,7 +108,22 @@ export class ServiceItemController {
       return err;
     }
   }
-
+  @Get("promotion-details")
+  async getPromotionDetailsV2() {
+    try {
+      let data = await this.serviceItemService.getPromotionDetailsV2();
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  @Get("service-items")
+  async getServiceItem() {
+    try {
+      let data = await this.serviceItemService.getServiceItem();
+      return data;
+    } catch (err) { throw err }
+  }
 
 
   @Get(":id")

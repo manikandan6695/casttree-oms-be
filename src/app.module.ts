@@ -1,5 +1,5 @@
 //import { CacheModule } from "@nestjs/cache-manager";
-import { MiddlewareConsumer, Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, RequestMethod } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -81,6 +81,12 @@ import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(GetUserOriginMiddleware).forRoutes("/service-item");
+    consumer
+      .apply(GetUserOriginMiddleware)
+      .exclude(
+        { path: "service-item/promotion-details", method: RequestMethod.GET },
+        { path: "service-item/service-items", method: RequestMethod.GET }
+      )
+      .forRoutes("/service-item");
   }
 }
