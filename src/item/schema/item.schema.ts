@@ -37,6 +37,8 @@ export interface IItemModel extends mongoose.Document {
   itemCommissionMarkupCurrency: IItemCommissionMarkupCurrencyModel;
   isItemCommissionIncluded: boolean;
   geo: any;
+  price: number;
+  currency: any;
   item_codes?: any;
   item_returnable?: boolean;
   reorder_point?: Number;
@@ -242,6 +244,8 @@ export const ItemSchema = new mongoose.Schema<any>(
     item_base_unit_of_measurement: {
       type: String,
     },
+    price: { type: Number },
+    currency: { type: mongoose.Schema.Types.ObjectId, ref: "currency" },
     uom_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "unit",

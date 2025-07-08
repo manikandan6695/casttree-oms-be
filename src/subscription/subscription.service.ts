@@ -1561,21 +1561,48 @@ export class SubscriptionService {
       // console.log("user id is", token.id);
 
       let mandates = await this.mandateService.getUserMandates(token.id);
+      // console.log("mandates", mandates[0]);
       // console.log("subReferenceIds", subReferenceIds);
       // for (const subRefId of subReferenceIds) {
       const subRefId = mandates[0]?.metaData?.subscription_id;
       // console.log("subRefId", subRefId);
       try {
-        const data = await this.helperService.cancelSubscription(subRefId);
+        let data;
+        if (mandates[0]?.providerId == 2) {
+          data = await this.helperService.cancelSubscription(subRefId);
+        }
+        if (mandates[0]?.providerId == 1) {
+          let userAdditionalData =
+            await this.helperService.getUserAdditionalDetails({
+              userId: token.id,
+            });
+          let tokenId = mandates[0]?.referenceId;
+          // console.log("userAdditionalData is", userAdditionalData);
+
+          let customerId = userAdditionalData?.userAdditional?.referenceId;
+          data = await this.helperService.cancelRazorpaySubscription(
+            customerId,
+            tokenId
+          );
+        }
+        // console.log("data is", data);
+
         await this.mandateService.updateMandate(mandates[0]._id, {
           cancelDate: new Date().toISOString(),
           cancelReason: body?.reason,
         });
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandates[0]?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          status: EStatus.Active,
+          createdBy: token.id,
+          updatedBy: token.id,
+        });
         return {
           subRefId,
-          status: "Subscription canceled",
-          subscriptionId: data.subscription_id,
-          subscriptionStatus: data.subscription_status,
+          status: "Subscription cancelled",
+          subscriptionId: data?.subscription_id,
+          subscriptionStatus: data?.subscription_status,
         };
       } catch (error) {
         return { subRefId, status: "FAILED", error: error.message };
