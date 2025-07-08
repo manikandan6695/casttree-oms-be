@@ -13,11 +13,13 @@ import { SubscriptionService } from "./subscription.service";
 
 
 import { SubscriptionFactory } from "./subscription.factory";
+import { webhookSchema } from "./schema/webHook.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "subscription", schema: subscriptionSchema },
+      { name: "webhook", schema: webhookSchema },
     ]),
     SharedModule,
     AuthModule,
