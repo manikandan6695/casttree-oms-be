@@ -17,7 +17,7 @@ import { ProcessService } from "./process.service";
 
 @Controller("process")
 export class ProcessController {
-  constructor(private processsService: ProcessService) { }
+  constructor(private processsService: ProcessService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get("taskDetails/:processId/task/:taskId")
@@ -102,10 +102,20 @@ export class ProcessController {
     }
   }
 
-  @Get('get-task-details/:taskId')
-  async getTaskDetailByTaskId(@Param('taskId') taskId: string) {
+  @Get("get-task-details/:taskId")
+  async getTaskDetailByTaskId(@Param("taskId") taskId: string) {
     try {
       const data = await this.processsService.getTaskDetailByTaskId(taskId);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @Get(":processId/tasks")
+  async getFirstTaskByProcess(@Param("processId") processId: string) {
+    try {
+      let data = await this.processsService.getFirstTaskByProcess(processId)
       return data;
     } catch (err) {
       throw err;
