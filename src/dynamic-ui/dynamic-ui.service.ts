@@ -17,6 +17,7 @@ import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.e
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EComponentType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { ENavBar } from "./enum/nav-bar.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -39,9 +40,13 @@ export class DynamicUiService {
     try {
       let data = await this.appNavBarModel.findOne({
         key: key,
-        status: "Active",
+        status: EStatus.Active,
       });
-      if (key == "learn-home-header") {
+      console.log("app nav bar", JSON.stringify(data));
+      let profile = await this.helperService.getProfileByIdTl([token.id]);
+      console.log("profile details ===>", JSON.stringify(profile));
+
+      if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
         mixPanelBody.distinctId = token.id;
@@ -49,6 +54,14 @@ export class DynamicUiService {
         await this.helperService.mixPanel(mixPanelBody);
       }
       return { data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async matchRoleByUser(token) {
+    try {
+      let data = await this.helperService.getProfileByIdTl(token.id);
     } catch (err) {
       throw err;
     }
@@ -236,64 +249,76 @@ export class DynamicUiService {
             tagPairs: {
               $zip: {
                 inputs: [
-                  { $cond: [{ $isArray: "$tag.name" }, "$tag.name", ["$tag.name"]] },
-                  { $cond: [{ $isArray: "$tag.order" }, "$tag.order", ["$tag.order"]] }
-                ]
-              }
-            }
-          }
+                  {
+                    $cond: [
+                      { $isArray: "$tag.name" },
+                      "$tag.name",
+                      ["$tag.name"],
+                    ],
+                  },
+                  {
+                    $cond: [
+                      { $isArray: "$tag.order" },
+                      "$tag.order",
+                      ["$tag.order"],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
         },
         {
-          $unwind: "$tagPairs"
+          $unwind: "$tagPairs",
         },
         {
           $addFields: {
             tagName: { $arrayElemAt: ["$tagPairs", 0] },
-            tagOrder: { $arrayElemAt: ["$tagPairs", 1] }
-          }
+            tagOrder: { $arrayElemAt: ["$tagPairs", 1] },
+          },
         },
         {
           $group: {
             _id: {
               tagName: "$tagName",
-              processId: "$additionalDetails.processId"
+              processId: "$additionalDetails.processId",
             },
             detail: {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder", tagName: "$tagName" }
-                ]
-              }
+                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                ],
+              },
             },
-            priorityOrder: { $first: "$priorityOrder" }
-          }
+            priorityOrder: { $first: "$priorityOrder" },
+          },
         },
         {
-          $sort: { priorityOrder: 1, "_id.processId": -1 }
+          $sort: { priorityOrder: 1, "_id.processId": -1 },
         },
         {
           $group: {
             _id: "$_id.tagName",
-            details: { $push: "$detail" }
-          }
+            details: { $push: "$detail" },
+          },
         },
         {
           $addFields: {
             details: {
               $sortArray: {
                 input: "$details",
-                sortBy: { tagOrder: 1 }
-              }
-            }
-          }
+                sortBy: { tagOrder: 1 },
+              },
+            },
+          },
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
-            details: 1
-          }
+            details: 1,
+          },
         }
       );
 
