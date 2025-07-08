@@ -1176,7 +1176,7 @@ export class SubscriptionService {
         _id: invoice?.source_id,
       });
       if (subscription) {
-        if (subscription.subscriptionStatus !== EsubscriptionStatus.active && subscription.subscriptionStatus !== EsubscriptionStatus.expired) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
           // console.log("subscription", subscription);
           subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
