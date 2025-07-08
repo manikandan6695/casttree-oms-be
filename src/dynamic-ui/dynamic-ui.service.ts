@@ -43,8 +43,8 @@ export class DynamicUiService {
         status: EStatus.Active,
       });
       console.log("app nav bar", JSON.stringify(data));
-      let profile = await this.helperService.getProfileByIdTl([token.id]);
-      console.log("profile details ===>", JSON.stringify(profile));
+      let tabs = await this.matchRoleByUser(token, data.tabs);
+      console.log("tabs ===>", JSON.stringify(tabs));
 
       if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
@@ -59,9 +59,27 @@ export class DynamicUiService {
     }
   }
 
-  async matchRoleByUser(token) {
+  async matchRoleByUser(token, tabs) {
     try {
-      let data = await this.helperService.getProfileByIdTl(token.id);
+      // Fetch the user's profile (roles)
+      const profileArr = await this.helperService.getProfileByIdTl([token.id]);
+      const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+      const userRoleIds = (profile?.roles || []).map((role) => role._id);
+
+      // If no roles or no tabs, return as is
+      if (!userRoleIds.length || !Array.isArray(tabs)) return tabs;
+
+      // Tabs with a matching roleId come first, preserving their order
+      const matchingTabs = [];
+      const nonMatchingTabs = [];
+      for (const tab of tabs) {
+        if (tab.roleId && userRoleIds.includes(tab.roleId)) {
+          matchingTabs.push(tab);
+        } else {
+          nonMatchingTabs.push(tab);
+        }
+      }
+      return [...matchingTabs, ...nonMatchingTabs];
     } catch (err) {
       throw err;
     }
