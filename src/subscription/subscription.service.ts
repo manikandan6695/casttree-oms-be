@@ -764,7 +764,7 @@ export class SubscriptionService {
             currency,
             price
           );
-          const baseAmount = Math.round(price * conversionRateAmt);
+          let baseAmount = parseInt((price * conversionRateAmt).toString());
 
           const subscriptionData = {
             userId: existingSubscription?.userId,

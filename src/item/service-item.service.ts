@@ -21,7 +21,7 @@ import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
 import { serviceitems } from "./schema/serviceItem.schema";
-import { EItemName } from "./enum/item-type.enum";
+import { EItemName, EItemTag, ESystemConfigurationKeyName } from "./enum/item-type.enum";
 
 @Injectable()
 export class ServiceItemService {
@@ -1455,25 +1455,28 @@ export class ServiceItemService {
         return acc;
       }, {});
       
-      const filteredData = serviceItemData.map(item => {
-        const firstTask = item.additionalDetails?.processId && firstTaskData[item.additionalDetails.processId] 
-          ? firstTaskData[item.additionalDetails.processId] 
-          : null;
+      const filteredData = serviceItemData
+        .map(item => {
+          const firstTask = item.additionalDetails?.processId && firstTaskData[item.additionalDetails.processId] 
+            ? firstTaskData[item.additionalDetails.processId] 
+            : null;
           const isTrendingSeries = Array.isArray(item?.tag) &&
-          item.tag.some(t => t.name === EItemName.trendingSeries);
-        return  {
-          thumbnail: item.additionalDetails?.thumbnail,
-          itemName: item.itemId?.itemName,
-          processId: item.additionalDetails?.processId,
-          taskId: firstTask?._id,
-          taskDetails: firstTask?.taskMetaData,
-          title: firstTask?.title,
-          itemDesc: item.itemId?.itemDescription,
-          tag: item?.tag,
-          isTrendingSeries
-        };
-      });
-      return {data: filteredData, count: serviceItemData.length};
+            item.tag.some(t => t.name === EItemTag.trendingSeries);
+          return  {
+            thumbnail: item.additionalDetails?.thumbnail,
+            itemName: item.itemId?.itemName,
+            processId: item.additionalDetails?.processId,
+            taskId: firstTask?._id,
+            taskDetails: firstTask?.taskMetaData,
+            title: firstTask?.title,
+            isLocked: firstTask?.isLocked,
+            itemDesc: item.itemId?.itemDescription,
+            tag: item?.tag,
+            isTrendingSeries
+          };
+        })
+        .filter(item => item.isLocked !== true); 
+      return {data: filteredData, count: filteredData.length};
     } catch (error) {
       throw error;
     }
@@ -1482,7 +1485,7 @@ export class ServiceItemService {
     try{
       let itemData = await this.itemService.getItemByItemName(EItemName.pro)
       let provider = await this.systemConfigurationModel.findOne({
-        key: EItemName.subscription_payment_provider
+        key: ESystemConfigurationKeyName.subscription_payment_provider
       })
       let finalResponse = {
         payWallVideo: itemData?.additionalDetail?.promotionDetails?.payWallVideo,
