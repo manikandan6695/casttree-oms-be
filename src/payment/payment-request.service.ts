@@ -581,16 +581,16 @@ export class PaymentRequestService {
     }
   }
 
-  async getLatestSubscriptionPayments(userId) {
+  async getLatestPayments(userId) {
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       let data = await this.paymentModel.aggregate([
         {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: thirtyDaysAgo },
+            created_at: { $gte: sixtyDaysAgo },
           },
         },
         {
@@ -607,7 +607,7 @@ export class PaymentRequestService {
         {
           $match: {
             "salesDocument.document_status": EPaymentStatus.completed,
-            "salesDocument.source_type": EPaymentSourceType.subscription,
+            // "salesDocument.source_type": EPaymentSourceType.subscription,
           },
         },
       ]);

@@ -1166,7 +1166,6 @@ export class SubscriptionService {
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-
       let paymentRequest = await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
@@ -1178,6 +1177,7 @@ export class SubscriptionService {
       });
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          // console.log("subscription", subscription);
           subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
 

@@ -146,11 +146,11 @@ export class PaymentRequestController {
   }
 
   @Get("user/:userId")
-  async getLatestSubscriptionPayments(
+  async getLatestPayments(
     @Param("userId") userId: string
   ) {
     try {
-     let data = await this.paymentRequestService.getLatestSubscriptionPayments(userId);
+     let data = await this.paymentRequestService.getLatestPayments(userId);
      return data;
     } catch (err) {
       console.error("Error:", err);
