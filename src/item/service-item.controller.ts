@@ -19,15 +19,18 @@ import { ServiceItemService } from "./service-item.service";
 
 @Controller("service-item")
 export class ServiceItemController {
-  constructor(private serviceItemService: ServiceItemService) { }
+  constructor(private serviceItemService: ServiceItemService) {}
   // @UseGuards(JwtAuthGuard)
   @Get("getSubscriptionPlanDetails")
-  async getSubscriptionPlanDetails(@Req() req
+  async getSubscriptionPlanDetails(
+    @Req() req
     //,@GetToken() token: UserToken
   ) {
     try {
       let data = await this.serviceItemService.getSubscriptionPlanDetails(
-        req.headers["x-country-code"] ?? "", req.headers["x-userid"]);
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"]
+      );
       return data;
     } catch (err) {
       throw err;
@@ -45,28 +48,35 @@ export class ServiceItemController {
 
   //@UseGuards(JwtAuthGuard)
   @Get("getPromotionDetails/:processId")
-  async getPromotionDetails(@Req() req, @Param("processId") processId: string
+  async getPromotionDetails(
+    @Req() req,
+    @Param("processId") processId: string
     //,@GetToken() token: UserToken,
   ) {
     try {
-      let data = await this.serviceItemService.getPromotionDetails(processId,
-        req.headers["x-country-code"] ?? "", req.headers["x-userid"]);
+      let data = await this.serviceItemService.getPromotionDetails(
+        processId,
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"]
+      );
       return data;
     } catch (err) {
       throw err;
     }
   }
 
-
-
   //@UseGuards(JwtAuthGuard)
   @Get("getPremiumDetails")
-  async getPremiumDetails(@Req() req, @Param("processId") processId: string
+  async getPremiumDetails(
+    @Req() req,
+    @Param("processId") processId: string
     //,@GetToken() token: UserToken,
   ) {
     try {
       let data = await this.serviceItemService.getPremiumDetails(
-        req.headers["x-country-code"] ?? "", req.headers["x-userid"]);
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"]
+      );
       return data;
     } catch (err) {
       throw err;
@@ -79,7 +89,7 @@ export class ServiceItemController {
     @Req() req,
     @Query(ValidationPipe) query: FilterItemRequestDTO,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number,
+    @Query("limit", ParseIntPipe) limit: number
     //@GetToken() token: UserToken
   ) {
     try {
@@ -110,7 +120,6 @@ export class ServiceItemController {
         limit,
         req.headers["x-userid"],
         req.headers["x-country-code"]
-
       );
       return data;
     } catch (err) {
@@ -130,8 +139,7 @@ export class ServiceItemController {
       let data = await this.serviceItemService.getServiceItemDetails(
         _id,
         req.headers["x-country-code"],
-        req.headers["x-userid"],
-
+        req.headers["x-userid"]
       );
       return data;
     } catch (err) {
@@ -142,8 +150,11 @@ export class ServiceItemController {
   @Get("workShop/:id")
   async getworkShopServiceItemDetails(@Req() req, @Param("id") _id: string) {
     try {
-      let data =
-        await this.serviceItemService.getworkShopServiceItemDetails(_id, req.headers["x-userid"], req.headers["x-country-code"]);
+      let data = await this.serviceItemService.getworkShopServiceItemDetails(
+        _id,
+        req.headers["x-userid"],
+        req.headers["x-country-code"]
+      );
       return data;
     } catch (err) {
       return err;
@@ -165,13 +176,17 @@ export class ServiceItemController {
 
   // @UseGuards(JwtAuthGuard)
   @Get("getPlanDetails/:processId")
-  async getPlanDetails(@Req() req, @Param("processId") processId: string,
+  async getPlanDetails(
+    @Req() req,
+    @Param("processId") processId: string
     // @GetToken() token: UserToken
   ) {
     try {
-
-      let data = await this.serviceItemService.getPlanDetails(processId,
-        req.headers["x-country-code"] ?? "", req.headers["x-userid"]);
+      let data = await this.serviceItemService.getPlanDetails(
+        processId,
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"]
+      );
       return data;
     } catch (err) {
       throw err;
@@ -180,20 +195,26 @@ export class ServiceItemController {
 
   @Post("service-item-details/process")
   async getServiceItemDetailsByProcessId(
-    @Body(new ValidationPipe({ whitelist: true })) body: processIdListDTO,
+    @Body(new ValidationPipe({ whitelist: true })) body: processIdListDTO
   ) {
     try {
-      let data = await this.serviceItemService.getServiceItemDetailbyProcessId(body.processId,body.userId);
+      let data = await this.serviceItemService.getServiceItemDetailbyProcessId(
+        body.processId,
+        body.userId
+      );
       return data;
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
 
-  @Get("item/:itemId")  
+  @Get("item/:itemId")
   async getServiceItemType(@Param("itemId") itemId: string) {
     try {
       let data = await this.serviceItemService.getServiceItemType(itemId);
       return data;
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
-
 }

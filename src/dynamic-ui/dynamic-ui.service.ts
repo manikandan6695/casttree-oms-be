@@ -17,6 +17,7 @@ import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.e
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EComponentType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { ENavBar } from "./enum/nav-bar.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -37,11 +38,17 @@ export class DynamicUiService {
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
-      let data = await this.appNavBarModel.findOne({
-        key: key,
-        status: "Active",
-      });
-      if (key == "learn-home-header") {
+      let data = await this.appNavBarModel
+        .findOne({
+          key: key,
+          status: EStatus.Active,
+        })
+        .lean();
+      console.log("app nav bar", JSON.stringify(data));
+      let tabs = await this.matchRoleByUser(token, data.tabs);
+      console.log("tabs ===>", JSON.stringify(tabs));
+      data["tabs"] = tabs;
+      if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
         mixPanelBody.distinctId = token.id;
@@ -49,6 +56,34 @@ export class DynamicUiService {
         await this.helperService.mixPanel(mixPanelBody);
       }
       return { data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async matchRoleByUser(token, tabs) {
+    try {
+      const profileArr = await this.helperService.getProfileByIdTl([token.id]);
+      const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+      const userRoleIds = (profile?.roles || []).map(
+        (role) => new ObjectId(role._id)
+      );
+
+      if (!userRoleIds.length || !Array.isArray(tabs)) return tabs;
+
+      const matchingTabs = [];
+      const nonMatchingTabs = [];
+      const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
+      for (const tab of tabs) {
+        console.log("role id is", tab.roleId);
+        if (userRoleIdSet.has(tab.roleId.toString())) {
+          matchingTabs.push(tab);
+        } else {
+          nonMatchingTabs.push(tab);
+        }
+      }
+
+      return [...matchingTabs, ...nonMatchingTabs];
     } catch (err) {
       throw err;
     }
@@ -236,64 +271,76 @@ export class DynamicUiService {
             tagPairs: {
               $zip: {
                 inputs: [
-                  { $cond: [{ $isArray: "$tag.name" }, "$tag.name", ["$tag.name"]] },
-                  { $cond: [{ $isArray: "$tag.order" }, "$tag.order", ["$tag.order"]] }
-                ]
-              }
-            }
-          }
+                  {
+                    $cond: [
+                      { $isArray: "$tag.name" },
+                      "$tag.name",
+                      ["$tag.name"],
+                    ],
+                  },
+                  {
+                    $cond: [
+                      { $isArray: "$tag.order" },
+                      "$tag.order",
+                      ["$tag.order"],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
         },
         {
-          $unwind: "$tagPairs"
+          $unwind: "$tagPairs",
         },
         {
           $addFields: {
             tagName: { $arrayElemAt: ["$tagPairs", 0] },
-            tagOrder: { $arrayElemAt: ["$tagPairs", 1] }
-          }
+            tagOrder: { $arrayElemAt: ["$tagPairs", 1] },
+          },
         },
         {
           $group: {
             _id: {
               tagName: "$tagName",
-              processId: "$additionalDetails.processId"
+              processId: "$additionalDetails.processId",
             },
             detail: {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder", tagName: "$tagName" }
-                ]
-              }
+                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                ],
+              },
             },
-            priorityOrder: { $first: "$priorityOrder" }
-          }
+            priorityOrder: { $first: "$priorityOrder" },
+          },
         },
         {
-          $sort: { priorityOrder: 1, "_id.processId": -1 }
+          $sort: { priorityOrder: 1, "_id.processId": -1 },
         },
         {
           $group: {
             _id: "$_id.tagName",
-            details: { $push: "$detail" }
-          }
+            details: { $push: "$detail" },
+          },
         },
         {
           $addFields: {
             details: {
               $sortArray: {
                 input: "$details",
-                sortBy: { tagOrder: 1 }
-              }
-            }
-          }
+                sortBy: { tagOrder: 1 },
+              },
+            },
+          },
         },
         {
           $project: {
             _id: 0,
             tagName: "$_id",
-            details: 1
-          }
+            details: 1,
+          },
         }
       );
 
