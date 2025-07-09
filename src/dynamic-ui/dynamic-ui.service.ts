@@ -91,14 +91,19 @@ export class DynamicUiService {
 
   async getPageDetails(token: UserToken, pageId: string) {
     try {
-      const subscriptionData =
-        await this.subscriptionService.validateSubscription(token.id, [
+      const [subscriptionData, existingUserSubscription] = await Promise.all([
+        this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
-        ]);
-
-      const isNewSubscription = subscriptionData ? true : false;
+        ]),
+        this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]),
+      ]);
+      const isNewSubscription = !!subscriptionData;
+      const isSubscriber = !!existingUserSubscription;
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
       let country_code = countryCode;
@@ -151,7 +156,8 @@ export class DynamicUiService {
 
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
-        token.id
+        token.id,
+        isSubscriber
       );
       let banners = await this.fetchUserPreferenceBanner(
         isNewSubscription,
@@ -627,7 +633,11 @@ export class DynamicUiService {
     }
   }
 
-  async fetchSingleAdBanner(isNewSubscription: boolean, userId: string) {
+  async fetchSingleAdBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    isSubscriber: boolean
+  ) {
     try {
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(userId);
@@ -648,7 +658,9 @@ export class DynamicUiService {
       const premiumBannerObj = bannerMap["buypremium"];
       let premiumBanner =
         countryCode === "IN"
-          ? premiumBannerObj?.imageUrl
+          ? isSubscriber === false
+            ? premiumBannerObj?.imageUrl
+            : premiumBannerObj?.imageUrlUpdated
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
