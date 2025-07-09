@@ -16,6 +16,7 @@ import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { log } from "console";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -55,13 +56,33 @@ export class DynamicUiService {
 
   async getPageDetails(token: UserToken, pageId: string) {
     try {
-      const subscriptionData =
-        await this.subscriptionService.validateSubscription(token.id, [
+      // const subscriptionData =
+      //   await this.subscriptionService.validateSubscription(token.id, [
+      //     EsubscriptionStatus.initiated,
+      //     EsubscriptionStatus.failed,
+      //     EsubscriptionStatus.expired,
+      //   ]);
+      // const existingUserSubscription =
+      //   await this.subscriptionService.validateSubscription(token.id, [
+      //     EsubscriptionStatus.initiated,
+      //     EsubscriptionStatus.failed,
+      //   ]);
+      // const isNewSubscription = subscriptionData ? true : false;
+      // const isSubscriber = existingUserSubscription ? true : false;
+      const [subscriptionData, existingUserSubscription] = await Promise.all([
+        this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
-        ]);
-      const isNewSubscription = subscriptionData ? true : false;
+        ]),
+        this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]),
+      ]);
+      const isNewSubscription = !!subscriptionData;
+      const isSubscriber = !!existingUserSubscription;
+      // console.log("subscriber", isNewSubscription, isSubscriber);
 
       let data = await this.contentPageModel
         .findOne({
@@ -70,7 +91,6 @@ export class DynamicUiService {
         })
         .lean();
       //   console.log("data", data);
-
       let componentIds = data.components.map((e) => e.componentId);
       let componentDocs = await this.componentModel
         .find({
@@ -85,11 +105,14 @@ export class DynamicUiService {
         0,
         0
       );
+
       let continueWatching = await this.fetchContinueWatching(token.id);
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
-        token.id
+        token.id,
+        isSubscriber
       );
+
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -114,6 +137,7 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
+      console.timeEnd("frame comp");
       return { data };
     } catch (err) {
       throw err;
@@ -430,7 +454,11 @@ export class DynamicUiService {
     }
   }
 
-  async fetchSingleAdBanner(isNewSubscription: boolean, userId: string) {
+  async fetchSingleAdBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    isSubscriber: boolean
+  ) {
     try {
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(userId);
@@ -451,10 +479,11 @@ export class DynamicUiService {
       const premiumBannerObj = bannerMap["buypremium"];
       let premiumBanner =
         countryCode === "IN"
-          ? premiumBannerObj?.imageUrl
+          ? isSubscriber === false
+            ? premiumBannerObj?.imageUrl
+            : premiumBannerObj?.imageUrlUpdated
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
-
       const banner = isNewSubscription
         ? {
             media: { mediaUrl: learnBanner.imageUrl },
