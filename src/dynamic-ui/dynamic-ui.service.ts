@@ -91,14 +91,19 @@ export class DynamicUiService {
 
   async getPageDetails(token: UserToken, pageId: string) {
     try {
-      const subscriptionData =
-        await this.subscriptionService.validateSubscription(token.id, [
+      const [subscriptionData, existingUserSubscription] = await Promise.all([
+        this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
           EsubscriptionStatus.failed,
           EsubscriptionStatus.expired,
-        ]);
-
-      const isNewSubscription = subscriptionData ? true : false;
+        ]),
+        this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]),
+      ]);
+      const isNewSubscription = !!subscriptionData;
+      const isSubscriber = !!existingUserSubscription;
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
       let country_code = countryCode;
@@ -151,14 +156,16 @@ export class DynamicUiService {
 
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
-        token.id
+        token.id,
+        isSubscriber
       );
       let banners = await this.fetchUserPreferenceBanner(
         isNewSubscription,
         token.id,
         continueWatching,
         componentDocs,
-        country_code
+        country_code,
+        isSubscriber
       );
 
       componentDocs.forEach((comp) => {
@@ -550,16 +557,18 @@ export class DynamicUiService {
     userId: string,
     userProcessedSeries,
     components,
-    country_code: string
+    country_code: string,
+    isSubscriber: boolean
   ) {
     try {
+      
+
       const data = components.find(
         (e) => e.type === EComponentType.personalizedBanner
       );
       if (!data?.interactionData?.items?.length) return [];
 
-      const isLocked =
-        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+      const isLocked = userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
 
       let bestMatch: any = null;
       let referralBanner: any = null;
@@ -567,6 +576,7 @@ export class DynamicUiService {
       for (const item of data.interactionData.items) {
         const rule = item.rule || {};
         const isSubscribedRule = rule.isSubscribed;
+        const isSubscriberRule = rule.isSubscriber;
         const ruleCountry = rule.country;
         const ruleIsLocked = rule.isLocked;
 
@@ -578,7 +588,15 @@ export class DynamicUiService {
         const isLockedMatch =
           typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
 
-        if (isSubscribedRule === isNewSubscription && isLockedMatch) {
+        // Add isSubscriber check here
+        const isSubscriberMatch =
+          isSubscriberRule === undefined || isSubscriberRule === isSubscriber;
+
+        if (
+          isSubscribedRule === isNewSubscription &&
+          isLockedMatch &&
+          isSubscriberMatch
+        ) {
           return [bannerData];
         }
 
@@ -590,11 +608,12 @@ export class DynamicUiService {
         if (
           isSubscribedRule === isNewSubscription &&
           isCountryMatch &&
+          isSubscriberMatch &&
           !bestMatch
         ) {
           bestMatch = bannerData;
         }
-        if (isSubscribedRule === true && !referralBanner) {
+        if (isSubscribedRule === true && isSubscriberMatch && !referralBanner) {
           referralBanner = bannerData;
         }
       }
@@ -627,7 +646,11 @@ export class DynamicUiService {
     }
   }
 
-  async fetchSingleAdBanner(isNewSubscription: boolean, userId: string) {
+  async fetchSingleAdBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    isSubscriber: boolean
+  ) {
     try {
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(userId);
@@ -648,7 +671,9 @@ export class DynamicUiService {
       const premiumBannerObj = bannerMap["buypremium"];
       let premiumBanner =
         countryCode === "IN"
-          ? premiumBannerObj?.imageUrl
+          ? isSubscriber === false
+            ? premiumBannerObj?.imageUrl
+            : premiumBannerObj?.imageUrlUpdated
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
