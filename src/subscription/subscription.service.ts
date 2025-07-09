@@ -42,6 +42,7 @@ import {
   NOT_ELIGIBLE_SUBSCRIPTION,
   SUBSCRIPTION_NOT_FOUND,
 } from "src/shared/app.constants";
+import { IWebhookModel } from "./schema/webHook.schema";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -59,9 +60,13 @@ export class SubscriptionService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
-    private readonly mandateHistoryService: MandateHistoryService
+    private readonly mandateHistoryService: MandateHistoryService,
+    @InjectModel("webhook")
+    private readonly webhookModel: Model<IWebhookModel>,
   ) {}
-
+  // async onModuleInit() {
+  //   await this.handleGoogleIAPRenew(payload);
+  // }
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
       // console.log("subscription creation body is ==>", body, body.provider);
@@ -272,10 +277,24 @@ export class SubscriptionService {
       // console.log("provider", provider);
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
-        console.log("event name", event);
+        let existingWebhook = await this.webhookModel.findOne({
+          webhookPayload: req?.body,
+        });
+        console.log("existingWebhook", existingWebhook);
+        if(existingWebhook?.webhookPayload?.account_id!==req?.body?.account_id&&existingWebhook?.webhookPayload?.event!==req?.body?.event){
+          await this.webhookModel.create({
+            transaction: req?.body,
+            provider: EProvider.razorpay,
+            providerId: EProviderId.razorpay,
+            webhookPayload: req?.body,
+            status: EStatus.Active,
+          });
+        }
+     
+        // console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
-          console.log("payload", payload);
+          // console.log("payload", payload);
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
         }
@@ -315,7 +334,23 @@ export class SubscriptionService {
         }
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
-        const eventType = req.body?.type;
+        const cfSubscriptionId = req?.body?.data?.subscription_details?.cf_subscription_id;
+        const eventType = req?.body?.type;
+        
+        const existingWebhook = await this.webhookModel.findOne({
+          'webhookPayload.data.subscription_details.cf_subscription_id': cfSubscriptionId,
+          'webhookPayload.type': eventType,
+        });
+        if (!existingWebhook) {
+          await this.webhookModel.create({
+            transaction: req?.body,
+            provider: EProvider.cashfree,
+            providerId: EProviderId.cashfree,
+            webhookPayload: req?.body,
+            status: EStatus.Active,
+          });
+        }
+        
         if (eventType === "SUBSCRIPTION_STATUS_CHANGED") {
           await this.handleCashfreeStatusChange(req.body);
         } else if (eventType === "SUBSCRIPTION_PAYMENT_SUCCESS") {
@@ -452,11 +487,13 @@ export class SubscriptionService {
         await this.subscriptionFactory.getTransactionHistory(payload);
       const matchedSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
-        subscriptionStatus: EStatus.Active,
+        // subscriptionStatus: EStatus.Active,
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
-      });
+      }).sort({created_at: -1});
+      console.log("matchedSubscription", matchedSubscription)
       if (matchedSubscription?.metaData?.transaction?.transactionId !== transactionHistory?.transactions?.transactionId) {
+        console.log("working")
         const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.apple,
           "metaData.transaction.originalTransactionId":
@@ -735,21 +772,23 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      const rtdn = 
-      await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = payload
+      // await this.subscriptionFactory.googleRtdn(payload.message);
       if (rtdn.notificationType === EEventId.renew) {
-        const matchedSubscription = await this.subscriptionModel.findOne({
+        const existingSubscription = await this.subscriptionModel.findOne({
           providerId: EProviderId.google,
           provider: EProvider.google,
-          subscriptionStatus: EStatus.Active,
+          // subscriptionStatus: EStatus.Active,
           externalId: rtdn.purchaseToken,
-        });
-        if (matchedSubscription?.metaData?.latestOrderId !== rtdn?.transactionInfo?.latestOrderId) {
-          const existingSubscription = await this.subscriptionModel.findOne({
-            providerId: EProviderId.google,
-            provider: EProvider.google,
-            externalId: rtdn.purchaseToken,
-          });
+        }).sort({created_at: -1});
+        console.log("matchedSubscription", existingSubscription)
+        if (existingSubscription?.metaData?.latestOrderId !== rtdn?.transactionInfo?.latestOrderId) {
+          console.log("working")
+          // const existingSubscription = await this.subscriptionModel.findOne({
+          //   providerId: EProviderId.google,
+          //   provider: EProvider.google,
+          //   externalId: rtdn.purchaseToken,
+          // });
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice
               ?.currencyCode;
@@ -1176,8 +1215,8 @@ export class SubscriptionService {
         _id: invoice?.source_id,
       });
       if (subscription) {
-        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
-          // console.log("subscription", subscription);
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active && paymentRequest?.document_status!==EDocumentStatus.completed) {
+          console.log("subscription", subscription);
           subscription.subscriptionStatus = EsubscriptionStatus.active;
           await subscription.save();
 
@@ -1236,7 +1275,7 @@ export class SubscriptionService {
           );
           await this.helperService.facebookEvents(
             userData.data.phoneNumber,
-            invoice.currencyCode,
+            subscription.currencyCode,
             invoice.grand_total
           );
         }
