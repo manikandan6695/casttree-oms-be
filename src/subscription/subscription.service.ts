@@ -485,20 +485,15 @@ export class SubscriptionService {
     try {
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
-      const matchedSubscription = await this.subscriptionModel.findOne({
+      const existingSubscription = await this.subscriptionModel.findOne({
         providerId: EProviderId.apple,
         // subscriptionStatus: EStatus.Active,
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
       }).sort({created_at: -1});
-      console.log("matchedSubscription", matchedSubscription)
-      if (matchedSubscription?.metaData?.transaction?.transactionId !== transactionHistory?.transactions?.transactionId) {
+      console.log("existingSubscription", existingSubscription)
+      if (existingSubscription?.metaData?.transaction?.transactionId !== transactionHistory?.transactions?.transactionId) {
         console.log("working")
-        const existingSubscription = await this.subscriptionModel.findOne({
-          providerId: EProviderId.apple,
-          "metaData.transaction.originalTransactionId":
-            transactionHistory?.transactions?.originalTransactionId,
-        });
         const metaData = {
           transaction: transactionHistory.transactions,
           renewal: transactionHistory.renewalInfo,
