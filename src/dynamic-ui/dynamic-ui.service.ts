@@ -561,14 +561,16 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
-      
+      console.log("old subscription subscriber", isNewSubscription);
+      console.log("new subscription subscriber", isSubscriber);
 
       const data = components.find(
         (e) => e.type === EComponentType.personalizedBanner
       );
       if (!data?.interactionData?.items?.length) return [];
 
-      const isLocked = userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+      const isLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
 
       let bestMatch: any = null;
       let referralBanner: any = null;
@@ -576,7 +578,6 @@ export class DynamicUiService {
       for (const item of data.interactionData.items) {
         const rule = item.rule || {};
         const isSubscribedRule = rule.isSubscribed;
-        const isSubscriberRule = rule.isSubscriber;
         const ruleCountry = rule.country;
         const ruleIsLocked = rule.isLocked;
 
@@ -584,19 +585,18 @@ export class DynamicUiService {
           banner: item?.banner?.banner,
           navigation: item?.banner?.navigation,
         };
+        // console.log("bannerData", bannerData);
 
         const isLockedMatch =
           typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
 
-        // Add isSubscriber check here
-        const isSubscriberMatch =
-          isSubscriberRule === undefined || isSubscriberRule === isSubscriber;
+        const isNewSubscriberMatch =
+          isSubscribedRule === undefined || isSubscribedRule === isSubscriber;
 
-        if (
-          isSubscribedRule === isNewSubscription &&
-          isLockedMatch &&
-          isSubscriberMatch
-        ) {
+        if (isLockedMatch && isNewSubscriberMatch) {
+          // console.log("bannerData", bannerData);
+          console.log("inside isNewSubscription match");
+
           return [bannerData];
         }
 
@@ -604,16 +604,14 @@ export class DynamicUiService {
           typeof ruleCountry === "object" && "$ne" in ruleCountry
             ? country_code !== ruleCountry["$ne"]
             : country_code === ruleCountry;
+        if (isCountryMatch && isNewSubscriberMatch && !bestMatch) {
+          // console.log("bestMatch data is", bestMatch);
 
-        if (
-          isSubscribedRule === isNewSubscription &&
-          isCountryMatch &&
-          isSubscriberMatch &&
-          !bestMatch
-        ) {
           bestMatch = bannerData;
         }
-        if (isSubscribedRule === true && isSubscriberMatch && !referralBanner) {
+        if (isSubscribedRule === true && !referralBanner) {
+          // console.log("referralBanner", referralBanner);
+
           referralBanner = bannerData;
         }
       }
