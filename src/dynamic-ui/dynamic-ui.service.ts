@@ -643,6 +643,7 @@ export class DynamicUiService {
 
       const isFirstSeriesLocked =
         userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+      // console.log("isSubscriber", isSubscriber);
 
       let bestMatchBanner: any = null;
       let referralBanner: any = null;
@@ -659,24 +660,41 @@ export class DynamicUiService {
           typeof rule.country === "object" && "$ne" in rule.country
             ? countryCode !== rule.country["$ne"]
             : countryCode === rule.country;
-        // console.log("country", matchesCountry);
+       
 
         if (
           isSubscriber == isNewSubscriberRule &&
           countryCode == rule.country &&
-          isFirstSeriesLocked == rule.isLocked
+          isFirstSeriesLocked == rule.isLocked &&
+          item.type == "newPayment"
         ) {
-          // console.log("inside new subscriber", bannerData);
+          return [bannerData];
+        }
+
+        if (
+          rule.isSubscribed == isNewSubscriberRule &&
+          countryCode == rule.country &&
+          isFirstSeriesLocked == rule.isLocked &&
+          item.type == "payment"
+        ) {
+          
           return [bannerData];
         }
         if (
-          (isSubscriber == isSubscribedRule && isFirstSeriesLocked == false &&
-          item.type == "course")
+          isSubscriber == isSubscribedRule &&
+          isFirstSeriesLocked == false &&
+          item.type == "course"
         ) {
+
           return [bannerData];
         }
-        if(rule.isSubscribed == isSubscriber && matchesCountry && isFirstSeriesLocked){
-          return [bannerData]
+        if (
+          rule.isSubscribed == isSubscriber &&
+          matchesCountry &&
+          isFirstSeriesLocked &&
+          item.type == "IAPPayment"
+        ) {
+          return [bannerData];
         }
         if (rule.isSubscribed === isNewSubscription && !referralBanner) {
           // console.log("inside referral");
