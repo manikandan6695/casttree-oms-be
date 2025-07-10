@@ -561,8 +561,8 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
-      console.log("old subscription subscriber", isNewSubscription);
-      console.log("new subscription subscriber", isSubscriber);
+      // console.log("old subscription subscriber", isNewSubscription);
+      // console.log("new subscription subscriber", isSubscriber);
 
       const data = components.find(
         (e) => e.type === EComponentType.personalizedBanner
@@ -595,7 +595,7 @@ export class DynamicUiService {
 
         if (isLockedMatch && isNewSubscriberMatch) {
           // console.log("bannerData", bannerData);
-          console.log("inside isNewSubscription match");
+          // console.log("inside isNewSubscription match");
 
           return [bannerData];
         }
