@@ -8,6 +8,7 @@ export interface IAppNavBar extends mongoose.Document {
   key: string;
   position: string;
   tabs: {
+    roleId: string;
     name: string;
     icon: IMediaModel;
     bgImage: IMediaModel;
@@ -35,6 +36,10 @@ export const AppNavBarSchema = new mongoose.Schema(
     position: { type: String, required: true },
     tabs: [
       {
+        roleId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "role",
+        },
         name: { type: String, required: true },
         icon: mediaSchema,
         bgColorCode: { type: String },

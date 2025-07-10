@@ -412,6 +412,64 @@ export class ProcessService {
     }
   }
 
+  async allPendingProcess(userId: string, processIds: string[]) {
+    try {
+      let subscription = await this.subscriptionService.validateSubscription(
+        userId,
+        [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.expired,
+          EsubscriptionStatus.failed,
+        ]
+      );
+      let paidInstances = [];
+      if (!subscription) {
+        let payment = await this.paymentService.getPaymentDetailBySource(
+          userId,
+          null,
+          EPaymentSourceType.processInstance
+        );
+
+        payment.paymentData.map((data) => {
+          paidInstances.push(data.salesDocument.source_id.toString());
+        });
+      }
+
+      const pendingTasks: any = await this.processInstancesModel
+        .find({
+          userId: userId,
+          processId: { $in: processIds },
+          processStatus: EprocessStatus.Started,
+        })
+        .populate("currentTask")
+        .sort({ updated_at: -1 })
+        .lean();
+      let userProcessInstances = [];
+      for (let i = 0; i < pendingTasks.length; i++) {
+        let totalTasks = await this.tasksModel.countDocuments({
+          processId: pendingTasks[i].processId,
+        });
+        if (subscription) {
+          pendingTasks[i].currentTask.isLocked = false;
+        }
+        if (paidInstances.length > 0) {
+          if (paidInstances.includes(pendingTasks[i]._id.toString())) {
+            pendingTasks[i].currentTask.isLocked = false;
+          }
+        }
+        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
+        pendingTasks[i].completed = Math.ceil(
+          (completedTaskNumber / totalTasks) * 100
+        );
+        userProcessInstances.push(pendingTasks[i]._id);
+      }
+
+      return pendingTasks;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async getMySeries(userId, status) {
     try {
       let subscription = await this.subscriptionService.validateSubscription(
@@ -743,12 +801,12 @@ export class ProcessService {
       throw err;
     }
   }
-  async getTaskDetailByTaskId(taskId){
+  async getTaskDetailByTaskId(taskId) {
     try {
       // console.log("taskId", taskId);
-      let id = new ObjectId(taskId)
-      let taskData = await this.tasksModel.findOne({_id:id}).lean();
-      return taskData
+      let id = new ObjectId(taskId);
+      let taskData = await this.tasksModel.findOne({ _id: id }).lean();
+      return taskData;
     } catch (error) {
       throw error;
     }
