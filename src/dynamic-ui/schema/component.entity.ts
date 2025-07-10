@@ -1,5 +1,12 @@
 import mongoose, { Document } from "mongoose";
 
+export interface IItems {
+  banner: string;
+  status: string;
+}
+export interface IInteractionData {
+  items: IItems[];
+}
 export interface IComponent extends Document {
   componentKey: string;
   displayType: string;
@@ -11,6 +18,7 @@ export interface IComponent extends Document {
   actionData: any;
   metaData: Record<string, any>;
   navigation: any;
+  interactionData: IInteractionData;
   tag: any;
   media: any;
   banner: any;
@@ -19,6 +27,19 @@ export interface IComponent extends Document {
   created_at: Date;
   updated_at: Date;
 }
+
+export const ItemsSchema = new mongoose.Schema({
+  banner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "bannerConfiguration",
+  },
+  status: {
+    type: String,
+  },
+});
+export const InteractionDataSchema = new mongoose.Schema({
+  items: [ItemsSchema],
+});
 
 export const ComponentSchema = new mongoose.Schema(
   {
@@ -40,6 +61,7 @@ export const ComponentSchema = new mongoose.Schema(
     actionData: {
       type: mongoose.Schema.Types.Mixed,
     },
+    interactionData: InteractionDataSchema,
     metaData: { type: mongoose.Schema.Types.Mixed },
     navigation: {
       type: {

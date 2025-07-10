@@ -1,4 +1,11 @@
-import { forwardRef, Inject, Injectable, Req } from "@nestjs/common";
+import {
+  forwardRef,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Req,
+} from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
 import { Model } from "mongoose";
@@ -1558,59 +1565,112 @@ export class SubscriptionService {
     body: CancelSubscriptionBody
   ) {
     try {
-      // console.log("user id is", token.id);
+      const mandates = await this.mandateService.getUserMandates(token.id);
+      console.log("mandates is", mandates);
 
-      let mandates = await this.mandateService.getUserMandates(token.id);
-      // console.log("mandates", mandates[0]);
-      // console.log("subReferenceIds", subReferenceIds);
-      // for (const subRefId of subReferenceIds) {
-      const subRefId = mandates[0]?.metaData?.subscription_id;
-      // console.log("subRefId", subRefId);
+      if (!mandates?.length) {
+        throw new HttpException(
+          {
+            code: HttpStatus.NOT_FOUND,
+            message: "No active mandate found for the user",
+          },
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      const mandate = mandates[0];
+      const subRefId = mandate.metaData.subscription_id;
+      let data;
+
       try {
-        let data;
-        if (mandates[0]?.providerId == 2) {
+        if (mandate.providerId === 2) {
           data = await this.helperService.cancelSubscription(subRefId);
-        }
-        if (mandates[0]?.providerId == 1) {
-          let userAdditionalData =
+        } else if (mandate.providerId === 1) {
+          const userAdditionalData =
             await this.helperService.getUserAdditionalDetails({
               userId: token.id,
             });
-          let tokenId = mandates[0]?.referenceId;
-          // console.log("userAdditionalData is", userAdditionalData);
 
-          let customerId = userAdditionalData?.userAdditional?.referenceId;
+          const tokenId = mandate.referenceId;
+          const customerId = userAdditionalData?.userAdditional?.referenceId;
+
+          if (!customerId || !tokenId) {
+            throw new HttpException(
+              {
+                code: HttpStatus.BAD_REQUEST,
+                message:
+                  "Missing customer or token ID for Razorpay cancellation",
+              },
+              HttpStatus.BAD_REQUEST
+            );
+          }
+
           data = await this.helperService.cancelRazorpaySubscription(
             customerId,
             tokenId
           );
+        } else {
+          throw new HttpException(
+            {
+              code: HttpStatus.BAD_REQUEST,
+              message: "Unsupported provider for cancellation",
+            },
+            HttpStatus.BAD_REQUEST
+          );
         }
-        // console.log("data is", data);
+      } catch (err) {
+        const statusCode =
+          err?.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
+        const message =
+          err?.response?.data?.error?.description ||
+          err?.message ||
+          "Subscription cancellation failed";
 
-        await this.mandateService.updateMandate(mandates[0]._id, {
-          cancelDate: new Date().toISOString(),
-          cancelReason: body?.reason,
-        });
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandates[0]?._id,
-          mandateStatus: EMandateStatus.cancelled,
-          status: EStatus.Active,
-          createdBy: token.id,
-          updatedBy: token.id,
-        });
-        return {
-          subRefId,
-          status: "Subscription cancelled",
-          subscriptionId: data?.subscription_id,
-          subscriptionStatus: data?.subscription_status,
-        };
-      } catch (error) {
-        return { subRefId, status: "FAILED", error: error.message };
+        throw new HttpException(
+          {
+            code: statusCode,
+            message,
+          },
+          statusCode
+        );
       }
-      // }
+
+      await this.mandateService.updateMandate(mandate._id, {
+        cancelDate: new Date().toISOString(),
+        cancelReason: body?.reason,
+      });
+
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: EMandateStatus.cancelled,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      });
+
+      return {
+        subRefId,
+        status: "Subscription cancelled",
+        subscriptionId: data?.subscription_id,
+        subscriptionStatus: data?.subscription_status,
+      };
     } catch (error) {
-      // console.error("Error in cancelSubscriptionStatus:", error);
-      throw error;
+      const statusCode =
+        error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR;
+
+      const message =
+        error instanceof HttpException
+          ? (error.getResponse() as any)?.message
+          : error?.message || "Internal Server Error";
+      throw new HttpException(
+        {
+          code: statusCode,
+          message,
+        },
+        statusCode
+      );
     }
   }
   // @Cron("*/20 * * * * *")

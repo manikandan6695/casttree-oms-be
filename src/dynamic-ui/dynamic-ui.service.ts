@@ -17,6 +17,8 @@ import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.e
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
+import { ENavBar } from "./enum/nav-bar.enum";
+import { EComponentType } from "./enum/component.enum";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -41,14 +43,42 @@ export class DynamicUiService {
         key: key,
         status: "Active",
       });
-      if (key == "learn-home-header") {
+      let tabs = await this.matchRoleByUser(token, data.tabs);
+      data["tabs"] = tabs;
+      if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
         mixPanelBody.distinctId = token.id;
         mixPanelBody.properties = {};
         await this.helperService.mixPanel(mixPanelBody);
       }
-      return { data };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async matchRoleByUser(token, tabs) {
+    try {
+      const profileArr = await this.helperService.getProfileByIdTl([token.id]);
+      const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+      const userRoleIds = (profile?.roles || []).map(
+        (role) => new ObjectId(role._id)
+      );
+
+      if (!userRoleIds.length || !Array.isArray(tabs)) return tabs;
+
+      const matchingTabs = [];
+      const nonMatchingTabs = [];
+      const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
+      for (const tab of tabs) {
+        if (userRoleIdSet.has(tab.roleId.toString())) {
+          matchingTabs.push(tab);
+        } else {
+          nonMatchingTabs.push(tab);
+        }
+      }
+
+      return [...matchingTabs, ...nonMatchingTabs];
     } catch (err) {
       throw err;
     }
@@ -84,6 +114,10 @@ export class DynamicUiService {
       const isSubscriber = !!existingUserSubscription;
       // console.log("subscriber", isNewSubscription, isSubscriber);
 
+      const { data: { country_code: countryCode } = {} } =
+        await this.helperService.getUserById(token.id);
+      let country_code = countryCode;
+
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -97,6 +131,7 @@ export class DynamicUiService {
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
+        .populate("interactionData.items.banner")
         .lean();
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
@@ -106,18 +141,43 @@ export class DynamicUiService {
         0
       );
 
-      let continueWatching = await this.fetchContinueWatching(token.id);
+      const processIds = [];
+
+      const serviceItem = serviceItemData.finalData;
+      for (const category in serviceItem) {
+        if (Array.isArray(serviceItem[category])) {
+          serviceItem[category].forEach((item) => {
+            if (item.processId) {
+              processIds.push(item.processId);
+            }
+          });
+        }
+      }
+
+      let unquieProcessIds = [...new Set(processIds)];
+
+      let continueWatching = await this.fetchContinueWatching(
+        token.id,
+        unquieProcessIds
+      );
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id,
         isSubscriber
       );
-
+      let banners = await this.fetchUserPreferenceBanner(
+        isNewSubscription,
+        token.id,
+        continueWatching,
+        componentDocs,
+        country_code,
+        isSubscriber
+      );
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
         }
-        if (comp.type == "userPreferenceBanner") {
+        if (comp.type == EComponentType.userPreferenceBanner) {
           comp.media = singleAdBanner?.media;
           comp.banner = {
             ...comp.banner,
@@ -128,6 +188,9 @@ export class DynamicUiService {
             type: comp?.navigation?.type,
           };
         }
+        if (comp.type == EComponentType.userPreferenceBanner) {
+          comp.interactionData = { items: banners };
+        }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
           comp.actionData = serviceItemData.finalData[tagName];
@@ -137,7 +200,6 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
-      console.timeEnd("frame comp");
       return { data };
     } catch (err) {
       throw err;
@@ -177,6 +239,240 @@ export class DynamicUiService {
       throw err;
     }
   }
+  // async fetchServiceItemDetails(
+  //   data,
+  //   userId: string,
+  //   isPagination = false,
+  //   skip,
+  //   limit
+  // ) {
+  //   try {
+  //     let filter = {
+  //       type: EserviceItemType.courses,
+  //       "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
+  //       status: Estatus.Active,
+  //     };
+  //     let aggregationPipeline = [];
+  //     aggregationPipeline.push({
+  //       $match: filter,
+  //     });
+  //     let countPipe = [...aggregationPipeline];
+  //     if (isPagination) {
+  //       aggregationPipeline.push({
+  //         $sort: { _id: -1 },
+  //       });
+  //       aggregationPipeline.push({ $skip: skip });
+  //       aggregationPipeline.push({ $limit: limit });
+  //     } else {
+  //       aggregationPipeline.push({
+  //         $sort: { _id: -1 },
+  //       });
+  //     }
+  //     countPipe.push({
+  //       $group: {
+  //         _id: null,
+  //         count: { $sum: 1 },
+  //       },
+  //     });
+  //     aggregationPipeline.push(
+  //       {
+  //         $addFields: {
+  //           tagNames: {
+  //             $cond: {
+  //               if: { $isArray: "$tag.name" },
+  //               then: "$tag.name",
+  //               else: ["$tag.name"],
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $unwind: "$tagNames",
+  //       },
+  //       {
+  //         $group: {
+  //           _id: {
+  //             tagName: "$tagNames",
+  //             processId: "$additionalDetails.processId",
+  //           },
+  //           detail: { $first: "$additionalDetails" },
+  //           priorityOrder: { $first: "$priorityOrder" },
+  //         },
+  //       },
+  //       {
+  //         $sort: { priorityOrder: 1, _id: -1 },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: "$_id.tagName",
+  //           details: { $push: "$detail" },
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           tagName: "$_id",
+  //           details: 1,
+  //         },
+  //       }
+  //     );
+
+  //     // console.log("aggregationPipeline", aggregationPipeline);
+
+  //     const serviceItemData =
+  //       await this.serviceItemModel.aggregate(aggregationPipeline);
+  //     let totalCount = await this.serviceItemModel.aggregate(countPipe);
+  //     // console.log("totalCount", totalCount);
+  //     let count;
+  //     if (totalCount.length) {
+  //       count = totalCount[0].count;
+  //     }
+
+  //     //   const serviceItemData = await this.serviceItemModel.aggregate([
+  //     //     {
+  //     //       $match: filter,
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         tagNames: {
+  //     //           $cond: {
+  //     //             if: { $isArray: "$tag.name" },
+  //     //             then: "$tag.name",
+  //     //             else: ["$tag.name"],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $unwind: "$tagNames",
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$tagNames",
+  //     //           processId: "$additionalDetails.processId",
+  //     //         },
+  //     //         detail: { $first: "$additionalDetails" },
+  //     //         priorityOrder: { $first: "$priorityOrder" },
+  //     //         tagOrder: { $first: "$tag.order" },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: { priorityOrder: 1, _id: -1 },
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$_id.tagName",
+  //     //           tagOrder: "$tagOrder",
+  //     //         },
+  //     //         details: { $push: "$detail" },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: { "_id.tagOrder": 1 },
+  //     //     },
+  //     //     {
+  //     //       $project: {
+  //     //         _id: 0,
+  //     //         tagName: "$_id.tagName",
+  //     //         details: 1,
+  //     //       },
+  //     //     },
+  //     //   ]);
+  //     //   const serviceItemData = await this.serviceItemModel.aggregate([
+  //     //     {
+  //     //       $match: filter,
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         tagNames: {
+  //     //           $cond: {
+  //     //             if: { $isArray: "$tag.name" },
+  //     //             then: "$tag.name",
+  //     //             else: ["$tag.name"],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $unwind: "$tagNames",
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$tagNames",
+  //     //           tagOrder: "$tag.order",
+  //     //         },
+  //     //         details: {
+  //     //           $push: {
+  //     //             $mergeObjects: [
+  //     //               "$additionalDetails",
+  //     //               {
+  //     //                 priorityOrder: "$priorityOrder",
+  //     //                 processId: "$additionalDetails.processId",
+  //     //               },
+  //     //             ],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         details: {
+  //     //           $sortArray: {
+  //     //             input: "$details",
+  //     //             sortBy: { priorityOrder: 1, processId: -1 },
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $project: {
+  //     //         _id: 0,
+  //     //         tagName: "$_id.tagName",
+  //     //         details: 1,
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: {
+  //     //         "_id.tagOrder": 1,
+  //     //       },
+  //     //     },
+  //     //   ]);
+  //     //   console.log("service item data", JSON.stringify(serviceItemData));
+
+  //     const processIds = serviceItemData.flatMap((item) =>
+  //       item.details.map((detail) => detail.processId)
+  //     );
+  //     let firstTasks = await this.processService.getFirstTask(
+  //       processIds,
+  //       userId
+  //     );
+  //     const taskMap = new Map(
+  //       firstTasks.map((task) => [task.processId.toString(), task])
+  //     );
+  //     //   console.log("taskMap", taskMap);
+
+  //     serviceItemData.forEach((item) => {
+  //       item.details = item.details.map((detail) => {
+  //         const matchingTask = taskMap.get(detail.processId.toString());
+  //         return {
+  //           ...detail,
+  //           taskDetail: matchingTask || null,
+  //         };
+  //       });
+  //     });
+  //     const finalData = serviceItemData.reduce((a, c) => {
+  //       a[c.tagName] = c.details;
+  //       return a;
+  //     }, {});
+  //     return { finalData, count };
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
+
   async fetchServiceItemDetails(
     data,
     userId: string,
@@ -215,35 +511,71 @@ export class DynamicUiService {
       aggregationPipeline.push(
         {
           $addFields: {
-            tagNames: {
-              $cond: {
-                if: { $isArray: "$tag.name" },
-                then: "$tag.name",
-                else: ["$tag.name"],
+            tagPairs: {
+              $zip: {
+                inputs: [
+                  {
+                    $cond: [
+                      { $isArray: "$tag.name" },
+                      "$tag.name",
+                      ["$tag.name"],
+                    ],
+                  },
+                  {
+                    $cond: [
+                      { $isArray: "$tag.order" },
+                      "$tag.order",
+                      ["$tag.order"],
+                    ],
+                  },
+                ],
               },
             },
           },
         },
         {
-          $unwind: "$tagNames",
+          $unwind: "$tagPairs",
+        },
+        {
+          $addFields: {
+            tagName: { $arrayElemAt: ["$tagPairs", 0] },
+            tagOrder: { $arrayElemAt: ["$tagPairs", 1] },
+          },
         },
         {
           $group: {
             _id: {
-              tagName: "$tagNames",
+              tagName: "$tagName",
               processId: "$additionalDetails.processId",
             },
-            detail: { $first: "$additionalDetails" },
+            detail: {
+              $first: {
+                $mergeObjects: [
+                  "$additionalDetails",
+                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                ],
+              },
+            },
             priorityOrder: { $first: "$priorityOrder" },
           },
         },
         {
-          $sort: { priorityOrder: 1, _id: -1 },
+          $sort: { priorityOrder: 1, "_id.processId": -1 },
         },
         {
           $group: {
             _id: "$_id.tagName",
             details: { $push: "$detail" },
+          },
+        },
+        {
+          $addFields: {
+            details: {
+              $sortArray: {
+                input: "$details",
+                sortBy: { tagOrder: 1 },
+              },
+            },
           },
         },
         {
@@ -255,10 +587,12 @@ export class DynamicUiService {
         }
       );
 
-      // console.log("aggregationPipeline", aggregationPipeline);
+      // console.log("aggregationPipeline", JSON.stringify(aggregationPipeline));
 
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
+      // console.log("serviceItemData", JSON.stringify(serviceItemData));
+
       let totalCount = await this.serviceItemModel.aggregate(countPipe);
       // console.log("totalCount", totalCount);
       let count;
@@ -410,10 +744,10 @@ export class DynamicUiService {
       throw err;
     }
   }
-  async fetchContinueWatching(userId: string) {
+  async fetchContinueWatching(userId: string, processIds: string[]) {
     try {
       let pendingProcessInstanceData =
-        await this.processService.pendingProcess(userId);
+        await this.processService.allPendingProcess(userId, processIds);
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
@@ -449,6 +783,109 @@ export class DynamicUiService {
       }
 
       return continueWatching;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async fetchUserPreferenceBanner(
+    isNewSubscription: boolean,
+    userId: string,
+    userProcessedSeries,
+    components,
+    countryCode: string,
+    isSubscriber: boolean
+  ) {
+    try {
+      const personalizedBannerComponent = components.find(
+        (c) => c.type === EComponentType.userPreferenceBanner
+      );
+
+      if (!personalizedBannerComponent?.interactionData?.items?.length) {
+        return [];
+      }
+
+      const isFirstSeriesLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+      // console.log("isSubscriber", isSubscriber);
+
+      let bestMatchBanner: any = null;
+      let referralBanner: any = null;
+      for (const item of personalizedBannerComponent.interactionData.items) {
+        const rule = item.rule || {};
+        const bannerData = {
+          banner: item?.banner?.banner,
+          navigation: item?.banner?.navigation,
+        };
+        let isNewSubscriberRule = rule.isNewSubscriber;
+        let isSubscribedRule = rule.isSubscribed;
+
+        const matchesCountry =
+          typeof rule.country === "object" && "$ne" in rule.country
+            ? countryCode !== rule.country["$ne"]
+            : countryCode === rule.country;
+
+        if (
+          isSubscriber == isNewSubscriberRule &&
+          countryCode == rule.country &&
+          isFirstSeriesLocked == rule.isLocked &&
+          item.type == "newPayment"
+        ) {
+          return [bannerData];
+        }
+
+        if (
+          rule.isSubscribed == isNewSubscriberRule &&
+          countryCode == rule.country &&
+          isFirstSeriesLocked == rule.isLocked &&
+          item.type == "payment"
+        ) {
+          return [bannerData];
+        }
+        if (
+          isSubscriber == isSubscribedRule &&
+          isFirstSeriesLocked == false &&
+          item.type == "course"
+        ) {
+          return [bannerData];
+        }
+        if (
+          rule.isSubscribed == isSubscriber &&
+          matchesCountry &&
+          isFirstSeriesLocked &&
+          item.type == "IAPPayment"
+        ) {
+          return [bannerData];
+        }
+        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+          // console.log("inside referral");
+          referralBanner = bannerData;
+        }
+      }
+
+      if (bestMatchBanner) return [bestMatchBanner];
+      if (referralBanner) return [referralBanner];
+
+      return [];
+    } catch (err) {
+      console.error("Error in fetchUserPreferenceBanner:", err);
+      throw err;
+    }
+  }
+
+  async evaluateCountryRule(ruleCountry, userCountry) {
+    try {
+      if (!ruleCountry) return true;
+
+      if (
+        typeof ruleCountry === "object" &&
+        "$ne" in ruleCountry &&
+        ruleCountry !== undefined
+      ) {
+        return userCountry !== ruleCountry["$ne"];
+      }
+
+      return ruleCountry === userCountry;
     } catch (err) {
       throw err;
     }

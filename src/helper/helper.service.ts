@@ -1,5 +1,11 @@
 import { HttpService } from "@nestjs/axios";
-import { BadRequestException, Injectable, Req } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Req,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { catchError, lastValueFrom, map } from "rxjs";
@@ -552,8 +558,7 @@ export class HelperService {
     try {
       // console.log("inisde update user additional", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;      
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-user-additional/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
         .pipe(
@@ -614,9 +619,6 @@ export class HelperService {
   }
   async cancelRazorpaySubscription(customerId: string, tokenId: string) {
     try {
-      // console.log("customer id is", customerId, typeof customerId);
-      // console.log("tokenId  is", tokenId, typeof tokenId);
-
       const razorpayKey = this.configService.get<string>("RAZORPAY_API_KEY");
       const razorpaySecret = this.configService.get<string>(
         "RAZORPAY_SECRET_KEY"
@@ -637,8 +639,19 @@ export class HelperService {
 
       return data;
     } catch (err) {
-      // console.log("err is", err, err?.response);
-      throw err;
+      const statusCode =
+        err?.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
+      let message =
+        err?.response?.data?.error?.description ||
+        err?.message ||
+        "Razorpay cancellation failed";
+      throw new HttpException(
+        {
+          code: err?.response?.status,
+          message,
+        },
+        statusCode
+      );
     }
   }
   async cancelSubscription(subReferenceId: string) {
@@ -823,7 +836,7 @@ export class HelperService {
       throw err;
     }
   }
-  async getUserByUserId( accessToken: string) {
+  async getUserByUserId(accessToken: string) {
     try {
       let data = await this.http_service
         .get(
@@ -858,8 +871,7 @@ export class HelperService {
     try {
       // console.log("getUserAdditionalDetails body is", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchased-balance/${body.userId}`;
       // `http://localhost:3000/casttree/user/update-purchased-balance/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -881,14 +893,12 @@ export class HelperService {
     } catch (err) {
       throw err;
     }
-
   }
   async updateAdminCoinValue(body) {
     try {
       // console.log("getUserAdditionalDetails body is", body);
 
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchasedBalance/${body.userId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/user/update-purchasedBalance/${body.userId}`;
       // `http://localhost:3000/casttree/user/update-purchasedBalance/${body.userId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -910,7 +920,6 @@ export class HelperService {
     } catch (err) {
       throw err;
     }
-
   }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
