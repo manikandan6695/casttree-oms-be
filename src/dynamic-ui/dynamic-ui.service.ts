@@ -42,7 +42,7 @@ export class DynamicUiService {
       let data = await this.appNavBarModel.findOne({
         key: key,
         status: "Active",
-      });
+      }).lean();
       let tabs = await this.matchRoleByUser(token, data.tabs);
       data["tabs"] = tabs;
       if (key == ENavBar.learnHomeHeader) {
@@ -52,6 +52,7 @@ export class DynamicUiService {
         mixPanelBody.properties = {};
         await this.helperService.mixPanel(mixPanelBody);
       }
+       return { data };
     } catch (err) {
       throw err;
     }
