@@ -167,7 +167,6 @@ export class DynamicUiService {
         country_code,
         isSubscriber
       );
-
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -552,71 +551,140 @@ export class DynamicUiService {
     }
   }
 
+  // async fetchUserPreferenceBanner(
+  //   isNewSubscription: boolean,
+  //   userId: string,
+  //   userProcessedSeries,
+  //   components,
+  //   country_code: string,
+  //   isSubscriber: boolean
+  // ) {
+  //   try {
+  //     const data = components.find(
+  //       (e) => e.type === EComponentType.personalizedBanner
+  //     );
+  //     if (!data?.interactionData?.items?.length) return [];
+
+  //     const isLocked =
+  //       userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+  //     console.log("userProcessedSeries", JSON.stringify(userProcessedSeries));
+
+  //     let bestMatch: any = null;
+  //     let referralBanner: any = null;
+  //     console.log("items", JSON.stringify(data.interactionData.items));
+
+  //     for (const item of data.interactionData.items) {
+  //       const rule = item.rule || {};
+  //       const isSubscribedRule = rule.isSubscribed;
+  //       const isNewSubscribedRule = rule.isNewSubscriber;
+  //       const ruleCountry = rule.country;
+  //       const ruleIsLocked = rule.isLocked;
+
+  //       const bannerData = {
+  //         banner: item?.banner?.banner,
+  //         navigation: item?.banner?.navigation,
+  //       };
+
+  //       const isLockedMatch =
+  //         typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
+  //       console.log(
+  //         "subscription",
+  //         isNewSubscribedRule,
+  //         isSubscriber,
+  //         isLockedMatch
+  //       );
+
+  //       if (isNewSubscribedRule === isSubscriber && isLockedMatch) {
+  //         return [bannerData];
+  //       }
+
+  //       const isCountryMatch =
+  //         typeof ruleCountry === "object" && "$ne" in ruleCountry
+  //           ? country_code !== ruleCountry["$ne"]
+  //           : country_code === ruleCountry;
+
+  //       if (
+  //         isSubscribedRule === isNewSubscription &&
+  //         isCountryMatch &&
+  //         !bestMatch
+  //       ) {
+  //         bestMatch = bannerData;
+  //       }
+  //       if (isSubscribedRule === true && !referralBanner) {
+  //         referralBanner = bannerData;
+  //       }
+  //     }
+
+  //     if (bestMatch) return [bestMatch];
+  //     if (referralBanner) return [referralBanner];
+
+  //     return [];
+  //   } catch (err) {
+  //     console.error("Error in fetchUserPreferenceBanner:", err);
+  //     throw err;
+  //   }
+  // }
   async fetchUserPreferenceBanner(
     isNewSubscription: boolean,
     userId: string,
     userProcessedSeries,
     components,
-    country_code: string,
+    countryCode: string,
     isSubscriber: boolean
   ) {
     try {
-      // console.log("old subscription subscriber", isNewSubscription);
-      // console.log("new subscription subscriber", isSubscriber);
-
-      const data = components.find(
-        (e) => e.type === EComponentType.personalizedBanner
+      const personalizedBannerComponent = components.find(
+        (c) => c.type === EComponentType.personalizedBanner
       );
-      if (!data?.interactionData?.items?.length) return [];
 
-      const isLocked =
-        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
+      if (!personalizedBannerComponent?.interactionData?.items?.length) {
+        return [];
+      }
 
-      let bestMatch: any = null;
+      const isFirstSeriesLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+
+      let bestMatchBanner: any = null;
       let referralBanner: any = null;
-
-      for (const item of data.interactionData.items) {
+      for (const item of personalizedBannerComponent.interactionData.items) {
         const rule = item.rule || {};
-        const isSubscribedRule = rule.isSubscribed;
-        const ruleCountry = rule.country;
-        const ruleIsLocked = rule.isLocked;
-
         const bannerData = {
           banner: item?.banner?.banner,
           navigation: item?.banner?.navigation,
         };
-        // console.log("bannerData", bannerData);
+        let isNewSubscriberRule = rule.isNewSubscriber;
+        let isSubscribedRule = rule.isSubscribed;
 
-        const isLockedMatch =
-          typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
+        const matchesCountry =
+          typeof rule.country === "object" && "$ne" in rule.country
+            ? countryCode !== rule.country["$ne"]
+            : countryCode === rule.country;
+        // console.log("country", matchesCountry);
 
-        const isNewSubscriberMatch =
-          isSubscribedRule === undefined || isSubscribedRule === isSubscriber;
-
-        if (isLockedMatch && isNewSubscriberMatch) {
-          // console.log("bannerData", bannerData);
-          // console.log("inside isNewSubscription match");
-
+        if (
+          isSubscriber == isNewSubscriberRule &&
+          countryCode == rule.country &&
+          isFirstSeriesLocked == rule.isLocked
+        ) {
+          // console.log("inside new subscriber", bannerData);
           return [bannerData];
         }
-
-        const isCountryMatch =
-          typeof ruleCountry === "object" && "$ne" in ruleCountry
-            ? country_code !== ruleCountry["$ne"]
-            : country_code === ruleCountry;
-        if (isCountryMatch && isNewSubscriberMatch && !bestMatch) {
-          // console.log("bestMatch data is", bestMatch);
-
-          bestMatch = bannerData;
+        if (
+          (isSubscriber == isSubscribedRule && isFirstSeriesLocked == false &&
+          item.type == "course")
+        ) {
+          return [bannerData];
         }
-        if (isSubscribedRule === true && !referralBanner) {
-          // console.log("referralBanner", referralBanner);
-
+        if(rule.isSubscribed == isSubscriber && matchesCountry && isFirstSeriesLocked){
+          return [bannerData]
+        }
+        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+          // console.log("inside referral");
           referralBanner = bannerData;
         }
       }
 
-      if (bestMatch) return [bestMatch];
+      if (bestMatchBanner) return [bestMatchBanner];
       if (referralBanner) return [referralBanner];
 
       return [];
