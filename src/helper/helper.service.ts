@@ -1,5 +1,11 @@
 import { HttpService } from "@nestjs/axios";
-import { BadRequestException, Injectable, Req } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Req,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { catchError, lastValueFrom, map } from "rxjs";
@@ -683,8 +689,19 @@ export class HelperService {
 
       return data;
     } catch (err) {
-      // console.log("err is", err, err?.response);
-      throw err;
+      const statusCode =
+        err?.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
+      let message =
+        err?.response?.data?.error?.description ||
+        err?.message ||
+        "Razorpay cancellation failed";
+      throw new HttpException(
+        {
+          code: err?.response?.status,
+          message,
+        },
+        statusCode
+      );
     }
   }
   async cancelSubscription(subReferenceId: string) {
