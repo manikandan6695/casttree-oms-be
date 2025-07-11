@@ -523,7 +523,7 @@ export class SubscriptionFactory {
         baseAmount: baseAmount.toFixed(2),
         baseCurrency: "INR",
         conversionRate: conversionRateAmt,
-        paymentType: "Auth",
+        paymentType: EPaymentType.auth,
       };
       // console.log("paymentData",paymentData);
 
