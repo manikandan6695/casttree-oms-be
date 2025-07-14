@@ -39,9 +39,11 @@ import { ReconcileModule } from "./payment/reconcile.module";
   
     BullModule.forRoot({
       connection: {
-        host: 'localhost',
-        port: 6380,
-      },
+        host: 'redis-prod.casttree.com',
+        port: 6379,
+        password: 'creedom_redis_prod',
+        connectTimeout: 6000
+      }      
     }),
     BullModule.registerQueue({
       name: 'reconcile',

@@ -34,7 +34,12 @@ import { ReconcileQueueService } from "./reconcile.queue.service";
     forwardRef(() => ReconcileModule),
     BullModule.registerQueue({
       name: 'reconcile',
-      connection: { host: '127.0.0.1', port: 6380 },
+      connection: {
+        host: 'redis-prod.casttree.com',
+        port: 6379,
+        password: 'creedom_redis_prod',
+        connectTimeout: 6000
+      }  
     })
   ],
   providers: [PaymentRequestService, PaymentService, ReconcileQueueService, ReconcileWorker],

@@ -609,7 +609,7 @@ export class PaymentRequestService {
     }
   }
 
-  @Cron('0 */2 * * *')
+  @Cron('* */4 * * *')
   async handleRecon() {
     try {
       const payments = await this.paymentModel.find({
@@ -617,10 +617,6 @@ export class PaymentRequestService {
         providerName: EProvider.cashfree  
       }).lean();
 
-      if (payments.length === 0) {
-        // console.log('No pending payments found');
-        return;
-      }
 
       for (const order of payments) {
         try {
@@ -677,10 +673,10 @@ export class PaymentRequestService {
       document_status: { $ne: EDocumentStatus.pending }
     });
 
-    if (existingPayment) {
-      // console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
-      return;
-    }
+    // if (existingPayment) {
+    //   // console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
+    //   return;
+    // }
 
     if (providerName === EProvider.razorpay && payment?.id) {
       await this.paymentModel.updateOne(
@@ -754,6 +750,7 @@ export class PaymentRequestService {
         subscriptionStatus: documentStatus,
         providerName,
       });
+      // console.log("completed")
     }
     // console.log("paymentStatus", paymentStatus)
   }

@@ -12,7 +12,13 @@ export class ReconcileQueueService implements OnModuleDestroy {
   ) {
     if (!ReconcileQueueService.queueEvents) {
       ReconcileQueueService.queueEvents = new QueueEvents('reconcile', {
-        connection: { host: '127.0.0.1', port: 6380 }
+        connection: {
+          host: 'redis-prod.casttree.com',
+          port: 6379,
+          password: 'creedom_redis_prod',
+          connectTimeout: 6000
+        }
+        
       });
 
       ReconcileQueueService.queueEvents.on('error', (err) => {

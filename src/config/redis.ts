@@ -1,4 +1,7 @@
 export const redisConnection = {
-  host: '127.0.0.1',
-  port: 6380,
+    host: 'redis-prod.casttree.com',
+    port: 6379,
+    password: 'creedom_redis_prod',
+    connectTimeout: 6000
+  
 };
