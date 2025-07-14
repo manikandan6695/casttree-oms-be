@@ -796,22 +796,50 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      const rtdn = payload;
-      // await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      // const orderId = (id: string = "") =>
+      //   id.split("..")[0];
+      // const latestOrderId = orderId(
+      //   rtdn?.transactionInfo?.latestOrderId
+      // );
+      // const existingSubscription = await this.subscriptionModel
+      // .findOne({
+      //   providerId: EProviderId.google,
+      //   provider: EProvider.google,
+      //   status:EStatus.Active,
+      //   $or: [
+      //     { "metaData.latestOrderId": latestOrderId },
+      //     { externalId: rtdn.purchaseToken }
+      //   ]
+      // });
+      // console.log("existingSubscription",existingSubscription)
       if (rtdn.notificationType === EEventId.renew) {
+      // if (existingSubscription&& rtdn.notificationType === EEventId.renew) {
+        const orderId = (id: string = "") =>
+          id.split("..")[0];
+        const latestOrderId = orderId(
+          rtdn?.transactionInfo?.latestOrderId
+        );
         const existingSubscription = await this.subscriptionModel
           .findOne({
             providerId: EProviderId.google,
             provider: EProvider.google,
-            // subscriptionStatus: EStatus.Active,
-            externalId: rtdn.purchaseToken,
+            status:EStatus.Active,
+            $or: [
+              { "metaData.latestOrderId": latestOrderId },
+              { externalId: rtdn.purchaseToken }
+            ]
+          });
+          // console.log("existingSubscription",existingSubscription)
+          let latestData = await this.subscriptionModel.findOne({
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            status:EStatus.Active,
+            "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId
           })
-          .sort({ created_at: -1 });
-        // console.log("matchedSubscription", existingSubscription)
-        if (
-          existingSubscription?.metaData?.latestOrderId !==
-          rtdn?.transactionInfo?.latestOrderId
-        ) {
+          // console.log("latestData",latestData)
+          if (existingSubscription && !latestData) {
+          // console.log("latestOrderId", latestOrderId)
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
               ?.recurringPrice?.currencyCode;
@@ -832,7 +860,7 @@ export class SubscriptionService {
             userId: existingSubscription?.userId,
             planId: existingSubscription?.planId,
             subscriptionStatus: EStatus.Active,
-            startAt: new Date(rtdn.transactionInfo.startTime),
+            startAt: new Date(),
             endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
             amount: price,
             status: EStatus.Active,
