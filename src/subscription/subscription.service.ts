@@ -753,21 +753,31 @@ export class SubscriptionService {
     try {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       if (rtdn.notificationType === EEventId.renew) {
-        const matchedSubscription = await this.subscriptionModel.findOne({
-          providerId: EProviderId.google,
-          provider: EProvider.google,
-          subscriptionStatus: EStatus.Active,
-          externalId: rtdn.purchaseToken,
-        });
-        if (
-          matchedSubscription?.metaData?.latestOrderId !==
+        const orderId = (id: string = "") =>
+          id.split("..")[0];
+        const latestOrderId = orderId(
           rtdn?.transactionInfo?.latestOrderId
-        ) {
-          const existingSubscription = await this.subscriptionModel.findOne({
+        );
+        const existingSubscription = await this.subscriptionModel
+          .findOne({
             providerId: EProviderId.google,
             provider: EProvider.google,
-            externalId: rtdn.purchaseToken,
+            status:EStatus.Active,
+            $or: [
+              { "metaData.latestOrderId": latestOrderId },
+              { externalId: rtdn.purchaseToken }
+            ]
           });
+          // console.log("existingSubscription",existingSubscription)
+          let latestData = await this.subscriptionModel.findOne({
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            status:EStatus.Active,
+            "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId
+          })
+          // console.log("latestData",latestData)
+          if (existingSubscription && !latestData) {
+          // console.log("latestOrderId", latestOrderId)
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
               ?.recurringPrice?.currencyCode;
@@ -788,7 +798,7 @@ export class SubscriptionService {
             userId: existingSubscription?.userId,
             planId: existingSubscription?.planId,
             subscriptionStatus: EStatus.Active,
-            startAt: new Date(rtdn.transactionInfo.startTime),
+            startAt: new Date(),
             endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
             amount: price,
             status: EStatus.Active,
@@ -798,6 +808,7 @@ export class SubscriptionService {
             metaData: rtdn.transactionInfo,
             providerId: EProviderId.google,
             provider: EProvider.google,
+            paymentType: EPaymentType.charge,
             externalId: rtdn.purchaseToken,
             currencyCode: currencyResponse.currency_code,
             currencyId: currencyResponse._id,
