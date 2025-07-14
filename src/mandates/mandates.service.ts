@@ -168,50 +168,50 @@ export class MandatesService {
       throw err;
     }
   }
-  async getMandateByProvider(userId: string) {
-    try {
-      let aggregationPipeLine = [];
-      aggregationPipeLine.push(
-        {
-          $sort: {
-            _id: -1,
-          },
-        },
-        {
-          $match: {
-            mandateStatus: {
-              $in: [EMandateStatus.active, EMandateStatus.expired],
-            },
-            userId: new ObjectId(userId),
-          },
-        },
-        {
-          $project: {
-            providerId: 1,
-            amount: 1,
-            mandateStatus: 1,
-          },
-        },
-        {
-          $group: {
-            _id: "$providerId",
-            mandates: {
-              $push: {
-                providerId: "$providerId",
-                amount: "$amount",
-                mandateStatus: "$mandateStatus",
-              },
-            },
-          },
-        }
-      );
-      let data = await this.mandateModel.aggregate(aggregationPipeLine);
-      let mandate = data[0];
-      return { mandate };
-    } catch (err) {
-      throw err;
-    }
-  }
+  // async getMandateByProvider(userId: string) {
+  //   try {
+  //     let aggregationPipeLine = [];
+  //     aggregationPipeLine.push(
+  //       {
+  //         $sort: {
+  //           _id: -1,
+  //         },
+  //       },
+  //       {
+  //         $match: {
+  //           mandateStatus: {
+  //             $in: [EMandateStatus.active, EMandateStatus.expired],
+  //           },
+  //           userId: new ObjectId(userId),
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           providerId: 1,
+  //           amount: 1,
+  //           mandateStatus: 1,
+  //         },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: "$providerId",
+  //           mandates: {
+  //             $push: {
+  //               providerId: "$providerId",
+  //               amount: "$amount",
+  //               mandateStatus: "$mandateStatus",
+  //             },
+  //           },
+  //         },
+  //       }
+  //     );
+  //     let data = await this.mandateModel.aggregate(aggregationPipeLine);
+  //     let mandate = data[0];
+  //     return { mandate };
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
   async getMandateByExternalId(token, status) {
     try {
       let mandates = await this.mandateModel.findOne({

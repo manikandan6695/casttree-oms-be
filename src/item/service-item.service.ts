@@ -1201,10 +1201,10 @@ export class ServiceItemService {
           userId,
           [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
         );
-        mandateData = await this.mandateService.getMandateByProvider(userId);
+        // mandateData = await this.mandateService.getMandateByProvider(userId);
       }
       // console.log("mandateData", mandateData);
-      const isNewSubscription = subscriptionData ? true : false;
+      // const isNewSubscription = subscriptionData ? true : false;
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -1270,11 +1270,11 @@ export class ServiceItemService {
         processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
         processPricingData.itemId.currency.currency_code;
-        const promoDetails = processPricingData.itemId.additionalDetail.promotionDetails;
-        promoDetails.payWallVideo = isNewSubscription === true
-          ? promoDetails["payWallVideo"] 
-          : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"]; 
+        // const promoDetails = processPricingData.itemId.additionalDetail.promotionDetails;
+        // promoDetails.payWallVideo = isNewSubscription === true
+        //   ? promoDetails["payWallVideo"] 
+        //   : promoDetails["payWallVideo1"];
+        // delete promoDetails["payWallVideo1"]; 
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
       );
@@ -1291,10 +1291,10 @@ export class ServiceItemService {
           subscriptionData ? false : true;
         data.additionalDetail.promotionDetails.planConfig =
           data.additionalDetail?.planConfig;
-        data.additionalDetail.promotionDetails.mandates = mandateData?.mandate
-          ?.mandates.length
-          ? mandateData?.mandate?.mandates
-          : [];
+        // data.additionalDetail.promotionDetails.mandates = mandateData?.mandate
+        //   ?.mandates.length
+        //   ? mandateData?.mandate?.mandates
+        //   : [];
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
