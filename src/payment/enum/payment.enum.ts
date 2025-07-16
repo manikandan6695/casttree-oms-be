@@ -11,6 +11,7 @@ export enum EPaymentSourceType {
   processInstance = "processInstance",
   coinTransaction = "coinTransaction",
   feedback = "feedback",
+  workshop = "workshop",
 }
 
 export const ESPaymentSourceType = [
@@ -18,6 +19,7 @@ export const ESPaymentSourceType = [
   EPaymentSourceType.serviceRequest,
   EPaymentSourceType.invoice,
   EPaymentSourceType.subscription,
+  EPaymentSourceType.workshop
 ];
 
 export enum EPaymentStatus {
@@ -71,12 +73,11 @@ export const ERedisEventTypes = [
   ERedisEventType.coinTrancationId,
 ];
 
-
 export enum EFilterType {
   // all = "All",
   purchase = "Purchase",
   withdrawal = "Withdrawal",
-  withdrawn = "withdrawn"
+  withdrawn = "withdrawn",
 }
 export enum ETransactionType {
   subscriptionPurchased = "Subscription Purchased",
@@ -86,17 +87,37 @@ export enum ETransactionType {
   coursePurchased = "Course Purchased",
 }
 
-export const ETransactionTypes = [ETransactionType.subscriptionPurchased, ETransactionType.coinPurchased, ETransactionType.feedbackPurchased, ETransactionType.workshopPurchased, ETransactionType.coursePurchased];
+export enum ESourceTypes {
+  subscription = "Subscription",
+  coin = "Coin",
+  feedback = "Feedback",
+  workshop = "Workshop",
+}
+
+export const ESSourceTypes = [
+  ESourceTypes.coin,
+  ESourceTypes.subscription,
+  ESourceTypes.feedback,
+  ESourceTypes.workshop,
+];
+
+export const ETransactionTypes = [
+  ETransactionType.subscriptionPurchased,
+  ETransactionType.coinPurchased,
+  ETransactionType.feedbackPurchased,
+  ETransactionType.workshopPurchased,
+  ETransactionType.coursePurchased,
+];
 export enum ETransactionState {
-  In= "IN",
-  Out= "OUT",
+  In = "IN",
+  Out = "OUT",
 }
 
 export enum ECurrencyName {
   casttreeCoin = "Casttree Coin",
-  currencyId = "6852c906a72125c5fcf9f61f"
+  currencyId = "6852c906a72125c5fcf9f61f",
 }
-export enum ECoinStatus{
+export enum ECoinStatus {
   active = "Active",
   pending = "Pending",
   completed = "Completed",
@@ -110,18 +131,17 @@ export const ESCoinStatus = [
   ECoinStatus.active,
   ECoinStatus.inactive,
 ];
-export enum EDocumentStatus{
+export enum EDocumentStatus {
   pending = "Pending",
   failed = "Failed",
   completed = "Completed",
 }
-export enum ETransactionType{
+export enum ETransactionType {
   In = "In",
   Out = "Out",
   earned = "earned",
   spent = "spent",
   withdrawal = "Withdrawal",
   purchased = "purchased",
-  withdrawn = "withdrawn"
+  withdrawn = "withdrawn",
 }
-
