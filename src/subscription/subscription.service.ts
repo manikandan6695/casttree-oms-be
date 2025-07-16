@@ -751,33 +751,24 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
+      // console.log("payload is", payload);
+
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       if (rtdn.notificationType === EEventId.renew) {
-        const orderId = (id: string = "") =>
-          id.split("..")[0];
-        const latestOrderId = orderId(
-          rtdn?.transactionInfo?.latestOrderId
-        );
-        const existingSubscription = await this.subscriptionModel
-          .findOne({
-            providerId: EProviderId.google,
-            provider: EProvider.google,
-            status:EStatus.Active,
-            $or: [
-              { "metaData.latestOrderId": latestOrderId },
-              { externalId: rtdn.purchaseToken }
-            ]
-          });
-          // console.log("existingSubscription",existingSubscription)
-          let latestData = await this.subscriptionModel.findOne({
-            providerId: EProviderId.google,
-            provider: EProvider.google,
-            status:EStatus.Active,
-            "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId
-          })
-          // console.log("latestData",latestData)
-          if (existingSubscription && !latestData) {
-          // console.log("latestOrderId", latestOrderId)
+        const orderId = (id: string = "") => id.split("..")[0];
+        const latestOrderId = orderId(rtdn?.transactionInfo?.latestOrderId);
+        console.log("latestOrderId", latestOrderId);
+        const existingSubscription = await this.subscriptionModel.findOne({
+          providerId: EProviderId.google,
+          provider: EProvider.google,
+          status: EStatus.Active,
+          "metaData.latestOrderId": latestOrderId,
+        });
+
+        if (
+          existingSubscription?.subscriptionStatus !==
+          EsubscriptionStatus.active
+        ) {
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
               ?.recurringPrice?.currencyCode;
@@ -799,26 +790,26 @@ export class SubscriptionService {
             planId: existingSubscription?.planId,
             subscriptionStatus: EStatus.Active,
             startAt: new Date(),
-            endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
+            endAt: new Date(rtdn?.transactionInfo?.lineItems[0]?.expiryTime),
             amount: price,
             status: EStatus.Active,
             notes: { itemId: existingSubscription?.notes?.itemId },
             createBy: existingSubscription?.userId,
             updateBy: existingSubscription?.userId,
-            metaData: rtdn.transactionInfo,
+            metaData: rtdn?.transactionInfo,
             providerId: EProviderId.google,
             provider: EProvider.google,
             paymentType: EPaymentType.charge,
-            externalId: rtdn.purchaseToken,
-            currencyCode: currencyResponse.currency_code,
-            currencyId: currencyResponse._id,
+            externalId: rtdn?.purchaseToken,
+            currencyCode: currencyResponse?.currency_code,
+            currencyId: currencyResponse?._id,
             transactionDetails: {
-              transactionId: rtdn.purchaseToken,
+              transactionId: rtdn?.purchaseToken,
               authAmount:
-                rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan
+                rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
                   ?.recurringPrice?.units,
-              transactionDate: rtdn.transactionInfo.startTime,
-              planId: rtdn.transactionInfo.lineItems[0]?.productId,
+              transactionDate: rtdn?.transactionInfo?.startTime,
+              planId: rtdn?.transactionInfo?.lineItems[0]?.productId,
             },
           };
           let subscription =
@@ -834,13 +825,13 @@ export class SubscriptionService {
           await this.helperService.updateUser(userBody);
           const invoiceData = {
             itemId: existingSubscription?.notes.itemId,
-            source_id: subscription._id,
+            source_id: subscription?._id,
             source_type: "subscription",
             sub_total: price,
             document_status: EDocumentStatus.completed,
             grand_total: price,
             user_id: subscription?.userId,
-            currencyCode: currencyResponse.currency_code,
+            currencyCode: currencyResponse?.currency_code,
             created_by: subscription?.userId,
             updated_by: subscription?.userId,
           };
@@ -854,9 +845,10 @@ export class SubscriptionService {
             providerId: EProviderId.google,
             providerName: EProvider.google,
             transactionDate: new Date(),
-            currencyCode: currencyResponse.currency_code,
-            currencyId: currencyResponse._id,
+            currencyCode: currencyResponse?.currency_code,
+            currencyId: currencyResponse?._id,
             userId: existingSubscription?.userId,
+            paymentType: EPaymentType.charge,
             baseAmount: baseAmount,
             baseCurrency: "INR",
             conversionRate: conversionRateAmt,
