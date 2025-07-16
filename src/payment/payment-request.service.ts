@@ -621,11 +621,10 @@ export class PaymentRequestService {
         {
           $match: {
             "salesDocument.document_status": EPaymentStatus.completed,
-            // "salesDocument.source_type": EPaymentSourceType.subscription,
           },
         },
       ]);
-      console.log("data is",data);
+      // console.log("data is",data);
       
       let earliestPaymentId: string;
       if (data.length > 0) {
@@ -646,7 +645,7 @@ export class PaymentRequestService {
       };
       data = await Promise.all(
         data.map(async (payment) => {
-          console.log("payment source type is",payment.source_type);
+          // console.log("payment source type is",payment.source_type);
           
           let type = getTitleFromSourceType(payment?.salesDocument?.source_type);
 
@@ -666,7 +665,7 @@ export class PaymentRequestService {
               type = ESourceTypes.workshop;
             }
           }
-          console.log("type is ==>",type);
+          // console.log("type is ==>",type);
           
           return {
             ...payment,
