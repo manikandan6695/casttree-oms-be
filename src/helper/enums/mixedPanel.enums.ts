@@ -8,7 +8,8 @@ export enum EMixedPanelEvents {
     series_complete="series_complete",
     subscription_end = "subscription_end",
     subscription_add = "subscription_add",
-    coin_purchase_success="coin_purchase_success"
+    coin_purchase_success="coin_purchase_success",
+    mandate_cancelled = "mandate_cancelled",
  
   }
   
@@ -20,5 +21,7 @@ export const ESMixedPanelEvents = [
     EMixedPanelEvents.initiate_episode,
     EMixedPanelEvents.episode_complete,
     EMixedPanelEvents.series_complete,
-    EMixedPanelEvents.subscription_end
+    EMixedPanelEvents.subscription_end,
+    EMixedPanelEvents.subscription_add,
+    EMixedPanelEvents.mandate_cancelled,
   ];

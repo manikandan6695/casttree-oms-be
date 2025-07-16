@@ -382,16 +382,19 @@ export class SubscriptionFactory {
         createdBy: token?.id,
         updatedBy: token?.id,
       });
-      // let mixPanelBody: any = {};
-      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      // mixPanelBody.distinctId = token.id;
-      // mixPanelBody.properties = {
-      //   userId: token?.id,
-      //   provider: EProviderName.google,
-      //   membership: item?.itemName,
-      //   badge: item?.additionalDetail?.badge,
-      // };
-      // await this.helperService.mixPanel(mixPanelBody);
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = {
+        user_id: token?.id,
+        provider: EProvider.apple,
+        subscription_id: createdSubscription?._id,
+        subscription_status: createdSubscription?.subscriptionStatus,
+        subscription_date: createdSubscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: createdSubscription?.endAt
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       return subscriptionData;
     } catch (error) {
       throw error;
@@ -553,16 +556,19 @@ export class SubscriptionFactory {
         createdBy: token?.id,
         updatedBy: token?.id,
       });
-      // let mixPanelBody: any = {};
-      // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      // mixPanelBody.distinctId = token.id;
-      // mixPanelBody.properties = {
-      //   userId: token?.id,
-      //   provider: EProviderName.google,
-      //   membership: item?.itemName,
-      //   badge: item?.additionalDetail?.badge,
-      // };
-      // await this.helperService.mixPanel(mixPanelBody);
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = {
+        user_id: token?.id,
+        provider: EProvider.google,
+        subscription_id: createdSubscription?._id,
+        subscription_status: createdSubscription?.subscriptionStatus,
+        subscription_date: createdSubscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: createdSubscription?.endAt
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
     } catch (error) {
       throw error;

@@ -571,6 +571,19 @@ export class SubscriptionService {
         conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = subscription?.userId;
+      mixPanelBody.properties = {
+        user_id: subscription?.userId,
+        provider: subscription?.provider,
+        subscription_id: subscription._id,
+        subscription_status: subscription?.subscriptionStatus,
+        subscription_date: subscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: subscription?.endAt,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       return { message: "Created Successfully" };
     } catch (error) {
       throw error;
@@ -619,6 +632,21 @@ export class SubscriptionService {
         createdBy: mandates?.userId,
         updatedBy: mandates?.userId,
       });
+      let itemName = await this.itemService.getItemDetail(
+        existingSubscription?.notes?.itemId
+      );
+      let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandates?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandates?._id,
+          user_id: mandates?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: EProvider.apple,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
       return { message: "Cancellation processed successfully" };
     } catch (error) {
       throw error;
@@ -744,105 +772,129 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      // console.log("renew payload", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
-      // console.log("RTDN Received for renew:", JSON.stringify(rtdn));
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      if (rtdn.notificationType === EEventId.renew) {
+        const orderId = (id: string = "") => id.split("..")[0];
+        const latestOrderId = orderId(rtdn?.transactionInfo?.latestOrderId);
+        const existingSubscription = await this.subscriptionModel.findOne({
+          providerId: EProviderId.google,
+          provider: EProvider.google,
+          status: EStatus.Active,
+          "metaData.latestOrderId": latestOrderId,
+        }).sort({_id : -1});
+        if (
+          existingSubscription?.subscriptionStatus !==
+          EsubscriptionStatus.active
+        ) {
+          let currency =
+            rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+              ?.recurringPrice?.currencyCode;
+          let price =
+            rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan
+              ?.recurringPrice?.units;
 
-      // const existingRenewal = await this.subscriptionModel.findOne({
-      //   externalId: rtdn.purchaseToken,
-      //   providerId: EProviderId.google,
-      //   provider: EProvider.google,
-      // });
+          let currencyId = await this.helperService.getCurrencyId(currency);
+          let currencyResponse = currencyId?.data?.[0];
 
-      // if (existingRenewal) {
-      //   return
-      // }
-      // if (rtdn.notificationType === EEventId.renew) {
-      //   const existingSubscription = await this.subscriptionModel.findOne({
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     subscriptionStatus: EStatus.Active,
-      //     externalId: rtdn.purchaseToken,
-      //   });
+          let conversionRateAmt = await this.helperService.getConversionRate(
+            currency,
+            price
+          );
+          let baseAmount = parseInt((price * conversionRateAmt).toString());
 
-      //   let currency = rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan?.recurringPrice?.currencyCode;
-      //   let price = rtdn?.transactionInfo?.lineItems?.[0]?.autoRenewingPlan?.recurringPrice?.units;
-
-      //   let currencyId = await this.helperService.getCurrencyId(currency);
-      //   let currencyResponse = currencyId?.data?.[0];
-
-      //   let conversionRateAmt = await this.helperService.getConversionRate(currency, price);
-      //   let baseAmount = parseInt((price * conversionRateAmt).toString());
-
-      //   const subscriptionData = {
-      //     userId: existingSubscription?.userId,
-      //     planId: existingSubscription?.planId,
-      //     subscriptionStatus: EStatus.Active,
-      //     startAt: new Date(rtdn.transactionInfo.startTime),
-      //     endAt: new Date(rtdn.transactionInfo.lineItems[0].expiryTime),
-      //     amount: price,
-      //     status: EStatus.Active,
-      //     notes: { itemId: existingSubscription?.notes?.itemId },
-      //     createBy: existingSubscription?.userId,
-      //     updateBy: existingSubscription?.userId,
-      //     metaData: rtdn.transactionInfo,
-      //     providerId: EProviderId.google,
-      //     provider: EProvider.google,
-      //     externalId: rtdn.purchaseToken,
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     transactionDetails: {
-      //       transactionId: rtdn.purchaseToken,
-      //       authAmount: rtdn.transactionInfo.lineItems[0]?.autoRenewingPlan?.recurringPrice?.units,
-      //       transactionDate: rtdn.transactionInfo.startTime,
-      //       planId: rtdn.transactionInfo.lineItems[0]?.productId,
-      //     },
-      //   };
-
-      //   let subscription = await this.subscriptionModel.create(subscriptionData);
-
-      //   let item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
-      //   let userBody = {
-      //     userId: subscription?.userId,
-      //     membership: item?.itemName,
-      //     badge: item?.additionalDetail?.badge,
-      //   };
-      //   await this.helperService.updateUser(userBody);
-      //   const invoiceData = {
-      //     itemId: existingSubscription?.notes.itemId,
-      //     source_id: subscription._id,
-      //     source_type: "subscription",
-      //     sub_total: price,
-      //     document_status: EDocumentStatus.completed,
-      //     grand_total: price,
-      //     user_id: subscription?.userId,
-      //     currencyCode: currencyResponse.currency_code,
-      //     created_by: subscription?.userId,
-      //     updated_by: subscription?.userId,
-      //   };
-      //   const invoice = await this.invoiceService.createInvoice(invoiceData, subscription?.userId);
-      //   const paymentData = {
-      //     amount: price,
-      //     document_status: EDocumentStatus.completed,
-      //     providerId: EProviderId.google,
-      //     providerName: EProvider.google,
-      //     transactionDate: new Date(),
-      //     currencyCode: currencyResponse.currency_code,
-      //     currencyId: currencyResponse._id,
-      //     userId: existingSubscription?.userId,
-      //     baseAmount: baseAmount,
-      //     baseCurrency: "INR",
-      //     conversionRate: conversionRateAmt,
-      //     metaData: {
-      //       externalId: rtdn?.purchaseToken,
-      //       latestOrderId: rtdn?.transactionInfo?.latestOrderId,
-      //     },
-      //   };
-
-      //   await this.paymentService.createPaymentRecord(paymentData, null, invoice);
-      // }
+          const subscriptionData = {
+            userId: existingSubscription?.userId,
+            planId: existingSubscription?.planId,
+            subscriptionStatus: EStatus.Active,
+            startAt: new Date(),
+            endAt: new Date(rtdn?.transactionInfo?.lineItems[0]?.expiryTime),
+            amount: price,
+            status: EStatus.Active,
+            notes: { itemId: existingSubscription?.notes?.itemId },
+            createBy: existingSubscription?.userId,
+            updateBy: existingSubscription?.userId,
+            metaData: rtdn?.transactionInfo,
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            paymentType: EPaymentType.charge,
+            externalId: rtdn?.purchaseToken,
+            currencyCode: currencyResponse?.currency_code,
+            currencyId: currencyResponse?._id,
+            transactionDetails: {
+              transactionId: rtdn?.purchaseToken,
+              authAmount:
+                rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
+                  ?.recurringPrice?.units,
+              transactionDate: rtdn?.transactionInfo?.startTime,
+              planId: rtdn?.transactionInfo?.lineItems[0]?.productId,
+            },
+          };
+          let subscription =
+            await this.subscriptionModel.create(subscriptionData);
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          const invoiceData = {
+            itemId: existingSubscription?.notes.itemId,
+            source_id: subscription?._id,
+            source_type: "subscription",
+            sub_total: price,
+            document_status: EDocumentStatus.completed,
+            grand_total: price,
+            user_id: subscription?.userId,
+            currencyCode: currencyResponse?.currency_code,
+            created_by: subscription?.userId,
+            updated_by: subscription?.userId,
+          };
+          const invoice = await this.invoiceService.createInvoice(
+            invoiceData,
+            subscription?.userId
+          );
+          const paymentData = {
+            amount: price,
+            document_status: EDocumentStatus.completed,
+            providerId: EProviderId.google,
+            providerName: EProvider.google,
+            transactionDate: new Date(),
+            currencyCode: currencyResponse?.currency_code,
+            currencyId: currencyResponse?._id,
+            userId: existingSubscription?.userId,
+            paymentType: EPaymentType.charge,
+            baseAmount: baseAmount,
+            baseCurrency: "INR",
+            conversionRate: conversionRateAmt,
+            metaData: {
+              externalId: rtdn?.purchaseToken,
+              latestOrderId: rtdn?.transactionInfo?.latestOrderId,
+            },
+          };
+          await this.paymentService.createPaymentRecord(
+            paymentData,
+            null,
+            invoice
+          );
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            user_id: subscription?.userId,
+            provider: subscription?.provider,
+            subscription_id: subscription._id,
+            subscription_status: subscription?.subscriptionStatus,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+        }
+      }
     } catch (error) {
-      // console.error("Error in handleGoogleIAPRenew:", error);
       throw error;
     }
   }
@@ -881,6 +933,24 @@ export class SubscriptionService {
           createdBy: mandate?.userId,
           updatedBy: mandate?.userId,
         });
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: mandate?.sourceId,
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: EProvider.google,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
       }
     } catch (error) {
       throw error;
@@ -938,6 +1008,7 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if(mandate.mandateStatus === EDocumentStatus.active){
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
         {
@@ -952,6 +1023,25 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+      let subscriptionData = await this.subscriptionModel.findOne({
+        _id: new ObjectId(mandate?.sourceId),
+      });
+      let itemName = await this.itemService.getItemDetail(
+        subscriptionData?.notes?.itemId
+      );
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandate?.userId;
+      mixPanelBody.properties = {
+        mandate_id: mandate?._id,
+        user_id: mandate?.userId,
+        mandate_status: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        item_name: itemName?.itemName,
+        provider: mandate?.provider,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
+    }
     } catch (err) {
       throw err;
     }
@@ -964,6 +1054,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if (mandate.mandateStatus===EDocumentStatus.active) {        
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
         {
@@ -978,6 +1069,27 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+
+      let subscriptionData = await this.subscriptionModel.findOne({
+        _id: new ObjectId(mandate?.sourceId),
+      });
+      let itemName = await this.itemService.getItemDetail(
+        subscriptionData?.notes?.itemId
+      );
+
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandate?.userId;
+      mixPanelBody.properties = {
+        mandate_id: mandate?._id,
+        user_id: mandate?.userId,
+        mandate_status: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        item_name: itemName?.itemName,
+        provider: mandate?.provider,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
+    }
     } catch (err) {
       throw err;
     }
@@ -1108,16 +1220,9 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
-      // console.log("inside razorpay subscription payment");
-
       const rzpPaymentId = payload?.payment?.entity?.order_id;
-      // console.log("rzpPaymentId", rzpPaymentId);
-
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      // console.log("paymentRequest", paymentRequest);
-
-      // if (paymentRequest.document_status === EPaymentStatus.pending) {
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
@@ -1127,7 +1232,7 @@ export class SubscriptionService {
       );
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,
-      });
+      }).sort({_id:-1});
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
           subscription.subscriptionStatus = EsubscriptionStatus.active;
@@ -1167,30 +1272,29 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
-          // let mixPanelBody: any = {};
-          // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-          // mixPanelBody.distinctId = subscription?.userId;
-          // mixPanelBody.properties = {
-          //   user_id: subscription?.userId,
-          //   provider: EProvider.razorpay,
-          //   subscription_id: subscription._id,
-          //   subscription_status: EsubscriptionStatus.active,
-          //   subscription_date: subscription?.startAt,
-          //   item_name: item?.itemName,
-          //   subscription_expired: subscription?.endAt
-          // };
-          // await this.helperService.mixPanel(mixPanelBody);
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            user_id: subscription?.userId,
+            provider: EProvider.razorpay,
+            subscription_id: subscription._id,
+            subscription_status: EsubscriptionStatus.active,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
 
-          let userData = await this.helperService.getUserById(
-            subscription?.userId
-          );
-          await this.helperService.facebookEvents(
-            userData.data.phoneNumber,
-            invoice.currencyCode,
-            invoice.grand_total
-          );
+          // let userData = await this.helperService.getUserById(
+          //   subscription?.userId
+          // );
+          // await this.helperService.facebookEvents(
+          //   userData.data.phoneNumber,
+          //   invoice.currencyCode,
+          //   invoice.grand_total
+          // );
         }
-        // }
       }
     } catch (err) {
       throw err;
@@ -1319,8 +1423,9 @@ export class SubscriptionService {
       );
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,
-      });
+      }).sort({_id:-1});
       if (subscription) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
         subscription.subscriptionStatus = "Active";
         await subscription.save();
 
@@ -1338,16 +1443,19 @@ export class SubscriptionService {
           serviceItemType: "subscription",
         };
         await this.helperService.mixPanel(mixPanelBodyData);
-        // let mixPanelBody: any = {};
-        // mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        // mixPanelBody.distinctId = subscription?.userId;
-        // mixPanelBody.properties = {
-        //   userId: subscription?.userId,
-        //   provider: EProvider.cashfree,
-        //   membership: item?.itemName,
-        //   badge: item?.additionalDetail?.badge,
-        // };
-        // await this.helperService.mixPanel(mixPanelBody);
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        mixPanelBody.distinctId = subscription?.userId;
+        mixPanelBody.properties = {
+          user_id: subscription?.userId,
+          provider: EProvider.cashfree,
+          subscription_id: subscription._id,
+          subscription_status: EsubscriptionStatus.active,
+          subscription_date: subscription?.startAt,
+          item_name: item?.itemName,
+          subscription_expired: subscription?.endAt,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
 
         let userBody = {
           userId: subscription?.userId,
@@ -1364,6 +1472,7 @@ export class SubscriptionService {
           invoice.grand_total
         );
       }
+    }
       //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
   }
@@ -1936,6 +2045,22 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
+      let item = await this.itemService.getItemDetail(
+        subscriptionData?.notes?.itemId
+      );
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+      mixPanelBody.distinctId = subscriptionData?.userId;
+      mixPanelBody.properties = {
+        user_id: subscriptionData?.userId,
+        provider: subscriptionData?.provider,
+        subscription_id: subscription?._id,
+        subscription_status: EsubscriptionStatus.active,
+        subscription_date: subscription?.startAt,
+        item_name: item?.itemName,
+        subscription_expired: subscription?.endAt,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
     }
   }
 
@@ -2146,6 +2271,22 @@ export class SubscriptionService {
           "INR",
           { order_id: chargeResponse?.id }
         );
+        let item = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        mixPanelBody.distinctId = subscriptionData?.userId;
+        mixPanelBody.properties = {
+          user_id: subscriptionData?.userId,
+          provider: subscriptionData?.provider,
+          subscription_id: subscription?._id,
+          subscription_status: EsubscriptionStatus.active,
+          subscription_date: subscription?.startAt,
+          item_name: item?.itemName,
+          subscription_expired: subscription?.endAt,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
       }
     } catch (err) {
       throw err;
