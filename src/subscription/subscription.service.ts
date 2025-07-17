@@ -602,16 +602,14 @@ export class SubscriptionService {
       let existingSubscription = await this.subscriptionModel.findOne({
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
+          providerId: EProviderId.apple,
+          provider: EProvider.apple,
       });
       const existingCancellation =
         await this.mandateService.getMandatesByExternalId(
-          transactionHistory?.transactions?.originalTransactionId,
-          EMandateStatus.cancelled
+          transactionHistory?.transactions?.originalTransactionId
         );
-      if (existingCancellation.length > 0) {
-        // console.log("existingCancellation", existingCancellation);
-        return;
-      }
+      if (existingCancellation.mandateStatus=== EDocumentStatus.active) {  
       let body = {
         status: EMandateStatus.cancelled,
         updatedAt: new Date(),
@@ -623,14 +621,15 @@ export class SubscriptionService {
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
+        payload:payload
       };
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandates?._id,
         mandateStatus: EMandateStatus.cancelled,
         metaData: metaData,
         status: EStatus.Active,
-        createdBy: mandates?.userId,
-        updatedBy: mandates?.userId,
+        createdBy: existingCancellation?.userId,
+        updatedBy: existingCancellation?.userId,
       });
       let itemName = await this.itemService.getItemDetail(
         existingSubscription?.notes?.itemId
@@ -648,6 +647,7 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       return { message: "Cancellation processed successfully" };
+    }
     } catch (error) {
       throw error;
     }
@@ -780,7 +780,10 @@ export class SubscriptionService {
           providerId: EProviderId.google,
           provider: EProvider.google,
           status: EStatus.Active,
-          "metaData.latestOrderId": latestOrderId,
+          $or: [
+            { "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId },
+            { "metaData.latestOrderId": latestOrderId }
+          ]
         }).sort({_id : -1});
         if (
           existingSubscription?.subscriptionStatus !==
@@ -902,17 +905,16 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       // console.log("payload for google cancel", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
+      const rtdn = payload
+      // await this.subscriptionFactory.googleRtdn(payload);
       // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
         await this.mandateService.getMandatesByExternalId(
           rtdn.purchaseToken,
-          EMandateStatus.cancelled
         );
-      // console.log("existingCancellation", existingCancellation);
-      if (
-        existingCancellation.length != 0 &&
-        rtdn.notificationType === EEventId.cancel
+      if (existingCancellation.mandateStatus === EDocumentStatus.active
+        // existingCancellation.length != 0 &&
+        // rtdn.notificationType === EEventId.cancel
       ) {
         const body = {
           status: EMandateStatus.cancelled,
@@ -923,12 +925,14 @@ export class SubscriptionService {
           transactionId,
           body
         );
-        // console.log("mandate", mandate);
-
+        let metaData = {
+          ...rtdn.transactionInfo,
+          payload:payload
+        }
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
-          metaData: rtdn.transactionInfo,
+          metaData:metaData,
           status: EStatus.Active,
           createdBy: mandate?.userId,
           updatedBy: mandate?.userId,
@@ -1272,6 +1276,7 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
+         if (subscription.subscriptionStatus === EDocumentStatus.active) {
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
@@ -1285,6 +1290,7 @@ export class SubscriptionService {
             subscription_expired: subscription?.endAt,
           };
           await this.helperService.mixPanel(mixPanelBody);
+         }
 
           // let userData = await this.helperService.getUserById(
           //   subscription?.userId

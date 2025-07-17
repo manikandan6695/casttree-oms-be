@@ -226,10 +226,7 @@ export class SubscriptionFactory {
           transactionId,
           token?.id
         );
-      // console.log("existingSubscription", existingSubscription);
-      if (existingSubscription) {
-        return existingSubscription;
-      }
+      if (!existingSubscription) {
       const matchingTransaction = await this.getTransactionHistoryById(
         originalTransactionId
       );
@@ -396,6 +393,8 @@ export class SubscriptionFactory {
       };
       await this.helperService.mixPanel(mixPanelBody);
       return subscriptionData;
+    }
+      return existingSubscription;
     } catch (error) {
       throw error;
     }
@@ -411,9 +410,7 @@ export class SubscriptionFactory {
           transactionId,
           token?.id
         );
-      if (existingSubscription) {
-        return existingSubscription;
-      }
+      if (!existingSubscription) {
       let matchingTransaction = await this.validateTransactions(
         packageName,
         transactionId
@@ -570,6 +567,8 @@ export class SubscriptionFactory {
       };
       await this.helperService.mixPanel(mixPanelBody);
       return createdSubscription;
+    }
+    return existingSubscription
     } catch (error) {
       throw error;
     }
