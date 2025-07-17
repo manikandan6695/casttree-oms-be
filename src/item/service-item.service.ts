@@ -1325,7 +1325,7 @@ export class ServiceItemService {
       processPricingData.itemId.additionalDetail.promotionDetails.itemName =
         processPricingData.itemId.itemName;
       processPricingData.itemId.additionalDetail.promotionDetails.mentorName =
-        processPricingData.profileData.displayName;
+        processPricingData.profileData?.displayName;
       processPricingData.itemId.additionalDetail.promotionDetails.thumbnail =
         processPricingData.additionalDetails.thumbnail;
       processPricingData.itemId.additionalDetail.promotionDetails.itemId =
