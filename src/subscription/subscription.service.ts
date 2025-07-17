@@ -606,10 +606,14 @@ export class SubscriptionService {
           provider: EProvider.apple,
       });
       const existingCancellation =
-        await this.mandateService.getMandatesByExternalId(
-          transactionHistory?.transactions?.originalTransactionId
-        );
-      if (existingCancellation.mandateStatus=== EDocumentStatus.active) {  
+      await this.mandateService.getMandatesByExternalId(
+        transactionHistory?.transactions?.originalTransactionId,
+        EMandateStatus.cancelled
+      );
+        if (existingCancellation.length > 0) {
+          // console.log("existingCancellation", existingCancellation);
+          return;
+        }
       let body = {
         status: EMandateStatus.cancelled,
         updatedAt: new Date(),
@@ -628,8 +632,8 @@ export class SubscriptionService {
         mandateStatus: EMandateStatus.cancelled,
         metaData: metaData,
         status: EStatus.Active,
-        createdBy: existingCancellation?.userId,
-        updatedBy: existingCancellation?.userId,
+        createdBy: mandates?.userId,
+        updatedBy: mandates?.userId,
       });
       let itemName = await this.itemService.getItemDetail(
         existingSubscription?.notes?.itemId
@@ -647,7 +651,6 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       return { message: "Cancellation processed successfully" };
-    }
     } catch (error) {
       throw error;
     }
@@ -678,6 +681,13 @@ export class SubscriptionService {
         existingSubscription?._id,
         EDocumentStatus.expired
       );
+      let updateBody = {
+        userId: existingSubscription?.userId,
+        membership: "",
+        badge: "",
+      };
+      // console.log(updateBody);
+      await this.helperService.updateUsers(updateBody);
       // console.log("updatedInvoice", updatedInvoice);
       return existingSubscription;
     } catch (error) {
@@ -909,12 +919,13 @@ export class SubscriptionService {
       // await this.subscriptionFactory.googleRtdn(payload);
       // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
-        await this.mandateService.getMandatesByExternalId(
-          rtdn.purchaseToken,
-        );
-      if (existingCancellation.mandateStatus === EDocumentStatus.active
-        // existingCancellation.length != 0 &&
-        // rtdn.notificationType === EEventId.cancel
+      await this.mandateService.getMandatesByExternalId(
+        rtdn.purchaseToken,
+        EMandateStatus.cancelled
+      );
+      if (
+        existingCancellation.length != 0 &&
+        rtdn.notificationType === EEventId.cancel
       ) {
         const body = {
           status: EMandateStatus.cancelled,

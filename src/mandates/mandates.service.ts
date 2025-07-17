@@ -156,10 +156,11 @@ export class MandatesService {
       throw err;
     }
   }
-  async getMandatesByExternalId(externalId: string) {
+  async getMandatesByExternalId(externalId: string, status:string) {
     try {
-      let mandates = await this.mandateModel.findOne({
+      let mandates = await this.mandateModel.find({
         "metaData.externalId": externalId,
+        mandateStatus: status
       });
       return mandates;
     } catch (err) {
