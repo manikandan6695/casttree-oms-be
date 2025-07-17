@@ -377,7 +377,7 @@ export class SubscriptionService {
             transaction: eventType,
             provider: EProvider.google,
             providerId: EProviderId.google,
-            webhookPayload: eventType,
+            webhookPayload: req?.body,
             status: EStatus.Active,
           });
         }
@@ -698,7 +698,7 @@ export class SubscriptionService {
   async handleGoogleIAPPurchase(payload) {
     try {
       // console.log("payload", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       // console.log("rtdn purchase",rtdn);
       let subscription;
       if (rtdn.notificationType === EEventId.purchase) {
@@ -782,7 +782,7 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       if (rtdn.notificationType === EEventId.renew) {
         const orderId = (id: string = "") => id.split("..")[0];
         const latestOrderId = orderId(rtdn?.transactionInfo?.latestOrderId);
@@ -915,7 +915,7 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       // console.log("payload for google cancel", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
       await this.mandateService.getMandatesByExternalId(
