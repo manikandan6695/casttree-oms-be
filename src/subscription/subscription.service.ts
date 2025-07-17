@@ -369,6 +369,7 @@ export class SubscriptionService {
       } else if (provider == EProvider.google) {
         const eventType = await this.subscriptionFactory.googleRtdn(req?.body);
         console.log("eventType", eventType);
+        console.log("body", req?.body);
         let webhookExist = await this.webhookModel.findOne({
           "transaction.purchaseToken": eventType?.purchaseToken,
         });
