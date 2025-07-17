@@ -960,11 +960,11 @@ export class SubscriptionFactory {
   // google iap
   async googleRtdn(payload) {
     try {
-      // console.log("payload", payload);
+      console.log("payload", payload);
       const pubSubMessage = payload?.message;
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
-      // console.log("notification", notification);
+      console.log("notification", notification);
 
       const { subscriptionNotification } = notification;
       const { notificationType, purchaseToken } = subscriptionNotification;
