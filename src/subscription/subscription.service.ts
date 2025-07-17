@@ -915,7 +915,7 @@ export class SubscriptionService {
   async handleGoogleIAPCancel(payload) {
     try {
       // console.log("payload for google cancel", payload);
-      const rtdn = await this.subscriptionFactory.googleRtdn(payload);
+      const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
       await this.mandateService.getMandatesByExternalId(
