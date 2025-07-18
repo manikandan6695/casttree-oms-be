@@ -290,6 +290,8 @@ export class ProcessService {
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
+          console.log("inside completed");
+
           processInstanceDetailBody["taskResponse"] = body.taskResponse;
           processInstanceDetailBody["endedAt"] = currentTimeIso;
         }
@@ -329,7 +331,10 @@ export class ProcessService {
           task_number: taskDetail.taskNumber,
         };
         await this.helperService.mixPanel(mixPanelBody);
+
         processInstanceBody["processStatus"] = EprocessStatus.Completed;
+        // console.log("inside process instance update body", processInstanceBody);
+
         let processInstanceData = await this.processInstancesModel.updateOne(
           {
             processId: taskDetail.processId,
@@ -338,13 +343,16 @@ export class ProcessService {
           { $set: processInstanceBody }
         );
       }
+      // console.log("processId", taskDetail.processId, token.id);
+
+      // console.log("processInstanceDetailBody", processInstanceDetailBody);
 
       let processInstanceDetailData =
         await this.processInstanceDetailsModel.updateOne(
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
-            updated_at: currentTime,
+            // updated_at: currentTime,
           },
           { $set: processInstanceDetailBody }
         );
