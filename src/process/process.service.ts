@@ -57,6 +57,7 @@ export class ProcessService {
       finalResponse["taskTitle"] = currentTaskData.title;
       finalResponse["taskData"] = currentTaskData.taskMetaData;
       finalResponse["totalTasks"] = totalTasks;
+      finalResponse["isEnableExpertQueries"] = serviceItemDetail?.itemId?.additionalDetail?.isEnableExpertQueries;
       let nextTaskData = await this.tasksModel.findOne({
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
