@@ -39,10 +39,12 @@ export class DynamicUiService {
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
-      let data = await this.appNavBarModel.findOne({
-        key: key,
-        status: "Active",
-      }).lean();
+      let data = await this.appNavBarModel
+        .findOne({
+          key: key,
+          status: "Active",
+        })
+        .lean();
       let tabs = await this.matchRoleByUser(token, data.tabs);
       data["tabs"] = tabs;
       if (key == ENavBar.learnHomeHeader) {
@@ -52,7 +54,7 @@ export class DynamicUiService {
         mixPanelBody.properties = {};
         await this.helperService.mixPanel(mixPanelBody);
       }
-       return { data };
+      return { data };
     } catch (err) {
       throw err;
     }
@@ -113,7 +115,7 @@ export class DynamicUiService {
       ]);
       const isNewSubscription = !!subscriptionData;
       const isSubscriber = !!existingUserSubscription;
-      // console.log("subscriber", isNewSubscription, isSubscriber);
+      console.log("subscriber", isNewSubscription, isSubscriber);
 
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
@@ -798,6 +800,9 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
+      // console.log("isNewSubscription", isNewSubscription);
+      // console.log("isSubscriber", isSubscriber);
+
       const personalizedBannerComponent = components.find(
         (c) => c.type === EComponentType.userPreferenceBanner
       );
@@ -819,7 +824,11 @@ export class DynamicUiService {
           navigation: item?.banner?.navigation,
         };
         let isNewSubscriberRule = rule.isNewSubscriber;
+        // console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
+
         let isSubscribedRule = rule.isSubscribed;
+
+        // console.log("isSubscribedRule", isSubscribedRule,item.type);
 
         const matchesCountry =
           typeof rule.country === "object" && "$ne" in rule.country
@@ -851,14 +860,18 @@ export class DynamicUiService {
           return [bannerData];
         }
         if (
-          rule.isSubscribed == isSubscriber &&
-          matchesCountry &&
-          isFirstSeriesLocked &&
-          item.type == "IAPPayment"
+          (rule.isSubscribed == isSubscriber &&
+            matchesCountry &&
+            isFirstSeriesLocked &&
+            item.type == "IAPPayment") ||
+          (matchesCountry && item.type == "IAPPayment")
         ) {
           return [bannerData];
         }
-        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+        if (
+          rule.isSubscribed === isNewSubscription &&
+          !referralBanner
+        ) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
