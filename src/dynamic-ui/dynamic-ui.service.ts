@@ -800,8 +800,8 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
-      console.log("isNewSubscription", isNewSubscription);
-      console.log("isSubscriber", isSubscriber);
+      // console.log("isNewSubscription", isNewSubscription);
+      // console.log("isSubscriber", isSubscriber);
 
       const personalizedBannerComponent = components.find(
         (c) => c.type === EComponentType.userPreferenceBanner
@@ -824,11 +824,11 @@ export class DynamicUiService {
           navigation: item?.banner?.navigation,
         };
         let isNewSubscriberRule = rule.isNewSubscriber;
-        console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
+        // console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
 
         let isSubscribedRule = rule.isSubscribed;
 
-        console.log("isSubscribedRule", isSubscribedRule,item.type);
+        // console.log("isSubscribedRule", isSubscribedRule,item.type);
 
         const matchesCountry =
           typeof rule.country === "object" && "$ne" in rule.country
@@ -845,7 +845,7 @@ export class DynamicUiService {
         }
 
         if (
-          rule.isSubscribed == isSubscriber &&
+          rule.isSubscribed == isNewSubscriberRule &&
           countryCode == rule.country &&
           isFirstSeriesLocked == rule.isLocked &&
           item.type == "payment"
