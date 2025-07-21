@@ -655,10 +655,15 @@ export class PaymentRequestService {
         data.map(async (payment) => {
           // console.log("payment source type is",payment.source_type);
 
-          let type = getTitleFromSourceType(payment?.salesDocument?.source_type);
+
+          let type = getTitleFromSourceType(
+            payment?.salesDocument?.source_type
+          );
+
 
           if (
-            payment?.salesDocument?.source_type === EPaymentSourceType.serviceRequest &&
+            payment?.salesDocument?.source_type ===
+              EPaymentSourceType.serviceRequest &&
             payment.salesDocId
           ) {
             const serviceRequestDetail =
@@ -685,8 +690,11 @@ export class PaymentRequestService {
       );
 
       data = data.filter((payment) => payment.type !== null);
+      const firstPayment = data.find(
+        (payment) => payment.isFirstPayment === true
+      );
 
-      return data;
+      return firstPayment ? [firstPayment] : [];
     } catch (err) {
       throw err;
     }
