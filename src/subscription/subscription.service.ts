@@ -801,8 +801,6 @@ export class SubscriptionService {
         })
         if (
             !matchedOrderId
-          // existingSubscription?.subscriptionStatus !==
-          // EsubscriptionStatus.active
         ) {
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
