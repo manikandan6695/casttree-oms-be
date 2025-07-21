@@ -625,7 +625,7 @@ export class PaymentRequestService {
         },
       ]);
       // console.log("data is",data);
-      
+
       let earliestPaymentId: string;
       if (data.length > 0) {
         const earliest = data.reduce((prev, curr) =>
@@ -646,11 +646,14 @@ export class PaymentRequestService {
       data = await Promise.all(
         data.map(async (payment) => {
           // console.log("payment source type is",payment.source_type);
-          
-          let type = getTitleFromSourceType(payment?.salesDocument?.source_type);
+
+          let type = getTitleFromSourceType(
+            payment?.salesDocument?.source_type
+          );
 
           if (
-            payment?.salesDocument?.source_type === EPaymentSourceType.serviceRequest &&
+            payment?.salesDocument?.source_type ===
+              EPaymentSourceType.serviceRequest &&
             payment.salesDocId
           ) {
             const serviceRequestDetail =
@@ -666,7 +669,7 @@ export class PaymentRequestService {
             }
           }
           // console.log("type is ==>",type);
-          
+
           return {
             ...payment,
             type,
@@ -677,8 +680,11 @@ export class PaymentRequestService {
       );
 
       data = data.filter((payment) => payment.type !== null);
+      const firstPayment = data.find(
+        (payment) => payment.isFirstPayment === true
+      );
 
-      return data;
+      return firstPayment ? [firstPayment] : [];
     } catch (err) {
       throw err;
     }
