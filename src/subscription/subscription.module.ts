@@ -23,7 +23,7 @@ import { SubscriptionFactory } from "./subscription.factory";
     AuthModule,
     HelperModule,
     InvoiceModule,
-    PaymentRequestModule,
+    forwardRef(() => PaymentRequestModule),
 
     forwardRef(() =>  ItemModule),
     MandatesModule

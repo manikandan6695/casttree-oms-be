@@ -19,6 +19,7 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO, filterTypeDTO } from "./dto/payment.dto";
 import {
+  EAdminId,
   ECoinStatus,
   ECurrencyName,
   EFilterType,
@@ -30,6 +31,7 @@ import {
   ESourceTypes,
   ETransactionState,
   ETransactionType,
+  ETransactionTypes,
 } from "./enum/payment.enum";
 import { IPaymentModel } from "./schema/payment.schema";
 import { ISalesDocumentModel } from "src/invoice/schema/sales-document.schema";
@@ -37,6 +39,7 @@ import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
+import { SubscriptionService } from "src/subscription/subscription.service";
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -65,7 +68,8 @@ export class PaymentRequestService {
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private redisService: RedisService
+    private redisService: RedisService,
+    private subscriptionService: SubscriptionService
   ) {}
 
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
@@ -238,6 +242,10 @@ export class PaymentRequestService {
 
       await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
+      if (body.providerId === EProviderId.apple && body.providerName === EProvider.apple) {
+        let appleCoinPurchase = await this.subscriptionService.handleIapCoinTransactions(body, token)
+        return appleCoinPurchase
+      }
       return { paymentData, serviceRequest };
     } catch (err) {
       throw err;
@@ -625,7 +633,7 @@ export class PaymentRequestService {
         },
       ]);
       // console.log("data is",data);
-      
+
       let earliestPaymentId: string;
       if (data.length > 0) {
         const earliest = data.reduce((prev, curr) =>
@@ -646,7 +654,7 @@ export class PaymentRequestService {
       data = await Promise.all(
         data.map(async (payment) => {
           // console.log("payment source type is",payment.source_type);
-          
+
           let type = getTitleFromSourceType(payment?.salesDocument?.source_type);
 
           if (
@@ -666,7 +674,7 @@ export class PaymentRequestService {
             }
           }
           // console.log("type is ==>",type);
-          
+
           return {
             ...payment,
             type,
@@ -861,6 +869,32 @@ export class PaymentRequestService {
     }
   }
 
+  async createCoinValue(payload) {
+    try {
+      // console.time("coin flow")
+      let userAdditional = await this.helperService.updateAdminCoinValue({ coinValue: payload.coinValue, userId: EAdminId.userId })
+      let getUserAdditional = await this.helperService.getUserAdditionalDetails(payload)
+      await this.helperService.updateUserPurchaseCoin({ coinValue: payload.coinValue, userId: payload.userId })
+      let totalAmt = getUserAdditional?.userAdditional?.purchasedBalance + payload.coinValue
+      let body = {
+        documentStatus: EDocumentStatus.completed,
+        transactionDate: new Date(),
+        status: EDocumentStatus.active,
+        coinValue: payload.coinValue,
+        sourceId: payload.sourceId,
+        sourceType: payload.sourceType
+      }
+      let coinTransactionDetails = await this.coinTransactionModel.create({
+        ...body, type: ETransactionType.purchased, transactionType: ETransactionType.In, currentBalance: totalAmt, userId: payload.userId, senderId: userAdditional?.userId,
+        receiverId: payload.userId
+      });
+      await this.coinTransactionModel.create({ ...body, userId: userAdditional.userId, senderId: payload?.userId, receiverId: userAdditional.userId, type: ETransactionType.withdrawn, transactionType: ETransactionType.Out, currentBalance: userAdditional?.purchasedBalance });
+      // console.timeEnd("coin flow")
+      return coinTransactionDetails?._id
+    } catch (error) {
+      throw error
+    }
+  }
   async handleTransactionHistory(
     token: UserToken,
     skip: number,
@@ -923,13 +957,13 @@ export class PaymentRequestService {
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
-            return ETransactionType.coinPurchased;
+            return ETransactionTypes.coinPurchased;
           case EPaymentSourceType.subscription:
-            return ETransactionType.subscriptionPurchased;
+            return ETransactionTypes.subscriptionPurchased;
           case EPaymentSourceType.serviceRequest:
-            return ETransactionType.feedbackPurchased;
+            return ETransactionTypes.feedbackPurchased;
           case EPaymentSourceType.processInstance:
-            return ETransactionType.coursePurchased;
+            return ETransactionTypes.coursePurchased;
           default:
             return null;
         }
@@ -960,12 +994,12 @@ export class PaymentRequestService {
             if (
               serviceRequestDetail?.data?.type === EPaymentSourceType.feedback
             ) {
-              title = ETransactionType.feedbackPurchased;
+              title = ETransactionTypes.feedbackPurchased;
             } else if (
               serviceRequestDetail?.data?.type ===
               EPaymentSourceType.processInstance
             ) {
-              title = ETransactionType.coursePurchased;
+              title = ETransactionTypes.coursePurchased;
             }
           }
           return {

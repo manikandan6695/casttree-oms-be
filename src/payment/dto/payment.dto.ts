@@ -6,7 +6,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { AddServiceRequestDTO } from "src/service-request/dto/add-service-request.dto";
 import { EFilterType, EPaymentSourceType } from "../enum/payment.enum";
 
@@ -20,7 +22,27 @@ export class InvoiceDTO {
   @IsEnum(EPaymentSourceType)
   sourceType?: EPaymentSourceType;
 }
+class TransactionDetailsDTO {
+  @IsOptional()
+  @IsString()
+  transactionId?: string;
 
+  @IsOptional()
+  @IsString()
+  planId?: string;
+
+  @IsOptional()
+  @IsString()
+  originalTransactionId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  authAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  transactionDate?: number;
+}
 export class paymentDTO {
   @IsNotEmpty()
   @IsNumber()
@@ -79,6 +101,10 @@ export class paymentDTO {
   @IsOptional()
   @IsISO8601()
   transactionDate?: Date;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TransactionDetailsDTO)
+  transactionDetails?: TransactionDetailsDTO;
 }
 export class filterTypeDTO{
   @IsOptional()

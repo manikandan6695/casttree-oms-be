@@ -59,6 +59,7 @@ export class SubscriptionService {
     private readonly subscriptionModel: Model<ISubscriptionModel>,
     private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
@@ -2504,6 +2505,14 @@ export class SubscriptionService {
       return data;
     } catch (error) {
       throw error;
+    }
+  }
+  async handleIapCoinTransactions(body,token){
+    try {
+      let transaction = await this.subscriptionFactory.handleIapCoinPurchase(body,token)
+      return transaction
+    } catch (error) {
+      throw error
     }
   }
 }
