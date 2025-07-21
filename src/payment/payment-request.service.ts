@@ -24,6 +24,7 @@ import {
   ERazorpayPaymentStatus,
   ERedisEventType,
   ESourceType,
+  ESourceTypes,
   ETransactionState,
   ETransactionType,
 } from "./enum/payment.enum";
@@ -579,14 +580,15 @@ export class PaymentRequestService {
 
   async getLatestSubscriptionPayments(userId) {
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
       let data = await this.paymentModel.aggregate([
         {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: thirtyDaysAgo },
+            created_at: { $gte: sixtyDaysAgo },
           },
         },
         {
@@ -603,13 +605,70 @@ export class PaymentRequestService {
         {
           $match: {
             "salesDocument.document_status": EPaymentStatus.completed,
-            "salesDocument.source_type": EPaymentSourceType.subscription,
           },
         },
       ]);
+      // console.log("data is",data);
 
-      //  console.log({ data });
-      return data;
+      let earliestPaymentId: string;
+      if (data.length > 0) {
+        const earliest = data.reduce((prev, curr) =>
+          new Date(prev.created_at) < new Date(curr.created_at) ? prev : curr
+        );
+        earliestPaymentId = earliest._id?.toString(); // fallback to string comparison
+      }
+      const getTitleFromSourceType = (sourceType: string) => {
+        switch (sourceType) {
+          case EPaymentSourceType.coinTransaction:
+            return ESourceTypes.coin;
+          case EPaymentSourceType.subscription:
+            return ESourceTypes.subscription;
+          default:
+            return null;
+        }
+      };
+      data = await Promise.all(
+        data.map(async (payment) => {
+          // console.log("payment source type is",payment.source_type);
+
+          let type = getTitleFromSourceType(
+            payment?.salesDocument?.source_type
+          );
+
+          if (
+            payment?.salesDocument?.source_type ===
+              EPaymentSourceType.serviceRequest &&
+            payment.salesDocId
+          ) {
+            const serviceRequestDetail =
+              await this.serviceRequestService.getServiceRequestDetail(
+                payment.salesDocId
+              );
+
+            const serviceType = serviceRequestDetail?.data?.type;
+            if (serviceType === EPaymentSourceType.feedback) {
+              type = ESourceTypes.feedback;
+            } else if (serviceType === EPaymentSourceType.workshop) {
+              type = ESourceTypes.workshop;
+            }
+          }
+          // console.log("type is ==>",type);
+
+          return {
+            ...payment,
+            type,
+            isFirstPayment:
+              payment._id?.toString() === earliestPaymentId ? true : undefined,
+          };
+        })
+      );
+
+      data = data.filter((payment) => payment.type !== null);
+      const firstPayment = data.find(
+        (payment) => payment.isFirstPayment === true
+      );
+
+      return firstPayment ? [firstPayment] : [];
     } catch (err) {
       throw err;
     }
