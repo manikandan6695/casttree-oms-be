@@ -5,7 +5,10 @@ import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
-import { EDocumentStatus, ESDocumentStatus } from "src/invoice/enum/document-status.enum";
+import {
+  EDocumentStatus,
+  ESDocumentStatus,
+} from "src/invoice/enum/document-status.enum";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
@@ -34,7 +37,7 @@ import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
 const {
@@ -63,16 +66,19 @@ export class PaymentRequestService {
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private redisService: RedisService
-  ) { }
+  ) {}
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
     try {
       if (coinPurchaseData?.key === ERedisEventType.coinPurchase) {
         // console.log("coinPurchaseData!", coinPurchaseData?.element);
         const parsedElement = JSON.parse(coinPurchaseData.element);
         const accessTokenData = parsedElement?.authToken;
-        const token = accessTokenData?.replace(/^Bearer\s+/i, '');
+        const token = accessTokenData?.replace(/^Bearer\s+/i, "");
         const payload = parsedElement?.payload;
-        const existingData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        const existingData = await this.invoiceService.getSalesDocumentBySource(
+          payload?.coinTransactionId,
+          EPaymentSourceType.coinTransaction
+        );
         if (existingData) {
           // console.log("Existing data Found:", existingData);
           return existingData;
@@ -97,7 +103,10 @@ export class PaymentRequestService {
         const decodedToken = jwt.decode(token) as UserToken;
         // console.log("decodedToken",decodedToken);
         await this.initiatePayment(bodyData, decodedToken, accessTokenData);
-        let invoiceData = await this.invoiceService.getSalesDocumentBySource(payload?.coinTransactionId, EPaymentSourceType.coinTransaction);
+        let invoiceData = await this.invoiceService.getSalesDocumentBySource(
+          payload?.coinTransactionId,
+          EPaymentSourceType.coinTransaction
+        );
         let orderId = await this.paymentModel.findOne({
           user_id: payload?.userId,
           source_id: new ObjectId(invoiceData?._id),
@@ -105,29 +114,34 @@ export class PaymentRequestService {
           document_status: EPaymentStatus.initiated,
           providerId: EProviderId.razorpay,
           providerName: EProvider.razorpay,
-        })
+        });
         if (orderId) {
-          let consumer = await this.helperService.getUserByUserId(accessTokenData);
+          let consumer =
+            await this.helperService.getUserByUserId(accessTokenData);
           let eventOutBoxPayload = {
             userId: payload?.userId,
             eventName: ERedisEventType.intermediateTransfer,
             sourceId: new ObjectId(invoiceData?._id),
             sourceType: EDocumentTypeName.invoice,
             consumer: consumer?.userName,
-            payload: orderId
-          }
-          let coinTransactionId = await this.invoiceService.getInvoiceDetail(orderId?.source_id);
+            payload: orderId,
+          };
+          let coinTransactionId = await this.invoiceService.getInvoiceDetail(
+            orderId?.source_id
+          );
           // console.log("existingData", coinTransactionId?.source_id);
-          await this.redisService.pushToIntermediateTransferQueue(eventOutBoxPayload, orderId, coinTransactionId?.source_id.toString());
+          await this.redisService.pushToIntermediateTransferQueue(
+            eventOutBoxPayload,
+            orderId,
+            coinTransactionId?.source_id.toString()
+          );
         }
       }
-
     } catch (err) {
       // console.error("Error handling coin purchase from Redsis:", err);
       throw err;
     }
   }
-
 
   async initiatePayment(
     body: paymentDTO,
@@ -479,18 +493,18 @@ export class PaymentRequestService {
       });
       sourceId
         ? aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_id": new ObjectId(sourceId),
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        })
+            $match: {
+              "salesDocument.source_id": new ObjectId(sourceId),
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          })
         : aggregation_pipeline.push({
-          $match: {
-            "salesDocument.source_type": EPaymentSourceType.processInstance,
-            "salesDocument.document_status": EPaymentStatus.completed,
-          },
-        });
+            $match: {
+              "salesDocument.source_type": EPaymentSourceType.processInstance,
+              "salesDocument.document_status": EPaymentStatus.completed,
+            },
+          });
       aggregation_pipeline.push({
         $unwind: {
           path: "$salesDocument",
@@ -583,6 +597,19 @@ export class PaymentRequestService {
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
+      // STEP 1: Get the first-ever completed payment for the user
+      const [firstPaymentRecord] = await this.paymentModel
+        .find({
+          user_id: new ObjectId(userId),
+          document_status: EPaymentStatus.completed,
+        })
+        .sort({ created_at: 1 }) // ascending order to get earliest
+        .limit(1)
+        .lean();
+
+      const earliestPaymentId = firstPaymentRecord?._id?.toString();
+
+      // STEP 2: Get all payments in last 60 days
       let data = await this.paymentModel.aggregate([
         {
           $match: {
@@ -599,24 +626,14 @@ export class PaymentRequestService {
             as: "salesDocument",
           },
         },
-        {
-          $unwind: "$salesDocument",
-        },
+        { $unwind: "$salesDocument" },
         {
           $match: {
             "salesDocument.document_status": EPaymentStatus.completed,
           },
         },
       ]);
-      // console.log("data is",data);
 
-      let earliestPaymentId: string;
-      if (data.length > 0) {
-        const earliest = data.reduce((prev, curr) =>
-          new Date(prev.created_at) < new Date(curr.created_at) ? prev : curr
-        );
-        earliestPaymentId = earliest._id?.toString(); // fallback to string comparison
-      }
       const getTitleFromSourceType = (sourceType: string) => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
@@ -627,10 +644,9 @@ export class PaymentRequestService {
             return null;
         }
       };
+
       data = await Promise.all(
         data.map(async (payment) => {
-          // console.log("payment source type is",payment.source_type);
-
           let type = getTitleFromSourceType(
             payment?.salesDocument?.source_type
           );
@@ -652,7 +668,6 @@ export class PaymentRequestService {
               type = ESourceTypes.workshop;
             }
           }
-          // console.log("type is ==>",type);
 
           return {
             ...payment,
@@ -664,6 +679,8 @@ export class PaymentRequestService {
       );
 
       data = data.filter((payment) => payment.type !== null);
+
+      // Return only first-ever payment in 60-day window if it exists
       const firstPayment = data.find(
         (payment) => payment.isFirstPayment === true
       );
@@ -696,66 +713,88 @@ export class PaymentRequestService {
   async updateCoinValue(paymentId: string) {
     try {
       let payment = await this.paymentModel.findOne({
-        _id: new ObjectId(paymentId)
+        _id: new ObjectId(paymentId),
       });
-      let totalBalance ;
-      let invoiceData = await this.invoiceService.getInvoiceDetail(payment?.source_id);
-      if (payment?.document_status === EDocumentStatus.completed && invoiceData?.document_status === EDocumentStatus.completed) {
-      
-        let coinData = await this.currency_service.getCurrencyByCurrencyName(ECurrencyName.currencyId, ECurrencyName.casttreeCoin)
-       
+      let totalBalance;
+      let invoiceData = await this.invoiceService.getInvoiceDetail(
+        payment?.source_id
+      );
+      if (
+        payment?.document_status === EDocumentStatus.completed &&
+        invoiceData?.document_status === EDocumentStatus.completed
+      ) {
+        let coinData = await this.currency_service.getCurrencyByCurrencyName(
+          ECurrencyName.currencyId,
+          ECurrencyName.casttreeCoin
+        );
+
         let coinTransaction = await this.coinTransactionModel.findOne({
           sourceId: new ObjectId(invoiceData?._id),
           transactionType: ETransactionType.In,
-          type: ETransactionType.purchased
-        })
-        if(coinTransaction?.documentStatus === ECoinStatus.pending&&coinTransaction?.transactionType === ETransactionType.In){
-            let updateUserAdditional = await this.helperService.updateUserPurchaseCoin({
+          type: ETransactionType.purchased,
+        });
+        if (
+          coinTransaction?.documentStatus === ECoinStatus.pending &&
+          coinTransaction?.transactionType === ETransactionType.In
+        ) {
+          let updateUserAdditional =
+            await this.helperService.updateUserPurchaseCoin({
               userId: coinTransaction?.userId,
-              coinValue: coinTransaction?.coinValue
-            })
-            totalBalance = (updateUserAdditional?.purchasedBalance || 0) + (updateUserAdditional?.earnedBalance || 0);
-            await this.coinTransactionModel.updateOne({
+              coinValue: coinTransaction?.coinValue,
+            });
+          totalBalance =
+            (updateUserAdditional?.purchasedBalance || 0) +
+            (updateUserAdditional?.earnedBalance || 0);
+          await this.coinTransactionModel.updateOne(
+            {
               sourceId: new ObjectId(invoiceData?._id),
               transactionType: ETransactionType.In,
-              documentStatus: ECoinStatus.pending
-            },{
-              $set:{
+              documentStatus: ECoinStatus.pending,
+            },
+            {
+              $set: {
                 documentStatus: ECoinStatus.completed,
                 updatedAt: new Date(),
-                currentBalance: totalBalance
-              }
-            })   
-          
+                currentBalance: totalBalance,
+              },
+            }
+          );
         }
         let coinTransactionOut = await this.coinTransactionModel.findOne({
           sourceId: new ObjectId(invoiceData?._id),
           transactionType: ETransactionType.Out,
-          type: ETransactionType.withdrawn
-        })
-        if(coinTransactionOut?.documentStatus === ECoinStatus.pending&&coinTransactionOut?.transactionType === ETransactionType.Out){
-          let updateUserAdditionalData = await this.helperService.updateAdminCoinValue({
-            userId: coinTransactionOut?.userId,
-            coinValue: coinTransactionOut?.coinValue
-          })
-          await this.coinTransactionModel.updateOne({
-            sourceId: new ObjectId(invoiceData?._id),
-            transactionType: ETransactionType.Out,
-            documentStatus: ECoinStatus.pending
-          },{
-            $set:{
-              documentStatus: ECoinStatus.completed,
-              updatedAt: new Date(),
-              currentBalance: updateUserAdditionalData?.purchasedBalance
+          type: ETransactionType.withdrawn,
+        });
+        if (
+          coinTransactionOut?.documentStatus === ECoinStatus.pending &&
+          coinTransactionOut?.transactionType === ETransactionType.Out
+        ) {
+          let updateUserAdditionalData =
+            await this.helperService.updateAdminCoinValue({
+              userId: coinTransactionOut?.userId,
+              coinValue: coinTransactionOut?.coinValue,
+            });
+          await this.coinTransactionModel.updateOne(
+            {
+              sourceId: new ObjectId(invoiceData?._id),
+              transactionType: ETransactionType.Out,
+              documentStatus: ECoinStatus.pending,
+            },
+            {
+              $set: {
+                documentStatus: ECoinStatus.completed,
+                updatedAt: new Date(),
+                currentBalance: updateUserAdditionalData?.purchasedBalance,
+              },
             }
-          })
+          );
         }
         let finalResponse = {
           coinValue: coinTransaction?.coinValue,
           totalBalance: totalBalance,
           coinMedia: coinData?.media,
-          paymentData: payment
-        }
+          paymentData: payment,
+        };
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
         mixPanelBody.distinctId = coinTransaction?.userId;
@@ -763,21 +802,18 @@ export class PaymentRequestService {
           user_id: coinTransaction?.userId,
           amount: payment?.amount,
           currency: invoiceData?.currencyCode,
-          coin_value: coinTransaction?.coinValue
+          coin_value: coinTransaction?.coinValue,
         };
         await this.helperService.mixPanel(mixPanelBody);
         return finalResponse;
-      }
-      else {
+      } else {
         return {
           coinValue: 0,
           totalBalance: 0,
-          paymentData: payment
-        }
+          paymentData: payment,
+        };
       }
-
-    }
-    catch (err) {
+    } catch (err) {
       throw err;
     }
   }
@@ -798,21 +834,22 @@ export class PaymentRequestService {
         filterData.transaction_type = ETransactionState.Out;
       } else if (filterType === EFilterType.withdrawal) {
         filterData.transaction_type = ETransactionState.In;
-      }
-      else {
-        filterData.transaction_type = { $in: [ETransactionState.Out, ETransactionState.In] };
+      } else {
+        filterData.transaction_type = {
+          $in: [ETransactionState.Out, ETransactionState.In],
+        };
       }
       const [result] = await this.paymentModel.aggregate([
         { $match: filterData },
         {
           $lookup: {
-            from: 'salesDocument',
-            localField: 'source_id',
-            foreignField: '_id',
-            as: 'salesDoc',
+            from: "salesDocument",
+            localField: "source_id",
+            foreignField: "_id",
+            as: "salesDoc",
           },
         },
-        { $unwind: { path: '$salesDoc', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$salesDoc", preserveNullAndEmptyArrays: true } },
         {
           $facet: {
             paginatedResults: [
@@ -827,16 +864,14 @@ export class PaymentRequestService {
                   created_at: 1,
                   document_status: 1,
                   transaction_type: 1,
-                  source_type: '$salesDoc.source_type',
-                  salesDocId: '$salesDoc.source_id',
+                  source_type: "$salesDoc.source_type",
+                  salesDocId: "$salesDoc.source_id",
                 },
               },
             ],
-            totalCount: [
-              { $count: 'count' }
-            ]
-          }
-        }
+            totalCount: [{ $count: "count" }],
+          },
+        },
       ]);
 
       const payments = result.paginatedResults;
@@ -861,16 +896,32 @@ export class PaymentRequestService {
       //   console.log("serviceRequest", serviceRequest);
       // }
 
-      const validPayments = payments.filter(payment => getTitleFromSourceType(payment.source_type) !== null);
+      const validPayments = payments.filter(
+        (payment) => getTitleFromSourceType(payment.source_type) !== null
+      );
       const results = await Promise.all(
         validPayments.map(async (payment) => {
-          let transactionType = payment?.transaction_type === ETransactionState.Out ? ETransactionType.purchased : ETransactionType.withdrawal
+          let transactionType =
+            payment?.transaction_type === ETransactionState.Out
+              ? ETransactionType.purchased
+              : ETransactionType.withdrawal;
           title = getTitleFromSourceType(payment.source_type);
-          if (payment.source_type === EPaymentSourceType.serviceRequest && payment.salesDocId) {
-            const serviceRequestDetail = await this.serviceRequestService.getServiceRequestDetail(payment.salesDocId);
-            if (serviceRequestDetail?.data?.type === EPaymentSourceType.feedback) {
+          if (
+            payment.source_type === EPaymentSourceType.serviceRequest &&
+            payment.salesDocId
+          ) {
+            const serviceRequestDetail =
+              await this.serviceRequestService.getServiceRequestDetail(
+                payment.salesDocId
+              );
+            if (
+              serviceRequestDetail?.data?.type === EPaymentSourceType.feedback
+            ) {
               title = ETransactionType.feedbackPurchased;
-            } else if (serviceRequestDetail?.data?.type === EPaymentSourceType.processInstance) {
+            } else if (
+              serviceRequestDetail?.data?.type ===
+              EPaymentSourceType.processInstance
+            ) {
               title = ETransactionType.coursePurchased;
             }
           }
