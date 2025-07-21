@@ -796,9 +796,13 @@ export class SubscriptionService {
             { "metaData.latestOrderId": latestOrderId }
           ]
         }).sort({_id : -1});
+        let matchedOrderId = await this.subscriptionModel.findOne({
+          "metaData.latestOrderId":rtdn?.transactionInfo?.latestOrderId
+        })
         if (
-          existingSubscription?.subscriptionStatus !==
-          EsubscriptionStatus.active
+            !matchedOrderId
+          // existingSubscription?.subscriptionStatus !==
+          // EsubscriptionStatus.active
         ) {
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
