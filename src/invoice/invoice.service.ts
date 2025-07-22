@@ -202,4 +202,22 @@ export class InvoiceService {
       throw err;
     }
   }
+  async updateSalseDocumentById(body){
+    try{
+      let data = await this.salesDocumentModel.findOneAndUpdate({
+        _id:body._id,
+      },{
+        $set:{
+        source_id:body?.sourceId,
+        updated_at:new Date()
+      }}, {
+        upsert: true,         
+        new: true,       
+      })
+    return data
+    }
+    catch(error){
+      throw error
+    }
+  }
 }

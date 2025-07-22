@@ -15,6 +15,7 @@ import { HttpModule } from "@nestjs/axios";
 import { ItemModule } from "src/item/item.module";
 import { RedisModule } from "src/redis/redis.module";
 import { CoinTransactionSchema } from "./schema/coinPurchase.schema";
+import { SubscriptionModule } from "src/subscription/subscription.module";
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { CoinTransactionSchema } from "./schema/coinPurchase.schema";
     HttpModule,
     forwardRef(() =>ItemModule),
     RedisModule,
-    MongooseModule.forFeature([{ name: "coinTransaction", schema: CoinTransactionSchema }])
+    MongooseModule.forFeature([{ name: "coinTransaction", schema: CoinTransactionSchema }]),
+    forwardRef(() => SubscriptionModule),
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

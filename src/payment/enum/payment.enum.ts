@@ -79,7 +79,7 @@ export enum EFilterType {
   withdrawal = "Withdrawal",
   withdrawn = "withdrawn",
 }
-export enum ETransactionType {
+export enum ETransactionTypes {
   subscriptionPurchased = "Subscription Purchased",
   coinPurchased = "Coin Purchased",
   feedbackPurchased = "Feedback Purchased",
@@ -101,12 +101,12 @@ export const ESSourceTypes = [
   ESourceTypes.workshop,
 ];
 
-export const ETransactionTypes = [
-  ETransactionType.subscriptionPurchased,
-  ETransactionType.coinPurchased,
-  ETransactionType.feedbackPurchased,
-  ETransactionType.workshopPurchased,
-  ETransactionType.coursePurchased,
+export const ESTransactionTypes = [
+  ETransactionTypes.subscriptionPurchased,
+  ETransactionTypes.coinPurchased,
+  ETransactionTypes.feedbackPurchased,
+  ETransactionTypes.workshopPurchased,
+  ETransactionTypes.coursePurchased,
 ];
 export enum ETransactionState {
   In = "IN",
@@ -144,4 +144,7 @@ export enum ETransactionType {
   withdrawal = "Withdrawal",
   purchased = "purchased",
   withdrawn = "withdrawn",
+}
+export enum EAdminId {
+  userId = "66444eb8076298dadbce1e43"
 }

@@ -37,12 +37,12 @@ export const CoinTransactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ETransactionTypes,
+      enum: ETransactionType,
       required: true,
     },
     transactionType: {
       type: String,
-      enum: ETransactionTypes,
+      enum: ETransactionType,
       required: true,
     },
     currentBalance: {

@@ -121,7 +121,8 @@ export interface itemAdditionalDetailModel {
   promotionDetails: any;
   premiumPage: any;
   ratingSummary: string;
-  isEnableExpertQueries:boolean
+  isEnableExpertQueries:boolean;
+  coinValue: number
 }
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
@@ -154,5 +155,6 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   promotionDetails: { type: mongoose.Schema.Types.Mixed },
   premiumPage: { type: mongoose.Schema.Types.Mixed },
   ratingSummary: { type: String },
-  isEnableExpertQueries: {type: Boolean}
+  isEnableExpertQueries: {type: Boolean},
+  coinValue: {type: Number}
 });
