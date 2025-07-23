@@ -197,7 +197,15 @@ export class ServiceItemController {
       return data;
     } catch (err) { throw err }
   }
-
+  @Get("processDetail/:processId")
+  async getProcessDetailByProcessId(@Param("processId") processId: string){
+    try {
+      let data = await this.serviceItemService.getServuceItemDetailsByProcessId(processId)
+      return data
+    } catch (error) {
+      throw error
+    }
+  }
 
 
 }
