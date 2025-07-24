@@ -633,16 +633,20 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
+      // console.log("isNewSubscription", isNewSubscription);
+      // console.log("isSubscriber", isSubscriber);
+
       const personalizedBannerComponent = components.find(
-        (c) => c.type === EComponentType.personalizedBanner
+        (c) => c.type === EComponentType.userPreference
       );
 
       if (!personalizedBannerComponent?.interactionData?.items?.length) {
         return [];
       }
 
-      const isFirstSeriesLocked =
-        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+      const isFirstSeriesLocked = userProcessedSeries?.actionData.some(
+        (action) => action.taskDetail?.isLocked === true
+      );
       // console.log("isSubscriber", isSubscriber);
 
       let bestMatchBanner: any = null;
@@ -654,13 +658,16 @@ export class DynamicUiService {
           navigation: item?.banner?.navigation,
         };
         let isNewSubscriberRule = rule.isNewSubscriber;
+        // console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
+
         let isSubscribedRule = rule.isSubscribed;
+
+        // console.log("isSubscribedRule", isSubscribedRule,item.type);
 
         const matchesCountry =
           typeof rule.country === "object" && "$ne" in rule.country
             ? countryCode !== rule.country["$ne"]
             : countryCode === rule.country;
-       
 
         if (
           isSubscriber == isNewSubscriberRule &&
@@ -677,7 +684,6 @@ export class DynamicUiService {
           isFirstSeriesLocked == rule.isLocked &&
           item.type == "payment"
         ) {
-          
           return [bannerData];
         }
         if (
@@ -685,14 +691,16 @@ export class DynamicUiService {
           isFirstSeriesLocked == false &&
           item.type == "course"
         ) {
-
           return [bannerData];
         }
         if (
-          rule.isSubscribed == isSubscriber &&
-          matchesCountry &&
-          isFirstSeriesLocked &&
-          item.type == "IAPPayment"
+          (rule.isSubscribed == isSubscriber &&
+            matchesCountry &&
+            isFirstSeriesLocked &&
+            item.type == "IAPPayment") ||
+          (matchesCountry &&
+            rule.isSubscribed == isNewSubscription &&
+            item.type == "IAPPayment")
         ) {
           return [bannerData];
         }
