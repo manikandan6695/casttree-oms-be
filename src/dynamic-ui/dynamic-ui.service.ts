@@ -44,9 +44,9 @@ export class DynamicUiService {
           status: EStatus.Active,
         })
         .lean();
-      console.log("app nav bar", JSON.stringify(data));
+      // console.log("app nav bar", JSON.stringify(data));
       let tabs = await this.matchRoleByUser(token, data.tabs);
-      console.log("tabs ===>", JSON.stringify(tabs));
+      // console.log("tabs ===>", JSON.stringify(tabs));
       data["tabs"] = tabs;
       if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
