@@ -104,9 +104,12 @@ export class DynamicUiService {
       ]);
       const isNewSubscription = !!subscriptionData;
       const isSubscriber = !!existingUserSubscription;
+      // console.log("subscriber", isNewSubscription, isSubscriber);
+
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
       let country_code = countryCode;
+
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -114,7 +117,6 @@ export class DynamicUiService {
         })
         .lean();
       //   console.log("data", data);
-
       let componentIds = data.components.map((e) => e.componentId);
       let componentDocs = await this.componentModel
         .find({
@@ -123,7 +125,6 @@ export class DynamicUiService {
         })
         .populate("interactionData.items.banner")
         .lean();
-      // console.log("component ", JSON.stringify(componentDocs));
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -131,7 +132,7 @@ export class DynamicUiService {
         0,
         0
       );
-      // console.log("serviceItemData", JSON.stringify(serviceItemData));
+
       const processIds = [];
 
       const serviceItem = serviceItemData.finalData;
@@ -146,14 +147,11 @@ export class DynamicUiService {
       }
 
       let unquieProcessIds = [...new Set(processIds)];
-      // console.log("unquieProcessIds", unquieProcessIds);
 
       let continueWatching = await this.fetchContinueWatching(
         token.id,
         unquieProcessIds
       );
-      // console.log("continue watch data", JSON.stringify(continueWatching));
-
       let singleAdBanner = await this.fetchSingleAdBanner(
         isNewSubscription,
         token.id,
@@ -171,7 +169,7 @@ export class DynamicUiService {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
         }
-        if (comp.type == "userPreferenceBanner") {
+        if (comp.type == EComponentType.userPreferenceBanner) {
           comp.media = singleAdBanner?.media;
           comp.banner = {
             ...comp.banner,
@@ -182,8 +180,7 @@ export class DynamicUiService {
             type: comp?.navigation?.type,
           };
         }
-
-        if (comp.type == EComponentType.personalizedBanner) {
+        if (comp.type == EComponentType.userPreferenceBanner) {
           comp.interactionData = { items: banners };
         }
         const tagName = comp?.tag?.tagName;
@@ -637,7 +634,7 @@ export class DynamicUiService {
       // console.log("isSubscriber", isSubscriber);
 
       const personalizedBannerComponent = components.find(
-        (c) => c.type === EComponentType.userPreference
+        (c) => c.type === EComponentType.userPreferenceBanner
       );
 
       if (!personalizedBannerComponent?.interactionData?.items?.length) {

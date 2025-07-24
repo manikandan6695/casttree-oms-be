@@ -1,9 +1,9 @@
 export enum EComponentType {
   personalizedBanner = "personalizedBanner",
-  userPreference = "userPreference",
+  userPreferenceBanner = "userPreferenceBanner",
 }
 
 export const ESComponentType = [
   EComponentType.personalizedBanner,
-  EComponentType.userPreference
+  EComponentType.userPreferenceBanner
 ];
