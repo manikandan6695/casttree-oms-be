@@ -594,8 +594,8 @@ export class PaymentRequestService {
 
   async getLatestSubscriptionPayments(userId) {
     try {
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
       // STEP 1: Get the first-ever completed payment for the user
       const [firstPaymentRecord] = await this.paymentModel
@@ -615,7 +615,7 @@ export class PaymentRequestService {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: sixtyDaysAgo },
+            created_at: { $gte: oneDayAgo },
           },
         },
         {
