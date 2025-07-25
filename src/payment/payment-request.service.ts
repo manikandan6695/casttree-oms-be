@@ -242,9 +242,13 @@ export class PaymentRequestService {
 
       await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
-      if (body.providerId === EProviderId.apple && body.providerName === EProvider.apple) {
-        let appleCoinPurchase = await this.subscriptionService.handleIapCoinTransactions(body, token)
-        return appleCoinPurchase
+      if (
+        body.providerId === EProviderId.apple &&
+        body.providerName === EProvider.apple
+      ) {
+        let appleCoinPurchase =
+          await this.subscriptionService.handleIapCoinTransactions(body, token);
+        return appleCoinPurchase;
       }
       return { paymentData, serviceRequest };
     } catch (err) {
@@ -604,15 +608,16 @@ export class PaymentRequestService {
 
   async getLatestPayments(userId) {
     try {
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      // console.log("oneDayAgo", oneDayAgo);
 
       let data = await this.paymentModel.aggregate([
         {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: sixtyDaysAgo },
+            created_at: { $gte: oneDayAgo },
           },
         },
         {
@@ -655,11 +660,9 @@ export class PaymentRequestService {
         data.map(async (payment) => {
           // console.log("payment source type is",payment.source_type);
 
-
           let type = getTitleFromSourceType(
             payment?.salesDocument?.source_type
           );
-
 
           if (
             payment?.salesDocument?.source_type ===
@@ -880,27 +883,48 @@ export class PaymentRequestService {
   async createCoinValue(payload) {
     try {
       // console.time("coin flow")
-      let userAdditional = await this.helperService.updateAdminCoinValue({ coinValue: payload.coinValue, userId: EAdminId.userId })
-      let getUserAdditional = await this.helperService.getUserAdditionalDetails(payload)
-      await this.helperService.updateUserPurchaseCoin({ coinValue: payload.coinValue, userId: payload.userId })
-      let totalAmt = getUserAdditional?.userAdditional?.purchasedBalance + payload.coinValue
+      let userAdditional = await this.helperService.updateAdminCoinValue({
+        coinValue: payload.coinValue,
+        userId: EAdminId.userId,
+      });
+      let getUserAdditional =
+        await this.helperService.getUserAdditionalDetails(payload);
+      await this.helperService.updateUserPurchaseCoin({
+        coinValue: payload.coinValue,
+        userId: payload.userId,
+      });
+      let totalAmt =
+        getUserAdditional?.userAdditional?.purchasedBalance + payload.coinValue;
       let body = {
         documentStatus: EDocumentStatus.completed,
         transactionDate: new Date(),
         status: EDocumentStatus.active,
         coinValue: payload.coinValue,
         sourceId: payload.sourceId,
-        sourceType: payload.sourceType
-      }
+        sourceType: payload.sourceType,
+      };
       let coinTransactionDetails = await this.coinTransactionModel.create({
-        ...body, type: ETransactionType.purchased, transactionType: ETransactionType.In, currentBalance: totalAmt, userId: payload.userId, senderId: userAdditional?.userId,
-        receiverId: payload.userId
+        ...body,
+        type: ETransactionType.purchased,
+        transactionType: ETransactionType.In,
+        currentBalance: totalAmt,
+        userId: payload.userId,
+        senderId: userAdditional?.userId,
+        receiverId: payload.userId,
       });
-      await this.coinTransactionModel.create({ ...body, userId: userAdditional.userId, senderId: payload?.userId, receiverId: userAdditional.userId, type: ETransactionType.withdrawn, transactionType: ETransactionType.Out, currentBalance: userAdditional?.purchasedBalance });
+      await this.coinTransactionModel.create({
+        ...body,
+        userId: userAdditional.userId,
+        senderId: payload?.userId,
+        receiverId: userAdditional.userId,
+        type: ETransactionType.withdrawn,
+        transactionType: ETransactionType.Out,
+        currentBalance: userAdditional?.purchasedBalance,
+      });
       // console.timeEnd("coin flow")
-      return coinTransactionDetails?._id
+      return coinTransactionDetails?._id;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   async handleTransactionHistory(
