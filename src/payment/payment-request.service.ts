@@ -595,27 +595,17 @@ export class PaymentRequestService {
   async getLatestSubscriptionPayments(userId) {
     try {
       const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const startTime = new Date(now);
+      startTime.setHours(0, 0, 0, 0);
+      const endTime = new Date(now);
+      endTime.setHours(23, 59, 59, 999);
 
-      // STEP 1: Get the first-ever completed payment for the user
-      const [firstPaymentRecord] = await this.paymentModel
-        .find({
-          user_id: new ObjectId(userId),
-          document_status: EPaymentStatus.completed,
-        })
-        .sort({ created_at: 1 }) // ascending order to get earliest
-        .limit(1)
-        .lean();
-
-      const earliestPaymentId = firstPaymentRecord?._id?.toString();
-
-      // STEP 2: Get all payments in last 60 days
-      let data = await this.paymentModel.aggregate([
+      // Step 1: Fetch all completed payments with sales document
+      let allPayments = await this.paymentModel.aggregate([
         {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: oneDayAgo },
           },
         },
         {
@@ -626,7 +616,9 @@ export class PaymentRequestService {
             as: "salesDocument",
           },
         },
-        { $unwind: "$salesDocument" },
+        {
+          $unwind: "$salesDocument",
+        },
         {
           $match: {
             "salesDocument.document_status": EPaymentStatus.completed,
@@ -634,7 +626,26 @@ export class PaymentRequestService {
         },
       ]);
 
-      const getTitleFromSourceType = (sourceType: string) => {
+      // Step 2: Identify the earliest payment
+      let earliestPaymentId: string | undefined;
+      let earliestPaymentDate: Date | undefined;
+
+      if (allPayments.length > 0) {
+        const earliest = allPayments.reduce((prev, curr) =>
+          new Date(prev.created_at) < new Date(curr.created_at) ? prev : curr
+        );
+        earliestPaymentId = earliest._id?.toString();
+        earliestPaymentDate = new Date(earliest.created_at);
+      }
+
+      // Step 3: Check if earliest payment is today
+      const isFirstPaymentToday =
+        earliestPaymentDate &&
+        earliestPaymentDate >= startTime &&
+        earliestPaymentDate <= endTime;
+
+      // Helper: map sourceType to display title
+      const getTitleFromSourceType = (sourceType: string): string | null => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
             return ESourceTypes.coin;
@@ -645,8 +656,9 @@ export class PaymentRequestService {
         }
       };
 
-      data = await Promise.all(
-        data.map(async (payment) => {
+      // Step 4: Map payments and set isFirstPayment
+      allPayments = await Promise.all(
+        allPayments.map(async (payment) => {
           let type = getTitleFromSourceType(
             payment?.salesDocument?.source_type
           );
@@ -673,15 +685,17 @@ export class PaymentRequestService {
             ...payment,
             type,
             isFirstPayment:
-              payment._id?.toString() === earliestPaymentId ? true : undefined,
+              isFirstPaymentToday &&
+              payment._id?.toString() === earliestPaymentId
+                ? true
+                : undefined,
           };
         })
       );
 
-      data = data.filter((payment) => payment.type !== null);
-
-      // Return only first-ever payment in 60-day window if it exists
-      const firstPayment = data.find(
+      // Step 5: Filter valid payments and return first one if today
+      const filtered = allPayments.filter((payment) => payment.type !== null);
+      const firstPayment = filtered.find(
         (payment) => payment.isFirstPayment === true
       );
 
