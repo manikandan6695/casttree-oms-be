@@ -1320,6 +1320,8 @@ export class ServiceItemService {
           processPricingData.itemId["currency"] = processPrice["currency"];
         }
       }
+      // console.log("processPricingData",processPricingData?.itemId);
+      
       processPricingData.itemId.additionalDetail.promotionDetails.price =
         processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.itemName =
@@ -1339,6 +1341,8 @@ export class ServiceItemService {
           ? promoDetails["payWallVideo"] 
           : promoDetails["payWallVideo1"];
         delete promoDetails["payWallVideo1"]; 
+       processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
+        processPricingData.itemId.bottomSheet; 
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
       );
@@ -1359,6 +1363,10 @@ export class ServiceItemService {
           ?.mandates.length
           ? mandateData?.mandate?.mandates
           : [];
+         data.additionalDetail.promotionDetails.bottomSheet =
+          data.additionalDetail?.bottomSheet; 
+          // console.log("bottom sheet is",data.additionalDetail?.bottomSheet );
+          
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
