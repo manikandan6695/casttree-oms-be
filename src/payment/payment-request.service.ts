@@ -609,15 +609,17 @@ export class PaymentRequestService {
   async getLatestPayments(userId) {
     try {
       const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      // console.log("oneDayAgo", oneDayAgo);
+      const startTime = new Date(now);
+      startTime.setHours(0, 0, 0, 0);
+      const endTime = new Date(now);
+      endTime.setHours(23, 59, 59, 999);
 
-      let data = await this.paymentModel.aggregate([
+      // Step 1: Fetch all completed payments with sales document
+      let allPayments = await this.paymentModel.aggregate([
         {
           $match: {
             user_id: new ObjectId(userId),
             document_status: EPaymentStatus.completed,
-            created_at: { $gte: oneDayAgo },
           },
         },
         {
@@ -637,16 +639,27 @@ export class PaymentRequestService {
           },
         },
       ]);
-      // console.log("data is",data);
 
-      let earliestPaymentId: string;
-      if (data.length > 0) {
-        const earliest = data.reduce((prev, curr) =>
+      // Step 2: Identify the earliest payment
+      let earliestPaymentId: string | undefined;
+      let earliestPaymentDate: Date | undefined;
+
+      if (allPayments.length > 0) {
+        const earliest = allPayments.reduce((prev, curr) =>
           new Date(prev.created_at) < new Date(curr.created_at) ? prev : curr
         );
-        earliestPaymentId = earliest._id?.toString(); // fallback to string comparison
+        earliestPaymentId = earliest._id?.toString();
+        earliestPaymentDate = new Date(earliest.created_at);
       }
-      const getTitleFromSourceType = (sourceType: string) => {
+
+      // Step 3: Check if earliest payment is today
+      const isFirstPaymentToday =
+        earliestPaymentDate &&
+        earliestPaymentDate >= startTime &&
+        earliestPaymentDate <= endTime;
+
+      // Helper: map sourceType to display title
+      const getTitleFromSourceType = (sourceType: string): string | null => {
         switch (sourceType) {
           case EPaymentSourceType.coinTransaction:
             return ESourceTypes.coin;
@@ -656,10 +669,10 @@ export class PaymentRequestService {
             return null;
         }
       };
-      data = await Promise.all(
-        data.map(async (payment) => {
-          // console.log("payment source type is",payment.source_type);
 
+      // Step 4: Map payments and set isFirstPayment
+      allPayments = await Promise.all(
+        allPayments.map(async (payment) => {
           let type = getTitleFromSourceType(
             payment?.salesDocument?.source_type
           );
@@ -681,19 +694,22 @@ export class PaymentRequestService {
               type = ESourceTypes.workshop;
             }
           }
-          // console.log("type is ==>",type);
 
           return {
             ...payment,
             type,
             isFirstPayment:
-              payment._id?.toString() === earliestPaymentId ? true : undefined,
+              isFirstPaymentToday &&
+              payment._id?.toString() === earliestPaymentId
+                ? true
+                : undefined,
           };
         })
       );
 
-      data = data.filter((payment) => payment.type !== null);
-      const firstPayment = data.find(
+      // Step 5: Filter valid payments and return first one if today
+      const filtered = allPayments.filter((payment) => payment.type !== null);
+      const firstPayment = filtered.find(
         (payment) => payment.isFirstPayment === true
       );
 
