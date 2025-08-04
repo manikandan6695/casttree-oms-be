@@ -596,8 +596,10 @@ export class ProcessService {
           task.isCompleted = false;
         }
       });
-
-      return allTaskdata;
+      let count = await this.tasksModel.countDocuments({
+        processId: processId,
+      });
+      return { allTaskdata, count };
     } catch (err) {
       throw err;
     }
