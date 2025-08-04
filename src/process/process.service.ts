@@ -346,7 +346,7 @@ export class ProcessService {
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
-            updated_at: currentTime,
+            // updated_at: currentTime,
           },
           { $set: processInstanceDetailBody }
         );
