@@ -34,7 +34,7 @@ export class ProcessService {
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
     private helperService: HelperService
-  ) {}
+  ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
       let serviceItemDetail: any =
@@ -544,51 +544,100 @@ export class ProcessService {
     }
   }
 
-  async getAllTasks(processId, skip: number, limit: number, token: UserToken) {
+  async getAllTasks(processId, skip: number, limit: number, token: UserToken, apiVersion: string,) {
     try {
-      let userProcessInstanceData: any = await this.processInstanceDetailsModel
-        .find({ processId: processId, createdBy: token.id })
-        .lean();
-      let payment;
-      let subscription = await this.subscriptionService.validateSubscription(
-        token.id,
-        [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.expired,
-          EsubscriptionStatus.failed,
-        ]
-      );
-      if (!subscription) {
-        payment = await this.paymentService.getPaymentDetailBySource(
+      if (apiVersion === "2") {
+        let userProcessInstanceData: any = await this.processInstanceDetailsModel
+          .find({ processId: processId, createdBy: token.id })
+          .lean();
+        let payment;
+        let subscription = await this.subscriptionService.validateSubscription(
           token.id,
-          userProcessInstanceData[0].processInstanceId
+          [
+            EsubscriptionStatus.initiated,
+            EsubscriptionStatus.expired,
+            EsubscriptionStatus.failed,
+          ]
         );
-      }
-      let allTaskdata: any = await this.tasksModel
-        .find({
+        if (!subscription) {
+          payment = await this.paymentService.getPaymentDetailBySource(
+            token.id,
+            userProcessInstanceData[0].processInstanceId
+          );
+        }
+        let allTaskdata: any = await this.tasksModel
+          .find({
+            processId: processId,
+          })
+          .sort({ taskNumber: 1 })
+          .skip(skip || 0)
+          .limit(limit || 50)
+          .lean();
+        let createdInstanceTasks = [];
+        userProcessInstanceData.map((data) => {
+          createdInstanceTasks.push(data.taskId.toString());
+        });
+
+        allTaskdata.forEach((task) => {
+          if (subscription || payment.paymentData.length > 0) {
+            task.isLocked = false;
+          }
+          if (createdInstanceTasks.includes(task._id.toString())) {
+            task.isCompleted = true;
+          } else {
+            task.isCompleted = false;
+          }
+        });
+        let count = await this.tasksModel.countDocuments({
           processId: processId,
-        })
-        .sort({ taskNumber: 1 })
-        .skip(skip || 0)
-        .limit(limit || 50)
-        .lean();
-      let createdInstanceTasks = [];
-      userProcessInstanceData.map((data) => {
-        createdInstanceTasks.push(data.taskId.toString());
-      });
-
-      allTaskdata.forEach((task) => {
-        if (subscription || payment.paymentData.length > 0) {
-          task.isLocked = false;
+        });
+        return { allTaskdata, count };
+      }
+      else {
+        let userProcessInstanceData: any = await this.processInstanceDetailsModel
+          .find({ processId: processId, createdBy: token.id })
+          .lean();
+        let payment;
+        let subscription = await this.subscriptionService.validateSubscription(
+          token.id,
+          [
+            EsubscriptionStatus.initiated,
+            EsubscriptionStatus.expired,
+            EsubscriptionStatus.failed,
+          ]
+        );
+        if (!subscription) {
+          payment = await this.paymentService.getPaymentDetailBySource(
+            token.id,
+            userProcessInstanceData[0].processInstanceId
+          );
         }
-        if (createdInstanceTasks.includes(task._id.toString())) {
-          task.isCompleted = true;
-        } else {
-          task.isCompleted = false;
-        }
-      });
+        let allTaskdata: any = await this.tasksModel
+          .find({
+            processId: processId,
+          })
+          .sort({ taskNumber: 1 })
+          .skip(skip || 0)
+          .limit(limit || 50)
+          .lean();
+        let createdInstanceTasks = [];
+        userProcessInstanceData.map((data) => {
+          createdInstanceTasks.push(data.taskId.toString());
+        });
 
-      return allTaskdata;
+        allTaskdata.forEach((task) => {
+          if (subscription || payment.paymentData.length > 0) {
+            task.isLocked = false;
+          }
+          if (createdInstanceTasks.includes(task._id.toString())) {
+            task.isCompleted = true;
+          } else {
+            task.isCompleted = false;
+          }
+        });
+        return allTaskdata
+      }
+
     } catch (err) {
       throw err;
     }
