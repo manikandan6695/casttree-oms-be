@@ -6,8 +6,10 @@ import {
   ParseIntPipe,
   Patch,
   Query,
+  Req,
   UseGuards,
   ValidationPipe,
+  Version,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
@@ -72,19 +74,34 @@ export class ProcessController {
 
   @UseGuards(JwtAuthGuard)
   @Get("tasks/:processId")
-  async getAllTasks(
+  @Version("2")
+  async getAllTasksV2(
+    @Req() req,
     @GetToken() token: UserToken,
     @Param("processId") processId: string,
     @Query("skip") skip: number,
     @Query("limit") limit: number
   ) {
     try {
-      let data = await this.processsService.getAllTasks(
-        processId,
-        skip,
-        limit,
-        token
-      );
+      let data = await this.processsService.getAllTasks(processId, skip,
+        limit, token, req.headers["x-api-version"]);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("tasks/:processId")
+  async getAllTasksV1(
+    @Req() req,
+    @GetToken() token: UserToken,
+    @Param("processId") processId: string,
+    @Query("skip") skip: number,
+    @Query("limit") limit: number
+  ) {
+    try {
+      let data = await this.processsService.getAllTasks(processId, skip,
+        limit, token, req.headers["x-api-version"]);
       return data;
     } catch (err) {
       throw err;
