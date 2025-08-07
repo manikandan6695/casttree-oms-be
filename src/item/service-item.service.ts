@@ -19,7 +19,11 @@ import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
 import { serviceitems } from "./schema/serviceItem.schema";
-import { EItemName, EItemTag, ESystemConfigurationKeyName } from "./enum/item-type.enum";
+import {
+  EItemName,
+  EItemTag,
+  ESystemConfigurationKeyName,
+} from "./enum/item-type.enum";
 
 @Injectable()
 export class ServiceItemService {
@@ -1281,6 +1285,8 @@ export class ServiceItemService {
           subscriptionData ? false : true;
         data.additionalDetail.promotionDetails.planConfig =
           data.additionalDetail?.planConfig;
+        data.additionalDetail.promotionDetails.bottomSheet =
+          data.additionalDetail?.bottomSheet;
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1361,29 +1367,35 @@ export class ServiceItemService {
         .find(query)
         .populate({
           path: "itemId",
-          select: "itemName itemDescription"
+          select: "itemName itemDescription",
         })
         .sort({ priorityOrder: 1 })
         .lean();
       const processIds = serviceItemData
-        .filter(item => item.additionalDetails?.processId)
-        .map(item => item.additionalDetails.processId);
-      
-      const firstTasks = await this.processService.getFirstTask(processIds, null);
-      let count = firstTasks.filter(task => task.isLocked !== true).length;
+        .filter((item) => item.additionalDetails?.processId)
+        .map((item) => item.additionalDetails.processId);
+
+      const firstTasks = await this.processService.getFirstTask(
+        processIds,
+        null
+      );
+      let count = firstTasks.filter((task) => task.isLocked !== true).length;
       const firstTaskData = firstTasks.reduce((acc, task) => {
         acc[task.processId] = task;
         return acc;
       }, {});
-      
+
       const filteredData = serviceItemData
-        .map(item => {
-          const firstTask = item.additionalDetails?.processId && firstTaskData[item.additionalDetails.processId] 
-            ? firstTaskData[item.additionalDetails.processId] 
-            : null;
-          const isTrendingSeries = Array.isArray(item?.tag) &&
-            item.tag.some(t => t.name === EItemTag.trendingSeries);
-          return  {
+        .map((item) => {
+          const firstTask =
+            item.additionalDetails?.processId &&
+            firstTaskData[item.additionalDetails.processId]
+              ? firstTaskData[item.additionalDetails.processId]
+              : null;
+          const isTrendingSeries =
+            Array.isArray(item?.tag) &&
+            item.tag.some((t) => t.name === EItemTag.trendingSeries);
+          return {
             thumbnail: item.additionalDetails?.thumbnail,
             itemName: item.itemId?.itemName,
             processId: item.additionalDetails?.processId,
@@ -1393,29 +1405,36 @@ export class ServiceItemService {
             isLocked: firstTask?.isLocked,
             itemDesc: item.itemId?.itemDescription,
             tag: item?.tag,
-            isTrendingSeries
+            isTrendingSeries,
           };
         })
-        .filter(item => 
-          item.isLocked !== true && 
-          !(Array.isArray(item.tag) && item.tag.some(t => t.name === EItemTag.upcomingseries))
-        ); 
-      return {data: filteredData, count: count};
+        .filter(
+          (item) =>
+            item.isLocked !== true &&
+            !(
+              Array.isArray(item.tag) &&
+              item.tag.some((t) => t.name === EItemTag.upcomingseries)
+            )
+        );
+      return { data: filteredData, count: count };
     } catch (error) {
       throw error;
     }
   }
   async getPromotionDetailsV2() {
-    try{
-      let itemData = await this.itemService.getItemByItemName(EItemName.pro)
+    try {
+      let itemData = await this.itemService.getItemByItemName(EItemName.pro);
       let provider = await this.systemConfigurationModel.findOne({
-        key: ESystemConfigurationKeyName.subscription_payment_provider
-      })
+        key: ESystemConfigurationKeyName.subscription_payment_provider,
+      });
       let finalResponse = {
-        payWallVideo: itemData?.additionalDetail?.promotionDetails?.payWallVideo,
+        payWallVideo:
+          itemData?.additionalDetail?.promotionDetails?.payWallVideo,
         authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
-        subscriptionInfo: itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
-        premiumThumbnails: itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
+        subscriptionInfo:
+          itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
+        premiumThumbnails:
+          itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
         provider: provider?.value?.provider,
         provideId: provider?.value?.providerId,
         itemId: itemData?._id,
@@ -1423,10 +1442,9 @@ export class ServiceItemService {
         price: itemData?.price,
         currency_code: itemData?.currency?.currency_code,
         comparePrice: itemData?.comparePrice,
-      }
-      return {data: finalResponse}
-    }
-     catch (error) {
+      };
+      return { data: finalResponse };
+    } catch (error) {
       throw error;
     }
   }
