@@ -132,6 +132,57 @@ export class InvoiceService {
       throw error;
     }
   }
+  async migrateInvoiceGST() {
+    try {
+      const salesDocument = await this.salesDocumentModel.find({
+        tax_amount: { $exists: false },
+      });
+      console.log("Sales documents to migrate:", salesDocument.length);
+      
+      if (salesDocument.length > 0) {
+        for (let i = 0; i < salesDocument.length; i++) {
+          let invoice = salesDocument[i];
+          let itemDocument = await this.itemDocumentService.getItemDocument(
+            invoice?._id
+          );
+          let taxDetail = null;
+
+          if (itemDocument) {
+              const gstData = await this.calculateGST(
+              itemDocument?.data?.item_id,
+              invoice?.grand_total
+            );
+            taxDetail = gstData?.taxAmount?.[0]?.item_tax_id;
+
+            await this.itemDocumentService.updateItemDocument(
+              itemDocument?.data?._id,
+              {
+                item_tax_composition: [
+                  {
+                    tax_id: taxDetail._id,
+                    amount: gstData?.amountWithTax?.toFixed(2),
+                    amount_without_tax: gstData?.amount?.toFixed(2),
+                    tax_amount: gstData?.taxAmount?.toFixed(2),
+                    tax_name: taxDetail?.tax_rate,
+                    tax_value: taxDetail?.tax_rate,
+                  },
+                ],
+              }
+            );
+          }
+          await this.salesDocumentModel.updateOne(
+            { _id: invoice._id },
+            { $set: { tax_amount: taxDetail?.taxAmount?.toFixed(2) } }
+          );
+        }
+      }
+      return { message: "GST migration completed successfully" };
+    } catch (err) {
+      console.error("Error in migrateInvoiceGST:", err.message);
+      throw err;
+    }
+  }
+
   async getItemDetails(itemId: string) {
     try {
       // console.log("Fetching item details for ID:", typeof itemId, itemId);
