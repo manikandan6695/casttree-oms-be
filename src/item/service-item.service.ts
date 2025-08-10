@@ -232,6 +232,7 @@ export class ServiceItemService {
           ],
         })
         .lean();
+      // console.log("data is ==>", data);
 
       const profileInfo = await this.helperService.getProfileByIdTl(
         [data.userId],
@@ -246,9 +247,12 @@ export class ServiceItemService {
           data.userId,
           data.itemId.orgId._id
         );
+      const feedbackCount = data?.itemSold || 10;
       data["profileData"] = profileInfo[0];
       data["itemSold"] =
-        parseInt(profileInfo[0]?.phoneNumber[9]) + 10 + totalFeedbacks?.count;
+        parseInt(profileInfo[0]?.phoneNumber[9]) +
+        feedbackCount +
+        totalFeedbacks?.count;
       data["ratingsData"] = ratingInfo.data;
 
       if (country_code) {
