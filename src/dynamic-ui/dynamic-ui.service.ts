@@ -89,7 +89,7 @@ export class DynamicUiService {
     }
   }
 
-  async getPageDetails(token: UserToken, pageId: string) {
+  async getPageDetails(token: UserToken, pageId: string, category: string, proficiency: string) {
     try {
       const [subscriptionData, existingUserSubscription] = await Promise.all([
         this.subscriptionService.validateSubscription(token.id, [
@@ -130,7 +130,9 @@ export class DynamicUiService {
         token.id,
         false,
         0,
-        0
+        0,
+        category,
+        proficiency
       );
 
       const processIds = [];
@@ -219,7 +221,9 @@ export class DynamicUiService {
         token.id,
         true,
         skip,
-        limit
+        limit,
+        null,
+        null
       );
 
       const tagName = component?.tag?.tagName;
@@ -238,14 +242,28 @@ export class DynamicUiService {
     userId: string,
     isPagination = false,
     skip,
-    limit
+    limit,
+    category,
+    proficiency: string
   ) {
     try {
-      let filter = {
+      let filter: any = {
         type: EserviceItemType.courses,
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
+      if (proficiency) {
+        filter["proficiency.category_id"] = new ObjectId(proficiency);
+      }
+
+      if(category){
+        if (typeof category === "string") {
+          filter["category.category_id"] = new ObjectId(category);
+        } else {
+          filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
+        }
+      }
+
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
