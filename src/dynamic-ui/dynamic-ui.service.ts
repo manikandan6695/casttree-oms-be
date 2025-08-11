@@ -256,26 +256,14 @@ export class DynamicUiService {
         filter["proficiency.category_id"] = new ObjectId(proficiency);
       }
 
-      if (category) {
-        let categoryArr: string[];
-
-        if (Array.isArray(category)) {
-          categoryArr = category;
+      if(category){
+        if (typeof category === "string") {
+          filter["category.category_id"] = new ObjectId(category);
         } else {
-          try {
-            const parsed = JSON.parse(category);
-            categoryArr = Array.isArray(parsed) ? parsed : String(category).split(",");
-          } catch {
-            categoryArr = String(category).split(",");
-          }
-        }
-
-        if (categoryArr.length) {
-          filter["category.category_id"] = {
-            $in: categoryArr.map(id => new ObjectId(id)),
-          };
+          filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
         }
       }
+
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
