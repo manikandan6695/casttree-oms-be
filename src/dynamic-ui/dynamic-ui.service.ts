@@ -243,7 +243,7 @@ export class DynamicUiService {
     isPagination = false,
     skip,
     limit,
-    category:string,
+    category,
     proficiency: string
   ) {
     try {
@@ -257,13 +257,24 @@ export class DynamicUiService {
       }
 
       if (category) {
-        const categoryArr = Array.isArray(category)
-          ? category
-          : String(category).split(',').map(c => c.trim()).filter(Boolean);
+        let categoryArr: string[];
 
-        filter["category.category_id"] = {
-          $in: categoryArr.map(id => new ObjectId(id))
-        };
+        if (Array.isArray(category)) {
+          categoryArr = category;
+        } else {
+          try {
+            const parsed = JSON.parse(category);
+            categoryArr = Array.isArray(parsed) ? parsed : String(category).split(",");
+          } catch {
+            categoryArr = String(category).split(",");
+          }
+        }
+
+        if (categoryArr.length) {
+          filter["category.category_id"] = {
+            $in: categoryArr.map(id => new ObjectId(id)),
+          };
+        }
       }
       let aggregationPipeline = [];
       aggregationPipeline.push({
