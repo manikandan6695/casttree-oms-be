@@ -39,10 +39,12 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
+    @Query("category") category,
+    @Query("proficiency") proficiency,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.dynamicUIService.getPageDetails(token, pageId);
+      let data = await this.dynamicUIService.getPageDetails(token, pageId, category, proficiency);
       return data;
     } catch (err) {
       throw err;
