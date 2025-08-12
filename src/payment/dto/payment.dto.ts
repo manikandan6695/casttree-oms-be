@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsMongoId,
@@ -83,4 +84,9 @@ export class filterTypeDTO{
   @IsOptional()
   @IsEnum(EFilterType)
   filterType?: EFilterType;
+}
+export class paymentIsSentToMetaDTO{
+  @IsNotEmpty()
+  @IsBoolean()
+  isSentToMeta: boolean;
 }

@@ -1134,7 +1134,7 @@ export class SubscriptionFactory {
         providerId: 1,
         providerName: EProvider.razorpay,
       };
-      await this.paymentService.createPaymentRecord(
+     let payment = await this.paymentService.createPaymentRecord(
         paymentData,
         token,
         invoice,
@@ -1143,8 +1143,12 @@ export class SubscriptionFactory {
       );
       // console.log("returning data");
 
-      return {
-        subscriptionDetails: { customerId: customerId, ...subscription },
+       return {
+        subscriptionDetails: {
+          customerId: customerId,
+          ...subscription,
+          paymentId: payment?.id,
+        },
       };
     } catch (err) {
       throw err;
