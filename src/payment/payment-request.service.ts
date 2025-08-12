@@ -366,14 +366,15 @@ export class PaymentRequestService {
   async getPaymentDetail(id: string,token: UserToken) {
     try {
       let payment;
-      let paymentData = await this.paymentModel.findOne({ _id: id });
+      let paymentData = await this.paymentModel.findOne({ _id: id }).lean();
       const firstPayment = await this.paymentModel.findOne({
         user_id: new ObjectId(token.id),
+        _id: new ObjectId(id),
         document_status: EDocumentStatus.completed,
       }).sort({ created_at: 1 });
       
       payment = {
-        ...paymentData.toObject(),
+        ...paymentData,
         isFirstPayment: firstPayment ? true : false,
       }
       return { payment };
@@ -1078,7 +1079,7 @@ export class PaymentRequestService {
       throw error;
     }
   }
-  async updatePaymentMeta(paymentId: string, payload: paymentIsSentToMetaDTO){
+  async updatePaymentMeta(paymentId: string, payload: paymentIsSentToMetaDTO,token: UserToken) {
     try{
       let payment = await this.paymentModel.findOneAndUpdate({
         _id: new ObjectId(paymentId),

@@ -172,14 +172,16 @@ export class PaymentRequestController {
       return res.status(code).json(response);
     }
   }
+  @UseGuards(JwtAuthGuard)
   @Patch(":paymentId")
   async updatePaymentMeta(
     @Param("paymentId") paymentId: string,
+    @GetToken() token: UserToken,
     @Body(new ValidationPipe({ whitelist: true })) payload: paymentIsSentToMetaDTO,
     @Res() res: Response
   ){
     try {
-      let data = await this.paymentRequestService.updatePaymentMeta(paymentId, payload);
+      let data = await this.paymentRequestService.updatePaymentMeta(paymentId, payload,token);
       return res.json(data);
     } catch (error) {
       throw error;
