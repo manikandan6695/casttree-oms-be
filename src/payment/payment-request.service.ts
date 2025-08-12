@@ -369,13 +369,12 @@ export class PaymentRequestService {
       let paymentData = await this.paymentModel.findOne({ _id: id }).lean();
       const firstPayment = await this.paymentModel.findOne({
         user_id: new ObjectId(token.id),
-        _id: new ObjectId(id),
         document_status: EDocumentStatus.completed,
       }).sort({ created_at: 1 });
       
       payment = {
         ...paymentData,
-        isFirstPayment: firstPayment ? true : false,
+        isFirstPayment: firstPayment && firstPayment._id.toString() === id.toString(),
       }
       return { payment };
     } catch (err) {
