@@ -797,15 +797,25 @@ export class PaymentRequestService {
   // }
   // function hmac(arg0: string, message: any, key: any) {
   //   throw new Error("Function not implemented.");
-  async updateCoinValue(paymentId: string) {
+  async updateCoinValue(paymentId: string, token: UserToken) {
     try {
-      let payment = await this.paymentModel.findOne({
+      let payment;
+      let paymentData = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId),
-      });
+      }).lean();
       let totalBalance;
       let invoiceData = await this.invoiceService.getInvoiceDetail(
-        payment?.source_id
+        paymentData?.source_id
       );
+      const firstPayment = await this.paymentModel.findOne({
+        user_id: new ObjectId(token.id),
+        document_status: EDocumentStatus.completed,
+      }).sort({ created_at: 1 });
+      
+      payment = {
+        ...paymentData,
+        isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
+      }
       if (
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
