@@ -5,6 +5,7 @@ import {
   Param,
   ParseEnumPipe,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -17,7 +18,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { paymentDTO } from "./dto/payment.dto";
+import { paymentDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
 import { EFilterType } from "./enum/payment.enum";
 
@@ -98,12 +99,12 @@ export class PaymentRequestController {
       return res.status(code).json(response);
     }
   }
-  //@UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get(":id")
-  async getPaymentDetail(@Param("id") id: string, @Res() res: Response) {
+  async getPaymentDetail(@Param("id") id: string, @Res() res: Response, @GetToken() token: UserToken) {
     try {
    //   console.log("test");
-      let data: any = await this.paymentRequestService.getPaymentDetail(id);
+      let data: any = await this.paymentRequestService.getPaymentDetail(id,token);
 
       return res.json(data.payment);
     } catch (err) {
@@ -167,6 +168,19 @@ export class PaymentRequestController {
     } catch (err) {
       console.error("Error:", err);
       throw err;
+    }
+  }
+  @Patch(":paymentId")
+  async updatePaymentMeta(
+    @Param("paymentId") paymentId: string,
+    @Body(new ValidationPipe({ whitelist: true })) payload: paymentIsSentToMetaDTO,
+    @Res() res: Response
+  ){
+    try {
+      let data = await this.paymentRequestService.updatePaymentMeta(paymentId, payload);
+      return res.json(data);
+    } catch (error) {
+      throw error;
     }
   }
   
