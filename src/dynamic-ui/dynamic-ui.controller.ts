@@ -56,6 +56,8 @@ export class DynamicUiController {
     @Req() req,
     @Param("componentId") componentId: string,
     @GetToken() token: UserToken,
+    @Query("category") category,
+    @Query("proficiency") proficiency,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number
   ) {
@@ -64,7 +66,9 @@ export class DynamicUiController {
         token,
         componentId,
         skip,
-        limit
+        limit,
+        category,
+        proficiency
       );
       return data;
     } catch (err) {

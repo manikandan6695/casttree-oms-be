@@ -2,9 +2,20 @@ import mongoose, { Document } from "mongoose";
 export interface IItems {
   banner: string;
   status: string;
+  filterTypeId: string;
+  type: string;
+  button: {
+    lable: string;
+    style: Object;
+  };
+  options: mongoose.Schema.Types.ObjectId[];
 }
 export interface IInteractionData {
   items: IItems[];
+}
+export interface IButton {
+  lable: string;
+  style: Object;
 }
 export interface IComponent extends Document {
   componentKey: string;
@@ -27,6 +38,10 @@ export interface IComponent extends Document {
   updated_at: Date;
 }
 export const ItemsSchema = new mongoose.Schema({
+  filterTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "filterTypes" },
+  type: {
+    type: String
+  },
   banner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "bannerConfiguration",
@@ -34,6 +49,10 @@ export const ItemsSchema = new mongoose.Schema({
   status: {
     type: String,
   },
+  button: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  options:[mongoose.Schema.Types.ObjectId],
 });
 export const InteractionDataSchema = new mongoose.Schema({
   items: [ItemsSchema],

@@ -131,8 +131,6 @@ export class DynamicUiService {
         false,
         0,
         0,
-        category,
-        proficiency
       );
 
       const processIds = [];
@@ -204,7 +202,9 @@ export class DynamicUiService {
     token: UserToken,
     componentId: string,
     skip: number,
-    limit: number
+    limit: number,
+    proficiency: string,
+    category: string | string[]
   ) {
     try {
       let component = await this.componentModel
@@ -221,13 +221,43 @@ export class DynamicUiService {
         token.id,
         true,
         skip,
-        limit,
-        null,
-        null
+        limit
       );
 
       const tagName = component?.tag?.tagName;
       if (tagName && serviceItemData?.finalData?.[tagName]) {
+        let actionData = serviceItemData.finalData[tagName];
+        actionData = actionData.filter((item) => {
+    // If proficiency filter is set, skip non-matching items
+    if (proficiency) {
+      if (
+        !item.proficiency?.category_id ||
+        item.proficiency.category_id.toString() !==
+          new ObjectId(proficiency).toString()
+      ) {
+        return false;
+      }
+    }
+     if (category) {
+      const itemCatId = item.category?.category_id?.toString();
+      if (!itemCatId) return false;
+
+      if (typeof category === "string") {
+        if (itemCatId !== new ObjectId(category).toString()) {
+          return false;
+        }
+      } else if (Array.isArray(category)) {
+        const categoryIds = category.map((id) =>
+          new ObjectId(id).toString()
+        );
+        if (!categoryIds.includes(itemCatId)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
         component.actionData = serviceItemData.finalData[tagName];
         component["totalCount"] = serviceItemData?.count;
       }
@@ -243,8 +273,6 @@ export class DynamicUiService {
     isPagination = false,
     skip,
     limit,
-    category,
-    proficiency: string
   ) {
     try {
       let filter: any = {
@@ -252,17 +280,17 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      if (proficiency) {
-        filter["proficiency.category_id"] = new ObjectId(proficiency);
-      }
+      // if (proficiency) {
+      //   filter["proficiency.category_id"] = new ObjectId(proficiency);
+      // }
 
-      if(category){
-        if (typeof category === "string") {
-          filter["category.category_id"] = new ObjectId(category);
-        } else {
-          filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
-        }
-      }
+      // if(category){
+      //   if (typeof category === "string") {
+      //     filter["category.category_id"] = new ObjectId(category);
+      //   } else {
+      //     filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
+      //   }
+      // }
 
       let aggregationPipeline = [];
       aggregationPipeline.push({
