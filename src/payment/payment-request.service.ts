@@ -17,7 +17,7 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO, filterTypeDTO } from "./dto/payment.dto";
+import { paymentDTO, filterTypeDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
 import {
   ECoinStatus,
   ECurrencyName,
@@ -349,10 +349,19 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetail(id: string) {
+  async getPaymentDetail(id: string,token: UserToken) {
     try {
-      let payment = await this.paymentModel.findOne({ _id: id });
-
+      let payment;
+      let paymentData = await this.paymentModel.findOne({ _id: id }).lean();
+      const firstPayment = await this.paymentModel.findOne({
+        user_id: new ObjectId(token.id),
+        document_status: EDocumentStatus.completed,
+      }).sort({ created_at: 1 });
+      
+      payment = {
+        ...paymentData,
+        isFirstPayment: firstPayment && firstPayment._id.toString() === id.toString(),
+      }
       return { payment };
     } catch (err) {
       throw err;
@@ -724,15 +733,25 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async updateCoinValue(paymentId: string) {
+  async updateCoinValue(paymentId: string,token: UserToken) {
     try {
-      let payment = await this.paymentModel.findOne({
+      let payment;
+      let paymentData = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId),
-      });
+      }).lean();
       let totalBalance;
       let invoiceData = await this.invoiceService.getInvoiceDetail(
-        payment?.source_id
+        paymentData?.source_id
       );
+      const firstPayment = await this.paymentModel.findOne({
+        user_id: new ObjectId(token.id),
+        document_status: EDocumentStatus.completed,
+      }).sort({ created_at: 1 });
+      
+      payment = {
+        ...paymentData,
+        isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
+      }
       if (
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
@@ -955,6 +974,22 @@ export class PaymentRequestService {
         totalCount: totalCount,
       };
     } catch (error) {
+      throw error;
+    }
+  }
+  async updatePaymentMeta(paymentId: string, payload: paymentIsSentToMetaDTO,token: UserToken) {
+    try{
+      let payment = await this.paymentModel.findOneAndUpdate({
+        _id: new ObjectId(paymentId),
+      }, {
+        $set: {
+          "metaData.isSentToMeta": payload.isSentToMeta,
+        },
+      }, { new: true}
+    )
+    return payment
+    }
+    catch (error){
       throw error;
     }
   }
