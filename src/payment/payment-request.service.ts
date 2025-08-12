@@ -17,7 +17,7 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO, filterTypeDTO } from "./dto/payment.dto";
+import { paymentDTO, filterTypeDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
 import {
   EAdminId,
   ECoinStatus,
@@ -363,10 +363,19 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetail(id: string) {
+  async getPaymentDetail(id: string,token: UserToken) {
     try {
-      let payment = await this.paymentModel.findOne({ _id: id });
-
+      let payment;
+      let paymentData = await this.paymentModel.findOne({ _id: id });
+      const firstPayment = await this.paymentModel.findOne({
+        user_id: new ObjectId(token.id),
+        document_status: EDocumentStatus.completed,
+      }).sort({ created_at: 1 });
+      
+      payment = {
+        ...paymentData.toObject(),
+        isFirstPayment: firstPayment ? true : false,
+      }
       return { payment };
     } catch (err) {
       throw err;
@@ -1066,6 +1075,22 @@ export class PaymentRequestService {
         totalCount: totalCount,
       };
     } catch (error) {
+      throw error;
+    }
+  }
+  async updatePaymentMeta(paymentId: string, payload: paymentIsSentToMetaDTO){
+    try{
+      let payment = await this.paymentModel.findOneAndUpdate({
+        _id: new ObjectId(paymentId),
+      }, {
+        $set: {
+          "metaData.isSentToMeta": payload.isSentToMeta,
+        },
+      }, { new: true}
+    )
+    return payment
+    }
+    catch (error){
       throw error;
     }
   }
