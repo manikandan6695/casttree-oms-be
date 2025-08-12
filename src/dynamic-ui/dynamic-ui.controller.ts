@@ -71,4 +71,18 @@ export class DynamicUiController {
       throw err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("certification/:componentId")
+  async getCertification(
+    @Req() req,
+    @Param("componentId") componentId: string,
+    @GetToken() token: UserToken
+  ) {
+    try {
+      let data = await this.dynamicUIService.getCertification(token, componentId);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

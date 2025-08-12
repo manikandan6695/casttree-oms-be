@@ -18,6 +18,7 @@ import { ISystemConfigurationModel } from "src/shared/schema/system-configuratio
 import { EComponentType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { ENavBar } from "./enum/nav-bar.enum";
+import { IAchievementModel } from "./schema/achievement.schema";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -34,7 +35,9 @@ export class DynamicUiService {
     private readonly contentPageModel: Model<IContentPage>,
     private processService: ProcessService,
     private helperService: HelperService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    @InjectModel("achievement")
+    private readonly achievementModel: Model<IAchievementModel>
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -865,6 +868,81 @@ export class DynamicUiService {
       return mentorProfiles;
     } catch (err) {
       throw err;
+    }
+  }
+
+  async getCertification(token: UserToken, componentId: string) {
+    try {
+      let component = await this.componentModel.findOne({
+        _id: componentId,
+        status: EStatus.Active,
+      })
+      let achievement = await this.achievementModel.find({
+        key: "course_complete",
+        status: EStatus.Active,
+      })
+      const sourceIds = Array.isArray(achievement[0]?.sourceId)
+  ? achievement[0].sourceId
+  : achievement[0]?.sourceId
+    ? [achievement[0].sourceId]
+    : [];
+      console.log("sourceIds", sourceIds);
+      let pipeline = []
+      pipeline.push({
+        $match:{
+         "additionalDetails.processId": { $in: sourceIds },
+          status: Estatus.Active,
+        }
+      })
+      pipeline.push({
+        $lookup: {
+          from: 'item',
+          localField: 'itemId',
+          foreignField: '_id',
+          as: 'itemDetails',
+        }},
+      {$unwind: '$itemDetails'},
+      {
+        $lookup: {
+          from: 'profile',
+         let : { userId: '$userId', type: EprofileType.Expert },
+         pipeline:[
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$userId', '$$userId'] },
+                  { $eq: ['$type', '$$type'] }
+                ]
+              }
+            }
+          },
+          {
+            $project: {
+              displayName: 1,
+              media: 1,
+            }
+          }
+         ],
+          as: 'profileDetails',
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          itemName: '$itemDetails.itemName',
+          itemId: '$itemDetails._id',
+          profileName: { $arrayElemAt: ['$profileDetails.displayName', 0] },
+          profileImage: { $arrayElemAt: ['$profileDetails.media', 0] },
+        }},
+      
+    )
+      let data = await this.serviceItemModel.aggregate(pipeline).exec()
+      console.log("data", data);
+      return { component,achievement };
+
+    } catch (error) {
+      throw error;
     }
   }
 }
