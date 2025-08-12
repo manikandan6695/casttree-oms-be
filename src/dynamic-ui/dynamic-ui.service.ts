@@ -871,77 +871,129 @@ export class DynamicUiService {
     }
   }
 
-  async getCertification(token: UserToken, componentId: string) {
+  async getCertificateComponent(token: UserToken, componentId: string) {
     try {
       let component = await this.componentModel.findOne({
         _id: componentId,
         status: EStatus.Active,
-      })
-      let achievement = await this.achievementModel.find({
-        key: "course_complete",
-        status: EStatus.Active,
-      })
-      const sourceIds = Array.isArray(achievement[0]?.sourceId)
-  ? achievement[0].sourceId
-  : achievement[0]?.sourceId
-    ? [achievement[0].sourceId]
-    : [];
-      console.log("sourceIds", sourceIds);
-      let pipeline = []
-      pipeline.push({
-        $match:{
-         "additionalDetails.processId": { $in: sourceIds },
-          status: Estatus.Active,
-        }
-      })
-      pipeline.push({
-        $lookup: {
-          from: 'item',
-          localField: 'itemId',
-          foreignField: '_id',
-          as: 'itemDetails',
-        }},
-      {$unwind: '$itemDetails'},
-      {
-        $lookup: {
-          from: 'profile',
-         let : { userId: '$userId', type: EprofileType.Expert },
-         pipeline:[
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ['$userId', '$$userId'] },
-                  { $eq: ['$type', '$$type'] }
-                ]
-              }
-            }
-          },
-          {
-            $project: {
-              displayName: 1,
-              media: 1,
-            }
+      }).lean()
+      let page = await this.contentPageModel
+        .findOne({ "components.componentId": componentId })
+        .lean();
+      let certificate = await this.getCertificate(page)
+      if (certificate.length > 0) {
+        component.actionData = certificate;
+      }
+
+      return { component };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCertificate(page){
+     try {
+      let pipeline = [
+        {
+          $match: {
+            key: 'course_complete',
+            status: EStatus.Active
           }
-         ],
-          as: 'profileDetails',
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          itemName: '$itemDetails.itemName',
-          itemId: '$itemDetails._id',
-          profileName: { $arrayElemAt: ['$profileDetails.displayName', 0] },
-          profileImage: { $arrayElemAt: ['$profileDetails.media', 0] },
-        }},
-      
-    )
-      let data = await this.serviceItemModel.aggregate(pipeline).exec()
-      console.log("data", data);
-      return { component,achievement };
+        },
+        {
+          $lookup: {
+            from: 'serviceitems',
+            let:{sourceId: '$additionalDetails.processId'},
+           pipeline:[
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$sourceId', '$$sourceId'] },
+                    { $eq: ['$type', EserviceItemType.courses] },
+                    { $eq: ['$status', Estatus.Active] }
+                  ]
+                }
+              }
+            },
+           ],
+            as: 'serviceItems'
+          }
+        },
+        { $unwind: '$serviceItems' },
+
+        {
+          $lookup: {
+            from: 'item',
+            let:{itemId: '$serviceItems.itemId'},
+            pipeline:[
+              {
+                $match: {
+                  $expr: {
+                    $eq: ['$_id', '$$itemId']
+                  }
+                }
+              }
+            ],
+            as: 'itemDetails'
+          }
+        },
+        { $unwind: '$itemDetails' },
+        {
+          $lookup: {
+            from: 'profile',
+            let: { userId: '$serviceItems.userId', type: EprofileType.Expert },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$userId', '$$userId'] },
+                      { $eq: ['$type', '$$type'] }
+                    ]
+                  }
+                }
+              },
+              {
+                $project: { displayName: 1, media: 1 }
+              }
+            ],
+            as: 'profileDetails'
+          }
+        },
+        {
+          $project: {
+            itemName: '$itemDetails.itemName',
+            profileName: { $arrayElemAt: ['$profileDetails.displayName', 0] },
+            _id:1,
+            key:1,
+            title:1,
+            type:1,
+            metaData:1,
+            sourceId:1,
+            sourceType:1,
+            validityPeriod:1,
+            description:1,
+            provider:1,
+            version:1
+          }
+        },
+        {
+    $group: {
+      _id: '$_id',
+      doc: { $first: '$$ROOT' }
+    }
+  },
+  {
+    $replaceRoot: { newRoot: '$doc' }
+  }
+      ];
+
+      let data = await this.achievementModel.aggregate(pipeline).exec();
+      return data;
 
     } catch (error) {
+      console.error(error);
       throw error;
     }
   }
