@@ -864,14 +864,15 @@ export class DynamicUiService {
             matchesCountry &&
             isFirstSeriesLocked &&
             item.type == "IAPPayment") ||
-          (matchesCountry && item.type == "IAPPayment")
+          (rule.isSubscribed == isSubscriber &&
+            matchesCountry &&
+            item.type == "IAPPayment")
         ) {
+          // console.log("inside IAP payment");
+
           return [bannerData];
         }
-        if (
-          rule.isSubscribed === isNewSubscription &&
-          !referralBanner
-        ) {
+        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
