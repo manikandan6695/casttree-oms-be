@@ -9,11 +9,14 @@ import {
   Headers,
   Req,
   Version,
+  Post,
+  Body,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
+import { UpdateComponentsDto } from "./dto/update-components.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -39,17 +42,16 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
-    @Query("category") category,
-    @Query("proficiency") proficiency,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.dynamicUIService.getPageDetails(token, pageId, category, proficiency);
+      let data = await this.dynamicUIService.getPageDetails(token, pageId);
       return data;
     } catch (err) {
       throw err;
     }
   }
+  
   @UseGuards(JwtAuthGuard)
   @Get("component/:componentId")
   async getComponent(
@@ -70,5 +72,31 @@ export class DynamicUiController {
     } catch (err) {
       throw err;
     }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("page/:pageId")
+  async updateComps(
+    @Req() req,
+    @Param("pageId") pageId: string,
+    @Body() updateDto: UpdateComponentsDto
+  ) {
+    try {
+      const componentIds = updateDto.components;
+      // console.log("componentIds", componentIds);
+      return await this.dynamicUIService.updatePageComponents(pageId, componentIds);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("updateSeriesTag")
+  async updateTag(
+    @Req() req,
+    @Param("pageId") pageId: string,
+    @Body() data: any
+  ) {
+    return await this.dynamicUIService.updateSeriesTag(data);
   }
 }

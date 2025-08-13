@@ -20,17 +20,18 @@ console.log("cors", cors);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    cors: {
-      preflightContinue: false,
-      optionsSuccessStatus: 200,
-      origin: JSON.parse(process.env.CORS_ALLOWED_ORIGIN),
-      credentials: true,
-      allowedHeaders: process.env.CORS_ALLOWED_HEADERS.split(",").map((h) =>
-        h.trim().toLowerCase()
-      ),
-      methods: process.env.CORS_ALLOWED_METHODS,
-    },
+    // cors: {
+    //   preflightContinue: false,
+    //   optionsSuccessStatus: 200,
+    //   origin: JSON.parse(process.env.CORS_ALLOWED_ORIGIN),
+    //   credentials: true,
+    //   allowedHeaders: process.env.CORS_ALLOWED_HEADERS.split(",").map((h) =>
+    //     h.trim().toLowerCase()
+    //   ),
+    //   methods: process.env.CORS_ALLOWED_METHODS,
+    // },
   });
+  app.enableCors();
   app.use(helmet());
   app.use(bodyParser.json({ limit: "50mb" }));
   app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
