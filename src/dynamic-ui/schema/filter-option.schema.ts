@@ -1,6 +1,6 @@
 import mongoose, { Document } from "mongoose";
 
-export interface IFilterType extends Document {
+export interface IFilterOption extends Document {
     filterTypeId: string;
     filterType: string;
     optionKey: string;

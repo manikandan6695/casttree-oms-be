@@ -8,10 +8,10 @@ export interface IItems {
     lable: string;
     style: Object;
   };
-  options: mongoose.Schema.Types.ObjectId[];
+  options: any[];
 }
 export interface IInteractionData {
-  items: IItems[];
+  items: any[];
 }
 export interface IButton {
   lable: string;
@@ -52,7 +52,11 @@ export const ItemsSchema = new mongoose.Schema({
   button: {
     type: mongoose.Schema.Types.Mixed
   },
-  options:[mongoose.Schema.Types.ObjectId],
+ options: [
+    {
+      type: mongoose.Schema.Types.Mixed,
+    }
+  ]
 });
 export const InteractionDataSchema = new mongoose.Schema({
   items: [ItemsSchema],

@@ -20,7 +20,7 @@ export const validationRulesSchema = new mongoose.Schema({
     required: { type: Boolean },
     minSelections: { type: Number },
     maxSelections: { type: Number },
-})
+},{_id:false})
 export const FilterTypeSchema = new mongoose.Schema({
     type: { type: String },
     displayName: { type: String },

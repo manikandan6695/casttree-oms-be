@@ -15,9 +15,12 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EComponentType } from "./enum/component.enum";
+import { EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { ENavBar } from "./enum/nav-bar.enum";
+import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
+import { IFilterType } from "./schema/filter-type.schema";
+import { IFilterOption } from "./schema/filter-option.schema";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -32,10 +35,16 @@ export class DynamicUiService {
     private systemConfigurationModel: Model<ISystemConfigurationModel>,
     @InjectModel("contentPage")
     private readonly contentPageModel: Model<IContentPage>,
+    @InjectModel("userFilterPreferences")
+    private readonly userFilterPreferenceModel: Model<IUserFilterPreference>,
+    @InjectModel("filterTypes")
+    private readonly filterTypeModel: Model<IFilterType>,
+    @InjectModel("filterOptions")
+    private readonly filterOptionsModel: Model<IFilterOption>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
-  ) {}
+  ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
       let data = await this.appNavBarModel
@@ -131,6 +140,8 @@ export class DynamicUiService {
         false,
         0,
         0,
+        null,
+        null
       );
 
       const processIds = [];
@@ -198,81 +209,283 @@ export class DynamicUiService {
     }
   }
 
+  // async getComponent(
+  //   token: UserToken,
+  //   componentId: string,
+  //   skip: number,
+  //   limit: number,
+  //   category: string | string[],
+  //   proficiency: string,
+  // ) {
+  //   try {
+  //     let component = await this.componentModel
+  //       .findOne({
+  //         _id: componentId,
+  //         status: EStatus.Active,
+  //       })
+  //       .lean();
+  //     let page = await this.contentPageModel
+  //       .findOne({ "components.componentId": componentId })
+  //       .lean();
+  //     let serviceItemData = await this.fetchServiceItemDetails(
+  //       page,
+  //       token.id,
+  //       true,
+  //       skip,
+  //       limit,
+  //       category,
+  //       proficiency
+  //     );
+  //      const tagName = component?.tag?.tagName;
+  //     if (tagName && serviceItemData?.finalData?.[tagName]) {
+  //       component.actionData = serviceItemData.finalData[tagName];
+  //       component["totalCount"] = serviceItemData?.count;
+  //     }
+  //     if (component?.interactionData) {
+  //       let filterOption = await this.componentFilterOptions();
+
+  //       const grouped = filterOption.reduce((acc, opt) => {
+  //         if (!acc[opt.filterType]) {
+  //           acc[opt.filterType] = {
+  //             type: opt.filterType,
+  //             filterTypeId: opt.filterTypeId.toString(),
+  //             options: []
+  //           };
+  //         }
+  //         acc[opt.filterType].options.push({
+  //           filterOptionId: opt._id.toString(),
+  //           filterType: opt.filterType,
+  //           optionKey: opt.optionKey,
+  //           optionValue: opt.optionValue,
+  //           isUserSelected: false
+  //         });
+  //         return acc;
+  //       }, {});
+
+  //       if (proficiency) {
+  //         grouped[EItemType.proficiency]?.options.forEach(opt => {
+  //           opt.isUserSelected = opt.filterOptionId === proficiency;
+  //         });
+  //       }
+
+  //       if (category) {
+  //         grouped[EItemType.category]?.options.forEach(opt => {
+  //           if (Array.isArray(category)) {
+  //             opt.isUserSelected = category.includes(opt.filterOptionId);
+  //           } else {
+  //             opt.isUserSelected = opt.filterOptionId === category;
+  //           }
+  //         });
+  //       }
+
+  //       const itemsArray = Object.values(grouped);
+  //       component.interactionData = { items: itemsArray };
+  //     }
+
+  //     return { component };
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
   async getComponent(
-    token: UserToken,
-    componentId: string,
-    skip: number,
-    limit: number,
-    proficiency: string,
-    category: string | string[]
-  ) {
+  token: UserToken,
+  componentId: string,
+  skip: number,
+  limit: number,
+  category: string | string[],
+  proficiency: string,
+) {
+  try {
+    let component = await this.componentModel
+      .findOne({
+        _id: componentId,
+        status: EStatus.Active,
+      })
+      .lean();
+
+    let page = await this.contentPageModel
+      .findOne({ "components.componentId": componentId })
+      .lean();
+
+    let serviceItemData = await this.fetchServiceItemDetails(
+      page,
+      token.id,
+      true,
+      skip,
+      limit,
+      category,
+      proficiency
+    );
+
+    const tagName = component?.tag?.tagName;
+
+    if (tagName && serviceItemData?.finalData?.[tagName]) {
+      component.actionData = serviceItemData.finalData[tagName];
+    } else {
+      component.actionData = Object.values(serviceItemData.finalData || {}).flat();
+    }
+
+    component["totalCount"] = serviceItemData?.count || 0;
+
+    if (component?.interactionData) {
+      let filterOption = await this.componentFilterOptions();
+
+      const grouped = filterOption.reduce((acc, opt) => {
+        if (!acc[opt.filterType]) {
+          acc[opt.filterType] = {
+            type: opt.filterType,
+            filterTypeId: opt.filterTypeId.toString(),
+            options: []
+          };
+        }
+        acc[opt.filterType].options.push({
+          filterOptionId: opt._id.toString(),
+          filterType: opt.filterType,
+          optionKey: opt.optionKey,
+          optionValue: opt.optionValue,
+          isUserSelected: false
+        });
+        return acc;
+      }, {});
+
+      if (proficiency) {
+        grouped[EItemType.proficiency]?.options.forEach(opt => {
+          opt.isUserSelected = opt.filterOptionId === proficiency;
+        });
+      }
+
+      if (category) {
+        grouped[EItemType.category]?.options.forEach(opt => {
+          if (Array.isArray(category)) {
+            opt.isUserSelected = category.includes(opt.filterOptionId);
+          } else {
+            opt.isUserSelected = opt.filterOptionId === category;
+          }
+        });
+      }
+
+      component.interactionData = { items: Object.values(grouped) };
+    }
+
+    return { component };
+  } catch (err) {
+    throw err;
+  }
+}
+
+  async filterActionData(token, actionData, category, proficiency) {
     try {
-      let component = await this.componentModel
-        .findOne({
-          _id: componentId,
-          status: EStatus.Active,
-        })
-        .lean();
-      let page = await this.contentPageModel
-        .findOne({ "components.componentId": componentId })
-        .lean();
-      let serviceItemData = await this.fetchServiceItemDetails(
-        page,
-        token.id,
-        true,
-        skip,
-        limit
-      );
+      const payload: any = { filters: [] };
 
-      const tagName = component?.tag?.tagName;
-      if (tagName && serviceItemData?.finalData?.[tagName]) {
-        let actionData = serviceItemData.finalData[tagName];
-        actionData = actionData.filter((item) => {
-    // If proficiency filter is set, skip non-matching items
-    if (proficiency) {
-      if (
-        !item.proficiency?.category_id ||
-        item.proficiency.category_id.toString() !==
-          new ObjectId(proficiency).toString()
-      ) {
-        return false;
-      }
-    }
-     if (category) {
-      const itemCatId = item.category?.category_id?.toString();
-      if (!itemCatId) return false;
+      const filteredData = actionData.filter(item => {
+        if (proficiency) {
+          const profIds = (item.proficiency || [])
+            .map(p => p?.filterOptionId?.toString())
+            .filter(Boolean);
 
-      if (typeof category === "string") {
-        if (itemCatId !== new ObjectId(category).toString()) {
-          return false;
+          if (!profIds.includes(proficiency.toString())) {
+            return false;
+          }
+
+          if (!payload.filters.some(f => f.category === EItemType.proficiency)) {
+            payload.filters.push({
+              category: EItemType.proficiency,
+              values: [proficiency.toString()]
+            });
+          }
         }
-      } else if (Array.isArray(category)) {
-        const categoryIds = category.map((id) =>
-          new ObjectId(id).toString()
-        );
-        if (!categoryIds.includes(itemCatId)) {
-          return false;
-        }
-      }
-    }
 
-    return true;
-  });
-        component.actionData = serviceItemData.finalData[tagName];
-        component["totalCount"] = serviceItemData?.count;
+        if (category) {
+          const catIds = (item.category || [])
+            .map(c => c?.filterOptionId?.toString())
+            .filter(Boolean);
+
+          const categoryFilters = (Array.isArray(category) ? category : [category])
+            .map(id => id.toString());
+
+          if (!catIds.some(id => categoryFilters.includes(id))) {
+            return false;
+          }
+
+          if (!payload.filters.some(f => f.category === EItemType.category)) {
+            payload.filters.push({
+              category: EItemType.category,
+              values: categoryFilters
+            });
+          }
+        }
+
+        return true;
+      });
+
+      if (payload.filters.length) {
+        await this.createOrUpdateUserPreference(token, payload);
       }
-      return { component };
-    } catch (err) {
-      throw err;
+
+      return filteredData;
+    } catch (error) {
+      throw error;
     }
   }
 
+  // async filterActionData(token, actionData, category, proficiency) {
+  //   try {
+  //     // console.log("actionData", JSON.stringify(actionData), category, proficiency)
+  //     const payload: any = { filters: [] };
+  //     const filteredData = actionData.filter(item => {
+  //       if (proficiency) {
+  //         const profIds = (Array.isArray(item.proficiency) ? item.proficiency : [item.proficiency])
+  //           .map(p => p?.filterOptionId?.toString())
+  //           .filter(Boolean);
+
+  //         if (!profIds.includes(new ObjectId(proficiency).toString())) {
+  //           return false;
+  //         }
+  //         if (!payload.filters.some(f => f.category === EItemType.proficiency)) {
+  //           payload.filters.push({
+  //             category: EItemType.proficiency,
+  //             values: [proficiency.toString()]
+  //           });
+  //         }
+  //       }
+
+  //       if (category) {
+  //         const catIds = (Array.isArray(item.category) ? item.category : [item.category])
+  //           .map(c => c?.filterOptionId?.toString())
+  //           .filter(Boolean);
+
+  //         const categoryFilters = (Array.isArray(category) ? category : [category])
+  //           .map(id => id.toString());
+
+  //         if (!catIds.some(id => categoryFilters.includes(id))) {
+  //           return false;
+  //         }
+
+  //         if (!payload.filters.some(f => f.category === EItemType.category)) {
+  //           payload.filters.push({
+  //             category: EItemType.category,
+  //             values: categoryFilters
+  //           });
+  //         }
+  //       }
+  //       return true;
+  //     });
+  //     if (payload.filters.length) {
+  //       await this.createOrUpdateUserPreference(token, payload);
+  //     }
+  //     return filteredData
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
   async fetchServiceItemDetails(
     data,
     userId: string,
     isPagination = false,
     skip,
     limit,
+    category,
+    proficiency
   ) {
     try {
       let filter: any = {
@@ -280,18 +493,18 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      // if (proficiency) {
-      //   filter["proficiency.category_id"] = new ObjectId(proficiency);
-      // }
+      if (proficiency) {
+        filter["proficiency.filterOptionId"] = new ObjectId(proficiency);
+      }
 
-      // if(category){
-      //   if (typeof category === "string") {
-      //     filter["category.category_id"] = new ObjectId(category);
-      //   } else {
-      //     filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
-      //   }
-      // }
-
+      if(category){
+        if (typeof category === "string") {
+          filter["category.filterOptionId"] = new ObjectId(category);
+        } else {
+          filter["category.filterOptionId"] = { $in: category.map(id => new ObjectId(id)) };
+        }
+      }
+      // console.log("filter",filter)
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -813,29 +1026,29 @@ export class DynamicUiService {
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
         ? {
-            media: { mediaUrl: learnBanner.imageUrl },
-            navigation: {
-              page: getScreenName(learnBanner),
-              type: "internal",
-              ...(getScreenName(learnBanner) !== "ReferralScreen" && {
-                params: {
-                  processId: learnBanner.processId,
-                  taskId: learnBanner.taskId,
-                },
-              }),
-            },
-          }
-        : {
-            media: { mediaUrl: premiumBanner },
-            navigation: {
-              page: getScreenName(premiumBannerObj),
-              type: "internal",
+          media: { mediaUrl: learnBanner.imageUrl },
+          navigation: {
+            page: getScreenName(learnBanner),
+            type: "internal",
+            ...(getScreenName(learnBanner) !== "ReferralScreen" && {
               params: {
-                processId: premiumBannerObj.processId,
-                taskId: premiumBannerObj.taskId,
+                processId: learnBanner.processId,
+                taskId: learnBanner.taskId,
               },
+            }),
+          },
+        }
+        : {
+          media: { mediaUrl: premiumBanner },
+          navigation: {
+            page: getScreenName(premiumBannerObj),
+            type: "internal",
+            params: {
+              processId: premiumBannerObj.processId,
+              taskId: premiumBannerObj.taskId,
             },
-          };
+          },
+        };
 
       return banner;
     } catch (err) {
@@ -893,6 +1106,75 @@ export class DynamicUiService {
       return mentorProfiles;
     } catch (err) {
       throw err;
+    }
+  }
+  async createOrUpdateUserPreference(token: UserToken, payload) {
+    try {
+      let userId = new ObjectId(token.id);
+      payload.userId = userId;
+      payload.isLatest = true;
+      payload.status = EStatus.Active;
+      const allFilterIds = payload.filters.flatMap(f => f.values).map(id => new ObjectId(id));
+      const filterOptions = await this.filterOptionsModel.find({
+        _id: { $in: allFilterIds },
+        status: EStatus.Active
+      }).lean();
+      const optionKeyMap = filterOptions.reduce((acc, fo) => {
+        acc[fo._id.toString()] = fo.optionKey;
+        return acc;
+      }, {});
+      payload.filters = payload.filters.map(payloadData => ({
+        ...payloadData,
+        values: payloadData.values.map(data => ({
+          id: data,
+          optionKey: optionKeyMap[data] || null
+        }))
+      }));
+      const existingData = await this.userFilterPreferenceModel.findOne({
+        userId: userId,
+        status: EStatus.Active,
+      }).sort({ created_at: -1 }).lean();
+      if (existingData) {
+        await this.userFilterPreferenceModel.findOneAndUpdate(
+          { userId: userId, status: EStatus.Active, _id: existingData._id },
+          { $set: { isLatest: false } }
+        );
+
+        await this.userFilterPreferenceModel.create(payload);
+
+      } else {
+        await this.userFilterPreferenceModel.create(payload);
+      }
+
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getFilterOptions(id: string | string[]) {
+    try {
+      let filterOptionId = new ObjectId(id)
+      let data = await this.filterOptionsModel.findOne({
+        _id: filterOptionId,
+        status: EStatus.Active
+      }).lean()
+      return data
+    } catch (error) {
+      throw error
+    }
+  }
+  async componentFilterOptions() {
+    try {
+      let filter = await this.filterTypeModel.find({
+        isActive: true
+      })
+      const types = filter.map(item => item.type);
+      const data = await this.filterOptionsModel.find({
+        status: EStatus.Active,
+        filterType: { $in: types }
+      }).lean();
+      return data
+    } catch (error) {
+      throw error
     }
   }
 }

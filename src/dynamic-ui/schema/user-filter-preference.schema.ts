@@ -4,6 +4,13 @@ export interface IFilter {
   category: string;
   values: string[];
 }
+const FilterSchema = new mongoose.Schema(
+  {
+    category: { type: String },
+    values: [{ id:{type: mongoose.Schema.Types.ObjectId},optionKey:{type:String} }],
+  },
+  { _id: false } 
+);
 export interface IUserFilterPreference extends Document {
   userId: string;
   filters: IFilter[];
@@ -14,12 +21,7 @@ export interface IUserFilterPreference extends Document {
 }
 export const UserFilterPreferenceSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId,  ref: "user" },
-   filters: [
-      {
-        category: { type: String },
-        values: [{ type: String }],
-      },
-    ],
+    filters: [FilterSchema],
     isLatest: { type: Boolean },
     status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     }, {
