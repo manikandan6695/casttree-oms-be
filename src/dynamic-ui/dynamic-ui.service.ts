@@ -303,111 +303,6 @@ export class DynamicUiService {
     }
   }
 
-  async filterActionData(token, actionData, category, proficiency) {
-    try {
-      const payload: any = { filters: [] };
-
-      const filteredData = actionData.filter(item => {
-        if (proficiency) {
-          const profIds = (item.proficiency || [])
-            .map(p => p?.filterOptionId?.toString())
-            .filter(Boolean);
-
-          if (!profIds.includes(proficiency.toString())) {
-            return false;
-          }
-
-          if (!payload.filters.some(f => f.category === EItemType.proficiency)) {
-            payload.filters.push({
-              category: EItemType.proficiency,
-              values: [proficiency.toString()]
-            });
-          }
-        }
-
-        if (category) {
-          const catIds = (item.category || [])
-            .map(c => c?.filterOptionId?.toString())
-            .filter(Boolean);
-
-          const categoryFilters = (Array.isArray(category) ? category : [category])
-            .map(id => id.toString());
-
-          if (!catIds.some(id => categoryFilters.includes(id))) {
-            return false;
-          }
-
-          if (!payload.filters.some(f => f.category === EItemType.category)) {
-            payload.filters.push({
-              category: EItemType.category,
-              values: categoryFilters
-            });
-          }
-        }
-
-        return true;
-      });
-
-      if (payload.filters.length) {
-        await this.createOrUpdateUserPreference(token, payload);
-      }
-
-      return filteredData;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // async filterActionData(token, actionData, category, proficiency) {
-  //   try {
-  //     // console.log("actionData", JSON.stringify(actionData), category, proficiency)
-  //     const payload: any = { filters: [] };
-  //     const filteredData = actionData.filter(item => {
-  //       if (proficiency) {
-  //         const profIds = (Array.isArray(item.proficiency) ? item.proficiency : [item.proficiency])
-  //           .map(p => p?.filterOptionId?.toString())
-  //           .filter(Boolean);
-
-  //         if (!profIds.includes(new ObjectId(proficiency).toString())) {
-  //           return false;
-  //         }
-  //         if (!payload.filters.some(f => f.category === EItemType.proficiency)) {
-  //           payload.filters.push({
-  //             category: EItemType.proficiency,
-  //             values: [proficiency.toString()]
-  //           });
-  //         }
-  //       }
-
-  //       if (category) {
-  //         const catIds = (Array.isArray(item.category) ? item.category : [item.category])
-  //           .map(c => c?.filterOptionId?.toString())
-  //           .filter(Boolean);
-
-  //         const categoryFilters = (Array.isArray(category) ? category : [category])
-  //           .map(id => id.toString());
-
-  //         if (!catIds.some(id => categoryFilters.includes(id))) {
-  //           return false;
-  //         }
-
-  //         if (!payload.filters.some(f => f.category === EItemType.category)) {
-  //           payload.filters.push({
-  //             category: EItemType.category,
-  //             values: categoryFilters
-  //           });
-  //         }
-  //       }
-  //       return true;
-  //     });
-  //     if (payload.filters.length) {
-  //       await this.createOrUpdateUserPreference(token, payload);
-  //     }
-  //     return filteredData
-  //   } catch (error) {
-  //     throw error
-  //   }
-  // }
   async fetchServiceItemDetails(
     data,
     userId: string,
@@ -688,6 +583,19 @@ export class DynamicUiService {
         a[c.tagName] = c.details;
         return a;
       }, {});
+       const payload: any = { filters: [] };
+
+    if (proficiency) {
+      payload.filters.push({ category: EItemType.proficiency, values: [proficiency.toString()] });
+    }
+    if (category) {
+      const categoryValues = Array.isArray(category) ? category.map(id => id.toString()) : [category.toString()];
+      payload.filters.push({ category: EItemType.category, values: categoryValues });
+    }
+
+    if (payload.filters.length) {
+      await this.createOrUpdateUserPreference(userId.toString(), payload);
+    }
       return { finalData, count };
     } catch (err) {
       throw err;
@@ -1038,10 +946,9 @@ export class DynamicUiService {
       throw err;
     }
   }
-  async createOrUpdateUserPreference(token: UserToken, payload) {
+  async createOrUpdateUserPreference(userId:string, payload) {
     try {
-      let userId = new ObjectId(token.id);
-      payload.userId = userId;
+      payload.userId = new ObjectId(userId);
       payload.isLatest = true;
       payload.status = EStatus.Active;
       const allFilterIds = payload.filters.flatMap(f => f.values).map(id => new ObjectId(id));
@@ -1061,12 +968,12 @@ export class DynamicUiService {
         }))
       }));
       const existingData = await this.userFilterPreferenceModel.findOne({
-        userId: userId,
+        userId: payload.userId,
         status: EStatus.Active,
       }).sort({ created_at: -1 }).lean();
       if (existingData) {
         await this.userFilterPreferenceModel.findOneAndUpdate(
-          { userId: userId, status: EStatus.Active, _id: existingData._id },
+          { userId: payload.userId, status: EStatus.Active, _id: existingData._id },
           { $set: { isLatest: false } }
         );
 
