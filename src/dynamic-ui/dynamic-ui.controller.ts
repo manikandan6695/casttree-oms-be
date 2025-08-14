@@ -57,14 +57,18 @@ export class DynamicUiController {
     @Param("componentId") componentId: string,
     @GetToken() token: UserToken,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("limit", ParseIntPipe) limit: number,
+    @Query("category") category,
+    @Query("proficiency") proficiency: string,
   ) {
     try {
       let data = await this.dynamicUIService.getComponent(
         token,
         componentId,
         skip,
-        limit
+        limit,
+        category,
+        proficiency
       );
       return data;
     } catch (err) {

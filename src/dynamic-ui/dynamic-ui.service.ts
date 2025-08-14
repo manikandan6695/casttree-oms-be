@@ -15,9 +15,12 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EComponentType } from "./enum/component.enum";
+import { EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { ENavBar } from "./enum/nav-bar.enum";
+import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
+import { IFilterType } from "./schema/filter-type.schema";
+import { IFilterOption } from "./schema/filter-option.schema";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -32,10 +35,16 @@ export class DynamicUiService {
     private systemConfigurationModel: Model<ISystemConfigurationModel>,
     @InjectModel("contentPage")
     private readonly contentPageModel: Model<IContentPage>,
+    @InjectModel("userFilterPreferences")
+    private readonly userFilterPreferenceModel: Model<IUserFilterPreference>,
+    @InjectModel("filterTypes")
+    private readonly filterTypeModel: Model<IFilterType>,
+    @InjectModel("filterOptions")
+    private readonly filterOptionsModel: Model<IFilterOption>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
-  ) {}
+  ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
       let data = await this.appNavBarModel
@@ -131,8 +140,8 @@ export class DynamicUiService {
         false,
         0,
         0,
-        category,
-        proficiency
+        null,
+        null
       );
 
       const processIds = [];
@@ -199,38 +208,95 @@ export class DynamicUiService {
       throw err;
     }
   }
-
   async getComponent(
     token: UserToken,
     componentId: string,
     skip: number,
-    limit: number
+    limit: number,
+    category: string | string[],
+    proficiency: string,
   ) {
     try {
       let component = await this.componentModel
-        .findOne({
-          _id: componentId,
-          status: EStatus.Active,
-        })
+        .findOne({ _id: componentId, status: EStatus.Active })
         .lean();
+
       let page = await this.contentPageModel
         .findOne({ "components.componentId": componentId })
         .lean();
+
       let serviceItemData = await this.fetchServiceItemDetails(
         page,
         token.id,
         true,
         skip,
         limit,
-        null,
-        null
+        category,
+        proficiency
       );
 
       const tagName = component?.tag?.tagName;
+
+      let allData: any[] = [];
       if (tagName && serviceItemData?.finalData?.[tagName]) {
-        component.actionData = serviceItemData.finalData[tagName];
-        component["totalCount"] = serviceItemData?.count;
+        allData = serviceItemData.finalData[tagName];
+      } else {
+        allData = Object.values(serviceItemData.finalData || {}).flat();
       }
+
+      const uniqueData = allData.filter((item, index, self) => {
+        if (!item.taskDetail || !item.taskDetail._id) return true;
+        return (
+          index ===
+          self.findIndex(
+            i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+          )
+        );
+      });
+
+      component.actionData = uniqueData;
+      component["totalCount"] = serviceItemData?.count || 0;
+
+      if (component?.interactionData) {
+        let filterOption = await this.componentFilterOptions();
+
+        const grouped = filterOption.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            isUserSelected: false,
+          });
+          return acc;
+        }, {});
+
+        if (proficiency) {
+          grouped[EItemType.proficiency]?.options.forEach(opt => {
+            opt.isUserSelected = opt.filterOptionId === proficiency;
+          });
+        }
+
+        if (category) {
+          grouped[EItemType.category]?.options.forEach(opt => {
+            if (Array.isArray(category)) {
+              opt.isUserSelected = category.includes(opt.filterOptionId);
+            } else {
+              opt.isUserSelected = opt.filterOptionId === category;
+            }
+          });
+        }
+
+        component.interactionData = { items: Object.values(grouped) };
+      }
+
       return { component };
     } catch (err) {
       throw err;
@@ -244,7 +310,7 @@ export class DynamicUiService {
     skip,
     limit,
     category,
-    proficiency: string
+    proficiency
   ) {
     try {
       let filter: any = {
@@ -253,17 +319,17 @@ export class DynamicUiService {
         status: Estatus.Active,
       };
       if (proficiency) {
-        filter["proficiency.category_id"] = new ObjectId(proficiency);
+        filter["proficiency.filterOptionId"] = new ObjectId(proficiency);
       }
 
-      if(category){
+      if (category) {
         if (typeof category === "string") {
-          filter["category.category_id"] = new ObjectId(category);
+          filter["category.filterOptionId"] = new ObjectId(category);
         } else {
-          filter["category.category_id"] = { $in: category.map(id => new ObjectId(id)) };
+          filter["category.filterOptionId"] = { $in: category.map(id => new ObjectId(id)) };
         }
       }
-
+      // console.log("filter",filter)
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -517,6 +583,19 @@ export class DynamicUiService {
         a[c.tagName] = c.details;
         return a;
       }, {});
+       const payload: any = { filters: [] };
+
+    if (proficiency) {
+      payload.filters.push({ category: EItemType.proficiency, values: [proficiency.toString()] });
+    }
+    if (category) {
+      const categoryValues = Array.isArray(category) ? category.map(id => id.toString()) : [category.toString()];
+      payload.filters.push({ category: EItemType.category, values: categoryValues });
+    }
+
+    if (payload.filters.length) {
+      await this.createOrUpdateUserPreference(userId.toString(), payload);
+    }
       return { finalData, count };
     } catch (err) {
       throw err;
@@ -785,29 +864,29 @@ export class DynamicUiService {
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
         ? {
-            media: { mediaUrl: learnBanner.imageUrl },
-            navigation: {
-              page: getScreenName(learnBanner),
-              type: "internal",
-              ...(getScreenName(learnBanner) !== "ReferralScreen" && {
-                params: {
-                  processId: learnBanner.processId,
-                  taskId: learnBanner.taskId,
-                },
-              }),
-            },
-          }
-        : {
-            media: { mediaUrl: premiumBanner },
-            navigation: {
-              page: getScreenName(premiumBannerObj),
-              type: "internal",
+          media: { mediaUrl: learnBanner.imageUrl },
+          navigation: {
+            page: getScreenName(learnBanner),
+            type: "internal",
+            ...(getScreenName(learnBanner) !== "ReferralScreen" && {
               params: {
-                processId: premiumBannerObj.processId,
-                taskId: premiumBannerObj.taskId,
+                processId: learnBanner.processId,
+                taskId: learnBanner.taskId,
               },
+            }),
+          },
+        }
+        : {
+          media: { mediaUrl: premiumBanner },
+          navigation: {
+            page: getScreenName(premiumBannerObj),
+            type: "internal",
+            params: {
+              processId: premiumBannerObj.processId,
+              taskId: premiumBannerObj.taskId,
             },
-          };
+          },
+        };
 
       return banner;
     } catch (err) {
@@ -865,6 +944,74 @@ export class DynamicUiService {
       return mentorProfiles;
     } catch (err) {
       throw err;
+    }
+  }
+  async createOrUpdateUserPreference(userId:string, payload) {
+    try {
+      payload.userId = new ObjectId(userId);
+      payload.isLatest = true;
+      payload.status = EStatus.Active;
+      const allFilterIds = payload.filters.flatMap(f => f.values).map(id => new ObjectId(id));
+      const filterOptions = await this.filterOptionsModel.find({
+        _id: { $in: allFilterIds },
+        status: EStatus.Active
+      }).lean();
+      const optionKeyMap = filterOptions.reduce((acc, fo) => {
+        acc[fo._id.toString()] = fo.optionKey;
+        return acc;
+      }, {});
+      payload.filters = payload.filters.map(payloadData => ({
+        ...payloadData,
+        values: payloadData.values.map(data => ({
+          id: data,
+          optionKey: optionKeyMap[data] || null
+        }))
+      }));
+      const existingData = await this.userFilterPreferenceModel.findOne({
+        userId: payload.userId,
+        status: EStatus.Active,
+      }).sort({ created_at: -1 }).lean();
+      if (existingData) {
+        await this.userFilterPreferenceModel.findOneAndUpdate(
+          { userId: payload.userId, status: EStatus.Active, _id: existingData._id },
+          { $set: { isLatest: false } }
+        );
+
+        await this.userFilterPreferenceModel.create(payload);
+
+      } else {
+        await this.userFilterPreferenceModel.create(payload);
+      }
+
+    } catch (error) {
+      throw error;
+    }
+  }
+  // async getFilterOptions(id: string | string[]) {
+  //   try {
+  //     let filterOptionId = new ObjectId(id)
+  //     let data = await this.filterOptionsModel.findOne({
+  //       _id: filterOptionId,
+  //       status: EStatus.Active
+  //     }).lean()
+  //     return data
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
+  async componentFilterOptions() {
+    try {
+      let filter = await this.filterTypeModel.find({
+        isActive: true
+      })
+      const types = filter.map(item => item.type);
+      const data = await this.filterOptionsModel.find({
+        status: EStatus.Active,
+        filterType: { $in: types }
+      }).lean();
+      return data
+    } catch (error) {
+      throw error
     }
   }
 }

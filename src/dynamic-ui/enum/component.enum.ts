@@ -7,3 +7,7 @@ export const ESComponentType = [
   EComponentType.personalizedBanner,
   EComponentType.userPreferenceBanner
 ];
+export enum EItemType  {
+  proficiency = "proficiency",
+  category = "category"
+}
