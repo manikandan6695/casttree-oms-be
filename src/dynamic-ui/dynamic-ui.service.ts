@@ -987,18 +987,18 @@ export class DynamicUiService {
       throw error;
     }
   }
-  async getFilterOptions(id: string | string[]) {
-    try {
-      let filterOptionId = new ObjectId(id)
-      let data = await this.filterOptionsModel.findOne({
-        _id: filterOptionId,
-        status: EStatus.Active
-      }).lean()
-      return data
-    } catch (error) {
-      throw error
-    }
-  }
+  // async getFilterOptions(id: string | string[]) {
+  //   try {
+  //     let filterOptionId = new ObjectId(id)
+  //     let data = await this.filterOptionsModel.findOne({
+  //       _id: filterOptionId,
+  //       status: EStatus.Active
+  //     }).lean()
+  //     return data
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
   async componentFilterOptions() {
     try {
       let filter = await this.filterTypeModel.find({
