@@ -208,170 +208,100 @@ export class DynamicUiService {
       throw err;
     }
   }
-
-  // async getComponent(
-  //   token: UserToken,
-  //   componentId: string,
-  //   skip: number,
-  //   limit: number,
-  //   category: string | string[],
-  //   proficiency: string,
-  // ) {
-  //   try {
-  //     let component = await this.componentModel
-  //       .findOne({
-  //         _id: componentId,
-  //         status: EStatus.Active,
-  //       })
-  //       .lean();
-  //     let page = await this.contentPageModel
-  //       .findOne({ "components.componentId": componentId })
-  //       .lean();
-  //     let serviceItemData = await this.fetchServiceItemDetails(
-  //       page,
-  //       token.id,
-  //       true,
-  //       skip,
-  //       limit,
-  //       category,
-  //       proficiency
-  //     );
-  //      const tagName = component?.tag?.tagName;
-  //     if (tagName && serviceItemData?.finalData?.[tagName]) {
-  //       component.actionData = serviceItemData.finalData[tagName];
-  //       component["totalCount"] = serviceItemData?.count;
-  //     }
-  //     if (component?.interactionData) {
-  //       let filterOption = await this.componentFilterOptions();
-
-  //       const grouped = filterOption.reduce((acc, opt) => {
-  //         if (!acc[opt.filterType]) {
-  //           acc[opt.filterType] = {
-  //             type: opt.filterType,
-  //             filterTypeId: opt.filterTypeId.toString(),
-  //             options: []
-  //           };
-  //         }
-  //         acc[opt.filterType].options.push({
-  //           filterOptionId: opt._id.toString(),
-  //           filterType: opt.filterType,
-  //           optionKey: opt.optionKey,
-  //           optionValue: opt.optionValue,
-  //           isUserSelected: false
-  //         });
-  //         return acc;
-  //       }, {});
-
-  //       if (proficiency) {
-  //         grouped[EItemType.proficiency]?.options.forEach(opt => {
-  //           opt.isUserSelected = opt.filterOptionId === proficiency;
-  //         });
-  //       }
-
-  //       if (category) {
-  //         grouped[EItemType.category]?.options.forEach(opt => {
-  //           if (Array.isArray(category)) {
-  //             opt.isUserSelected = category.includes(opt.filterOptionId);
-  //           } else {
-  //             opt.isUserSelected = opt.filterOptionId === category;
-  //           }
-  //         });
-  //       }
-
-  //       const itemsArray = Object.values(grouped);
-  //       component.interactionData = { items: itemsArray };
-  //     }
-
-  //     return { component };
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // }
   async getComponent(
-  token: UserToken,
-  componentId: string,
-  skip: number,
-  limit: number,
-  category: string | string[],
-  proficiency: string,
-) {
-  try {
-    let component = await this.componentModel
-      .findOne({
-        _id: componentId,
-        status: EStatus.Active,
-      })
-      .lean();
+    token: UserToken,
+    componentId: string,
+    skip: number,
+    limit: number,
+    category: string | string[],
+    proficiency: string,
+  ) {
+    try {
+      let component = await this.componentModel
+        .findOne({ _id: componentId, status: EStatus.Active })
+        .lean();
 
-    let page = await this.contentPageModel
-      .findOne({ "components.componentId": componentId })
-      .lean();
+      let page = await this.contentPageModel
+        .findOne({ "components.componentId": componentId })
+        .lean();
 
-    let serviceItemData = await this.fetchServiceItemDetails(
-      page,
-      token.id,
-      true,
-      skip,
-      limit,
-      category,
-      proficiency
-    );
+      let serviceItemData = await this.fetchServiceItemDetails(
+        page,
+        token.id,
+        true,
+        skip,
+        limit,
+        category,
+        proficiency
+      );
 
-    const tagName = component?.tag?.tagName;
+      const tagName = component?.tag?.tagName;
 
-    if (tagName && serviceItemData?.finalData?.[tagName]) {
-      component.actionData = serviceItemData.finalData[tagName];
-    } else {
-      component.actionData = Object.values(serviceItemData.finalData || {}).flat();
-    }
-
-    component["totalCount"] = serviceItemData?.count || 0;
-
-    if (component?.interactionData) {
-      let filterOption = await this.componentFilterOptions();
-
-      const grouped = filterOption.reduce((acc, opt) => {
-        if (!acc[opt.filterType]) {
-          acc[opt.filterType] = {
-            type: opt.filterType,
-            filterTypeId: opt.filterTypeId.toString(),
-            options: []
-          };
-        }
-        acc[opt.filterType].options.push({
-          filterOptionId: opt._id.toString(),
-          filterType: opt.filterType,
-          optionKey: opt.optionKey,
-          optionValue: opt.optionValue,
-          isUserSelected: false
-        });
-        return acc;
-      }, {});
-
-      if (proficiency) {
-        grouped[EItemType.proficiency]?.options.forEach(opt => {
-          opt.isUserSelected = opt.filterOptionId === proficiency;
-        });
+      let allData: any[] = [];
+      if (tagName && serviceItemData?.finalData?.[tagName]) {
+        allData = serviceItemData.finalData[tagName];
+      } else {
+        allData = Object.values(serviceItemData.finalData || {}).flat();
       }
 
-      if (category) {
-        grouped[EItemType.category]?.options.forEach(opt => {
-          if (Array.isArray(category)) {
-            opt.isUserSelected = category.includes(opt.filterOptionId);
-          } else {
-            opt.isUserSelected = opt.filterOptionId === category;
+      const uniqueData = allData.filter((item, index, self) => {
+        if (!item.taskDetail || !item.taskDetail._id) return true;
+        return (
+          index ===
+          self.findIndex(
+            i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+          )
+        );
+      });
+
+      component.actionData = uniqueData;
+      component["totalCount"] = serviceItemData?.count || 0;
+
+      if (component?.interactionData) {
+        let filterOption = await this.componentFilterOptions();
+
+        const grouped = filterOption.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
           }
-        });
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            isUserSelected: false,
+          });
+          return acc;
+        }, {});
+
+        if (proficiency) {
+          grouped[EItemType.proficiency]?.options.forEach(opt => {
+            opt.isUserSelected = opt.filterOptionId === proficiency;
+          });
+        }
+
+        if (category) {
+          grouped[EItemType.category]?.options.forEach(opt => {
+            if (Array.isArray(category)) {
+              opt.isUserSelected = category.includes(opt.filterOptionId);
+            } else {
+              opt.isUserSelected = opt.filterOptionId === category;
+            }
+          });
+        }
+
+        component.interactionData = { items: Object.values(grouped) };
       }
 
-      component.interactionData = { items: Object.values(grouped) };
+      return { component };
+    } catch (err) {
+      throw err;
     }
-
-    return { component };
-  } catch (err) {
-    throw err;
   }
-}
 
   async filterActionData(token, actionData, category, proficiency) {
     try {
@@ -497,7 +427,7 @@ export class DynamicUiService {
         filter["proficiency.filterOptionId"] = new ObjectId(proficiency);
       }
 
-      if(category){
+      if (category) {
         if (typeof category === "string") {
           filter["category.filterOptionId"] = new ObjectId(category);
         } else {
