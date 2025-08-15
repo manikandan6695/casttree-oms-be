@@ -811,8 +811,9 @@ export class DynamicUiService {
         return [];
       }
 
-      const isFirstSeriesLocked =
-        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+      const isFirstSeriesLocked = userProcessedSeries?.actionData.some(
+        (action) => action.taskDetail?.isLocked === true
+      );
       // console.log("isSubscriber", isSubscriber);
 
       let bestMatchBanner: any = null;
@@ -860,11 +861,12 @@ export class DynamicUiService {
           return [bannerData];
         }
         if (
-          (rule.isSubscribed == isSubscriber &&
+          (rule.isSubscribed != isSubscriber &&
+            isFirstSeriesLocked == rule.isLocked &&
             matchesCountry &&
-            isFirstSeriesLocked &&
             item.type == "IAPPayment") ||
-          (rule.isSubscribed == isSubscriber &&
+          (rule.isSubscribed == isNewSubscription &&
+            isFirstSeriesLocked == rule.isLocked &&
             matchesCountry &&
             item.type == "IAPPayment")
         ) {
