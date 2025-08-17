@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
 import { ProcessModule } from "src/process/process.module";
@@ -18,6 +19,9 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
+import { ItemSyncService } from "./item-sync.service";
+import { ItemSyncEntity } from "./item-sync.entity";
+
 
 @Module({
   imports: [
@@ -33,6 +37,7 @@ import { ServiceItemService } from "./service-item.service";
       { name: "serviceitems", schema: serviceitemsSchema },
     
     ]),
+    TypeOrmModule.forFeature([ItemSyncEntity]),
     AuthModule,
     HelperModule, 
     SubscriptionModule,
@@ -40,7 +45,7 @@ import { ServiceItemService } from "./service-item.service";
     forwardRef(() =>  ProcessModule)
   ],
   controllers: [ItemController, ServiceItemController],
-  providers: [ItemService, ServiceItemService],
-  exports: [ItemService, ServiceItemService],
+  providers: [ItemService, ServiceItemService, ItemSyncService],
+  exports: [ItemService, ServiceItemService, ItemSyncService],
 })
 export class ItemModule {}

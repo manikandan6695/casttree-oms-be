@@ -41,6 +41,7 @@
     "@nestjs/platform-socket.io": "^10.3.8",
     "@nestjs/schedule": "^4.1.0",
     "@nestjs/throttler": "^5.1.2",
+    "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^10.3.8",
     "@types/jwt-decode": "^3.1.0",
     "@types/passport-facebook": "^3.0.3",
