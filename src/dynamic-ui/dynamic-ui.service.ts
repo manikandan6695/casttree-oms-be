@@ -15,7 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EComponentType, EItemType } from "./enum/component.enum";
+import { EComponentKey, EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
@@ -221,13 +221,14 @@ export class DynamicUiService {
             filterType: opt.filterType,
             optionKey: opt.optionKey,
             optionValue: opt.optionValue,
-            isUserSelected: false,
           });
           return acc;
         }, {});
 
         componentsWithInteractionData.forEach(component => {
-          component.interactionData = { items: Object.values(grouped) };
+          if (component.componentKey === EComponentKey.learnFilterActionButton) {
+            component.interactionData = { items: Object.values(grouped) };
+          }
         });
       }
       return { data };
@@ -261,26 +262,25 @@ export class DynamicUiService {
       );
 
       const tagName = component?.tag?.tagName;
-
       let allData: any[] = [];
       if (tagName && serviceItemData?.finalData?.[tagName]) {
         allData = serviceItemData.finalData[tagName];
+        component.actionData = allData;
+        component["totalCount"] = serviceItemData?.count || 0;
       } else {
         allData = Object.values(serviceItemData.finalData || {}).flat();
+        const uniqueData = allData.filter((item, index, self) => {
+          if (!item.taskDetail || !item.taskDetail._id) return true;
+          return (
+            index ===
+            self.findIndex(
+              i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+            )
+          );
+        });
+        component.actionData = uniqueData;
+        component["totalCount"] = serviceItemData?.count || 0;
       }
-
-      const uniqueData = allData.filter((item, index, self) => {
-        if (!item.taskDetail || !item.taskDetail._id) return true;
-        return (
-          index ===
-          self.findIndex(
-            i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
-          )
-        );
-      });
-
-      component.actionData = uniqueData;
-      component["totalCount"] = serviceItemData?.count || 0;
 
       if (component?.interactionData) {
         let availableFilterOptions = await this.componentFilterOptions();
@@ -315,7 +315,9 @@ export class DynamicUiService {
           });
         }
 
+       if (component.componentKey === EComponentKey.learnFilterActionButton) {
         component.interactionData = { items: Object.values(grouped) };
+       }
       }
 
       return { component };
