@@ -14,6 +14,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
+import { EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -39,12 +40,11 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
-    @Query("category") category,
-    @Query("proficiency") proficiency,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.dynamicUIService.getPageDetails(token, pageId, category, proficiency);
+      let data = await this.dynamicUIService.getPageDetails(token, pageId, filterOption );
       return data;
     } catch (err) {
       throw err;
@@ -58,8 +58,7 @@ export class DynamicUiController {
     @GetToken() token: UserToken,
     @Query("skip", ParseIntPipe) skip: number,
     @Query("limit", ParseIntPipe) limit: number,
-    @Query("category") category,
-    @Query("proficiency") proficiency: string,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
   ) {
     try {
       let data = await this.dynamicUIService.getComponent(
@@ -67,8 +66,7 @@ export class DynamicUiController {
         componentId,
         skip,
         limit,
-        category,
-        proficiency
+        filterOption
       );
       return data;
     } catch (err) {
