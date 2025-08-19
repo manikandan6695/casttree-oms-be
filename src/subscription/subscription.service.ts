@@ -38,7 +38,12 @@ import {
   UserUpdateData,
 } from "./dto/subscription.dto";
 import { EEventId, EEventType } from "./enums/eventType.enum";
-import { EErrorHandler, EProvider, EProviderId, ESProviderId } from "./enums/provider.enum";
+import {
+  EErrorHandler,
+  EProvider,
+  EProviderId,
+  ESProviderId,
+} from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -603,18 +608,18 @@ export class SubscriptionService {
       let existingSubscription = await this.subscriptionModel.findOne({
         "metaData.transaction.originalTransactionId":
           transactionHistory?.transactions?.originalTransactionId,
-          providerId: EProviderId.apple,
-          provider: EProvider.apple,
+        providerId: EProviderId.apple,
+        provider: EProvider.apple,
       });
       const existingCancellation =
-      await this.mandateService.getMandatesByExternalId(
-        transactionHistory?.transactions?.originalTransactionId,
-        EMandateStatus.cancelled
-      );
-        if (existingCancellation.length > 0) {
-          // console.log("existingCancellation", existingCancellation);
-          return;
-        }
+        await this.mandateService.getMandatesByExternalId(
+          transactionHistory?.transactions?.originalTransactionId,
+          EMandateStatus.cancelled
+        );
+      if (existingCancellation.length > 0) {
+        // console.log("existingCancellation", existingCancellation);
+        return;
+      }
       let body = {
         status: EMandateStatus.cancelled,
         updatedAt: new Date(),
@@ -626,7 +631,7 @@ export class SubscriptionService {
       const metaData = {
         transaction: transactionHistory.transactions,
         renewal: transactionHistory.renewalInfo,
-        payload:payload
+        payload: payload,
       };
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandates?._id,
@@ -640,17 +645,17 @@ export class SubscriptionService {
         existingSubscription?.notes?.itemId
       );
       let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-        mixPanelBody.distinctId = mandates?.userId;
-        mixPanelBody.properties = {
-          mandate_id: mandates?._id,
-          user_id: mandates?.userId,
-          mandate_status: EMandateStatus.cancelled,
-          date: new Date().toISOString(),
-          item_name: itemName?.itemName,
-          provider: EProvider.apple,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+      mixPanelBody.distinctId = mandates?.userId;
+      mixPanelBody.properties = {
+        mandate_id: mandates?._id,
+        user_id: mandates?.userId,
+        mandate_status: EMandateStatus.cancelled,
+        date: new Date().toISOString(),
+        item_name: itemName?.itemName,
+        provider: EProvider.apple,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       return { message: "Cancellation processed successfully" };
     } catch (error) {
       throw error;
@@ -787,21 +792,23 @@ export class SubscriptionService {
       if (rtdn.notificationType === EEventId.renew) {
         const orderId = (id: string = "") => id.split("..")[0];
         const latestOrderId = orderId(rtdn?.transactionInfo?.latestOrderId);
-        const existingSubscription = await this.subscriptionModel.findOne({
-          providerId: EProviderId.google,
-          provider: EProvider.google,
-          status: EStatus.Active,
-          $or: [
-            { "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId },
-            { "metaData.latestOrderId": latestOrderId }
-          ]
-        }).sort({_id : -1});
+        const existingSubscription = await this.subscriptionModel
+          .findOne({
+            providerId: EProviderId.google,
+            provider: EProvider.google,
+            status: EStatus.Active,
+            $or: [
+              {
+                "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId,
+              },
+              { "metaData.latestOrderId": latestOrderId },
+            ],
+          })
+          .sort({ _id: -1 });
         let matchedOrderId = await this.subscriptionModel.findOne({
-          "metaData.latestOrderId":rtdn?.transactionInfo?.latestOrderId
-        })
-        if (
-            !matchedOrderId
-        ) {
+          "metaData.latestOrderId": rtdn?.transactionInfo?.latestOrderId,
+        });
+        if (!matchedOrderId) {
           let currency =
             rtdn?.transactionInfo?.lineItems[0]?.autoRenewingPlan
               ?.recurringPrice?.currencyCode;
@@ -921,10 +928,10 @@ export class SubscriptionService {
       const rtdn = await this.subscriptionFactory.googleRtdn(payload);
       // console.log("rtdn cancel", JSON.stringify(rtdn));
       const existingCancellation =
-      await this.mandateService.getMandatesByExternalId(
-        rtdn.purchaseToken,
-        EMandateStatus.cancelled
-      );
+        await this.mandateService.getMandatesByExternalId(
+          rtdn.purchaseToken,
+          EMandateStatus.cancelled
+        );
       if (
         existingCancellation.length != 0 &&
         rtdn.notificationType === EEventId.cancel
@@ -940,12 +947,12 @@ export class SubscriptionService {
         );
         let metaData = {
           ...rtdn.transactionInfo,
-          payload:payload
-        }
+          payload: payload,
+        };
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
-          metaData:metaData,
+          metaData: metaData,
           status: EStatus.Active,
           createdBy: mandate?.userId,
           updatedBy: mandate?.userId,
@@ -1025,40 +1032,40 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if(mandate.mandateStatus === EDocumentStatus.active){
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        {
+      if (mandate.mandateStatus === EDocumentStatus.active) {
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          {
+            mandateStatus: EMandateStatus.cancel_initiated,
+          }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id.toString(),
           mandateStatus: EMandateStatus.cancel_initiated,
-        }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id.toString(),
-        mandateStatus: EMandateStatus.cancel_initiated,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
-      let subscriptionData = await this.subscriptionModel.findOne({
-        _id: new ObjectId(mandate?.sourceId),
-      });
-      let itemName = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-      mixPanelBody.distinctId = mandate?.userId;
-      mixPanelBody.properties = {
-        mandate_id: mandate?._id,
-        user_id: mandate?.userId,
-        mandate_status: EMandateStatus.cancelled,
-        date: new Date().toISOString(),
-        item_name: itemName?.itemName,
-        provider: mandate?.provider,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
-    }
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
     } catch (err) {
       throw err;
     }
@@ -1071,42 +1078,42 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if (mandate.mandateStatus===EDocumentStatus.active) {        
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        {
+      if (mandate.mandateStatus === EDocumentStatus.active) {
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          {
+            mandateStatus: EMandateStatus.cancelled,
+          }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id.toString(),
           mandateStatus: EMandateStatus.cancelled,
-        }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id.toString(),
-        mandateStatus: EMandateStatus.cancelled,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
 
-      let subscriptionData = await this.subscriptionModel.findOne({
-        _id: new ObjectId(mandate?.sourceId),
-      });
-      let itemName = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
 
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-      mixPanelBody.distinctId = mandate?.userId;
-      mixPanelBody.properties = {
-        mandate_id: mandate?._id,
-        user_id: mandate?.userId,
-        mandate_status: EMandateStatus.cancelled,
-        date: new Date().toISOString(),
-        item_name: itemName?.itemName,
-        provider: mandate?.provider,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
-    }
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
     } catch (err) {
       throw err;
     }
@@ -1247,9 +1254,11 @@ export class SubscriptionService {
       let invoice = await this.invoiceService.getInvoiceDetail(
         paymentRequest?.source_id
       );
-      let subscription = await this.subscriptionModel.findOne({
-        _id: invoice?.source_id,
-      }).sort({_id:-1});
+      let subscription = await this.subscriptionModel
+        .findOne({
+          _id: invoice?.source_id,
+        })
+        .sort({ _id: -1 });
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
           subscription.subscriptionStatus = EsubscriptionStatus.active;
@@ -1289,21 +1298,21 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
-         if (subscription.subscriptionStatus === EDocumentStatus.active) {
-          let mixPanelBody: any = {};
-          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-          mixPanelBody.distinctId = subscription?.userId;
-          mixPanelBody.properties = {
-            user_id: subscription?.userId,
-            provider: EProvider.razorpay,
-            subscription_id: subscription._id,
-            subscription_status: EsubscriptionStatus.active,
-            subscription_date: subscription?.startAt,
-            item_name: item?.itemName,
-            subscription_expired: subscription?.endAt,
-          };
-          await this.helperService.mixPanel(mixPanelBody);
-         }
+          if (subscription.subscriptionStatus === EDocumentStatus.active) {
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+            mixPanelBody.distinctId = subscription?.userId;
+            mixPanelBody.properties = {
+              user_id: subscription?.userId,
+              provider: EProvider.razorpay,
+              subscription_id: subscription._id,
+              subscription_status: EsubscriptionStatus.active,
+              subscription_date: subscription?.startAt,
+              item_name: item?.itemName,
+              subscription_expired: subscription?.endAt,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
+          }
 
           // let userData = await this.helperService.getUserById(
           //   subscription?.userId
@@ -1440,58 +1449,60 @@ export class SubscriptionService {
       let invoice = await this.invoiceService.getInvoiceDetail(
         paymentRequest?.source_id
       );
-      let subscription = await this.subscriptionModel.findOne({
-        _id: invoice?.source_id,
-      }).sort({_id:-1});
+      let subscription = await this.subscriptionModel
+        .findOne({
+          _id: invoice?.source_id,
+        })
+        .sort({ _id: -1 });
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
-        subscription.subscriptionStatus = "Active";
-        await subscription.save();
+          subscription.subscriptionStatus = "Active";
+          await subscription.save();
 
-        let item = await this.itemService.getItemDetail(
-          subscription?.notes?.itemId
-        );
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
 
-        let mixPanelBodyData: any = {};
-        mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
-        mixPanelBodyData.distinctId = subscription?.userId;
-        mixPanelBodyData.properties = {
-          itemname: item.itemName,
-          amount: invoice.grand_total,
-          currency_code: invoice.currencyCode,
-          serviceItemType: "subscription",
-        };
-        await this.helperService.mixPanel(mixPanelBodyData);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscription?.userId;
-        mixPanelBody.properties = {
-          user_id: subscription?.userId,
-          provider: EProvider.cashfree,
-          subscription_id: subscription._id,
-          subscription_status: EsubscriptionStatus.active,
-          subscription_date: subscription?.startAt,
-          item_name: item?.itemName,
-          subscription_expired: subscription?.endAt,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+          let mixPanelBodyData: any = {};
+          mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
+          mixPanelBodyData.distinctId = subscription?.userId;
+          mixPanelBodyData.properties = {
+            itemname: item.itemName,
+            amount: invoice.grand_total,
+            currency_code: invoice.currencyCode,
+            serviceItemType: "subscription",
+          };
+          await this.helperService.mixPanel(mixPanelBodyData);
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            user_id: subscription?.userId,
+            provider: EProvider.cashfree,
+            subscription_id: subscription._id,
+            subscription_status: EsubscriptionStatus.active,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
 
-        let userBody = {
-          userId: subscription?.userId,
-          membership: item?.itemName,
-          badge: item?.additionalDetail?.badge,
-        };
-        await this.helperService.updateUser(userBody);
-        let userData = await this.helperService.getUserById(
-          subscription?.userId
-        );
-        await this.helperService.facebookEvents(
-          userData.data.phoneNumber,
-          invoice.currencyCode,
-          invoice.grand_total
-        );
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          let userData = await this.helperService.getUserById(
+            subscription?.userId
+          );
+          await this.helperService.facebookEvents(
+            userData.data.phoneNumber,
+            invoice.currencyCode,
+            invoice.grand_total
+          );
+        }
       }
-    }
       //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
     }
   }
@@ -2471,8 +2482,8 @@ export class SubscriptionService {
     for (const expired of ExpiredData) {
       const exists = renewalData.some(
         (r) =>
-          r.item_id.toString() === expired?.item_id?.toString() &&
-          r.userId.toString() === expired?.userId?.toString()
+          r.item_id?.toString() === expired?.item_id?.toString() &&
+          r.userId?.toString() === expired?.userId?.toString()
       );
       if (exists) {
         expiredUserId = expiredUserId.filter((item) => item !== expired.userId);
@@ -2516,21 +2527,26 @@ export class SubscriptionService {
   }
   async getLatestSubscription(token: UserToken) {
     try {
-      let subscription = await this.subscriptionModel.findOne({
-        userId: new ObjectId(token.id),
-        status: EStatus.Active,
-        subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
-      }).sort({_id: -1}).lean()
+      let subscription = await this.subscriptionModel
+        .findOne({
+          userId: new ObjectId(token.id),
+          status: EStatus.Active,
+          subscriptionStatus: {
+            $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed],
+          },
+        })
+        .sort({ _id: -1 })
+        .lean();
 
-      if(!subscription){
+      if (!subscription) {
         throw new HttpException(
-         {message: EErrorHandler.notFound},
+          { message: EErrorHandler.notFound },
           HttpStatus.NOT_FOUND
         );
       }
-      return { data: subscription }
+      return { data: subscription };
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 }
