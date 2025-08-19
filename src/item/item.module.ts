@@ -1,6 +1,5 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
 import { ProcessModule } from "src/process/process.module";
@@ -20,7 +19,7 @@ import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
 import { ItemSyncService } from "./item-sync.service";
-import { ItemSyncEntity } from "./item-sync.entity";
+
 
 
 @Module({
@@ -37,7 +36,6 @@ import { ItemSyncEntity } from "./item-sync.entity";
       { name: "serviceitems", schema: serviceitemsSchema },
     
     ]),
-    TypeOrmModule.forFeature([ItemSyncEntity]),
     AuthModule,
     HelperModule, 
     SubscriptionModule,

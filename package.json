@@ -64,6 +64,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.6.2",
     "mongoose": "^8.4.0",
+    "mssql": "^11.0.1",
     "nest-winston": "^1.9.6",
     "nestjs-config": "^1.4.11",
     "node-ses": "^3.0.3",
@@ -79,6 +80,7 @@
     "simple-hmac-auth": "^4.0.0",
     "socket.io": "^4.7.5",
     "tinyurl": "^1.1.7",
+    "typeorm": "^0.3.26",
     "winston": "^3.13.0"
   },
   "devDependencies": {

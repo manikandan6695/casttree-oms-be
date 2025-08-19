@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { PaymentSyncService } from "./payment-sync.service";
-import { PaymentSyncController } from "./payment-sync.controller";
 import { PaymentSyncEntity } from "./payment-sync.entity";
 import { PaymentSchema } from "./schema/payment.schema";
 
@@ -13,7 +12,7 @@ import { PaymentSchema } from "./schema/payment.schema";
     ]),
     TypeOrmModule.forFeature([PaymentSyncEntity])
   ],
-  controllers: [PaymentSyncController],
+  controllers: [],
   providers: [PaymentSyncService],
   exports: [PaymentSyncService]
 })

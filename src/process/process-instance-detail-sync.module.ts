@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ProcessInstanceDetailSyncService } from "./process-instance-detail-sync.service";
-import { ProcessInstanceDetailSyncController } from "./process-instance-detail-sync.controller";
 import { ProcessInstanceDetailSyncEntity } from "./process-instance-detail-sync.entity";
 import { processInstanceDetailSchema } from "./schema/processInstanceDetails.schema";
 
@@ -13,7 +12,7 @@ import { processInstanceDetailSchema } from "./schema/processInstanceDetails.sch
     ]),
     TypeOrmModule.forFeature([ProcessInstanceDetailSyncEntity])
   ],
-  controllers: [ProcessInstanceDetailSyncController],
+  controllers: [],
   providers: [ProcessInstanceDetailSyncService],
   exports: [ProcessInstanceDetailSyncService]
 })

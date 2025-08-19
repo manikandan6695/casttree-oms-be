@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ServiceItemSyncService } from "./service-item-sync.service";
-import { ServiceItemSyncController } from "./service-item-sync.controller";
 import { ServiceItemSyncEntity } from "./service-item-sync.entity";
 import { serviceitemsSchema } from "./schema/serviceItem.schema";
 
@@ -13,7 +12,7 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
     ]),
     TypeOrmModule.forFeature([ServiceItemSyncEntity])
   ],
-  controllers: [ServiceItemSyncController],
+  controllers: [],
   providers: [ServiceItemSyncService],
   exports: [ServiceItemSyncService]
 })
