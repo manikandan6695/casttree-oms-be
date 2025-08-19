@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
   Param,
   Post,
   Req,
@@ -192,6 +193,22 @@ export class SubscriptionController {
         this.constructor.name
       );
       return res.status(code).json(response);
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getLatestSubscription(@GetToken() token: UserToken, @Res() res: Response) {
+    try {
+      let data = await this.subscriptionService.getLatestSubscription(token);
+      return res.json(data);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        const response = error.getResponse();
+        return res.status(status).json({
+          message: (response as any).message,
+        });
+      }
     }
   }
 }

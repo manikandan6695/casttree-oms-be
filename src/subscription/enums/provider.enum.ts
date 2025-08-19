@@ -28,3 +28,6 @@ export enum EProviderName {
   apple = "Apple IAP",
   google = "Google IAP",
 }
+export enum EErrorHandler {
+  notFound = "No active subscription found"
+}
