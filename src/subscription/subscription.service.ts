@@ -38,7 +38,7 @@ import {
   UserUpdateData,
 } from "./dto/subscription.dto";
 import { EEventId, EEventType } from "./enums/eventType.enum";
-import { EProvider, EProviderId, ESProviderId } from "./enums/provider.enum";
+import { EErrorHandler, EProvider, EProviderId, ESProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -2511,6 +2511,25 @@ export class SubscriptionService {
     try {
       let transaction = await this.subscriptionFactory.handleIapCoinPurchase(body,token)
       return transaction
+    } catch (error) {
+      throw error
+    }
+  }
+  async getLatestSubscription(token: UserToken) {
+    try {
+      let subscription = await this.subscriptionModel.findOne({
+        userId: new ObjectId(token.id),
+        status: EStatus.Active,
+        subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
+      }).sort({_id: -1}).lean()
+
+      if(!subscription){
+        throw new HttpException(
+         {message: EErrorHandler.notFound},
+          HttpStatus.NOT_FOUND
+        );
+      }
+      return { data: subscription }
     } catch (error) {
       throw error
     }

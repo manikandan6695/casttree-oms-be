@@ -15,10 +15,15 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
+import { EComponentKey, EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
-import { EComponentType } from "./enum/component.enum";
+import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
+import { IFilterType } from "./schema/filter-type.schema";
+import { IFilterOption } from "./schema/filter-option.schema";
+import { EFilterOption } from "./dto/filter-option.dto";
+
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -33,10 +38,16 @@ export class DynamicUiService {
     private systemConfigurationModel: Model<ISystemConfigurationModel>,
     @InjectModel("contentPage")
     private readonly contentPageModel: Model<IContentPage>,
+    @InjectModel("userFilterPreferences")
+    private readonly userFilterPreferenceModel: Model<IUserFilterPreference>,
+    @InjectModel("filterTypes")
+    private readonly filterTypeModel: Model<IFilterType>,
+    @InjectModel("filterOptions")
+    private readonly filterOptionsModel: Model<IFilterOption>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
-  ) {}
+  ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
       let data = await this.appNavBarModel
@@ -87,7 +98,7 @@ export class DynamicUiService {
     }
   }
 
-  async getPageDetails(token: UserToken, pageId: string) {
+  async getPageDetails(token: UserToken, pageId: string, filterOption: EFilterOption) {
     try {
       // const subscriptionData =
       //   await this.subscriptionService.validateSubscription(token.id, [
@@ -143,7 +154,8 @@ export class DynamicUiService {
         token.id,
         false,
         0,
-        0
+        0,
+        null
       );
 
       const processIds = [];
@@ -205,40 +217,122 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
+      
+      const componentsWithInteractionData = componentDocs.filter(comp => comp.interactionData);
+      if (componentsWithInteractionData.length > 0) {
+        let availableFilterOptions = await this.componentFilterOptions();
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+          });
+          return acc;
+        }, {});
+
+        componentsWithInteractionData.forEach(component => {
+          if (component.componentKey === EComponentKey.learnFilterActionButton) {
+            component.interactionData = { items: Object.values(grouped) };
+          }
+        });
+      }
       return { data };
     } catch (err) {
       throw err;
     }
   }
-
   async getComponent(
     token: UserToken,
     componentId: string,
     skip: number,
-    limit: number
+    limit: number,
+    filterOption: EFilterOption
   ) {
     try {
       let component = await this.componentModel
-        .findOne({
-          _id: componentId,
-          status: EStatus.Active,
-        })
+        .findOne({ _id: componentId, status: EStatus.Active })
         .lean();
+
       let page = await this.contentPageModel
         .findOne({ "components.componentId": componentId })
         .lean();
+
       let serviceItemData = await this.fetchServiceItemDetails(
         page,
         token.id,
         true,
         skip,
-        limit
+        limit,
+        filterOption
       );
       const tagName = component?.tag?.tagName;
+      let allData: any[] = [];
       if (tagName && serviceItemData?.finalData?.[tagName]) {
-        component.actionData = serviceItemData.finalData[tagName];
-        component["totalCount"] = serviceItemData?.count;
+        allData = serviceItemData.finalData[tagName];
+        component.actionData = allData;
+        component["totalCount"] = serviceItemData?.count || 0;
+      } else {
+        allData = Object.values(serviceItemData.finalData || {}).flat();
+        const uniqueData = allData.filter((item, index, self) => {
+          if (!item.taskDetail || !item.taskDetail._id) return true;
+          return (
+            index ===
+            self.findIndex(
+              i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+            )
+          );
+        });
+        component.actionData = uniqueData;
+        component["totalCount"] = serviceItemData?.count || 0;
       }
+
+      if (component?.interactionData) {
+        let availableFilterOptions = await this.componentFilterOptions();
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            isUserSelected: false,
+          });
+          return acc;
+        }, {});
+
+        if (filterOption?.proficiency) {
+          grouped[EItemType.proficiency]?.options.forEach(opt => {
+            opt.isUserSelected = opt.filterOptionId === filterOption.proficiency;
+          });
+        }
+
+        if (filterOption?.category && filterOption.category.length > 0) {
+          grouped[EItemType.category]?.options.forEach(opt => {
+            opt.isUserSelected = filterOption.category.includes(opt.filterOptionId);
+          });
+        }
+
+       if (component.componentKey === EComponentKey.learnFilterActionButton) {
+        component.interactionData = { items: Object.values(grouped) };
+       }
+      }
+
       return { component };
     } catch (err) {
       throw err;
@@ -483,7 +577,8 @@ export class DynamicUiService {
     userId: string,
     isPagination = false,
     skip,
-    limit
+    limit,
+    filterOption: EFilterOption
   ) {
     try {
       let filter = {
@@ -491,6 +586,13 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
+      if (filterOption?.proficiency) {
+        filter["proficiency.filterOptionId"] = new ObjectId(filterOption.proficiency);
+      }
+
+      if (filterOption?.category && filterOption?.category?.length > 0) {
+        filter["category.filterOptionId"] = { $in: filterOption.category.map(id => new ObjectId(id)) };
+      }
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -785,7 +887,27 @@ async fetchContinueWatching(userId: string, processIds: string[]) {
           seriesTitle: mentorUserIds[i].seriesName,
           seriesThumbNail: mentorUserIds[i].seriesThumbNail,
         });
-      }
+      });
+      const finalData = serviceItemData.reduce((a, c) => {
+        a[c.tagName] = c.details;
+        return a;
+      }, {});
+       const payload: any = { filters: [] };
+
+    if (filterOption?.proficiency) {
+      payload.filters.push({ category: EItemType.proficiency, values: [filterOption?.proficiency?.toString()] });
+    }
+    if (filterOption?.category && filterOption?.category?.length > 0) {
+      const categoryValues = filterOption.category.map(id => id.toString());
+      payload.filters.push({ category: EItemType.category, values: categoryValues });
+    }
+
+    if (payload.filters.length) {
+      await this.createOrUpdateUserPreference(userId.toString(), payload);
+    }
+      return { finalData, count };
+    } catch (err) {
+      throw err;
     }
 
     return continueWatching;
@@ -1051,6 +1173,7 @@ async updatePageComponents(
       { new: true }
     ).lean();
 
+
     // Update order for each component
     const updatePromises = componentIds.map((item, index) => {
       return this.componentModel.findByIdAndUpdate(
@@ -1183,4 +1306,59 @@ async updatePageComponents(
     );
   }
 }
+ async createOrUpdateUserPreference(userId:string, payload) {
+    try {
+      payload.userId = new ObjectId(userId);
+      payload.isLatest = true;
+      payload.status = EStatus.Active;
+      const allFilterIds = payload.filters.flatMap(f => f.values).map(id => new ObjectId(id));
+      const filterOptions = await this.filterOptionsModel.find({
+        _id: { $in: allFilterIds },
+        status: EStatus.Active
+      }).lean();
+      const optionKeyMap = filterOptions.reduce((acc, fo) => {
+        acc[fo._id.toString()] = fo.optionKey;
+        return acc;
+      }, {});
+      payload.filters = payload.filters.map(payloadData => ({
+        ...payloadData,
+        values: payloadData.values.map(data => ({
+          id: data,
+          optionKey: optionKeyMap[data] || null
+        }))
+      }));
+      const existingData = await this.userFilterPreferenceModel.findOne({
+        userId: payload.userId,
+        status: EStatus.Active,
+      }).sort({ created_at: -1 }).lean();
+      if (existingData) {
+        await this.userFilterPreferenceModel.findOneAndUpdate(
+          { userId: payload.userId, status: EStatus.Active, _id: existingData._id },
+          { $set: { isLatest: false } }
+        );
+
+        await this.userFilterPreferenceModel.create(payload);
+
+      } else {
+        await this.userFilterPreferenceModel.create(payload);
+      }
+
+    } catch (error) {
+      throw error;
+    }
+  }
+  async componentFilterOptions() {
+    try {
+      let filter = await this.filterTypeModel.find({
+        isActive: true
+      })
+      const types = filter.map(item => item.type);
+      const data = await this.filterOptionsModel.find({
+        status: EStatus.Active,
+        filterType: { $in: types }
+      }).lean();
+      return data
+    } catch (error) {
+      throw error
+    }
 }
