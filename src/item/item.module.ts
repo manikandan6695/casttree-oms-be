@@ -18,7 +18,7 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
-import { ItemSyncService } from "./item-sync.service";
+
 
 
 
@@ -43,7 +43,7 @@ import { ItemSyncService } from "./item-sync.service";
     forwardRef(() =>  ProcessModule)
   ],
   controllers: [ItemController, ServiceItemController],
-  providers: [ItemService, ServiceItemService, ItemSyncService],
-  exports: [ItemService, ServiceItemService, ItemSyncService],
+  providers: [ItemService, ServiceItemService],
+  exports: [ItemService, ServiceItemService],
 })
 export class ItemModule {}
