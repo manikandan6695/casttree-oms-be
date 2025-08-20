@@ -16,7 +16,8 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
-import { UpdateComponentsDto } from "./dto/update-components.dto";
+import { EUpdateComponents } from "./dto/update-components.dto";
+import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
@@ -80,27 +81,44 @@ export class DynamicUiController {
 
   @UseGuards(JwtAuthGuard)
   @Post("page/:pageId")
-  async updateComps(
+  async updatePageComponents(
     @Req() req,
     @Param("pageId") pageId: string,
-    @Body() updateDto: UpdateComponentsDto
+    @Body() updateDto: EUpdateComponents
   ) {
     try {
-      const componentIds = updateDto.components;
-      // console.log("componentIds", componentIds);
-      return await this.dynamicUIService.updatePageComponents(pageId, componentIds);
+      const res = await this.dynamicUIService.updatePageComponents(pageId, updateDto);
+      return res;
     } catch (err) {
       throw err;
     }
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post("updateSeriesTag")
-  async updateTag(
+  @Post("series/tag/update")
+  async updateSeriesTag(
     @Req() req,
-    @Param("pageId") pageId: string,
-    @Body() data: any
+    @Body(new ValidationPipe({ transform: true })) updateDto: EUpdateSeriesTag
   ) {
-    return await this.dynamicUIService.updateSeriesTag(data);
+    try {
+      const res = await this.dynamicUIService.updateSeriesTag(updateDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/create")
+  async addNewSeries(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) createDto: any
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewSeries(createDto);    
+      return res;
+    } catch (err) {
+      throw err;
+    }
   }
 }

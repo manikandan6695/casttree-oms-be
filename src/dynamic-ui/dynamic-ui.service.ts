@@ -23,6 +23,10 @@ import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
 import { EFilterOption } from "./dto/filter-option.dto";
+import { processModel } from "src/process/schema/process.schema";
+import { EUpdateSeriesTag } from './dto/update-series-tag.dto';
+import { EUpdateComponents } from './dto/update-components.dto';
+import { ICategory } from "./schema/category.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -44,6 +48,10 @@ export class DynamicUiService {
     private readonly filterTypeModel: Model<IFilterType>,
     @InjectModel("filterOptions")
     private readonly filterOptionsModel: Model<IFilterOption>,
+    @InjectModel("process")
+    private readonly processModel: Model<processModel>,
+    @InjectModel("category")
+    private readonly categoryModel: Model<ICategory>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
@@ -1126,20 +1134,14 @@ export class DynamicUiService {
 
   async updatePageComponents(
     pageId: string,
-    componentIds: Array<{
-      componentId: { $oid: string },
-      order: number,
-      tag: string | null,
-      series: any[] // TODO: Replace 'any' with proper series DTO type once defined
-    }>
+    updateDto: EUpdateComponents
   ) {
     try {
       // console.log("Updating page components:", pageId);
-      // console.log("componentIds:", componentIds);
-
+      // console.log("componentIds:", updateDto.components);
 
       // Map components to the correct format
-      const components = componentIds.map(item => ({
+      const components = updateDto.components.map(item => ({
         componentId: new ObjectId(item.componentId.$oid)
       }));
 
@@ -1152,9 +1154,8 @@ export class DynamicUiService {
         { new: true }
       ).lean();
 
-
       // Update order for each component
-      const updatePromises = componentIds.map((item, index) => {
+      const updatePromises = updateDto.components.map((item, index) => {
         return this.componentModel.findByIdAndUpdate(
           item.componentId.$oid,
           {
@@ -1163,7 +1164,6 @@ export class DynamicUiService {
           { new: true }
         ).lean();
       });
-
       // Wait for all updates to complete
       await Promise.all(updatePromises);
     
@@ -1175,7 +1175,7 @@ export class DynamicUiService {
 
       // { type: "courses", "skill.skill_name": "Singing", "tag.name": "trendingSeries"}
       const tagUpdatePromises: Promise<any>[] = [];
-      componentIds.forEach((component) => {
+      updateDto.components.forEach((component) => {
         if (component.tag && Array.isArray(component.series)) {
           component.series.forEach((series) => {
             const query = {
@@ -1210,19 +1210,9 @@ export class DynamicUiService {
       if (tagUpdatePromises.length > 0) {
         // console.log(`Executing ${tagUpdatePromises.length} tag order updates...`);
         const results = await Promise.all(tagUpdatePromises);
-        // console.log("Tag update results:", results);
-      
-        // Log detailed results for each update
-        results.forEach((result, index) => {
-          // console.log(`Update ${index + 1}:`, {
-          //   matchedCount: result.matchedCount,
-          //   modifiedCount: result.modifiedCount,
-          //   upsertedCount: result.upsertedCount
-          // });
-        });
-      
-        // console.log("All tag order updates completed");
       }
+
+      // console.log("tagUpdatePromises", tagUpdatePromises)
 
       return {
         success: true
@@ -1233,58 +1223,74 @@ export class DynamicUiService {
     }
   }
 
-  async updateSeriesTag(data: any) {
-    const tag = data.tag;
-    const series = data.selected;
-    const compId = new ObjectId(data.componentId);
-    const unSelected = data.unselected;
+  async updateSeriesTag(data: EUpdateSeriesTag) {
+    const { tag, selected: series, componentId, unselected } = data;
+    const compId = new ObjectId(componentId);
 
-    for (let ind = 0; ind < series.length; ind++) {
-      const item = series[ind];
+    // First, find the category document by category_name
+    const categoryDoc = await this.categoryModel.findOne({ 
+      category_name: tag, 
+      status: 'Active' 
+    }).lean();
 
+    if (!categoryDoc) {
+      throw new Error(`Category with name '${tag}' not found or not active`);
+    }
+
+    const categoryId = categoryDoc._id;
+
+    // Process selected series - use Promise.all for parallel execution
+    const selectedPromises = series.map(async (item, index) => {
       // First try updating existing element
       const result = await this.serviceItemModel.updateOne(
-        { "additionalDetails.processId": item.id, "tag.category_id": compId },
+        { 
+          "additionalDetails.processId": item.id, 
+          "tag.category_id": compId 
+        },
         {
           $set: {
-            "tag.$.order": ind,
+            "tag.$.order": index,
             "tag.$.name": tag,
-            "tag.$.category_id": compId
+            "tag.$.category_id": categoryId // Use the actual category _id
           }
         }
       );
-
+      
       // If no element was matched → push a new one
       if (result.matchedCount === 0) {
-        await this.serviceItemModel.updateOne(
+        return this.serviceItemModel.updateOne(
           { "additionalDetails.processId": item.id },
           {
             $push: {
               tag: {
-                order: ind,
+                order: index,
                 name: tag,
-                category_id: compId
+                category_id: categoryId // Use the actual category _id
               }
             }
           }
         );
       }
-    }
+      return result;
+    });
 
-    // console.log("UnSelected:", unSelected)
-    
-    for (let i = 0; i < unSelected.length; i++) {
-      const item = unSelected[i];
-      await this.serviceItemModel.updateOne(
+    // Process unselected series - use Promise.all for parallel execution
+    const unselectedPromises = unselected.map(item => 
+      this.serviceItemModel.updateOne(
         { "additionalDetails.processId": item.id },
-        {
-          $pull: {
-            tag: { name: tag }
-          }
-        }
-      );
+        { $pull: { tag: { name: tag } } }
+      )
+    );
+
+    // Execute all operations in parallel
+    try {
+      await Promise.all([...selectedPromises, ...unselectedPromises]);
+    } catch (error) {
+      console.error('Error updating series tags:', error);
+      throw error;
     }
   }
+  
   async createOrUpdateUserPreference(userId:string, payload) {
     try {
       payload.userId = new ObjectId(userId);
@@ -1326,6 +1332,7 @@ export class DynamicUiService {
       throw error;
     }
   }
+
   async componentFilterOptions() {
     try {
       let filter = await this.filterTypeModel.find({
@@ -1339,6 +1346,23 @@ export class DynamicUiService {
       return data
     } catch (error) {
       throw error
+    }
+  }
+
+  async addNewSeries(data: any) { 
+    try {
+      const process = await this.processModel.findOne({
+        _id: new ObjectId("677237d18c36d481c52f5a90")
+      }).lean();
+      console.log("process", process)
+
+      console.log("data", data)
+
+      return {
+        success: true,
+      }
+    } catch (error) {
+      throw error;
     }
   }
 }

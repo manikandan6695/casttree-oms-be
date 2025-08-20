@@ -16,6 +16,8 @@ import { BannerConfigurationSchema } from "./schema/banner-configuration.schema"
 import { UserFilterPreferenceSchema } from "./schema/user-filter-preference.schema";
 import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { FilterOptionSchema } from "./schema/filter-option.schema";
+import { processSchema } from "src/process/schema/process.schema";
+import { categorySchema } from "./schema/category.schema";
 
 @Module({
   imports: [
@@ -28,7 +30,9 @@ import { FilterOptionSchema } from "./schema/filter-option.schema";
       { name: "systemConfiguration", schema: SystemConfigurationSchema },
       { name: "userFilterPreferences", schema: UserFilterPreferenceSchema},
       { name: "filterTypes", schema: FilterTypeSchema},
-      { name: "filterOptions", schema: FilterOptionSchema}
+      { name: "filterOptions", schema: FilterOptionSchema},
+      { name: "process", schema: processSchema },
+      { name: "category", schema: categorySchema }
     ]),
     SharedModule,
     AuthModule,
