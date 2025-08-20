@@ -14,6 +14,11 @@ import {
 import { itemAdditionalDetailModel, itemAdditionalDetailSchema } from "./itemAdditionalDetail.schema";
 
 export interface IItemModel extends mongoose.Document {
+  itemDescription: string;
+  platformItemId: any;
+  itemGroupId: any;
+  updated_at: Date;
+  created_at: Date;
   orgId: any; //or org model
   item_type: EItemType;
   itemName: string;

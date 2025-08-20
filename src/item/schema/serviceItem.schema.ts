@@ -85,7 +85,7 @@ export interface serviceitems {
   tag: tagModel;
   additionalDetails: serviceItemAdditionalDetailModel;
   priorityOrder:number
-
+  
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
