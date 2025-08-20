@@ -58,7 +58,7 @@ THROTTLE_TTL= "30"
 CASTTREE_BASE_URL = "https://api-dev.casttree.in/casttree"
 CASTTREE_RATINGS_BASE_URL = "https://api-dev.casttree.in/casttree-ratings"
  
-CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:3000"]
+CORS_ALLOWED_ORIGIN = ["https://casttree-web-demo.web.app", "http://localhost:3000","http://localhost:5173"]
 CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent,x-userid"
 CORS_ALLOWED_METHODS = "PUT,GET,POST,DELETE,OPTIONS,PATCH"
  
