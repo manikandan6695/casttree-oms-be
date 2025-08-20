@@ -9,11 +9,15 @@ import {
   Headers,
   Req,
   Version,
+  Post,
+  Body,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
+import { EUpdateComponents } from "./dto/update-components.dto";
+import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
@@ -50,6 +54,7 @@ export class DynamicUiController {
       throw err;
     }
   }
+  
   @UseGuards(JwtAuthGuard)
   @Get("component/:componentId")
   async getComponent(
@@ -69,6 +74,49 @@ export class DynamicUiController {
         filterOption
       );
       return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("page/:pageId")
+  async updatePageComponents(
+    @Req() req,
+    @Param("pageId") pageId: string,
+    @Body() updateDto: EUpdateComponents
+  ) {
+    try {
+      const res = await this.dynamicUIService.updatePageComponents(pageId, updateDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/tag/update")
+  async updateSeriesTag(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) updateDto: EUpdateSeriesTag
+  ) {
+    try {
+      const res = await this.dynamicUIService.updateSeriesTag(updateDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/create")
+  async addNewSeries(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) createDto: any
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewSeries(createDto);    
+      return res;
     } catch (err) {
       throw err;
     }

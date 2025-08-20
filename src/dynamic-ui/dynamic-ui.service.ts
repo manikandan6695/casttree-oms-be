@@ -1,9 +1,9 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import mongoose, { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
@@ -17,11 +17,17 @@ import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.e
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EComponentKey, EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
 import { EFilterOption } from "./dto/filter-option.dto";
+import { processModel } from "src/process/schema/process.schema";
+import { EUpdateSeriesTag } from './dto/update-series-tag.dto';
+import { EUpdateComponents } from './dto/update-components.dto';
+import { ICategory } from "./schema/category.schema";
+
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -42,6 +48,10 @@ export class DynamicUiService {
     private readonly filterTypeModel: Model<IFilterType>,
     @InjectModel("filterOptions")
     private readonly filterOptionsModel: Model<IFilterOption>,
+    @InjectModel("process")
+    private readonly processModel: Model<processModel>,
+    @InjectModel("category")
+    private readonly categoryModel: Model<ICategory>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
@@ -51,12 +61,10 @@ export class DynamicUiService {
       let data = await this.appNavBarModel
         .findOne({
           key: key,
-          status: EStatus.Active,
+          status: "Active",
         })
         .lean();
-      // console.log("app nav bar", JSON.stringify(data));
       let tabs = await this.matchRoleByUser(token, data.tabs);
-      // console.log("tabs ===>", JSON.stringify(tabs));
       data["tabs"] = tabs;
       if (key == ENavBar.learnHomeHeader) {
         let mixPanelBody: any = {};
@@ -85,7 +93,6 @@ export class DynamicUiService {
       const nonMatchingTabs = [];
       const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
       for (const tab of tabs) {
-        // console.log("role id is", tab.roleId);
         if (userRoleIdSet.has(tab.roleId.toString())) {
           matchingTabs.push(tab);
         } else {
@@ -101,6 +108,19 @@ export class DynamicUiService {
 
   async getPageDetails(token: UserToken, pageId: string, filterOption: EFilterOption) {
     try {
+      // const subscriptionData =
+      //   await this.subscriptionService.validateSubscription(token.id, [
+      //     EsubscriptionStatus.initiated,
+      //     EsubscriptionStatus.failed,
+      //     EsubscriptionStatus.expired,
+      //   ]);
+      // const existingUserSubscription =
+      //   await this.subscriptionService.validateSubscription(token.id, [
+      //     EsubscriptionStatus.initiated,
+      //     EsubscriptionStatus.failed,
+      //   ]);
+      // const isNewSubscription = subscriptionData ? true : false;
+      // const isSubscriber = existingUserSubscription ? true : false;
       const [subscriptionData, existingUserSubscription] = await Promise.all([
         this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
@@ -114,7 +134,7 @@ export class DynamicUiService {
       ]);
       const isNewSubscription = !!subscriptionData;
       const isSubscriber = !!existingUserSubscription;
-      // console.log("subscriber", isNewSubscription, isSubscriber);
+      console.log("subscriber", isNewSubscription, isSubscriber);
 
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
@@ -126,15 +146,17 @@ export class DynamicUiService {
           status: EStatus.Active,
         })
         .lean();
-      //   console.log("data", data);
+      // console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
       let componentDocs = await this.componentModel
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
+        .sort({ order: 1 })
         .populate("interactionData.items.banner")
         .lean();
+      // console.log("componentDocs", componentDocs);
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -260,7 +282,6 @@ export class DynamicUiService {
         limit,
         filterOption
       );
-
       const tagName = component?.tag?.tagName;
       let allData: any[] = [];
       if (tagName && serviceItemData?.finalData?.[tagName]) {
@@ -315,9 +336,9 @@ export class DynamicUiService {
           });
         }
 
-       if (component.componentKey === EComponentKey.learnFilterActionButton) {
-        component.interactionData = { items: Object.values(grouped) };
-       }
+        if (component.componentKey === EComponentKey.learnFilterActionButton) {
+          component.interactionData = { items: Object.values(grouped) };
+        }
       }
 
       return { component };
@@ -325,6 +346,239 @@ export class DynamicUiService {
       throw err;
     }
   }
+  // async fetchServiceItemDetails(
+  //   data,
+  //   userId: string,
+  //   isPagination = false,
+  //   skip,
+  //   limit
+  // ) {
+  //   try {
+  //     let filter = {
+  //       type: EserviceItemType.courses,
+  //       "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
+  //       status: Estatus.Active,
+  //     };
+  //     let aggregationPipeline = [];
+  //     aggregationPipeline.push({
+  //       $match: filter,
+  //     });
+  //     let countPipe = [...aggregationPipeline];
+  //     if (isPagination) {
+  //       aggregationPipeline.push({
+  //         $sort: { _id: -1 },
+  //       });
+  //       aggregationPipeline.push({ $skip: skip });
+  //       aggregationPipeline.push({ $limit: limit });
+  //     } else {
+  //       aggregationPipeline.push({
+  //         $sort: { _id: -1 },
+  //       });
+  //     }
+  //     countPipe.push({
+  //       $group: {
+  //         _id: null,
+  //         count: { $sum: 1 },
+  //       },
+  //     });
+  //     aggregationPipeline.push(
+  //       {
+  //         $addFields: {
+  //           tagNames: {
+  //             $cond: {
+  //               if: { $isArray: "$tag.name" },
+  //               then: "$tag.name",
+  //               else: ["$tag.name"],
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $unwind: "$tagNames",
+  //       },
+  //       {
+  //         $group: {
+  //           _id: {
+  //             tagName: "$tagNames",
+  //             processId: "$additionalDetails.processId",
+  //           },
+  //           detail: { $first: "$additionalDetails" },
+  //           priorityOrder: { $first: "$priorityOrder" },
+  //         },
+  //       },
+  //       {
+  //         $sort: { priorityOrder: 1, _id: -1 },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: "$_id.tagName",
+  //           details: { $push: "$detail" },
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           tagName: "$_id",
+  //           details: 1,
+  //         },
+  //       }
+  //     );
+
+  //     // console.log("aggregationPipeline", aggregationPipeline);
+
+  //     const serviceItemData =
+  //       await this.serviceItemModel.aggregate(aggregationPipeline);
+  //     let totalCount = await this.serviceItemModel.aggregate(countPipe);
+  //     // console.log("totalCount", totalCount);
+  //     let count;
+  //     if (totalCount.length) {
+  //       count = totalCount[0].count;
+  //     }
+
+  //     //   const serviceItemData = await this.serviceItemModel.aggregate([
+  //     //     {
+  //     //       $match: filter,
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         tagNames: {
+  //     //           $cond: {
+  //     //             if: { $isArray: "$tag.name" },
+  //     //             then: "$tag.name",
+  //     //             else: ["$tag.name"],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $unwind: "$tagNames",
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$tagNames",
+  //     //           processId: "$additionalDetails.processId",
+  //     //         },
+  //     //         detail: { $first: "$additionalDetails" },
+  //     //         priorityOrder: { $first: "$priorityOrder" },
+  //     //         tagOrder: { $first: "$tag.order" },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: { priorityOrder: 1, _id: -1 },
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$_id.tagName",
+  //     //           tagOrder: "$tagOrder",
+  //     //         },
+  //     //         details: { $push: "$detail" },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: { "_id.tagOrder": 1 },
+  //     //     },
+  //     //     {
+  //     //       $project: {
+  //     //         _id: 0,
+  //     //         tagName: "$_id.tagName",
+  //     //         details: 1,
+  //     //       },
+  //     //     },
+  //     //   ]);
+  //     //   const serviceItemData = await this.serviceItemModel.aggregate([
+  //     //     {
+  //     //       $match: filter,
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         tagNames: {
+  //     //           $cond: {
+  //     //             if: { $isArray: "$tag.name" },
+  //     //             then: "$tag.name",
+  //     //             else: ["$tag.name"],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $unwind: "$tagNames",
+  //     //     },
+  //     //     {
+  //     //       $group: {
+  //     //         _id: {
+  //     //           tagName: "$tagNames",
+  //     //           tagOrder: "$tag.order",
+  //     //         },
+  //     //         details: {
+  //     //           $push: {
+  //     //             $mergeObjects: [
+  //     //               "$additionalDetails",
+  //     //               {
+  //     //                 priorityOrder: "$priorityOrder",
+  //     //                 processId: "$additionalDetails.processId",
+  //     //               },
+  //     //             ],
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $addFields: {
+  //     //         details: {
+  //     //           $sortArray: {
+  //     //             input: "$details",
+  //     //             sortBy: { priorityOrder: 1, processId: -1 },
+  //     //           },
+  //     //         },
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $project: {
+  //     //         _id: 0,
+  //     //         tagName: "$_id.tagName",
+  //     //         details: 1,
+  //     //       },
+  //     //     },
+  //     //     {
+  //     //       $sort: {
+  //     //         "_id.tagOrder": 1,
+  //     //       },
+  //     //     },
+  //     //   ]);
+  //     //   console.log("service item data", JSON.stringify(serviceItemData));
+
+  //     const processIds = serviceItemData.flatMap((item) =>
+  //       item.details.map((detail) => detail.processId)
+  //     );
+  //     let firstTasks = await this.processService.getFirstTask(
+  //       processIds,
+  //       userId
+  //     );
+  //     const taskMap = new Map(
+  //       firstTasks.map((task) => [task.processId.toString(), task])
+  //     );
+  //     //   console.log("taskMap", taskMap);
+
+  //     serviceItemData.forEach((item) => {
+  //       item.details = item.details.map((detail) => {
+  //         const matchingTask = taskMap.get(detail.processId.toString());
+  //         return {
+  //           ...detail,
+  //           taskDetail: matchingTask || null,
+  //         };
+  //       });
+  //     });
+  //     const finalData = serviceItemData.reduce((a, c) => {
+  //       a[c.tagName] = c.details;
+  //       return a;
+  //     }, {});
+  //     return { finalData, count };
+  //   } catch (err) {
+  //     throw err;
+  //   }
+  // }
 
   async fetchServiceItemDetails(
     data,
@@ -335,7 +589,7 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
-      let filter: any = {
+      let filter = {
         type: EserviceItemType.courses,
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
@@ -600,24 +854,12 @@ export class DynamicUiService {
         a[c.tagName] = c.details;
         return a;
       }, {});
-       const payload: any = { filters: [] };
-
-    if (filterOption?.proficiency) {
-      payload.filters.push({ category: EItemType.proficiency, values: [filterOption?.proficiency?.toString()] });
-    }
-    if (filterOption?.category && filterOption?.category?.length > 0) {
-      const categoryValues = filterOption.category.map(id => id.toString());
-      payload.filters.push({ category: EItemType.category, values: categoryValues });
-    }
-
-    if (payload.filters.length) {
-      await this.createOrUpdateUserPreference(userId.toString(), payload);
-    }
       return { finalData, count };
     } catch (err) {
       throw err;
     }
   }
+
   async fetchContinueWatching(userId: string, processIds: string[]) {
     try {
       let pendingProcessInstanceData =
@@ -653,8 +895,7 @@ export class DynamicUiService {
             seriesTitle: mentorUserIds[i].seriesName,
             seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
-        }
-      }
+        }} 
 
       return continueWatching;
     } catch (err) {
@@ -662,79 +903,6 @@ export class DynamicUiService {
     }
   }
 
-  // async fetchUserPreferenceBanner(
-  //   isNewSubscription: boolean,
-  //   userId: string,
-  //   userProcessedSeries,
-  //   components,
-  //   country_code: string,
-  //   isSubscriber: boolean
-  // ) {
-  //   try {
-  //     const data = components.find(
-  //       (e) => e.type === EComponentType.personalizedBanner
-  //     );
-  //     if (!data?.interactionData?.items?.length) return [];
-
-  //     const isLocked =
-  //       userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked;
-  //     console.log("userProcessedSeries", JSON.stringify(userProcessedSeries));
-
-  //     let bestMatch: any = null;
-  //     let referralBanner: any = null;
-  //     console.log("items", JSON.stringify(data.interactionData.items));
-
-  //     for (const item of data.interactionData.items) {
-  //       const rule = item.rule || {};
-  //       const isSubscribedRule = rule.isSubscribed;
-  //       const isNewSubscribedRule = rule.isNewSubscriber;
-  //       const ruleCountry = rule.country;
-  //       const ruleIsLocked = rule.isLocked;
-
-  //       const bannerData = {
-  //         banner: item?.banner?.banner,
-  //         navigation: item?.banner?.navigation,
-  //       };
-
-  //       const isLockedMatch =
-  //         typeof ruleIsLocked === "boolean" && ruleIsLocked === isLocked;
-  //       console.log(
-  //         "subscription",
-  //         isNewSubscribedRule,
-  //         isSubscriber,
-  //         isLockedMatch
-  //       );
-
-  //       if (isNewSubscribedRule === isSubscriber && isLockedMatch) {
-  //         return [bannerData];
-  //       }
-
-  //       const isCountryMatch =
-  //         typeof ruleCountry === "object" && "$ne" in ruleCountry
-  //           ? country_code !== ruleCountry["$ne"]
-  //           : country_code === ruleCountry;
-
-  //       if (
-  //         isSubscribedRule === isNewSubscription &&
-  //         isCountryMatch &&
-  //         !bestMatch
-  //       ) {
-  //         bestMatch = bannerData;
-  //       }
-  //       if (isSubscribedRule === true && !referralBanner) {
-  //         referralBanner = bannerData;
-  //       }
-  //     }
-
-  //     if (bestMatch) return [bestMatch];
-  //     if (referralBanner) return [referralBanner];
-
-  //     return [];
-  //   } catch (err) {
-  //     console.error("Error in fetchUserPreferenceBanner:", err);
-  //     throw err;
-  //   }
-  // }
   async fetchUserPreferenceBanner(
     isNewSubscription: boolean,
     userId: string,
@@ -755,9 +923,8 @@ export class DynamicUiService {
         return [];
       }
 
-      const isFirstSeriesLocked = userProcessedSeries?.actionData.some(
-        (action) => action.taskDetail?.isLocked === true
-      );
+      const isFirstSeriesLocked =
+        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
       // console.log("isSubscriber", isSubscriber);
 
       let bestMatchBanner: any = null;
@@ -809,13 +976,14 @@ export class DynamicUiService {
             matchesCountry &&
             isFirstSeriesLocked &&
             item.type == "IAPPayment") ||
-          (matchesCountry &&
-            rule.isSubscribed == isNewSubscription &&
-            item.type == "IAPPayment")
+          (matchesCountry && item.type == "IAPPayment")
         ) {
           return [bannerData];
         }
-        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+        if (
+          rule.isSubscribed === isNewSubscription &&
+          !referralBanner
+        ) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
@@ -963,6 +1131,166 @@ export class DynamicUiService {
       throw err;
     }
   }
+
+  async updatePageComponents(
+    pageId: string,
+    updateDto: EUpdateComponents
+  ) {
+    try {
+      // console.log("Updating page components:", pageId);
+      // console.log("componentIds:", updateDto.components);
+
+      // Map components to the correct format
+      const components = updateDto.components.map(item => ({
+        componentId: new ObjectId(item.componentId.$oid)
+      }));
+
+      // Update page components
+      const updatedPage = await this.contentPageModel.findByIdAndUpdate(
+        pageId,
+        {
+          $set: { components }
+        },
+        { new: true }
+      ).lean();
+
+      // Update order for each component
+      const updatePromises = updateDto.components.map((item, index) => {
+        return this.componentModel.findByIdAndUpdate(
+          item.componentId.$oid,
+          {
+            $set: { order: index + 1 }
+          },
+          { new: true }
+        ).lean();
+      });
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+    
+      const skillName = await this.contentPageModel.findOne(
+        { _id: pageId }
+      ).lean();
+      const skill = skillName?.metaData?.skill;
+      // console.log("Skill Name:", skill);
+
+      // { type: "courses", "skill.skill_name": "Singing", "tag.name": "trendingSeries"}
+      const tagUpdatePromises: Promise<any>[] = [];
+      updateDto.components.forEach((component) => {
+        if (component.tag && Array.isArray(component.series)) {
+          component.series.forEach((series) => {
+            const query = {
+              type: "courses",
+              "skill.skill_name": skill,
+              "tag.name": component.tag,
+              "additionalDetails.processId": new ObjectId(series.seriesId.$oid),
+            };
+          
+            // console.log("Update query:", query);
+            // console.log("Setting order:", series.order, "for tag:", component.tag);
+          
+            // Update the order in the tag array where tag.name matches component.tag
+            tagUpdatePromises.push(
+              this.serviceItemModel.updateOne(
+                query,
+                {
+                  $set: {
+                    "tag.$[tagElem].order": series.order
+                  }
+                },
+                {
+                  arrayFilters: [{ "tagElem.name": component.tag }]
+                }
+              )
+            );
+          });
+        }
+      });
+
+      // Wait for all tag updates to complete
+      if (tagUpdatePromises.length > 0) {
+        // console.log(`Executing ${tagUpdatePromises.length} tag order updates...`);
+        const results = await Promise.all(tagUpdatePromises);
+      }
+
+      // console.log("tagUpdatePromises", tagUpdatePromises)
+
+      return {
+        success: true
+      };
+    } catch (err) {
+      console.error('Error updating page components:', err);
+      throw err;
+    }
+  }
+
+  async updateSeriesTag(data: EUpdateSeriesTag) {
+    const { tag, selected: series, componentId, unselected } = data;
+    const compId = new ObjectId(componentId);
+
+    // First, find the category document by category_name
+    const categoryDoc = await this.categoryModel.findOne({ 
+      category_name: tag, 
+      status: 'Active' 
+    }).lean();
+
+    if (!categoryDoc) {
+      throw new Error(`Category with name '${tag}' not found or not active`);
+    }
+
+    const categoryId = categoryDoc._id;
+
+    // Process selected series - use Promise.all for parallel execution
+    const selectedPromises = series.map(async (item, index) => {
+      // First try updating existing element
+      const result = await this.serviceItemModel.updateOne(
+        { 
+          "additionalDetails.processId": item.id, 
+          "tag.category_id": compId 
+        },
+        {
+          $set: {
+            "tag.$.order": index,
+            "tag.$.name": tag,
+            "tag.$.category_id": categoryId // Use the actual category _id
+          }
+        }
+      );
+      
+      // If no element was matched → push a new one
+      if (result.matchedCount === 0) {
+        return this.serviceItemModel.updateOne(
+          { "additionalDetails.processId": item.id },
+          {
+            $push: {
+              tag: {
+                order: index,
+                name: tag,
+                category_id: categoryId // Use the actual category _id
+              }
+            }
+          }
+        );
+      }
+      return result;
+    });
+
+    // Process unselected series - use Promise.all for parallel execution
+    const unselectedPromises = unselected.map(item => 
+      this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
+        { $pull: { tag: { name: tag } } }
+      )
+    );
+
+    // Execute all operations in parallel
+    try {
+      await Promise.all([...selectedPromises, ...unselectedPromises]);
+    } catch (error) {
+      console.error('Error updating series tags:', error);
+      throw error;
+    }
+  }
+  
   async createOrUpdateUserPreference(userId:string, payload) {
     try {
       payload.userId = new ObjectId(userId);
@@ -1004,6 +1332,7 @@ export class DynamicUiService {
       throw error;
     }
   }
+
   async componentFilterOptions() {
     try {
       let filter = await this.filterTypeModel.find({
@@ -1017,6 +1346,23 @@ export class DynamicUiService {
       return data
     } catch (error) {
       throw error
+    }
+  }
+
+  async addNewSeries(data: any) { 
+    try {
+      const process = await this.processModel.findOne({
+        _id: new ObjectId("677237d18c36d481c52f5a90")
+      }).lean();
+      console.log("process", process)
+
+      console.log("data", data)
+
+      return {
+        success: true,
+      }
+    } catch (error) {
+      throw error;
     }
   }
 }
