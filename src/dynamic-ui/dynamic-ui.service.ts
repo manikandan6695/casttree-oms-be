@@ -249,7 +249,44 @@ export class DynamicUiService {
 
         componentsWithInteractionData.forEach(component => {
           if (component.componentKey === EComponentKey.learnFilterActionButton) {
-            component.interactionData = { items: Object.values(grouped) };
+            const originalItems = component.interactionData?.items || [];
+            
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+              groupedOptionsMap.set(group.type, group);
+            });
+            
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+              
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+              
+              const groupedData = groupedOptionsMap.get(filterType);
+              
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+                
+                const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+                
+                const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+                
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+                
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions
+                };
+              }
+              
+              return item;
+            });
+            
+            component.interactionData = { items: transformedItems };
           }
         });
       }
@@ -324,20 +361,64 @@ export class DynamicUiService {
           return acc;
         }, {});
 
-        if (filterOption?.proficiency) {
-          grouped[EItemType.proficiency]?.options.forEach(opt => {
-            opt.isUserSelected = opt.filterOptionId === filterOption.proficiency;
-          });
-        }
-
-        if (filterOption?.category && filterOption.category.length > 0) {
-          grouped[EItemType.category]?.options.forEach(opt => {
-            opt.isUserSelected = filterOption.category.includes(opt.filterOptionId);
+        if (filterOption) {
+          Object.keys(filterOption).forEach(filterKey => {
+            const filterValue = filterOption[filterKey];
+            const groupedData = grouped[filterKey];
+            
+            if (groupedData && filterValue) {
+              if (Array.isArray(filterValue)) {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+                });
+              } else {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = opt.filterOptionId === filterValue;
+                });
+              }
+            }
           });
         }
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
-          component.interactionData = { items: Object.values(grouped) };
+          const originalItems = component.interactionData?.items || [];
+          
+          const groupedOptionsMap = new Map();
+          Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          });
+          
+          const transformedItems = originalItems.map((item: any) => {
+            let filterType = item.button?.type;
+            
+            if (filterType === "proficency") {
+              filterType = "proficiency";
+            }
+            
+            const groupedData = groupedOptionsMap.get(filterType);
+            
+            if (groupedData) {
+              const existingOptions = item.options || [];
+              const newOptions = groupedData.options || [];
+              
+              const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+              
+              const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+              
+              const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+              
+              return {
+                ...item,
+                type: filterType,
+                filterTypeId: groupedData.filterTypeId,
+                options: mergedOptions
+              };
+            }
+            
+            return item;
+          });
+          
+          component.interactionData = { items: transformedItems };
         }
       }
 
@@ -594,12 +675,23 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      if (filterOption?.proficiency) {
-        filter["proficiency.filterOptionId"] = new ObjectId(filterOption.proficiency);
-      }
-
-      if (filterOption?.category && filterOption?.category?.length > 0) {
-        filter["category.filterOptionId"] = { $in: filterOption.category.map(id => new ObjectId(id)) };
+      if (filterOption) {
+        Object.keys(filterOption).forEach(filterKey => {
+          const filterValue = filterOption[filterKey];
+          
+          if (filterValue) {
+            if (Array.isArray(filterValue)) {
+              const validIds = filterValue.filter(id => id && typeof id === 'string' && id.length === 24);
+              if (validIds.length > 0) {
+                filter[`${filterKey}.filterOptionId`] = { $in: validIds.map(id => new ObjectId(id)) };
+              }
+            } else {
+              if (filterValue && typeof filterValue === 'string' && filterValue.length === 24) {
+                filter[`${filterKey}.filterOptionId`] = new ObjectId(filterValue);
+              }
+            }
+          }
+        });
       }
       let aggregationPipeline = [];
       aggregationPipeline.push({
