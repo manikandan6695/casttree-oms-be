@@ -82,6 +82,15 @@ export class ServiceItemController {
       throw err;
     }
   }
+  @Get("skills")
+  async getContestDetailBySkillId(){
+    try {
+      const data = await this.serviceItemService.getContestDetailBySkillId();
+      return data
+    } catch (error) {
+     throw error
+    }
+  }
 
   // @UseGuards(JwtAuthGuard)
   @Get()
