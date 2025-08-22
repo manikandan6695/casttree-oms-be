@@ -6,7 +6,7 @@ import { IItemModel } from "./schema/item.schema";
 import { IPlatformItemModel } from "./schema/platform-item.schema";
 import { HelperService } from "src/helper/helper.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
-import { EProviderId } from "src/subscription/enums/provider.enum";
+import { IFilterOption } from "src/dynamic-ui/schema/filter-option.schema";
 
 @Injectable()
 export class ItemService {
@@ -14,7 +14,8 @@ export class ItemService {
     @InjectModel("platformItem")
     private platformItem: Model<IPlatformItemModel>,
     private helperService: HelperService,
-    @InjectModel("item") private itemModel: Model<IItemModel>
+    @InjectModel("item") private itemModel: Model<IItemModel>,
+    @InjectModel("filterOptions") private filterOptionModel: Model<IFilterOption>,
   ) {}
   async getPlatformItem(
     query: FilterPlatformItemDTO,
@@ -86,6 +87,40 @@ export class ItemService {
           award: awardData,
           isSubmitted: isSubmitted,
         };
+      }
+      else if (apiVersion === "3") {
+        const itemData = await this.itemModel.findOne({ _id: id }).lean();
+        const awardData = await this.helperService.getAward(id);
+        const awardId = awardData?._id;
+        const nominationsData = await this.helperService.getNominations(
+          awardId,
+          skip || 0,
+          limit || 600
+        );
+    
+        // Fetch additional filters if filterTypeId exists in additionalDetail
+        let additionalFilters = null;
+        if (itemData?.additionalDetail?.filterTypeId) { 
+          try {
+            additionalFilters = await this.filterOptionModel
+              .find({
+                filterTypeId: new Types.ObjectId(itemData?.additionalDetail?.filterTypeId),
+                status: EStatus.Active,
+              })
+              .sort({ sortOrder: 1 }) 
+              .lean();
+          } catch (error) {
+            console.log("Error fetching filter options:", error);
+            additionalFilters = null;
+          }
+        }
+    
+        return {
+          item: itemData,
+          award: awardData,
+          participants: nominationsData,
+          filterOptions: additionalFilters,
+        };
       } else {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
@@ -93,7 +128,7 @@ export class ItemService {
         const nominationsData = await this.helperService.getNominations(
           awardId,
           skip || 0,
-          limit || 200
+          limit || 600
         );
         return {
           item: itemData,
