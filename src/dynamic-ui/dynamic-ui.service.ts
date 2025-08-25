@@ -1459,7 +1459,7 @@ export class DynamicUiService {
       const data = await this.filterOptionsModel.find({
         status: EStatus.Active,
         filterType: { $in: types }
-      }).lean();
+      }).sort({ sortOrder: 1 }).lean();
       return data
     } catch (error) {
       throw error
