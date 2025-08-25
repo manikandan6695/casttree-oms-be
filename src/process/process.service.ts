@@ -68,9 +68,11 @@ export class ProcessService {
       mixPanelBody.distinctId = token.id;
       mixPanelBody.properties = {
         item_name: serviceItemDetail.itemId.itemName,
+        itemName: serviceItemDetail.itemId.itemName,
         task_name: currentTaskData.title,
         task_number: currentTaskData.taskNumber,
         is_locked: currentTaskData.isLocked,
+        isLocked: currentTaskData.isLocked,
       };
       await this.helperService.mixPanel(mixPanelBody);
       let nextTask = {};
