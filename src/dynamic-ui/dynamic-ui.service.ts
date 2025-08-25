@@ -340,31 +340,6 @@ export class DynamicUiService {
         component["totalCount"] = serviceItemData?.count || 0;
       }
 
-      if (!component.actionData || component.actionData.length === 0) {
-        const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
-        const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
-      
-        const allServiceItemData = await this.fetchServiceItemDetails(
-          page,
-          token.id,
-          false,
-          0,
-          0,
-          null
-        );
-        
-        const allSeriesData = allServiceItemData.finalData?.allSeries || [];
-
-        const nonMatchedSeries = allSeriesData.filter((series: any) =>
-          !completedProcessIds.has(String(series.processId))
-        );
-      
-        if (nonMatchedSeries.length > 0) {
-          component.recommendedList = nonMatchedSeries;
-          component["totalCount"] = nonMatchedSeries.length;
-        } 
-      }
-   
       if (component?.interactionData) {
         let availableFilterOptions = await this.componentFilterOptions();
 
@@ -406,6 +381,30 @@ export class DynamicUiService {
         }
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
+          if (!component.actionData || component.actionData.length === 0) {
+            const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
+            const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
+          
+            const allServiceItemData = await this.fetchServiceItemDetails(
+              page,
+              token.id,
+              false,
+              0,
+              0,
+              null
+            );
+            
+            const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+    
+            const nonMatchedSeries = allSeriesData.filter((series: any) =>
+              !completedProcessIds.has(String(series.processId))
+            );
+          
+            if (nonMatchedSeries.length > 0) {
+              component.recommendedList = nonMatchedSeries;
+              component["totalCount"] = nonMatchedSeries.length;
+            } 
+          }
           const originalItems = component.interactionData?.items || [];
           
           const groupedOptionsMap = new Map();
