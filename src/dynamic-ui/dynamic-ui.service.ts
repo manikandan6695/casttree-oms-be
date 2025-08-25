@@ -1,5 +1,5 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EStatus } from "./../process/enums/process.enum";
+import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -18,7 +18,10 @@ import { ISystemConfigurationModel } from "src/shared/schema/system-configuratio
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
-import { EComponentType } from "./enum/component.enum";
+import { EComponentKey, EComponentType } from "./enum/component.enum";
+import { EFilterOption } from "./dto/filter-option.dto";
+import { IFilterType } from "./schema/filter-type.schema";
+import { IFilterOption } from "./schema/filter-option.schema";
 const { ObjectId } = require("mongodb");
 @Injectable()
 export class DynamicUiService {
@@ -35,7 +38,11 @@ export class DynamicUiService {
     private readonly contentPageModel: Model<IContentPage>,
     private processService: ProcessService,
     private helperService: HelperService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    @InjectModel("filterTypes")
+    private readonly filterTypeModel: Model<IFilterType>,
+    @InjectModel("filterOptions")
+    private readonly filterOptionsModel: Model<IFilterOption>
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -87,7 +94,7 @@ export class DynamicUiService {
     }
   }
 
-  async getPageDetails(token: UserToken, pageId: string) {
+  async getPageDetails(token: UserToken, pageId: string, filterOption: EFilterOption) {
     try {
       // const subscriptionData =
       //   await this.subscriptionService.validateSubscription(token.id, [
@@ -141,7 +148,8 @@ export class DynamicUiService {
         token.id,
         false,
         0,
-        0
+        0,
+        null
       );
 
       const processIds = [];
@@ -203,6 +211,70 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
+      const componentsWithInteractionData = componentDocs.filter(comp => comp.interactionData);
+      if (componentsWithInteractionData.length > 0) {
+        let availableFilterOptions = await this.componentFilterOptions();
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+          });
+          return acc;
+        }, {});
+
+        componentsWithInteractionData.forEach(component => {
+          if (component.componentKey === EComponentKey.learnFilterActionButton) {
+            const originalItems = component.interactionData?.items || [];
+            
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+              groupedOptionsMap.set(group.type, group);
+            });
+            
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+              
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+              
+              const groupedData = groupedOptionsMap.get(filterType);
+              
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+                
+                const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+                
+                const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+                
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+                
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions
+                };
+              }
+              
+              return item;
+            });
+            
+            component.interactionData = { items: transformedItems };
+          }
+        });
+      }
       return { data };
     } catch (err) {
       throw err;
@@ -213,7 +285,8 @@ export class DynamicUiService {
     token: UserToken,
     componentId: string,
     skip: number,
-    limit: number
+    limit: number,
+    filterOption: EFilterOption
   ) {
     try {
       let component = await this.componentModel
@@ -222,20 +295,144 @@ export class DynamicUiService {
           status: EStatus.Active,
         })
         .lean();
+
       let page = await this.contentPageModel
         .findOne({ "components.componentId": componentId })
         .lean();
+
       let serviceItemData = await this.fetchServiceItemDetails(
         page,
         token.id,
         true,
         skip,
-        limit
+        limit,
+        filterOption
       );
       const tagName = component?.tag?.tagName;
+      let allData: any[] = [];
       if (tagName && serviceItemData?.finalData?.[tagName]) {
-        component.actionData = serviceItemData.finalData[tagName];
-        component["totalCount"] = serviceItemData?.count;
+        allData = serviceItemData.finalData[tagName];
+        component.actionData = allData;
+        component["totalCount"] = serviceItemData?.count || 0;
+      } else {
+        allData = Object.values(serviceItemData.finalData || {}).flat();
+        const uniqueData = allData.filter((item, index, self) => {
+          if (!item.taskDetail || !item.taskDetail._id) return true;
+          return (
+            index ===
+            self.findIndex(
+              i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+            )
+          );
+        });
+        component.actionData = uniqueData;
+        component["totalCount"] = serviceItemData?.count || 0;
+      }
+
+      if (component?.interactionData) {
+        let availableFilterOptions = await this.componentFilterOptions();
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            isUserSelected: false,
+          });
+          return acc;
+        }, {});
+
+        if (filterOption) {
+          Object.keys(filterOption).forEach(filterKey => {
+            const filterValue = filterOption[filterKey];
+            const groupedData = grouped[filterKey];
+            
+            if (groupedData && filterValue) {
+              if (Array.isArray(filterValue)) {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+                });
+              } else {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = opt.filterOptionId === filterValue;
+                });
+              }
+            }
+          });
+        }
+
+        if (component.componentKey === EComponentKey.learnFilterActionButton) {
+          if (!component.actionData || component.actionData.length === 0) {
+            const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
+            const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
+          
+            const allServiceItemData = await this.fetchServiceItemDetails(
+              page,
+              token.id,
+              false,
+              0,
+              0,
+              null
+            );
+            
+            const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+    
+            const nonMatchedSeries = allSeriesData.filter((series: any) =>
+              !completedProcessIds.has(String(series.processId))
+            );
+          
+            if (nonMatchedSeries.length > 0) {
+              component.recommendedList = nonMatchedSeries;
+              component["totalCount"] = nonMatchedSeries.length;
+            } 
+          }
+          const originalItems = component.interactionData?.items || [];
+          
+          const groupedOptionsMap = new Map();
+          Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          });
+          
+          const transformedItems = originalItems.map((item: any) => {
+            let filterType = item.button?.type;
+            
+            if (filterType === "proficency") {
+              filterType = "proficiency";
+            }
+            
+            const groupedData = groupedOptionsMap.get(filterType);
+            
+            if (groupedData) {
+              const existingOptions = item.options || [];
+              const newOptions = groupedData.options || [];
+              
+              const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+              
+              const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+              
+              const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+              
+              return {
+                ...item,
+                type: filterType,
+                filterTypeId: groupedData.filterTypeId,
+                options: mergedOptions
+              };
+            }
+            
+            return item;
+          });
+          
+          component.interactionData = { items: transformedItems };
+        }
       }
       return { component };
     } catch (err) {
@@ -481,7 +678,8 @@ export class DynamicUiService {
     userId: string,
     isPagination = false,
     skip,
-    limit
+    limit,
+    filterOption: EFilterOption
   ) {
     try {
       let filter = {
@@ -489,6 +687,24 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
+      if (filterOption) {
+        Object.keys(filterOption).forEach(filterKey => {
+          const filterValue = filterOption[filterKey];
+          
+          if (filterValue) {
+            if (Array.isArray(filterValue)) {
+              const validIds = filterValue.filter(id => id && typeof id === 'string' && id.length === 24);
+              if (validIds.length > 0) {
+                filter[`${filterKey}.filterOptionId`] = { $in: validIds.map(id => new ObjectId(id)) };
+              }
+            } else {
+              if (filterValue && typeof filterValue === 'string' && filterValue.length === 24) {
+                filter[`${filterKey}.filterOptionId`] = new ObjectId(filterValue);
+              }
+            }
+          }
+        });
+      }
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -1020,6 +1236,21 @@ export class DynamicUiService {
       return mentorProfiles;
     } catch (err) {
       throw err;
+    }
+  }
+  async componentFilterOptions() {
+    try {
+      let filter = await this.filterTypeModel.find({
+        isActive: true
+      })
+      const types = filter.map(item => item.type);
+      const data = await this.filterOptionsModel.find({
+        status: EStatus.Active,
+        filterType: { $in: types }
+      }).sort({ sortOrder: 1 }).lean();
+      return data
+    } catch (error) {
+      throw error
     }
   }
 }

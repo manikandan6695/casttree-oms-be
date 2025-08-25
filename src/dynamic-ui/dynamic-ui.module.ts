@@ -13,6 +13,8 @@ import { AppNavBarSchema } from "./schema/app-navbar.entity";
 import { ComponentSchema } from "./schema/component.entity";
 import { ContentPageSchema } from "./schema/page-content.entity";
 import { BannerConfigurationSchema } from "./schema/banner-configuration.schema";
+import { FilterOptionSchema } from "./schema/filter-option.schema";
+import { FilterTypeSchema } from "./schema/filter-type.schema";
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { BannerConfigurationSchema } from "./schema/banner-configuration.schema"
       { name: "contentPage", schema: ContentPageSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
       { name: "systemConfiguration", schema: SystemConfigurationSchema },
+      { name: "filterTypes", schema: FilterTypeSchema},
+      { name: "filterOptions", schema: FilterOptionSchema},
     ]),
     SharedModule,
     AuthModule,
