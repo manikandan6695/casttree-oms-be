@@ -49,8 +49,10 @@ export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
 })
 
 export interface tagModel {
+  filter(arg0: (tagItem: any) => boolean): unknown;
   category_id: string;
   name: string;
+  order?: number;
 }
 export const tagSchema = new mongoose.Schema<any>({
   category_id: {
@@ -60,6 +62,10 @@ export const tagSchema = new mongoose.Schema<any>({
 
   name: {
     type: String,
+  },
+
+  order: {
+    type: Number,
   },
 
 })
@@ -78,10 +84,8 @@ export interface serviceitems {
   expertise: expertiseModel;
   tag: tagModel;
   additionalDetails: serviceItemAdditionalDetailModel;
-  priorityOrder:number,
-  proficiency: tagModel;
-  category: tagModel;
-
+  priorityOrder:number
+  
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
@@ -117,7 +121,5 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   priorityOrder: {
     type: Number,
 },
-  proficiency: [tagSchema],
-  category: [tagSchema]
 
 });

@@ -110,6 +110,7 @@ export interface itemAdditionalDetailModel {
   endTime: String;
   thumbnail: String;
   faq: faqModel[];
+  filterTypeId : string;
   highlights: highlightsModel[];
   targetUsers: targetUsersModel[];
   testimonials: testimonialModel[];
@@ -134,6 +135,7 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
     type: String,
   },
   allowMulti: { type: Boolean, default: false },
+  filterTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "filterType" },
   workShopEndDate: { type: Date },
   startTime: {
     type: String,

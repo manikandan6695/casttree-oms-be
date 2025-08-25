@@ -158,11 +158,11 @@ export class PaymentRequestController {
       throw err;
     }
   }
-  
+  @UseGuards(JwtAuthGuard)
   @Get("verify-payment/:paymentId")
-  async getCoinValueUpdate(@Param("paymentId") paymentId: string, @Res() res: Response) {
+  async getCoinValueUpdate(@Param("paymentId") paymentId: string, @Res() res: Response, @GetToken() token: UserToken) {
     try {
-      const data = await this.paymentRequestService.updateCoinValue(paymentId);
+      const data = await this.paymentRequestService.updateCoinValue(paymentId,token);
       return res.json(data);
     } catch (err) {
       const { code, response } = await this.sservice.processError(

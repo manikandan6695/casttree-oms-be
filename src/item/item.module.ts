@@ -20,6 +20,12 @@ import { serviceitemsSchema } from "./schema/serviceItem.schema";
 import { VariantSchema } from "./schema/variant.schema";
 import { ServiceItemController } from "./service-item.controller";
 import { ServiceItemService } from "./service-item.service";
+import { skillsSchema } from "./schema/skill.schema";
+import { FilterOptionSchema } from "src/dynamic-ui/schema/filter-option.schema";
+import { FilterTypeSchema } from "src/dynamic-ui/schema/filter-type.schema";
+
+
+
 
 @Module({
   imports: [
@@ -34,6 +40,9 @@ import { ServiceItemService } from "./service-item.service";
       { name: "platformItem", schema: platformItemSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
       { name: "systemConfiguration", schema: SystemConfigurationSchema },
+      { name: "skills", schema: skillsSchema },
+      { name: "filterOptions", schema: FilterOptionSchema },
+      { name: "filterTypes", schema: FilterTypeSchema },
     ]),
     AuthModule,
     HelperModule,

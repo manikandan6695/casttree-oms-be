@@ -14,6 +14,11 @@ import {
 import { itemAdditionalDetailModel, itemAdditionalDetailSchema } from "./itemAdditionalDetail.schema";
 
 export interface IItemModel extends mongoose.Document {
+  itemDescription: string;
+  platformItemId: any;
+  itemGroupId: any;
+  updated_at: Date;
+  created_at: Date;
   orgId: any; //or org model
   item_type: EItemType;
   itemName: string;
@@ -75,6 +80,7 @@ export interface IItemModel extends mongoose.Document {
   parentItemId: string;
   price: number;
   currency: any;
+  filterTypeId?: string;
 }
 
 export interface IStockDetails {
@@ -326,6 +332,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     },
     E_material_code: { type: String },
     comparePrice: { type: Number },
+    
   },
   {
     collection: "item",
