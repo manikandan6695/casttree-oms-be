@@ -37,7 +37,7 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EEventId, EEventType } from "./enums/eventType.enum";
+import { EEventId, EEventType, EReferralStatus } from "./enums/eventType.enum";
 import { EErrorHandler, EProvider, EProviderId, ESProviderId } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -48,7 +48,10 @@ import {
   ELIGIBLE_SUBSCRIPTION,
   NOT_ELIGIBLE_SUBSCRIPTION,
   SUBSCRIPTION_NOT_FOUND,
+  EVENT_UPDATE_REFERRAL_STATUS
 } from "src/shared/app.constants";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
+import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -67,7 +70,8 @@ export class SubscriptionService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
-    private readonly mandateHistoryService: MandateHistoryService
+    private readonly mandateHistoryService: MandateHistoryService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -1269,6 +1273,14 @@ export class SubscriptionService {
             invoice.currencyCode,
             invoice.grand_total
           );
+          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+            let eventBody = {
+              isPassed: true,
+              _id: subscription?._id,
+              userId: subscription?.userId,
+            }
+            await this.eventEmitter.emitAsync(EVENT_UPDATE_REFERRAL_STATUS, eventBody)
+          }
         }
       }
     } catch (err) {
@@ -2530,6 +2542,51 @@ export class SubscriptionService {
         );
       }
       return { data: subscription }
+    } catch (error) {
+      throw error
+    }
+  }
+  @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
+  async handleUpdateReferralStatus(payload: any) {
+    try {
+      console.log("payload",payload);
+      await this.updateReferralStatus(payload)
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Complete
+      );
+    } catch (error) {
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Failed
+      );
+      throw error
+    }
+  }
+  // async onModuleInit(){
+  //   await this.updateReferralStatus({
+  //     userId: "67e39c83f2d3c41ad17b7be9",
+  //     _id: "68a7fe0b0f52118cb970eda7",
+  //   })
+  // }
+  async updateReferralStatus(payload: any) {
+    try {
+      let userAdditional = await this.helperService.getUserAdditional(payload?.userId)
+      let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
+      const subscription = await this.subscriptionModel.findOne({
+        _id:  new ObjectId(payload?._id),
+        userId: new ObjectId(payload?.userId),
+        status: EStatus.Active, 
+        subscriptionStatus: EsubscriptionStatus.active
+      }).lean()
+      if(referelData?.referralStatus === EReferralStatus.Onboarded && subscription?.subscriptionStatus === EsubscriptionStatus.active){
+        let body = {
+          refereeUserId: referelData?.refereeUserId,
+          referralId : referelData?._id,
+          referrerId: referelData?.referrerUserId,
+        }
+        await this.helperService.updateReferral(body)
+      }
     } catch (error) {
       throw error
     }
