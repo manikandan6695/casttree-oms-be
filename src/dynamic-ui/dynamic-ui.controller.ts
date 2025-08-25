@@ -16,8 +16,6 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
-import { EUpdateComponents } from "./dto/update-components.dto";
-import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
