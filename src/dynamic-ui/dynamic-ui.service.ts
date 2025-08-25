@@ -1,5 +1,5 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EStatus } from "./../process/enums/process.enum";
+import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -381,6 +381,30 @@ export class DynamicUiService {
         }
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
+          if (!component.actionData || component.actionData.length === 0) {
+            const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
+            const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
+          
+            const allServiceItemData = await this.fetchServiceItemDetails(
+              page,
+              token.id,
+              false,
+              0,
+              0,
+              null
+            );
+            
+            const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+    
+            const nonMatchedSeries = allSeriesData.filter((series: any) =>
+              !completedProcessIds.has(String(series.processId))
+            );
+          
+            if (nonMatchedSeries.length > 0) {
+              component.recommendedList = nonMatchedSeries;
+              component["totalCount"] = nonMatchedSeries.length;
+            } 
+          }
           const originalItems = component.interactionData?.items || [];
           
           const groupedOptionsMap = new Map();
@@ -1434,7 +1458,7 @@ export class DynamicUiService {
       const data = await this.filterOptionsModel.find({
         status: EStatus.Active,
         filterType: { $in: types }
-      }).lean();
+      }).sort({ sortOrder: 1 }).lean();
       return data
     } catch (error) {
       throw error
