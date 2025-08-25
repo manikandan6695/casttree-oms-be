@@ -15,7 +15,8 @@ export class ItemService {
     private platformItem: Model<IPlatformItemModel>,
     private helperService: HelperService,
     @InjectModel("item") private itemModel: Model<IItemModel>,
-    @InjectModel("filterOptions") private filterOptionModel: Model<IFilterOption>,
+    @InjectModel("filterOptions")
+    private filterOptionModel: Model<IFilterOption>
   ) {}
   async getPlatformItem(
     query: FilterPlatformItemDTO,
@@ -87,8 +88,7 @@ export class ItemService {
           award: awardData,
           isSubmitted: isSubmitted,
         };
-      }
-      else if (apiVersion === "3") {
+      } else if (apiVersion === "3") {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
         const awardData = await this.helperService.getAward(id);
         const awardId = awardData?._id;
@@ -97,29 +97,39 @@ export class ItemService {
           skip || 0,
           limit || 600
         );
-    
+        const application = await this.helperService.getUserApplication(
+          awardData?._id,
+          accessToken
+        );
+        const isSubmitted =
+          new Date() >=
+            new Date(itemData?.additionalDetail?.registrationExpiry) ||
+          !!application;
         // Fetch additional filters if filterTypeId exists in additionalDetail
         let additionalFilters = null;
-        if (itemData?.additionalDetail?.filterTypeId) { 
+        if (itemData?.additionalDetail?.filterTypeId) {
           try {
             additionalFilters = await this.filterOptionModel
               .find({
-                filterTypeId: new Types.ObjectId(itemData?.additionalDetail?.filterTypeId),
+                filterTypeId: new Types.ObjectId(
+                  itemData?.additionalDetail?.filterTypeId
+                ),
                 status: EStatus.Active,
               })
-              .sort({ sortOrder: 1 }) 
+              .sort({ sortOrder: 1 })
               .lean();
           } catch (error) {
             console.log("Error fetching filter options:", error);
             additionalFilters = null;
           }
         }
-    
+
         return {
           item: itemData,
           award: awardData,
           participants: nominationsData,
           filterOptions: additionalFilters,
+          isSubmitted: isSubmitted,
         };
       } else {
         const itemData = await this.itemModel.findOne({ _id: id }).lean();
