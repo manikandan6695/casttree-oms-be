@@ -6,7 +6,6 @@ import {
   skillSchema,
 } from "./language.schema";
 
-
 export interface expertiseModel {
   category_id: string;
   name: string;
@@ -16,37 +15,64 @@ export const expertiseSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "category",
   },
-
   name: {
     type: String,
   },
 })
 
-export interface serviceItemAdditionalDetailModel {
+// Add Category Schema
+export interface categoryModel {
+  name: string;
+  filterOptionId: string;
+}
+export const categorySchema = new mongoose.Schema<any>({
+  name: {
+    type: String,
+    required: true
+  },
+  filterOptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "filterOptions",
+    required: true
+  }
+});
 
+// Add Proficiency Schema
+export interface proficiencyModel {
+  name: string;
+  filterOptionId: string;
+}
+export const proficiencySchema = new mongoose.Schema<any>({
+  name: {
+    type: String,
+    required: true
+  },
+  filterOptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "filterOptions",
+    required: true
+  }
+});
+
+export interface serviceItemAdditionalDetailModel {
   processId: string;
   thumbnail: string;
   ctaName: string;
   navigationURL: string;
 }
 export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
-
   processId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "processes",
+    ref: "process",
   },
-  thumbnail: {
-    type: String
+  parentProcessId: {  // Add missing field
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "process",
   },
-  ctaName: {
-    type: String
-  },
-  navigationURL: {
-    type: String
-  },
-
-
-})
+  thumbnail: { type: String },
+  ctaName: { type: String },
+  navigationURL: { type: String },
+});
 
 export interface tagModel {
   filter(arg0: (tagItem: any) => boolean): unknown;
@@ -59,18 +85,13 @@ export const tagSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "category",
   },
-
   name: {
     type: String,
   },
-
   order: {
     type: Number,
   },
-
 })
-
-
 
 export interface serviceitems {
   itemId: string;
@@ -84,8 +105,9 @@ export interface serviceitems {
   expertise: expertiseModel;
   tag: tagModel;
   additionalDetails: serviceItemAdditionalDetailModel;
-  priorityOrder:number
-
+  priorityOrder: number;
+  category: categoryModel[];  // Add category field
+  proficiency: proficiencyModel[];  // Add proficiency field
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>({
@@ -112,14 +134,18 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   },
   type: {
     type: String,
-
-
   },
   expertise: [expertiseSchema],
   tag: [tagSchema],
   additionalDetails: serviceItemAdditionalDetailSchema,
   priorityOrder: {
     type: Number,
-},
-
+  },
+  // Add the new fields
+  category: [categorySchema],  // Array of category objects
+  proficiency: [proficiencySchema],  // Array of proficiency objects
+  __v: { type: Number, default: 0 },  // Add missing __v field
+}, {
+  collection: "serviceitems",
+  timestamps: { createdAt: "created_at", updatedAt: "updated_at" }
 });

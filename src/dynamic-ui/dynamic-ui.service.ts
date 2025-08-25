@@ -17,7 +17,6 @@ import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.e
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { EComponentKey, EComponentType, EItemType } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
-import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
@@ -27,6 +26,15 @@ import { processModel } from "src/process/schema/process.schema";
 import { EUpdateSeriesTag } from './dto/update-series-tag.dto';
 import { EUpdateComponents } from './dto/update-components.dto';
 import { ICategory } from "./schema/category.schema";
+import { AddNewSeriesDto } from "./dto/add-new-series.dto";
+import { IItemModel } from "src/item/schema/item.schema";
+import { ILanguage } from "src/shared/schema/language.schema";
+import { IProfileModel } from "src/shared/schema/profile.schema";
+import { ISkillModel } from "src/shared/schema/skills.schema";
+import { IRoleModel } from "src/shared/schema/role.schema";
+import axios from "axios";
+import { UserOrganizationSchema, IUserOrganizationModel } from "src/shared/schema/user-organization.schema";
+import { OrganizationSchema, IOrganizationModel } from "src/shared/schema/organization.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -52,6 +60,20 @@ export class DynamicUiService {
     private readonly processModel: Model<processModel>,
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
+    @InjectModel("item")
+    private readonly itemModel: Model<IItemModel>,
+    @InjectModel("language")
+    private readonly languageModel: Model<ILanguage>,
+    @InjectModel("profile")
+    private readonly profileModel: Model<IProfileModel>,
+    @InjectModel("skills")
+    private readonly skillModel: Model<ISkillModel>,
+    @InjectModel("role")
+    private readonly roleModel: Model<IRoleModel>,
+    @InjectModel("userOrganization")
+    private readonly userOrganizationModel: Model<IUserOrganizationModel>,
+    @InjectModel("organization")
+    private readonly organizationModel: Model<IOrganizationModel>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
@@ -1349,20 +1371,300 @@ export class DynamicUiService {
     }
   }
 
-  async addNewSeries(data: any) { 
+  async getFilterOptions() {
     try {
-      const process = await this.processModel.findOne({
-        _id: new ObjectId("677237d18c36d481c52f5a90")
-      }).lean();
-      console.log("process", process)
+      const proficiencyOptions = await this.filterOptionsModel.find({
+        filterType: "proficiency",
+        status: "Active"
+      })
+      .select('_id optionValue')
+      .sort({ sortOrder: 1 })
+      .lean();
 
-      console.log("data", data)
+      const categoryOptions = await this.filterOptionsModel.find({
+        filterType: "category",
+        status: "Active"
+      })
+      .select('_id optionValue')
+      .sort({ sortOrder: 1 })
+      .lean();
 
       return {
-        success: true,
-      }
+        proficiency: proficiencyOptions,
+        category: categoryOptions
+      };
     } catch (error) {
       throw error;
+    }
+  }
+
+  async getExpertList() {
+    try {
+      const experts = await this.profileModel.find({
+        type: "Expert"
+      }).select("userId displayName").lean();
+      console.log("experts", experts)
+      
+      return experts;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getSkillList() {
+    try {
+      const skills = await this.skillModel.find({
+        status: "Active"
+      }).select("_id skill_name").lean();
+      
+      console.log("skills", skills);
+      return skills;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getRoleList() {
+    try {
+      const roles = await this.roleModel.find({
+        status: "Active"
+      }).select("_id role_name").lean();
+      
+      console.log("roles", roles);
+      return roles;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getLanguageList() {
+    try {
+      const languages = await this.languageModel.find({
+      }).select("_id language_name").lean();
+      return languages;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getSeriesData() {
+    try {
+      const getSeriesData = {
+        filterOptions: await this.getFilterOptions(),
+        experts: await this.getExpertList(),
+        skills: await this.getSkillList(),
+        roles: await this.getRoleList(),
+        languages: await this.getLanguageList(),
+      }
+
+      return getSeriesData;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async addNewSeries(data: AddNewSeriesDto, userToken: UserToken) { 
+    // Start a session for the transaction
+    const session = await this.itemModel.db.startSession();
+    
+    try {
+      // Start the transaction
+      await session.withTransaction(async () => {
+
+        const expert = await this.profileModel.findOne({
+          type: "Expert",
+          displayName: data.expert
+        }).select("_id displayName userId").session(session).lean();
+
+        const orgId = await this.userOrganizationModel.findOne({
+          userId: new ObjectId(expert.userId),
+        }).select("_id organizationId").lean();
+
+        const org = await this.organizationModel.findOne({
+          _id: orgId.organizationId,
+        }).select("_id organizationName phoneCountryCode phoneNumber").lean();
+        
+        const newItem = await this.itemModel.create([{
+          "platformItemId": new ObjectId("678e5803560c74f7eb0686b3"),
+          "itemName": data.seriesName,
+          "itemDescription": data.itemDescription,
+          "additionalDetail": {
+            "isEnableExpertQueries": data.expertQueriesEnabled,
+            "reponseMode": "FormResponse",
+            "maxFollowup": -1,
+            "maxCustomQuestions": -1,
+            "planDetails": [],
+            "badgeColour": "#FFC107D4",
+            "validity": "for this series",
+            "promotionDetails": {
+              "title": "Buy only this series ",
+              "ctaName": "this series",
+              "planUserSave": "Switch to Pro and save INR 1000+",
+              "subtitle": "This will only unlock the series that you are currently watching",
+              "payWallVideo": "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+              "paywallVisibility": true
+            },
+            "allowMulti": false
+          },
+          "itemCommissionMarkupType": "Percent",
+          "itemCommissionMarkup": 0,
+          "isItemCommissionIncluded": false,
+          "itemStatus": "Active",
+          "price": data.price,
+          "currency": {
+            "_id": new ObjectId("6091525bf2d365fa107635e2"),
+            "currency_name": "Indian Rupee",
+            "currency_code": "INR"
+          },
+          "status": "Active",
+          "item_taxes": [
+            {
+              "item_tax_specification": new ObjectId("6093710eaf330d4074429afe"),
+              "item_tax_id": new ObjectId("61d3dc51c62fec16fec825e8")
+            }
+          ],
+          "comparePrice": data.comparePrice,
+          "orgId": {
+            "_id": org._id,
+            "phoneCountryCode": org.phoneCountryCode,
+            "phoneNumber": org.phoneNumber,  // ⭐ Changed from { "$numberLong": org.phoneNumber } to simple string
+            "created_at": new Date(),
+            "updated_at": new Date(),
+            "__v": 0,
+            "organizationName": org.organizationName,
+            "organizationId": org._id
+          }
+        }], { session }); // Pass session to create operation
+        const itemId = newItem[0]._id; // Note: create with session returns array
+        console.log("itemId", itemId)
+
+        // Create the process document
+        const newProcess = await this.processModel.create([{
+          "processMetaData": {},
+          "parentProcessId": "null"
+        }], { session }); // Pass session to create operation
+        const processId = newProcess[0]._id; // Note: create with session returns array
+        console.log("processId", processId)
+
+        // Fetch language data
+        const language = await this.languageModel.aggregate([
+          {
+            $match: { language_name: { $in: data.languages } }
+          },
+          {
+            $project: {
+              languageId: "$_id",                
+              languageName: "$language_name",    
+              languageCode: "$language_code"
+            }
+          }
+        ], { session }); // Pass session to aggregate operation
+
+        // Fetch skill data
+        const skill = await this.skillModel.aggregate([
+          {
+            $match: { skill_name: { $in: data.skills } }
+          },
+          {
+            $project: {
+              skillId: "$_id",
+              skillName: "$skill_name"
+            }
+          }
+        ], { session }); // Pass session to aggregate operation
+
+        // Fetch category data - only those matching frontend data
+        const category = await this.filterOptionsModel.aggregate([
+          {
+            $match: {
+              filterType: "category",
+              status: "Active",
+              optionValue: { $in: data.category }  // ⭐ Only get categories from frontend data
+            }
+          },
+          {
+            $project: {
+              name: "$optionValue",
+              filterOptionId: "$_id"
+            }
+          }
+        ], { session });
+
+        // Fetch proficiency data - only those matching frontend data
+        const proficiency = await this.filterOptionsModel.aggregate([
+          {
+            $match: {
+              filterType: "proficiency",
+              status: "Active",
+              optionValue: { $in: data.proficiency }  // ⭐ Only get proficiencies from frontend data
+            }
+          },
+          {
+            $project: {
+              name: "$optionValue",
+              filterOptionId: "$_id"
+            }
+          }
+        ], { session });
+  
+        // Get the tag order length
+        const tagOrder = await this.getComponent(userToken, "6857a1a98f7f9f8133738fe5", 0, 100, {})
+        const tagOrderData = tagOrder.component.actionData
+        const length = tagOrderData[tagOrderData.length - 1].tagOrder;
+
+        // Create the service item document
+        const newServiceItem = await this.serviceItemModel.create([{
+          "itemId": new ObjectId(itemId),
+          "userId": new ObjectId(expert.userId),
+          "language": language,
+          "status": "Active",
+          "__v": 0,
+          "itemSold": 0,
+          "skill": {
+            "skillId": new ObjectId(skill[0].skillId),
+            "skillName": skill[0].skillName
+          },
+          "type": "courses",
+          "additionalDetails": {
+            "ctaName": "Start Learning",
+            "navigationURL": "a",
+            "thumbnail": data.thumbnail,
+            "processId": new ObjectId(processId),
+            "parentProcessId": new ObjectId(processId)
+          },
+          "tag": [
+            {
+              "category_id": new ObjectId("6821a3ede5095e1edae5c555"),
+              "order": length + 1,
+              "name": "allSeries"
+            }
+          ],
+          "priorityOrder": 2,
+          "proficiency": proficiency,
+          "category": category
+        }], { session }); // Pass session to create operation
+        const serviceItemId = newServiceItem[0]._id;
+        console.log("newServiceItem id", serviceItemId)
+      });
+
+      // If we reach here, the transaction was successful
+      return {
+        success: true,
+        message: "Series created successfully"
+      }
+      
+    } catch (error) {
+      // Transaction will automatically rollback on error
+      console.error("Transaction failed:", error);
+      throw error;
+    } finally {
+      // Always end the session
+      await session.endSession();
     }
   }
 }

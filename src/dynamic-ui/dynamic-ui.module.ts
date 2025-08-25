@@ -18,6 +18,13 @@ import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { processSchema } from "src/process/schema/process.schema";
 import { categorySchema } from "./schema/category.schema";
+import { ItemSchema } from "src/item/schema/item.schema";
+import { LanguageSchema } from "src/shared/schema/language.schema";
+import { ProfileSchema } from "src/shared/schema/profile.schema";
+import { SkillsSchema } from "src/shared/schema/skills.schema";
+import { RoleSchema } from "src/shared/schema/role.schema";
+import { UserOrganizationSchema } from "src/shared/schema/user-organization.schema";
+import { OrganizationSchema } from "src/shared/schema/organization.schema";
 
 @Module({
   imports: [
@@ -32,7 +39,14 @@ import { categorySchema } from "./schema/category.schema";
       { name: "filterTypes", schema: FilterTypeSchema},
       { name: "filterOptions", schema: FilterOptionSchema},
       { name: "process", schema: processSchema },
-      { name: "category", schema: categorySchema }
+      { name: "category", schema: categorySchema },
+      { name: "item", schema: ItemSchema },
+      { name: "language", schema: LanguageSchema },
+      { name: "profile", schema: ProfileSchema },
+      { name: "skills", schema: SkillsSchema },
+      { name: "role", schema: RoleSchema },
+      { name: "userOrganization", schema: UserOrganizationSchema },
+      { name: "organization", schema: OrganizationSchema },
     ]),
     SharedModule,
     AuthModule,

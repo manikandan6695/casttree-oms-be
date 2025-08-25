@@ -19,6 +19,7 @@ import { DynamicUiService } from "./dynamic-ui.service";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EFilterOption } from "./dto/filter-option.dto";
+import { AddNewSeriesDto } from "./dto/add-new-series.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -108,14 +109,29 @@ export class DynamicUiController {
     }
   }
 
+  // @UseGuards(JwtAuthGuard)
+  @Get("series/data")
+  async getExpertList(
+    @Req() req
+  ) {
+    try {
+      const res = await this.dynamicUIService.getSeriesData();
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post("series/create")
   async addNewSeries(
     @Req() req,
-    @Body(new ValidationPipe({ transform: true })) createDto: any
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ transform: true })) createDto: AddNewSeriesDto
   ) {
     try {
-      const res = await this.dynamicUIService.addNewSeries(createDto);    
+      const res = await this.dynamicUIService.addNewSeries(createDto, token); 
+      console.log("res", res);
       return res;
     } catch (err) {
       throw err;
