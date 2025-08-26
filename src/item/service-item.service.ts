@@ -1452,4 +1452,95 @@ export class ServiceItemService {
       throw error;
     }
   }
+  async getContestDetailBySkillId() {
+    try {
+      const skills = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.contest,
+            status: Estatus.Active,
+            "skill.skillId": { $exists: true, $ne: null }
+          }
+        },
+        {
+          $lookup: {
+            from: "skills",
+            localField: "skill.skillId",
+            foreignField: "_id",
+            as: "skillDetails"
+          }
+        },
+        {
+          $unwind: {
+            path: "$skillDetails",
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $lookup: {
+            from: 'systemConfiguration',
+            let: {key: "contest_skill_image"},
+            pipeline: [
+              {$match: {key: "contest_skill_image"}},
+              {$project: {_id: 0, value: 1}}
+            ],
+            as: "contestConfig"
+          }
+        },
+        {
+          $unwind: {
+            path: "$contestConfig",
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $group: {
+            _id: "$skillDetails._id",
+            skillId: { $first: "$skillDetails._id" },
+            skillName: { $first: "$skillDetails.skill_name" },
+            contestSkillImage: { $first: "$contestConfig.value.media" }
+          }
+        },
+        {
+          $addFields: {
+            mediaUrl: {
+              $let: {
+                vars: {
+                  matchedMedia: {
+                    $filter: {
+                      input: "$contestSkillImage",
+                      cond: {
+                        $eq: [
+                          { $toLower: "$$this.name" },
+                          { $toLower: "$skillName" }
+                        ]
+                      }
+                    }
+                  }
+                },
+                in: { $arrayElemAt: ["$$matchedMedia.mediaUrl", 0] }
+              }
+            }
+          }
+        },
+        {
+          $sort: {
+            skillName: 1
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            skillId: 1,
+            skillName: 1,
+            mediaUrl: 1
+          }
+        }
+      ]);
+
+      return { data: skills };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
