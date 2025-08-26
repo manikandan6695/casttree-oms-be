@@ -35,6 +35,8 @@ import { IRoleModel } from "src/shared/schema/role.schema";
 import axios from "axios";
 import { UserOrganizationSchema, IUserOrganizationModel } from "src/shared/schema/user-organization.schema";
 import { OrganizationSchema, IOrganizationModel } from "src/shared/schema/organization.schema";
+import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
+import { taskModel } from "src/process/schema/task.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -74,9 +76,11 @@ export class DynamicUiService {
     private readonly userOrganizationModel: Model<IUserOrganizationModel>,
     @InjectModel("organization")
     private readonly organizationModel: Model<IOrganizationModel>,
+    @InjectModel("task")
+    private readonly taskModel: Model<taskModel>,
     private processService: ProcessService,
     private helperService: HelperService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
   ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -363,6 +367,35 @@ export class DynamicUiService {
         }
       }
 
+      // ⭐ Add itemName to actionData after getting serviceItemData
+      if (component.actionData && component.actionData.length > 0) {
+        // Get all unique itemIds from actionData
+        const itemIds = [...new Set(
+          component.actionData
+            .map(item => item.itemId)
+            .filter(id => id)
+        )];
+
+        if (itemIds.length > 0) {
+          // Lookup items to get itemNames
+          const items = await this.itemModel
+            .find({ _id: { $in: itemIds } })
+            .select('_id itemName')
+            .lean();
+
+          // Create a map for quick lookup
+          const itemNameMap = new Map(
+            items.map(item => [item._id.toString(), item.itemName])
+          );
+
+          // Add itemName to each actionData element
+          component.actionData = component.actionData.map(item => ({
+            ...item,
+            itemName: itemNameMap.get(item.itemId?.toString()) || null
+          }));
+        }
+      }
+
       return { component };
     } catch (err) {
       throw err;
@@ -627,6 +660,24 @@ export class DynamicUiService {
       aggregationPipeline.push({
         $match: filter,
       });
+      
+      // ⭐ Add lookup to get item details BEFORE grouping
+      aggregationPipeline.push({
+        $lookup: {
+          from: "item",
+          localField: "itemId",
+          foreignField: "_id",
+          as: "itemDetails"
+        }
+      });
+      
+      // ⭐ Add itemName to the document
+      aggregationPipeline.push({
+        $addFields: {
+          itemName: { $arrayElemAt: ["$itemDetails.itemName", 0] }
+        }
+      });
+      
       let countPipe = [...aggregationPipeline];
       if (isPagination) {
         aggregationPipeline.push({
@@ -689,7 +740,11 @@ export class DynamicUiService {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                  { 
+                    tagOrder: "$tagOrder", 
+                    tagName: "$tagName",
+                    itemName: "$itemName"  // ⭐ Include itemName in the merged object
+                  },
                 ],
               },
             },
@@ -1403,7 +1458,7 @@ export class DynamicUiService {
       const experts = await this.profileModel.find({
         type: "Expert"
       }).select("userId displayName").lean();
-      console.log("experts", experts)
+      // console.log("experts", experts)
       
       return experts;
     }
@@ -1418,7 +1473,7 @@ export class DynamicUiService {
         status: "Active"
       }).select("_id skill_name").lean();
       
-      console.log("skills", skills);
+      // console.log("skills", skills);
       return skills;
     }
     catch (error) {
@@ -1432,7 +1487,7 @@ export class DynamicUiService {
         status: "Active"
       }).select("_id role_name").lean();
       
-      console.log("roles", roles);
+      // console.log("roles", roles);
       return roles;
     }
     catch (error) {
@@ -1665,6 +1720,67 @@ export class DynamicUiService {
     } finally {
       // Always end the session
       await session.endSession();
+    }
+  }
+
+  async addNewEpisodes(data: AddNewEpisodesDto) {
+    try {
+      console.log("data", JSON.stringify(data, null, 2));
+      
+      // Start a session for the transaction
+      const session = await this.taskModel.db.startSession();
+      
+      try {
+        // Start the transaction
+        const createdEpisodes = await session.withTransaction(async () => {
+          // Prepare episodes for creation
+          const episodesToCreate = data.episodes.map(episode => ({
+            title: episode.title,
+            type: episode.type,
+            isLocked: episode.isLocked,
+            taskNumber: episode.taskNumber,
+            parentProcessId: new ObjectId(episode.parentProcessId),
+            processId: new ObjectId(episode.processId),
+            taskMetaData: {
+              media: episode.taskMetaData.media.map(media => ({
+                type: media.type,
+                mediaId: media.mediaId || "",
+                mediaUrl: media.mediaUrl || ""
+              })),
+              shareText: episode.taskMetaData.shareText || ""
+            },
+            status: "Active"
+          }));
+
+          // Create all episodes in the transaction
+          const createdTasks = await this.taskModel.create(episodesToCreate, { session });
+          
+          console.log(`Successfully created ${createdTasks.length} episodes`);
+          return createdTasks;
+        });
+
+        return {
+          success: true,
+          message: `${createdEpisodes.length} episodes created successfully`,
+          seriesId: data.seriesId,
+          seriesTitle: data.seriesTitle,
+          createdEpisodes: createdEpisodes.map(ep => ({
+            _id: ep._id,
+            title: ep.title,
+            taskNumber: ep.taskNumber,
+            type: ep.type,
+            isLocked: ep.isLocked
+          }))
+        };
+        
+      } finally {
+        // Always end the session
+        await session.endSession();
+      }
+      
+    } catch (error) {
+      console.error("Error creating episodes:", error);
+      throw error;
     }
   }
 }

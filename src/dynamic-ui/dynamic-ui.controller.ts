@@ -20,10 +20,19 @@ import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EFilterOption } from "./dto/filter-option.dto";
 import { AddNewSeriesDto } from "./dto/add-new-series.dto";
+import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
+import { taskModel } from "src/process/schema/task.schema";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { ObjectId } from "mongodb";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
-  constructor(private dynamicUIService: DynamicUiService) {}
+  constructor(
+    private dynamicUIService: DynamicUiService,
+    @InjectModel("task")
+    private readonly taskModel: Model<taskModel>,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get("navbar/:key")
@@ -132,6 +141,21 @@ export class DynamicUiController {
     try {
       const res = await this.dynamicUIService.addNewSeries(createDto, token); 
       console.log("res", res);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("episode/add")
+  async addNewEpisodes(
+    @Req() req,
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ transform: true })) createDto: AddNewEpisodesDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewEpisodes(createDto);
       return res;
     } catch (err) {
       throw err;

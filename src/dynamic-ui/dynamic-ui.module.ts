@@ -25,6 +25,7 @@ import { SkillsSchema } from "src/shared/schema/skills.schema";
 import { RoleSchema } from "src/shared/schema/role.schema";
 import { UserOrganizationSchema } from "src/shared/schema/user-organization.schema";
 import { OrganizationSchema } from "src/shared/schema/organization.schema";
+import { taskSchema } from "src/process/schema/task.schema";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { OrganizationSchema } from "src/shared/schema/organization.schema";
       { name: "role", schema: RoleSchema },
       { name: "userOrganization", schema: UserOrganizationSchema },
       { name: "organization", schema: OrganizationSchema },
+      { name: "task", schema: taskSchema },
     ]),
     SharedModule,
     AuthModule,
