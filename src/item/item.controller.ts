@@ -98,4 +98,26 @@ export class ItemController {
       return err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("get-item/:id")
+  @Version("3")
+  async getItemV3(
+    @Req() req,
+    @Param("id") id: string,
+    @Query("skip") skip: number,
+    @Query("limit") limit: number
+  ) {
+    try {
+      let data = await this.itemService.getItem(
+        id,
+        skip,
+        limit,
+        req.headers["x-api-version"],
+        req.headers["authorization"]
+      );
+      return data;
+    } catch (err) {
+      return err;
+    }
+  }
 }

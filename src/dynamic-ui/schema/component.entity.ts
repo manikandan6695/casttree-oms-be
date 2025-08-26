@@ -1,11 +1,21 @@
 import mongoose, { Document } from "mongoose";
-
 export interface IItems {
   banner: string;
   status: string;
+  filterTypeId: string;
+  type: string;
+  button: {
+    lable: string;
+    style: Object;
+  };
+  options: any[];
 }
 export interface IInteractionData {
-  items: IItems[];
+  items: any[];
+}
+export interface IButton {
+  lable: string;
+  style: Object;
 }
 export interface IComponent extends Document {
   componentKey: string;
@@ -16,6 +26,7 @@ export interface IComponent extends Document {
   order: number;
   status: string;
   actionData: any;
+  recommendedList: any[];
   metaData: Record<string, any>;
   navigation: any;
   interactionData: IInteractionData;
@@ -27,8 +38,11 @@ export interface IComponent extends Document {
   created_at: Date;
   updated_at: Date;
 }
-
 export const ItemsSchema = new mongoose.Schema({
+  filterTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "filterTypes" },
+  type: {
+    type: String
+  },
   banner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "bannerConfiguration",
@@ -36,11 +50,18 @@ export const ItemsSchema = new mongoose.Schema({
   status: {
     type: String,
   },
+  button: {
+    type: mongoose.Schema.Types.Mixed
+  },
+ options: [
+    {
+      type: mongoose.Schema.Types.Mixed,
+    }
+  ]
 });
 export const InteractionDataSchema = new mongoose.Schema({
   items: [ItemsSchema],
 });
-
 export const ComponentSchema = new mongoose.Schema(
   {
     componentKey: { type: String, required: true },
@@ -61,6 +82,9 @@ export const ComponentSchema = new mongoose.Schema(
     actionData: {
       type: mongoose.Schema.Types.Mixed,
     },
+    recommendedList: [{
+      type: mongoose.Schema.Types.Mixed,
+    }],
     interactionData: InteractionDataSchema,
     metaData: { type: mongoose.Schema.Types.Mixed },
     navigation: {

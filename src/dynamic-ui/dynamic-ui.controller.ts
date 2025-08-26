@@ -9,11 +9,14 @@ import {
   Headers,
   Req,
   Version,
+  Post,
+  Body,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
+import { EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -39,10 +42,11 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.dynamicUIService.getPageDetails(token, pageId);
+      let data = await this.dynamicUIService.getPageDetails(token, pageId, filterOption );
       return data;
     } catch (err) {
       throw err;
@@ -55,14 +59,16 @@ export class DynamicUiController {
     @Param("componentId") componentId: string,
     @GetToken() token: UserToken,
     @Query("skip", ParseIntPipe) skip: number,
-    @Query("limit", ParseIntPipe) limit: number
+    @Query("limit", ParseIntPipe) limit: number,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
   ) {
     try {
       let data = await this.dynamicUIService.getComponent(
         token,
         componentId,
         skip,
-        limit
+        limit,
+        filterOption
       );
       return data;
     } catch (err) {
