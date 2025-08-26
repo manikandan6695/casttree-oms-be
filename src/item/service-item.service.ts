@@ -14,7 +14,7 @@ import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
-import { EserviceItemType } from "./enum/serviceItem.type.enum";
+import { EserviceItemType,ESkillId } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
@@ -140,12 +140,11 @@ export class ServiceItemService {
           filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      if (query.skillId) {
-        if (typeof query.skillId === "string") {
-          filter["skill.skillId"] = query.skillId;
-        } else {
-          filter["skill.skillId"] = { $in: query.skillId };
-        }
+      const skillId = query.skillId || ESkillId.skillId;
+      if (typeof skillId === "string") {
+        filter["skill.skillId"] = skillId;
+      } else {
+        filter["skill.skillId"] = { $in: skillId };
       }
       if (query.type) {
         filter["type"] = query.type;
