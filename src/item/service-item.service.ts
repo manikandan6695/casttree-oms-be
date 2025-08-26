@@ -14,7 +14,7 @@ import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
-import { EserviceItemType } from "./enum/serviceItem.type.enum";
+import { EserviceItemType,ESkillId } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
@@ -140,12 +140,11 @@ export class ServiceItemService {
           filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      if (query.skillId) {
-        if (typeof query.skillId === "string") {
-          filter["skill.skillId"] = query.skillId;
-        } else {
-          filter["skill.skillId"] = { $in: query.skillId };
-        }
+      const skillId = query.skillId || ESkillId.skillId;
+      if (typeof skillId === "string") {
+        filter["skill.skillId"] = skillId;
+      } else {
+        filter["skill.skillId"] = { $in: skillId };
       }
       if (query.type) {
         filter["type"] = query.type;
@@ -1448,6 +1447,97 @@ export class ServiceItemService {
         comparePrice: itemData?.comparePrice,
       };
       return { data: finalResponse };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getContestDetailBySkillId() {
+    try {
+      const skills = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.contest,
+            status: Estatus.Active,
+            "skill.skillId": { $exists: true, $ne: null }
+          }
+        },
+        {
+          $lookup: {
+            from: "skills",
+            localField: "skill.skillId",
+            foreignField: "_id",
+            as: "skillDetails"
+          }
+        },
+        {
+          $unwind: {
+            path: "$skillDetails",
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $lookup: {
+            from: 'systemConfiguration',
+            let: {key: "contest_skill_image"},
+            pipeline: [
+              {$match: {key: "contest_skill_image"}},
+              {$project: {_id: 0, value: 1}}
+            ],
+            as: "contestConfig"
+          }
+        },
+        {
+          $unwind: {
+            path: "$contestConfig",
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $group: {
+            _id: "$skillDetails._id",
+            skillId: { $first: "$skillDetails._id" },
+            skillName: { $first: "$skillDetails.skill_name" },
+            contestSkillImage: { $first: "$contestConfig.value.media" }
+          }
+        },
+        {
+          $addFields: {
+            mediaUrl: {
+              $let: {
+                vars: {
+                  matchedMedia: {
+                    $filter: {
+                      input: "$contestSkillImage",
+                      cond: {
+                        $eq: [
+                          { $toLower: "$$this.name" },
+                          { $toLower: "$skillName" }
+                        ]
+                      }
+                    }
+                  }
+                },
+                in: { $arrayElemAt: ["$$matchedMedia.mediaUrl", 0] }
+              }
+            }
+          }
+        },
+        {
+          $sort: {
+            skillName: 1
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            skillId: 1,
+            skillName: 1,
+            mediaUrl: 1
+          }
+        }
+      ]);
+
+      return { data: skills };
     } catch (error) {
       throw error;
     }

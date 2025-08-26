@@ -86,6 +86,15 @@ export class ServiceItemController {
     }
   }
 
+  @Get("skills")
+  async getContestDetailBySkillId(){
+    try {
+      const data = await this.serviceItemService.getContestDetailBySkillId();
+      return data
+    } catch (error) {
+     throw error
+    }
+  }
   @Get("workShop")
   async getWorkshopServiceItems(
     @Req() req,
