@@ -20,14 +20,31 @@ export class MediaDto {
   type: string;
 
   @IsOptional()
-  mediaId?: string | ObjectIdDto;  // ⭐ Support both string and ObjectId format
+  mediaId?: string | ObjectIdDto;  // Support both string and ObjectId format
 
   @IsString()
   @IsOptional()
   mediaUrl?: string;
 }
 
-// ⭐ New DTO for advertisement-specific taskMetaData
+// ⭐ New DTO for Break-specific taskMetaData
+export class BreakTaskMetaDataDto {
+  @IsNumber()
+  @IsNotEmpty()
+  timeDurationInMin: number;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MediaDto)
+  @ArrayMinSize(1)
+  media: MediaDto[];
+
+  @IsString()
+  @IsOptional()
+  shareText?: string;
+}
+
+// Advertisement-specific DTO (existing)
 export class AdvertisementTaskMetaDataDto {
   @IsArray()
   @ValidateNested({ each: true })
@@ -39,7 +56,7 @@ export class AdvertisementTaskMetaDataDto {
   @IsOptional()
   shareText?: string;
 
-  // ⭐ Advertisement-specific fields
+  // Advertisement-specific fields
   @IsString()
   @IsOptional()
   redirectionUrl?: string;
@@ -57,13 +74,63 @@ export class AdvertisementTaskMetaDataDto {
   ctaname?: string;
 }
 
-// ⭐ Base TaskMetaData for video episodes (existing functionality)
+// Base TaskMetaData for video episodes (existing functionality)
 export class TaskMetaDataDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => MediaDto)
   @ArrayMinSize(1)
   media: MediaDto[];
+
+  @IsString()
+  @IsOptional()
+  shareText?: string;
+}
+
+// ⭐ Add Q&A metadata DTO
+export class QATaskMetaDataDto {
+  @IsString()
+  @IsNotEmpty()
+  question: string;
+
+  @IsString()
+  @IsNotEmpty()
+  // text | audio | video (accept case-insensitive from samples)
+  questionType: string;
+
+  @IsString()
+  @IsOptional()
+  // Only for audio/video question types
+  questionMediaUrl?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  // MCQ | Audio | Video | Upload | Text response
+  responseFormat: string;
+
+  @IsString()
+  @IsOptional()
+  // For Text response form
+  response?: string;
+
+  @IsArray()
+  @IsOptional()
+  options?: string[];
+
+  @IsString()
+  @IsOptional()
+  correctAnswer?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isSkippable?: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MediaDto)
+  @ArrayMinSize(0)
+  @IsOptional()
+  media?: MediaDto[];
 
   @IsString()
   @IsOptional()
@@ -88,7 +155,7 @@ export class EpisodeDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn(['video', 'audio', 'text', 'quiz', 'assignment', 'advertisement'])  // ⭐ Add advertisement type
+  @IsIn(['video', 'audio', 'text', 'quiz', 'assignment', 'advertisement', 'Break', 'Q&A'])
   type: string;
 
   @IsBoolean()
@@ -105,7 +172,7 @@ export class EpisodeDto {
   @IsNotEmpty()
   processId: string;
 
-  // ⭐ Use union type to support both video and advertisement metadata
+  // ⭐ Updated union type to include Break metadata
   @ValidateNested()
   @Type(() => TaskMetaDataDto, {
     discriminator: {
@@ -116,12 +183,18 @@ export class EpisodeDto {
         { value: TaskMetaDataDto, name: 'text' },
         { value: TaskMetaDataDto, name: 'quiz' },
         { value: TaskMetaDataDto, name: 'assignment' },
-        { value: AdvertisementTaskMetaDataDto, name: 'advertisement' }
+        { value: AdvertisementTaskMetaDataDto, name: 'advertisement' },
+        { value: BreakTaskMetaDataDto, name: 'Break' },
+        { value: QATaskMetaDataDto, name: 'Q&A' }
       ]
     },
     keepDiscriminatorProperty: false
   })
-  taskMetaData: TaskMetaDataDto | AdvertisementTaskMetaDataDto;
+  taskMetaData: 
+    | TaskMetaDataDto 
+    | AdvertisementTaskMetaDataDto 
+    | BreakTaskMetaDataDto
+    | QATaskMetaDataDto;
 }
 
 export class AddNewEpisodesDto {
