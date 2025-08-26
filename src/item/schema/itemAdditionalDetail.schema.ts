@@ -110,6 +110,7 @@ export interface itemAdditionalDetailModel {
   endTime: String;
   thumbnail: String;
   faq: faqModel[];
+  filterTypeId : string;
   highlights: highlightsModel[];
   targetUsers: targetUsersModel[];
   testimonials: testimonialModel[];
@@ -121,7 +122,9 @@ export interface itemAdditionalDetailModel {
   promotionDetails: any;
   premiumPage: any;
   ratingSummary: string;
-  isEnableExpertQueries:boolean
+  isEnableExpertQueries:boolean;
+  coinValue: number,
+  bottomSheet : any;
 }
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
@@ -132,6 +135,7 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
     type: String,
   },
   allowMulti: { type: Boolean, default: false },
+  filterTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "filterType" },
   workShopEndDate: { type: Date },
   startTime: {
     type: String,
@@ -155,4 +159,6 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   premiumPage: { type: mongoose.Schema.Types.Mixed },
   ratingSummary: { type: String },
   isEnableExpertQueries: {type: Boolean},
+  coinValue: {type: Number},
+  bottomSheet : { type: mongoose.Schema.Types.Mixed },
 });
