@@ -76,10 +76,7 @@ export class ItemService {
           awardData?._id,
           accessToken
         );
-
-        if (itemData?.additionalDetail?.allowMulti) {
-          itemData.additionalDetail.allowMulti = new Date() <= new Date(itemData.additionalDetail.registrationExpiry);
-        }
+        // console.log("application is", application);
         const isSubmitted =
           itemData?.additionalDetail?.allowMulti ||
           new Date() >=
