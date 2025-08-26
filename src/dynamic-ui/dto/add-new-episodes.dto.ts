@@ -19,15 +19,45 @@ export class MediaDto {
   @IsIn(['thumbNail', 'story', 'video', 'audio', 'image'])
   type: string;
 
-  @IsString()
   @IsOptional()
-  mediaId?: string;
+  mediaId?: string | ObjectIdDto;  // ⭐ Support both string and ObjectId format
 
   @IsString()
   @IsOptional()
   mediaUrl?: string;
 }
 
+// ⭐ New DTO for advertisement-specific taskMetaData
+export class AdvertisementTaskMetaDataDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MediaDto)
+  @ArrayMinSize(1)
+  media: MediaDto[];
+
+  @IsString()
+  @IsOptional()
+  shareText?: string;
+
+  // ⭐ Advertisement-specific fields
+  @IsString()
+  @IsOptional()
+  redirectionUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['Image', 'Video', 'Banner'])
+  type?: string;
+
+  @IsOptional()
+  expertId?: string | ObjectIdDto;  // Support both string and ObjectId format
+
+  @IsString()
+  @IsOptional()
+  ctaname?: string;
+}
+
+// ⭐ Base TaskMetaData for video episodes (existing functionality)
 export class TaskMetaDataDto {
   @IsArray()
   @ValidateNested({ each: true })
@@ -58,7 +88,7 @@ export class EpisodeDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn(['video', 'audio', 'text', 'quiz', 'assignment'])
+  @IsIn(['video', 'audio', 'text', 'quiz', 'assignment', 'advertisement'])  // ⭐ Add advertisement type
   type: string;
 
   @IsBoolean()
@@ -75,9 +105,23 @@ export class EpisodeDto {
   @IsNotEmpty()
   processId: string;
 
+  // ⭐ Use union type to support both video and advertisement metadata
   @ValidateNested()
-  @Type(() => TaskMetaDataDto)
-  taskMetaData: TaskMetaDataDto;
+  @Type(() => TaskMetaDataDto, {
+    discriminator: {
+      property: 'type',
+      subTypes: [
+        { value: TaskMetaDataDto, name: 'video' },
+        { value: TaskMetaDataDto, name: 'audio' },
+        { value: TaskMetaDataDto, name: 'text' },
+        { value: TaskMetaDataDto, name: 'quiz' },
+        { value: TaskMetaDataDto, name: 'assignment' },
+        { value: AdvertisementTaskMetaDataDto, name: 'advertisement' }
+      ]
+    },
+    keepDiscriminatorProperty: false
+  })
+  taskMetaData: TaskMetaDataDto | AdvertisementTaskMetaDataDto;
 }
 
 export class AddNewEpisodesDto {

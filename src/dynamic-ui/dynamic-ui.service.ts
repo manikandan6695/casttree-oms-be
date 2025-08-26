@@ -37,6 +37,8 @@ import { UserOrganizationSchema, IUserOrganizationModel } from "src/shared/schem
 import { OrganizationSchema, IOrganizationModel } from "src/shared/schema/organization.schema";
 import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
+import { mediaSchema } from "./schema/media.schema";
+import { mediaModel } from "./schema/media.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -78,6 +80,8 @@ export class DynamicUiService {
     private readonly organizationModel: Model<IOrganizationModel>,
     @InjectModel("task")
     private readonly taskModel: Model<taskModel>,
+    @InjectModel("media")
+    private readonly mediaModel: Model<mediaModel>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
@@ -1734,23 +1738,120 @@ export class DynamicUiService {
         // Start the transaction
         const createdEpisodes = await session.withTransaction(async () => {
           // Prepare episodes for creation
-          const episodesToCreate = data.episodes.map(episode => ({
-            title: episode.title,
-            type: episode.type,
-            isLocked: episode.isLocked,
-            taskNumber: episode.taskNumber,
-            parentProcessId: new ObjectId(episode.parentProcessId),
-            processId: new ObjectId(episode.processId),
-            taskMetaData: {
-              media: episode.taskMetaData.media.map(media => ({
-                type: media.type,
-                mediaId: media.mediaId || "",
-                mediaUrl: media.mediaUrl || ""
-              })),
-              shareText: episode.taskMetaData.shareText || ""
-            },
-            status: "Active"
-          }));
+          const episodesToCreate = await Promise.all(
+            data.episodes.map(async (episode) => {
+              // ⭐ Process media array differently based on episode type
+              let processedMedia;
+              
+              if (episode.type === 'advertisement') {
+                // For advertisement episodes, handle ObjectId format for mediaId
+                processedMedia = await Promise.all(
+                  episode.taskMetaData.media.map(async (media) => {
+                    let mediaId = '';
+                    
+                    // Handle both string and ObjectId format
+                    if (typeof media.mediaId === 'object' && media.mediaId?.$oid) {
+                      mediaId = media.mediaId.$oid;
+                    } else if (typeof media.mediaId === 'string') {
+                      mediaId = media.mediaId;
+                    }
+                    
+                    if (media.type === "story" && mediaId) {
+                      try {
+                        // Lookup the media document by mediaId to get location
+                        const mediaDoc = await this.mediaModel.findOne({
+                          _id: new ObjectId(mediaId)
+                        }).select('location').session(session).lean();
+                        
+                        if (mediaDoc && mediaDoc.location) {
+                          return {
+                            type: media.type,
+                            mediaId: new ObjectId(mediaId),  // ⭐ Store as ObjectId for story type
+                            mediaUrl: mediaDoc.location
+                          };
+                        }
+                      } catch (error) {
+                        console.warn(`Failed to lookup media for mediaId: ${mediaId}`, error);
+                      }
+                    }
+                    
+                    // For non-story types or if lookup fails, use original data
+                    return {
+                      type: media.type,
+                      mediaId: mediaId ? new ObjectId(mediaId) : "",  // ⭐ Convert ALL mediaIds to ObjectId for advertisement episodes
+                      mediaUrl: media.mediaUrl || ""
+                    };
+                  })
+                );
+              } else {
+                // For video/audio episodes (existing logic)
+                processedMedia = await Promise.all(
+                  episode.taskMetaData.media.map(async (media) => {
+                    if (media.type === "story" && media.mediaId) {
+                      try {
+                        // Lookup the media document by mediaId to get location
+                        const mediaDoc = await this.mediaModel.findOne({
+                          _id: new ObjectId(media.mediaId)
+                        }).select('location').session(session).lean();
+                        
+                        if (mediaDoc && mediaDoc.location) {
+                          return {
+                            type: media.type,
+                            mediaId: new ObjectId(media.mediaId),
+                            mediaUrl: mediaDoc.location
+                          };
+                        }
+                      } catch (error) {
+                        console.warn(`Failed to lookup media for mediaId: ${media.mediaId}`, error);
+                      }
+                    }
+                    
+                    // For non-story types or if lookup fails, use original data
+                    return {
+                      type: media.type,
+                      mediaId: media.mediaId || "",
+                      mediaUrl: media.mediaUrl || ""
+                    };
+                  })
+                );
+              }
+
+              // ⭐ Build taskMetaData based on episode type
+              let taskMetaData;
+              
+              if (episode.type === 'advertisement') {
+                const advMetaData = episode.taskMetaData as any; // Cast to access advertisement fields
+                taskMetaData = {
+                  media: processedMedia,
+                  shareText: advMetaData.shareText || "",
+                  redirectionUrl: advMetaData.redirectionUrl || "",
+                  type: advMetaData.type || "Image",
+                  expertId: advMetaData.expertId ? 
+                    (typeof advMetaData.expertId === 'object' && advMetaData.expertId.$oid ? 
+                      new ObjectId(advMetaData.expertId.$oid) : 
+                      new ObjectId(advMetaData.expertId)) : null,
+                  ctaname: advMetaData.ctaname || ""
+                };
+              } else {
+                // For video/audio episodes (existing logic)
+                taskMetaData = {
+                  media: processedMedia,
+                  shareText: episode.taskMetaData.shareText || ""
+                };
+              }
+
+              return {
+                title: episode.title,
+                type: episode.type,
+                isLocked: episode.isLocked,
+                taskNumber: episode.taskNumber,
+                parentProcessId: new ObjectId(episode.parentProcessId),
+                processId: new ObjectId(episode.processId),
+                taskMetaData: taskMetaData,
+                status: "Active"
+              };
+            })
+          );
 
           // Create all episodes in the transaction
           const createdTasks = await this.taskModel.create(episodesToCreate, { session });
