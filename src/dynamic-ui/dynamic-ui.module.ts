@@ -27,6 +27,7 @@ import { UserOrganizationSchema } from "src/shared/schema/user-organization.sche
 import { OrganizationSchema } from "src/shared/schema/organization.schema";
 import { taskSchema } from "src/process/schema/task.schema";
 import { mediaSchema } from "./schema/media.schema";
+import { Achievement, AchievementSchema } from './schema/achievement.schema';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { mediaSchema } from "./schema/media.schema";
       { name: "organization", schema: OrganizationSchema },
       { name: "task", schema: taskSchema },
       { name: "media", schema: mediaSchema },
+      { name: Achievement.name, schema: AchievementSchema }
     ]),
     SharedModule,
     AuthModule,

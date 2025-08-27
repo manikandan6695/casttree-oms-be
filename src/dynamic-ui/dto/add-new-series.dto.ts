@@ -39,10 +39,6 @@ export class AddNewSeriesDto {
 
   @IsString()
   @IsNotEmpty()
-  episodeCount: string;
-
-  @IsString()
-  @IsNotEmpty()
   price: string;
 
   @IsString()

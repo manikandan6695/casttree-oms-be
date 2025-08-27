@@ -39,6 +39,8 @@ import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
 import { mediaSchema } from "./schema/media.schema";
 import { mediaModel } from "./schema/media.schema";
+import { AddAchievementDto } from "./dto/add-achievement.dto";
+import { Achievement, AchievementDocument } from './schema/achievement.schema';
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -82,6 +84,7 @@ export class DynamicUiService {
     private readonly taskModel: Model<taskModel>,
     @InjectModel("media")
     private readonly mediaModel: Model<mediaModel>,
+    @InjectModel(Achievement.name) private achievementModel: Model<AchievementDocument>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
@@ -472,13 +475,6 @@ export class DynamicUiService {
   //         $group: {
   //           _id: "$_id.tagName",
   //           details: { $push: "$detail" },
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           _id: 0,
-  //           tagName: "$_id",
-  //           details: 1,
   //         },
   //       }
   //     );
@@ -1510,7 +1506,47 @@ export class DynamicUiService {
     }
   }
 
-  async getSeriesData() {
+  async getTagList(userToken: UserToken) { 
+    try { 
+      const data = await this.getPageDetails(userToken, "684adad49add744614e43df0", {})
+      const components = data.data.components;
+      let tags = [];
+      for (const component of components) {
+        if (component.tag && component.tag.tagId !== "6821a3ede5095e1edae5c555") {
+          // Find the highest order for this specific tag name
+          const existingTags = await this.serviceItemModel.find({
+            "tag.name": component.tag.tagName
+          }).select("tag").lean();
+
+          let highestOrder = 0;
+          if (existingTags.length > 0) {
+            existingTags.forEach(doc => {
+              if (Array.isArray(doc.tag)) {
+                doc.tag.forEach(tagItem => {
+                  if (tagItem.name === component.tag.tagName && tagItem.order > highestOrder) {
+                    console.log("tagItem", tagItem);
+                    highestOrder = tagItem.order;
+                  }
+                });
+              }
+            });
+          }
+
+          const data = {
+            tag: component.tag,
+            title: component.title,
+          };
+          tags.push(data);
+        }
+      }
+      console.log("tags at last", tags);
+      return tags;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getSeriesData(userToken: UserToken) {
     try {
       const getSeriesData = {
         filterOptions: await this.getFilterOptions(),
@@ -1518,6 +1554,7 @@ export class DynamicUiService {
         skills: await this.getSkillList(),
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
+        tags: await this.getTagList(userToken),
       }
 
       return getSeriesData;
@@ -1709,7 +1746,53 @@ export class DynamicUiService {
         }], { session }); // Pass session to create operation
         const serviceItemId = newServiceItem[0]._id;
         console.log("newServiceItem id", serviceItemId)
+
+        const tagsData = data.tags;
+      const tags = [];
+      tagsData.map(async tag => { 
+        const data = await this.categoryModel.findOne({
+          category_name: tag
+        }).select("_id category_name").lean();
+        // in serviceItemModel find the last order number that contains the tagname in tag.name 
+        const existingTags = await this.serviceItemModel.find({
+          "tag.name": tag
+        }).select("tag").lean();
+
+        let highestOrder = 0;
+        if (existingTags.length > 0) {
+          // Find the highest order number from all existing tags with this name
+          existingTags.map(doc => {
+            if (Array.isArray(doc.tag)) {
+              doc.tag.forEach(tagItem => {
+                if (tagItem.name === tag && tagItem.order > highestOrder) {
+                  console.log("tagItem", tagItem)
+                  highestOrder = tagItem.order;
+                }
+              });
+            }
+          });
+        }
+        const pushData = {
+          category_id: data._id,
+          order: highestOrder + 1,
+          name: data.category_name
+        };
+        console.log("pushData", pushData)
+
+        await this.serviceItemModel.updateOne({
+          _id: new ObjectId(serviceItemId)
+        }, {
+          $push: {
+            tag: pushData
+          }
+        })
+
+        tags.push(pushData); 
+      })
+      console.log("tags at last", tags)
       });
+
+      
 
       // If we reach here, the transaction was successful
       return {
@@ -1975,6 +2058,37 @@ export class DynamicUiService {
       
     } catch (error) {
       console.error("Error creating episodes:", error);
+      throw error;
+    }
+  }
+
+  async addNewAchievement(payload: AddAchievementDto) {
+    try {
+      const uploadData = {
+        "key": "course_complete",
+        "title": "Course Completion Certificate",
+        "type": "Certificate",
+        "metaData": {
+          "shareOptions": {
+            "text": payload.shareText
+          },
+          "templateUrl": payload.image.mediaUrl,
+          "textColor": payload.color
+        },
+        "status": "Active",
+        "sourceId": payload.seriesId,
+        "sourceType": "process",
+        "visibilityStatus": true,
+        "provider": "casttree",
+        "version": 1,
+        "description": "string",
+        "createdBy": new ObjectId(payload.seriesId),
+        "updatedBy": new ObjectId(payload.seriesId)
+      }
+      
+      const res = await this.achievementModel.create(uploadData);
+      return res;
+    } catch (error) {
       throw error;
     }
   }

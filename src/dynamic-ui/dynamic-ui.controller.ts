@@ -25,6 +25,7 @@ import { taskModel } from "src/process/schema/task.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ObjectId } from "mongodb";
+import { AddAchievementDto } from "./dto/add-achievement.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -118,13 +119,14 @@ export class DynamicUiController {
     }
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get("series/data")
-  async getExpertList(
-    @Req() req
+  async getSeriesData(
+    @Req() req,
+    @GetToken() token: UserToken
   ) {
     try {
-      const res = await this.dynamicUIService.getSeriesData();
+      const res = await this.dynamicUIService.getSeriesData(token);
       return res;
     } catch (err) {
       throw err;
@@ -156,6 +158,20 @@ export class DynamicUiController {
   ) {
     try {
       const res = await this.dynamicUIService.addNewEpisodes(createDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("achievement/add")
+  async addAchievement(  
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) payload: AddAchievementDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewAchievement(payload);
       return res;
     } catch (err) {
       throw err;
