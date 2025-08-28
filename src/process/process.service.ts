@@ -703,6 +703,7 @@ export class ProcessService {
         });
       }
       const currentTaskObject = processInstanceData.reduce((a, c) => {
+        
         if (subscription) {
           c.currentTask.isLocked = false;
         }

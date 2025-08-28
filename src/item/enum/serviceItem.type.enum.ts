@@ -18,3 +18,12 @@ export const ESserviceItemType = [
 export enum ESkillId {
   skillId = "66f6ca9666f3dede9193b2d7"
 }
+
+
+export enum EServiceItemTag {
+  trendingSeries = "trendingSeries"
+}
+
+export const ESServiceItemTag = [
+  EServiceItemTag.trendingSeries
+];

@@ -83,12 +83,34 @@ export class ServiceItemController {
     }
   }
   @Get("skills")
-  async getContestDetailBySkillId(){
+  async getContestDetailBySkillId() {
     try {
       const data = await this.serviceItemService.getContestDetailBySkillId();
-      return data
+      return data;
     } catch (error) {
-     throw error
+      throw error;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("trending-series")
+  async getTrendingSeries(
+    @Req() req,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number,
+    @GetToken() token: UserToken
+  ) {
+    try {
+      let data = await this.serviceItemService.getTrendingSeries(
+        skip,
+        limit,
+        token.id,
+        req.headers["x-country-code"]
+        
+      );
+      return data;
+    } catch (err) {
+      return err;
     }
   }
 
@@ -140,7 +162,9 @@ export class ServiceItemController {
     try {
       let data = await this.serviceItemService.getServiceItem();
       return data;
-    } catch (err) { throw err }
+    } catch (err) {
+      throw err;
+    }
   }
   @Get(":id")
   async getServiceItemDetails(@Req() req, @Param("id") _id: string) {
@@ -227,12 +251,15 @@ export class ServiceItemController {
     }
   }
   @Get("processDetail/:processId")
-  async getProcessDetailByProcessId(@Param("processId") processId: string){
+  async getProcessDetailByProcessId(@Param("processId") processId: string) {
     try {
-      let data = await this.serviceItemService.getServuceItemDetailsByProcessId(processId)
-      return data
+      let data =
+        await this.serviceItemService.getServuceItemDetailsByProcessId(
+          processId
+        );
+      return data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 }
