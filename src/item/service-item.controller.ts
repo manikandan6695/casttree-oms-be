@@ -95,6 +95,27 @@ export class ServiceItemController {
      throw error
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("trending-series")
+  async getTrendingSeries(
+    @Req() req,
+    @Query("skip", ParseIntPipe) skip: number,
+    @Query("limit", ParseIntPipe) limit: number,
+    @GetToken() token: UserToken
+  ) {
+    try {
+      let data = await this.serviceItemService.getTrendingSeries(
+        skip,
+        limit,
+        token.id,
+        req.headers["x-country-code"]
+        
+      );
+      return data;
+    } catch (err) {
+      return err;
+    }
+  }
   @Get("workShop")
   async getWorkshopServiceItems(
     @Req() req,

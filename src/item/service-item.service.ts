@@ -14,7 +14,11 @@ import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
-import { EserviceItemType,ESkillId } from "./enum/serviceItem.type.enum";
+import {
+  EServiceItemTag,
+  EserviceItemType,
+  ESkillId,
+} from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
@@ -1458,47 +1462,47 @@ export class ServiceItemService {
           $match: {
             type: EserviceItemType.contest,
             status: Estatus.Active,
-            "skill.skillId": { $exists: true, $ne: null }
-          }
+            "skill.skillId": { $exists: true, $ne: null },
+          },
         },
         {
           $lookup: {
             from: "skills",
             localField: "skill.skillId",
             foreignField: "_id",
-            as: "skillDetails"
-          }
+            as: "skillDetails",
+          },
         },
         {
           $unwind: {
             path: "$skillDetails",
-            preserveNullAndEmptyArrays: false
-          }
+            preserveNullAndEmptyArrays: false,
+          },
         },
         {
           $lookup: {
-            from: 'systemConfiguration',
-            let: {key: "contest_skill_image"},
+            from: "systemConfiguration",
+            let: { key: "contest_skill_image" },
             pipeline: [
-              {$match: {key: "contest_skill_image"}},
-              {$project: {_id: 0, value: 1}}
+              { $match: { key: "contest_skill_image" } },
+              { $project: { _id: 0, value: 1 } },
             ],
-            as: "contestConfig"
-          }
+            as: "contestConfig",
+          },
         },
         {
           $unwind: {
             path: "$contestConfig",
-            preserveNullAndEmptyArrays: false
-          }
+            preserveNullAndEmptyArrays: false,
+          },
         },
         {
           $group: {
             _id: "$skillDetails._id",
             skillId: { $first: "$skillDetails._id" },
             skillName: { $first: "$skillDetails.skill_name" },
-            contestSkillImage: { $first: "$contestConfig.value.media" }
-          }
+            contestSkillImage: { $first: "$contestConfig.value.media" },
+          },
         },
         {
           $addFields: {
@@ -1511,35 +1515,133 @@ export class ServiceItemService {
                       cond: {
                         $eq: [
                           { $toLower: "$$this.name" },
-                          { $toLower: "$skillName" }
-                        ]
-                      }
-                    }
-                  }
+                          { $toLower: "$skillName" },
+                        ],
+                      },
+                    },
+                  },
                 },
-                in: { $arrayElemAt: ["$$matchedMedia.mediaUrl", 0] }
-              }
-            }
-          }
+                in: { $arrayElemAt: ["$$matchedMedia.mediaUrl", 0] },
+              },
+            },
+          },
         },
         {
           $sort: {
-            skillName: 1
-          }
+            skillName: 1,
+          },
         },
         {
           $project: {
             _id: 0,
             skillId: 1,
             skillName: 1,
-            mediaUrl: 1
-          }
-        }
+            mediaUrl: 1,
+          },
+        },
       ]);
 
       return { data: skills };
     } catch (error) {
       throw error;
     }
+  }
+
+  async getTrendingSeries(
+    skip: number,
+    limit: number,
+    userId: string,
+    country_code: string = ""
+  ) {
+    try {
+      const filter = this.buildTrendingSeriesFilter();
+      const aggregationPipeline = this.buildAggregationPipeline(
+        filter,
+        skip,
+        limit
+      );
+      const countPipeline = this.buildCountPipeline(filter);
+      const [serviceItemData, totalCount] = await Promise.all([
+        this.serviceItemModel.aggregate(aggregationPipeline),
+        this.serviceItemModel.aggregate(countPipeline),
+      ]);
+      const count = totalCount.length > 0 ? totalCount[0].count : 0;
+
+      // Extract process IDs and fetch first tasks
+      const processIds = serviceItemData
+        .map((item) => item.additionalDetails?.processId)
+        .filter(Boolean);
+
+      const firstTasks = await this.processService.getFirstTask(
+        processIds,
+        userId
+      );
+
+      // Create task mapping and enrich data
+      const taskMap = this.createTaskMap(firstTasks);
+      const enrichedData = serviceItemData.map((item) => {
+        const matchingTask = taskMap.get(
+          item.additionalDetails?.processId?.toString()
+        );
+        return {
+          ...item.additionalDetails,
+          taskDetail: matchingTask || null,
+        };
+      });
+
+      const result = { data: enrichedData, count };
+
+      return result;
+    } catch (err) {
+      console.error("Error in getTrendingSeries:", err);
+      throw err;
+    }
+  }
+
+  private buildTrendingSeriesFilter() {
+    return {
+      type: EserviceItemType.courses,
+      tag: {
+        $elemMatch: { name: EServiceItemTag.trendingSeries },
+      },
+      status: Estatus.Active,
+    };
+  }
+
+  private buildAggregationPipeline(
+    filter: any,
+    skip: number,
+    limit: number
+  ): any[] {
+    // Simplified pipeline for debugging
+    return [
+      { $match: filter },
+      { $sort: { _id: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          additionalDetails: 1,
+          tag: 1,
+          priorityOrder: 1,
+        },
+      },
+    ];
+  }
+
+  private buildCountPipeline(filter: any): any[] {
+    return [
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
+        },
+      },
+    ];
+  }
+  private createTaskMap(firstTasks: any[]): Map<string, any> {
+    return new Map(firstTasks.map((task) => [task.processId.toString(), task]));
   }
 }
