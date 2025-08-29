@@ -19,7 +19,6 @@ import { Eitem } from "./enum/rating_sourcetype_enum";
 import {
   EServiceItemTag,
   EserviceItemType,
-  ESkillId,
 } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
@@ -148,7 +147,7 @@ export class ServiceItemService {
           filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      const skillId = query.skillId || ESkillId.skillId;
+      const skillId = query.skillId;
       if (typeof skillId === "string") {
         filter["skill.skillId"] = skillId;
       } else {
@@ -1624,38 +1623,18 @@ export class ServiceItemService {
             skillId: 1,
             skillName: 1,
             mediaUrl: 1,
+            skillRoles: 1,
           },
         },
       ]);
 
-      // console.log("skills is", skills);
-      if (userRoleIds.length > 0) {
-        const matchingSkills = [];
-        const nonMatchingSkills = [];
-        const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
-        // console.log("userRoleIdSet is", userRoleIdSet);
-        for (const skill of skills) {
-          // console.log("skill is", skill);
-          
-          const skillRoles = skill.skillRoles || [];
-          // console.log("skillRoles for", skill.skillName, ":", skillRoles);
-          
-          const isMatchingRole = userRoleIds.some(userRoleId => 
-            skillRoles.some(skillRole => skillRole.toString() === userRoleId.toString())
-          );
-          
-          // console.log("isMatchingRole is", isMatchingRole);
-          if (isMatchingRole) {
-            matchingSkills.push(skill);
-          } else {
-            nonMatchingSkills.push(skill);
-          }
-        }
-
-        return { data: [...matchingSkills, ...nonMatchingSkills] };
+      if (userRoleIds.length === 0) {
+        const skillsWithoutRoles = skills.map(({ skillRoles, ...skill }) => skill);
+        return { data: skillsWithoutRoles };
       }
 
-      return { data: skills };
+      const { matchingSkills, nonMatchingSkills } = this.categorizeSkillsByUserRoles(skills, userRoleIds);
+      return { data: [...matchingSkills, ...nonMatchingSkills] };
     } catch (error) {
       throw error;
     }
@@ -1758,5 +1737,31 @@ export class ServiceItemService {
   }
   private createTaskMap(firstTasks: any[]): Map<string, any> {
     return new Map(firstTasks.map((task) => [task.processId.toString(), task]));
+  }
+  private categorizeSkillsByUserRoles(skills: any[], userRoleIds: any[]): {
+    matchingSkills: any[];
+    nonMatchingSkills: any[];
+  } {
+    const matchingSkills: any[] = [];
+    const nonMatchingSkills: any[] = [];
+    
+    const userRoleIdSet = new Set(userRoleIds.map(id => id.toString()));
+    
+    for (const skill of skills) {
+      const skillRoles = skill.skillRoles || [];
+      const isMatchingRole = userRoleIds.some(userRoleId => 
+        skillRoles.some(skillRole => skillRole.toString() === userRoleId.toString())
+      );
+      
+      const { skillRoles: _, ...skillWithoutRoles } = skill;
+      
+      if (isMatchingRole) {
+        matchingSkills.push(skillWithoutRoles);
+      } else {
+        nonMatchingSkills.push(skillWithoutRoles);
+      }
+    }
+    
+    return { matchingSkills, nonMatchingSkills };
   }
 }
