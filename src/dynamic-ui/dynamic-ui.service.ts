@@ -291,6 +291,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+  
   async getComponent(
     token: UserToken,
     componentId: string,
@@ -1318,37 +1319,25 @@ export class DynamicUiService {
 
     // Process selected series - use Promise.all for parallel execution
     const selectedPromises = series.map(async (item, index) => {
-      // First try updating existing element
-      const result = await this.serviceItemModel.updateOne(
-        { 
-          "additionalDetails.processId": item.id, 
-          "tag.category_id": compId 
-        },
+      // First, remove any existing tags with the same name to prevent duplicates
+      await this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
+        { $pull: { tag: { name: tag } } }
+      );
+
+      // Then add the new tag with correct order
+      return this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
         {
-          $set: {
-            "tag.$.order": index,
-            "tag.$.name": tag,
-            "tag.$.category_id": categoryId // Use the actual category _id
+          $push: {
+            tag: {
+              order: index,
+              name: tag,
+              category_id: categoryId
+            }
           }
         }
       );
-      
-      // If no element was matched → push a new one
-      if (result.matchedCount === 0) {
-        return this.serviceItemModel.updateOne(
-          { "additionalDetails.processId": item.id },
-          {
-            $push: {
-              tag: {
-                order: index,
-                name: tag,
-                category_id: categoryId // Use the actual category _id
-              }
-            }
-          }
-        );
-      }
-      return result;
     });
 
     // Process unselected series - use Promise.all for parallel execution
@@ -1569,6 +1558,7 @@ export class DynamicUiService {
     const session = await this.itemModel.db.startSession();
     
     try {
+      console.log("data", JSON.stringify(data, null, 2));
       // Start the transaction
       await session.withTransaction(async () => {
 
@@ -1723,7 +1713,7 @@ export class DynamicUiService {
           "itemSold": 0,
           "skill": {
             "skillId": new ObjectId(skill[0].skillId),
-            "skillName": skill[0].skillName
+            "skill_name": skill[0].skillName
           },
           "type": "courses",
           "additionalDetails": {
