@@ -1539,8 +1539,15 @@ export class ServiceItemService {
       throw error;
     }
   }
-  async getContestDetailBySkillId() {
+  async getContestDetailBySkillId(userId: string) {
     try {
+
+      const profileArr = await this.helperService.getProfileByIdTl([userId]);
+      const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+      const userRoleIds = (profile?.roles || []).map(
+        (role) => new ObjectId(role._id)
+      );
+      // console.log("userRoleIds is", userRoleIds);
       const skills = await this.serviceItemModel.aggregate([
         {
           $match: {
@@ -1585,6 +1592,7 @@ export class ServiceItemService {
             _id: "$skillDetails._id",
             skillId: { $first: "$skillDetails._id" },
             skillName: { $first: "$skillDetails.skill_name" },
+            skillRoles: { $first: "$skillDetails.role" },
             contestSkillImage: { $first: "$contestConfig.value.media" },
           },
         },
@@ -1611,11 +1619,6 @@ export class ServiceItemService {
           },
         },
         {
-          $sort: {
-            skillName: 1,
-          },
-        },
-        {
           $project: {
             _id: 0,
             skillId: 1,
@@ -1624,6 +1627,33 @@ export class ServiceItemService {
           },
         },
       ]);
+
+      // console.log("skills is", skills);
+      if (userRoleIds.length > 0) {
+        const matchingSkills = [];
+        const nonMatchingSkills = [];
+        const userRoleIdSet = new Set(userRoleIds.map((id) => id.toString()));
+        // console.log("userRoleIdSet is", userRoleIdSet);
+        for (const skill of skills) {
+          // console.log("skill is", skill);
+          
+          const skillRoles = skill.skillRoles || [];
+          // console.log("skillRoles for", skill.skillName, ":", skillRoles);
+          
+          const isMatchingRole = userRoleIds.some(userRoleId => 
+            skillRoles.some(skillRole => skillRole.toString() === userRoleId.toString())
+          );
+          
+          // console.log("isMatchingRole is", isMatchingRole);
+          if (isMatchingRole) {
+            matchingSkills.push(skill);
+          } else {
+            nonMatchingSkills.push(skill);
+          }
+        }
+
+        return { data: [...matchingSkills, ...nonMatchingSkills] };
+      }
 
       return { data: skills };
     } catch (error) {
