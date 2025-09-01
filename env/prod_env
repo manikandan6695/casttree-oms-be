@@ -82,7 +82,7 @@ CASTTREE_BASE_URL = "https://prodapi.casttree.com/casttree"
 CASTTREE_RATINGS_BASE_URL = "https://prodapi.casttree.com/casttree-ratings"
 
 CORS_ALLOWED_ORIGIN = ["https://casttree.com", "https://www.casttree.com", "https://prodapi.casttree.com","https://creedom.app","https://casttree-web-demo.web.app"]
-CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent,x-userid"
+CORS_ALLOWED_HEADERS = "Origin,X-Requested-With,Authorization,Accept,Content-Type,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent,x-userid,x-process-id"
 CORS_ALLOWED_METHODS = "PUT,GET,POST,DELETE,OPTIONS,PATCH"
 
 # amount conversion key

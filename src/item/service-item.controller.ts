@@ -139,9 +139,9 @@ export class ServiceItemController {
     }
   }
   @Get("promotion-details")
-  async getPromotionDetailsV2() {
+  async getPromotionDetailsV2(@Req() req) {
     try {
-      let data = await this.serviceItemService.getPromotionDetailsV2();
+      let data = await this.serviceItemService.getPromotionDetailsV2(req.headers["x-process-id"]);
       return data;
     } catch (err) {
       throw err;
