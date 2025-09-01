@@ -1275,11 +1275,15 @@ export class SubscriptionService {
           );
           if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
             let eventBody = {
-              isPassed: true,
-              _id: subscription?._id,
+              subscriptionId: subscription?._id,
               userId: subscription?.userId,
             }
-            await this.eventEmitter.emitAsync(EVENT_UPDATE_REFERRAL_STATUS, eventBody)
+            await this.sharedService.trackAndEmitEvent(
+              EVENT_UPDATE_REFERRAL_STATUS,
+              eventBody,
+              true,
+              {}
+            );
           }
         }
       }
@@ -2275,6 +2279,16 @@ export class SubscriptionService {
           subscription_expired: subscription?.endAt,
         };
         await this.helperService.mixPanel(mixPanelBody);
+        let eventBody = {
+          subscriptionId: subscription?._id,
+          userId: subscription?.userId,
+        }
+        await this.sharedService.trackAndEmitEvent(
+          EVENT_UPDATE_REFERRAL_STATUS,
+          eventBody,
+          false,
+          {}
+        );
       }
     } catch (err) {
       throw err;
@@ -2549,8 +2563,8 @@ export class SubscriptionService {
   @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
   async handleUpdateReferralStatus(payload: any) {
     try {
-      console.log("payload",payload);
-      await this.updateReferralStatus(payload)
+      await this.updateReferralStatus(payload);
+
       await this.sharedService.updateEventProcessingStatus(
         payload?.commandSource,
         ECommandProcessingStatus.Complete
@@ -2563,18 +2577,13 @@ export class SubscriptionService {
       throw error
     }
   }
-  // async onModuleInit(){
-  //   await this.updateReferralStatus({
-  //     userId: "67e39c83f2d3c41ad17b7be9",
-  //     _id: "68a7fe0b0f52118cb970eda7",
-  //   })
-  // }
   async updateReferralStatus(payload: any) {
     try {
       let userAdditional = await this.helperService.getUserAdditional(payload?.userId)
       let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
+
       const subscription = await this.subscriptionModel.findOne({
-        _id:  new ObjectId(payload?._id),
+        _id:  new ObjectId(payload?.subscriptionId),
         userId: new ObjectId(payload?.userId),
         status: EStatus.Active, 
         subscriptionStatus: EsubscriptionStatus.active
