@@ -138,7 +138,7 @@ export class ServiceItemService {
     country_code: string = ""
   ) {
     try {
-      console.log("query", query);
+      // console.log("query", query);
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
