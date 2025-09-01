@@ -8,7 +8,7 @@ import { HelperService } from "src/helper/helper.service";
 import { MandatesService } from "src/mandates/mandates.service";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
-import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
+import { EServiceRequestStatus, EStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
@@ -1511,15 +1511,19 @@ export class ServiceItemService {
       throw error;
     }
   }
-  async getPromotionDetailsV2() {
+  async getPromotionDetailsV2(processId: string) {
     try {
+      let serviceItem = await this.serviceItemModel.findOne({
+        status: Estatus.Active,
+        "additionalDetails.processId": new ObjectId(processId)
+      }).populate("itemId");
       let itemData = await this.itemService.getItemByItemName(EItemName.pro);
       let provider = await this.systemConfigurationModel.findOne({
         key: ESystemConfigurationKeyName.subscription_payment_provider,
       });
       let finalResponse = {
         payWallVideo:
-          itemData?.additionalDetail?.promotionDetails?.payWallVideo,
+        serviceItem?.itemId?.additionalDetail?.promotionDetails?.payWallVideo,
         authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
         subscriptionInfo:
           itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
