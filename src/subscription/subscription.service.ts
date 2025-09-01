@@ -2279,16 +2279,18 @@ export class SubscriptionService {
           subscription_expired: subscription?.endAt,
         };
         await this.helperService.mixPanel(mixPanelBody);
-        let eventBody = {
-          subscriptionId: subscription?._id,
-          userId: subscription?.userId,
+        if(item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount){
+          let eventBody = {
+            subscriptionId: subscription?._id,
+            userId: subscription?.userId,
+          }
+          await this.sharedService.trackAndEmitEvent(
+            EVENT_UPDATE_REFERRAL_STATUS,
+            eventBody,
+            false,
+            {}
+          );
         }
-        await this.sharedService.trackAndEmitEvent(
-          EVENT_UPDATE_REFERRAL_STATUS,
-          eventBody,
-          false,
-          {}
-        );
       }
     } catch (err) {
       throw err;
