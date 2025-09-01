@@ -1523,7 +1523,7 @@ export class ServiceItemService {
       });
       let finalResponse = {
         payWallVideo:
-        serviceItem?.itemId?.additionalDetail?.promotionDetails?.payWallVideo,
+        (serviceItem?.itemId as any)?.additionalDetail?.promotionDetails?.payWallVideo,
         authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
         subscriptionInfo:
           itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
