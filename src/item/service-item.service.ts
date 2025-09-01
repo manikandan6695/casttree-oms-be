@@ -147,11 +147,12 @@ export class ServiceItemService {
           filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      const skillId = query.skillId;
-      if (typeof skillId === "string") {
-        filter["skill.skillId"] = skillId;
-      } else {
-        filter["skill.skillId"] = { $in: skillId };
+      if (query.skillId) {
+        if (typeof query.skillId === "string") {
+          filter["skill.skillId"] = query.skillId;
+        } else {
+          filter["skill.skillId"] = { $in: query.skillId };
+        }
       }
       if (query.type) {
         filter["type"] = query.type;
