@@ -1491,14 +1491,18 @@ export class ServiceItemService {
       throw error;
     }
   }
-  async getPromotionDetailsV2() {
+  async getPromotionDetailsV2(processId: string) {
     try{
+      let serviceItem = await this.serviceItemModel.findOne({
+        status: Estatus.Active,
+        "additionalDetails.processId": new ObjectId(processId)
+      }).populate("itemId");
       let itemData = await this.itemService.getItemByItemName(EItemName.pro)
       let provider = await this.systemConfigurationModel.findOne({
         key: ESystemConfigurationKeyName.subscription_payment_provider
       })
       let finalResponse = {
-        payWallVideo: itemData?.additionalDetail?.promotionDetails?.payWallVideo,
+        payWallVideo: serviceItem?.itemId?.additionalDetail?.promotionDetails?.payWallVideo,
         authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
         subscriptionInfo: itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
         premiumThumbnails: itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,

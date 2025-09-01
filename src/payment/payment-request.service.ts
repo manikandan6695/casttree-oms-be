@@ -370,11 +370,12 @@ export class PaymentRequestService {
       const firstPayment = await this.paymentModel.findOne({
         user_id: new ObjectId(token.id),
         document_status: EDocumentStatus.completed,
-      }).sort({ created_at: 1 });
-      
+      }).sort({ transactionDate: 1 });
       payment = {
         ...paymentData,
-        isFirstPayment: firstPayment && firstPayment._id.toString() === id.toString(),
+      }
+      if (!paymentData?.metaData?.isSentToMeta) {
+        payment.isFirstPayment = firstPayment && firstPayment._id.toString() === id.toString();
       }
       return { payment };
     } catch (err) {
