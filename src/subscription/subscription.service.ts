@@ -1268,11 +1268,11 @@ export class SubscriptionService {
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
-          await this.helperService.facebookEvents(
-            userData.data.phoneNumber,
-            invoice.currencyCode,
-            invoice.grand_total
-          );
+          // await this.helperService.facebookEvents(
+          //   userData.data.phoneNumber,
+          //   invoice.currencyCode,
+          //   invoice.grand_total
+          // );
           if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
             let eventBody = {
               subscriptionId: subscription?._id,
@@ -1461,11 +1461,11 @@ export class SubscriptionService {
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
-          await this.helperService.facebookEvents(
-            userData.data.phoneNumber,
-            invoice.currencyCode,
-            invoice.grand_total
-          );
+          // await this.helperService.facebookEvents(
+          //   userData.data.phoneNumber,
+          //   invoice.currencyCode,
+          //   invoice.grand_total
+          // );
         }
       }
     } catch (err) {
