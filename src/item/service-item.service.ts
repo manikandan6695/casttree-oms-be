@@ -8,7 +8,7 @@ import { HelperService } from "src/helper/helper.service";
 import { MandatesService } from "src/mandates/mandates.service";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
-import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
+import { EServiceRequestStatus, EStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
@@ -16,12 +16,19 @@ import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
-import { EserviceItemType } from "./enum/serviceItem.type.enum";
+import {
+  EServiceItemTag,
+  EserviceItemType,
+} from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
 import { IPriceListItemsModel } from "./schema/price-list-items.schema";
 import { serviceitems } from "./schema/serviceItem.schema";
-import { EItemName, EItemTag, ESystemConfigurationKeyName } from "./enum/item-type.enum";
+import {
+  EItemName,
+  EItemTag,
+  ESystemConfigurationKeyName,
+} from "./enum/item-type.enum";
 
 @Injectable()
 export class ServiceItemService {
@@ -131,6 +138,7 @@ export class ServiceItemService {
     country_code: string = ""
   ) {
     try {
+      console.log("query", query);
       const filter = {};
       if (query.languageId) {
         if (typeof query.languageId === "string") {
@@ -139,17 +147,17 @@ export class ServiceItemService {
           filter["language.languageId"] = { $in: query.languageId };
         }
       }
-      if (query.skillId) {
-        if (typeof query.skillId === "string") {
-          filter["skill.skillId"] = query.skillId;
-        } else {
-          filter["skill.skillId"] = { $in: query.skillId };
-        }
+      const skillId = query.skillId;
+      if (typeof skillId === "string") {
+        filter["skill.skillId"] = skillId;
+      } else {
+        filter["skill.skillId"] = { $in: skillId };
       }
       if (query.type) {
         filter["type"] = query.type;
       }
       filter["status"] = Estatus.Active;
+      console.log("filter", filter);
       let serviceItemData: any = await this.serviceItemModel
         .find(filter)
         .populate({
@@ -1321,7 +1329,7 @@ export class ServiceItemService {
         }
       }
       // console.log("processPricingData",processPricingData?.itemId);
-      
+
       processPricingData.itemId.additionalDetail.promotionDetails.price =
         processPricingData.itemId.price;
       processPricingData.itemId.additionalDetail.promotionDetails.itemName =
@@ -1336,13 +1344,15 @@ export class ServiceItemService {
         processPricingData.itemId.comparePrice;
       processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
         processPricingData.itemId.currency.currency_code;
-        const promoDetails = processPricingData.itemId.additionalDetail.promotionDetails;
-        promoDetails.payWallVideo = isNewSubscription === true
-          ? promoDetails["payWallVideo"] 
+      const promoDetails =
+        processPricingData.itemId.additionalDetail.promotionDetails;
+      promoDetails.payWallVideo =
+        isNewSubscription === true
+          ? promoDetails["payWallVideo"]
           : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"]; 
-       processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
-        processPricingData.itemId.bottomSheet; 
+      delete promoDetails["payWallVideo1"];
+      processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
+        processPricingData.itemId.bottomSheet;
       finalResponse.push(
         processPricingData.itemId.additionalDetail.promotionDetails
       );
@@ -1363,10 +1373,10 @@ export class ServiceItemService {
           ?.mandates.length
           ? mandateData?.mandate?.mandates
           : [];
-         data.additionalDetail.promotionDetails.bottomSheet =
-          data.additionalDetail?.bottomSheet; 
-          // console.log("bottom sheet is",data.additionalDetail?.bottomSheet );
-          
+        data.additionalDetail.promotionDetails.bottomSheet =
+          data.additionalDetail?.bottomSheet;
+        // console.log("bottom sheet is",data.additionalDetail?.bottomSheet );
+
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
       return finalResponse;
@@ -1447,29 +1457,35 @@ export class ServiceItemService {
         .find(query)
         .populate({
           path: "itemId",
-          select: "itemName itemDescription"
+          select: "itemName itemDescription",
         })
         .sort({ priorityOrder: 1 })
         .lean();
       const processIds = serviceItemData
-        .filter(item => item.additionalDetails?.processId)
-        .map(item => item.additionalDetails.processId);
-      
-      const firstTasks = await this.processService.getFirstTask(processIds, null);
-      let count = firstTasks.filter(task => task.isLocked !== true).length;
+        .filter((item) => item.additionalDetails?.processId)
+        .map((item) => item.additionalDetails.processId);
+
+      const firstTasks = await this.processService.getFirstTask(
+        processIds,
+        null
+      );
+      let count = firstTasks.filter((task) => task.isLocked !== true).length;
       const firstTaskData = firstTasks.reduce((acc, task) => {
         acc[task.processId] = task;
         return acc;
       }, {});
-      
+
       const filteredData = serviceItemData
-        .map(item => {
-          const firstTask = item.additionalDetails?.processId && firstTaskData[item.additionalDetails.processId] 
-            ? firstTaskData[item.additionalDetails.processId] 
-            : null;
-          const isTrendingSeries = Array.isArray(item?.tag) &&
-            item.tag.some(t => t.name === EItemTag.trendingSeries);
-          return  {
+        .map((item) => {
+          const firstTask =
+            item.additionalDetails?.processId &&
+            firstTaskData[item.additionalDetails.processId]
+              ? firstTaskData[item.additionalDetails.processId]
+              : null;
+          const isTrendingSeries =
+            Array.isArray(item?.tag) &&
+            item.tag.some((t) => t.name === EItemTag.trendingSeries);
+          return {
             thumbnail: item.additionalDetails?.thumbnail,
             itemName: item.itemId?.itemName,
             processId: item.additionalDetails?.processId,
@@ -1479,29 +1495,40 @@ export class ServiceItemService {
             isLocked: firstTask?.isLocked,
             itemDesc: item.itemId?.itemDescription,
             tag: item?.tag,
-            isTrendingSeries
+            isTrendingSeries,
           };
         })
-        .filter(item => 
-          item.isLocked !== true && 
-          !(Array.isArray(item.tag) && item.tag.some(t => t.name === EItemTag.upcomingseries))
-        ); 
-      return {data: filteredData, count: count};
+        .filter(
+          (item) =>
+            item.isLocked !== true &&
+            !(
+              Array.isArray(item.tag) &&
+              item.tag.some((t) => t.name === EItemTag.upcomingseries)
+            )
+        );
+      return { data: filteredData, count: count };
     } catch (error) {
       throw error;
     }
   }
-  async getPromotionDetailsV2() {
-    try{
-      let itemData = await this.itemService.getItemByItemName(EItemName.pro)
+  async getPromotionDetailsV2(processId: string) {
+    try {
+      let serviceItem = await this.serviceItemModel.findOne({
+        status: Estatus.Active,
+        "additionalDetails.processId": new ObjectId(processId)
+      }).populate("itemId");
+      let itemData = await this.itemService.getItemByItemName(EItemName.pro);
       let provider = await this.systemConfigurationModel.findOne({
-        key: ESystemConfigurationKeyName.subscription_payment_provider
-      })
+        key: ESystemConfigurationKeyName.subscription_payment_provider,
+      });
       let finalResponse = {
-        payWallVideo: itemData?.additionalDetail?.promotionDetails?.payWallVideo,
+        payWallVideo:
+        (serviceItem?.itemId as any)?.additionalDetail?.promotionDetails?.payWallVideo,
         authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
-        subscriptionInfo: itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
-        premiumThumbnails: itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
+        subscriptionInfo:
+          itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
+        premiumThumbnails:
+          itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
         provider: provider?.value?.provider,
         provideId: provider?.value?.providerId,
         itemId: itemData?._id,
@@ -1509,11 +1536,236 @@ export class ServiceItemService {
         price: itemData?.price,
         currency_code: itemData?.currency?.currency_code,
         comparePrice: itemData?.comparePrice,
-      }
-      return {data: finalResponse}
-    }
-     catch (error) {
+      };
+      return { data: finalResponse };
+    } catch (error) {
       throw error;
     }
+  }
+  async getContestDetailBySkillId(userId: string) {
+    try {
+
+      const profileArr = await this.helperService.getProfileByIdTl([userId]);
+      const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+      const userRoleIds = (profile?.roles || []).map(
+        (role) => new ObjectId(role._id)
+      );
+      // console.log("userRoleIds is", userRoleIds);
+      const skills = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.contest,
+            status: Estatus.Active,
+            "skill.skillId": { $exists: true, $ne: null },
+          },
+        },
+        {
+          $lookup: {
+            from: "skills",
+            localField: "skill.skillId",
+            foreignField: "_id",
+            as: "skillDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$skillDetails",
+            preserveNullAndEmptyArrays: false,
+          },
+        },
+        {
+          $lookup: {
+            from: "systemConfiguration",
+            let: { key: "contest_skill_image" },
+            pipeline: [
+              { $match: { key: "contest_skill_image" } },
+              { $project: { _id: 0, value: 1 } },
+            ],
+            as: "contestConfig",
+          },
+        },
+        {
+          $unwind: {
+            path: "$contestConfig",
+            preserveNullAndEmptyArrays: false,
+          },
+        },
+        {
+          $group: {
+            _id: "$skillDetails._id",
+            skillId: { $first: "$skillDetails._id" },
+            skillName: { $first: "$skillDetails.skill_name" },
+            skillRoles: { $first: "$skillDetails.role" },
+            contestSkillImage: { $first: "$contestConfig.value.media" },
+          },
+        },
+        {
+          $addFields: {
+            mediaUrl: {
+              $let: {
+                vars: {
+                  matchedMedia: {
+                    $filter: {
+                      input: "$contestSkillImage",
+                      cond: {
+                        $eq: [
+                          { $toLower: "$$this.name" },
+                          { $toLower: "$skillName" },
+                        ],
+                      },
+                    },
+                  },
+                },
+                in: { $arrayElemAt: ["$$matchedMedia.mediaUrl", 0] },
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            skillId: 1,
+            skillName: 1,
+            mediaUrl: 1,
+            skillRoles: 1,
+          },
+        },
+      ]);
+
+      if (userRoleIds.length === 0) {
+        const skillsWithoutRoles = skills.map(({ skillRoles, ...skill }) => skill);
+        return { data: skillsWithoutRoles };
+      }
+
+      const { matchingSkills, nonMatchingSkills } = this.categorizeSkillsByUserRoles(skills, userRoleIds);
+      return { data: [...matchingSkills, ...nonMatchingSkills] };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getTrendingSeries(
+    skip: number,
+    limit: number,
+    userId: string,
+    country_code: string = ""
+  ) {
+    try {
+      
+      const filter = this.buildTrendingSeriesFilter();
+      const aggregationPipeline = this.buildAggregationPipeline(
+        filter,
+        skip,
+        limit
+      );
+      const countPipeline = this.buildCountPipeline(filter);
+      const [serviceItemData, totalCount] = await Promise.all([
+        this.serviceItemModel.aggregate(aggregationPipeline),
+        this.serviceItemModel.aggregate(countPipeline),
+      ]);
+      const count = totalCount.length > 0 ? totalCount[0].count : 0;
+
+      // Extract process IDs and fetch first tasks
+      const processIds = serviceItemData
+        .map((item) => item.additionalDetails?.processId)
+        .filter(Boolean);
+
+      const firstTasks = await this.processService.getFirstTask(
+        processIds,
+        userId
+      );
+
+      // Create task mapping and enrich data
+      const taskMap = this.createTaskMap(firstTasks);
+      const enrichedData = serviceItemData.map((item) => {
+        const matchingTask = taskMap.get(
+          item.additionalDetails?.processId?.toString()
+        );
+        return {
+          ...item.additionalDetails,
+          taskDetail: matchingTask || null,
+        };
+      });
+
+      const result = { data: enrichedData, count };
+
+      return result;
+    } catch (err) {
+      console.error("Error in getTrendingSeries:", err);
+      throw err;
+    }
+  }
+
+  private buildTrendingSeriesFilter() {
+    return {
+      type: EserviceItemType.courses,
+      tag: {
+        $elemMatch: { name: EServiceItemTag.trendingSeries },
+      },
+      status: Estatus.Active,
+    };
+  }
+
+  private buildAggregationPipeline(
+    filter: any,
+    skip: number,
+    limit: number
+  ): any[] {
+    // Simplified pipeline for debugging
+    return [
+      { $match: filter },
+      { $sort: { _id: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          additionalDetails: 1,
+          tag: 1,
+          priorityOrder: 1,
+        },
+      },
+    ];
+  }
+
+  private buildCountPipeline(filter: any): any[] {
+    return [
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
+        },
+      },
+    ];
+  }
+  private createTaskMap(firstTasks: any[]): Map<string, any> {
+    return new Map(firstTasks.map((task) => [task.processId.toString(), task]));
+  }
+  private categorizeSkillsByUserRoles(skills: any[], userRoleIds: any[]): {
+    matchingSkills: any[];
+    nonMatchingSkills: any[];
+  } {
+    const matchingSkills: any[] = [];
+    const nonMatchingSkills: any[] = [];
+    
+    const userRoleIdSet = new Set(userRoleIds.map(id => id.toString()));
+    
+    for (const skill of skills) {
+      const skillRoles = skill.skillRoles || [];
+      const isMatchingRole = userRoleIds.some(userRoleId => 
+        skillRoles.some(skillRole => skillRole.toString() === userRoleId.toString())
+      );
+      
+      const { skillRoles: _, ...skillWithoutRoles } = skill;
+      
+      if (isMatchingRole) {
+        matchingSkills.push(skillWithoutRoles);
+      } else {
+        nonMatchingSkills.push(skillWithoutRoles);
+      }
+    }
+    
+    return { matchingSkills, nonMatchingSkills };
   }
 }

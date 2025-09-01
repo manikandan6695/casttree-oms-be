@@ -80,6 +80,7 @@ export interface IItemModel extends mongoose.Document {
   parentItemId: string;
   price: number;
   currency: any;
+  filterTypeId?: string;
 }
 
 export interface IStockDetails {
@@ -331,6 +332,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     },
     E_material_code: { type: String },
     comparePrice: { type: Number },
+    
   },
   {
     collection: "item",

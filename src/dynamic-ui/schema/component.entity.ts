@@ -26,6 +26,7 @@ export interface IComponent extends Document {
   order: number;
   status: string;
   actionData: any;
+  recommendedList: any[];
   metaData: Record<string, any>;
   navigation: any;
   interactionData: IInteractionData;
@@ -81,6 +82,9 @@ export const ComponentSchema = new mongoose.Schema(
     actionData: {
       type: mongoose.Schema.Types.Mixed,
     },
+    recommendedList: [{
+      type: mongoose.Schema.Types.Mixed,
+    }],
     interactionData: InteractionDataSchema,
     metaData: { type: mongoose.Schema.Types.Mixed },
     navigation: {

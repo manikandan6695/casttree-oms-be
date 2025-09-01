@@ -1,5 +1,5 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EStatus } from "./../process/enums/process.enum";
+import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -249,7 +249,44 @@ export class DynamicUiService {
 
         componentsWithInteractionData.forEach(component => {
           if (component.componentKey === EComponentKey.learnFilterActionButton) {
-            component.interactionData = { items: Object.values(grouped) };
+            const originalItems = component.interactionData?.items || [];
+            
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+              groupedOptionsMap.set(group.type, group);
+            });
+            
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+              
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+              
+              const groupedData = groupedOptionsMap.get(filterType);
+              
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+                
+                const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+                
+                const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+                
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+                
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions
+                };
+              }
+              
+              return item;
+            });
+            
+            component.interactionData = { items: transformedItems };
           }
         });
       }
@@ -324,20 +361,88 @@ export class DynamicUiService {
           return acc;
         }, {});
 
-        if (filterOption?.proficiency) {
-          grouped[EItemType.proficiency]?.options.forEach(opt => {
-            opt.isUserSelected = opt.filterOptionId === filterOption.proficiency;
-          });
-        }
-
-        if (filterOption?.category && filterOption.category.length > 0) {
-          grouped[EItemType.category]?.options.forEach(opt => {
-            opt.isUserSelected = filterOption.category.includes(opt.filterOptionId);
+        if (filterOption) {
+          Object.keys(filterOption).forEach(filterKey => {
+            const filterValue = filterOption[filterKey];
+            const groupedData = grouped[filterKey];
+            
+            if (groupedData && filterValue) {
+              if (Array.isArray(filterValue)) {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+                });
+              } else {
+                groupedData.options.forEach(opt => {
+                  opt.isUserSelected = opt.filterOptionId === filterValue;
+                });
+              }
+            }
           });
         }
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
-          component.interactionData = { items: Object.values(grouped) };
+          if (!component.actionData || component.actionData.length === 0) {
+            const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
+            const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
+          
+            const allServiceItemData = await this.fetchServiceItemDetails(
+              page,
+              token.id,
+              false,
+              0,
+              0,
+              null
+            );
+            
+            const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+    
+            const nonMatchedSeries = allSeriesData.filter((series: any) =>
+              !completedProcessIds.has(String(series.processId))
+            );
+          
+            if (nonMatchedSeries.length > 0) {
+              component.recommendedList = nonMatchedSeries;
+              component["totalCount"] = nonMatchedSeries.length;
+            } 
+          }
+          const originalItems = component.interactionData?.items || [];
+          
+          const groupedOptionsMap = new Map();
+          Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          });
+          
+          const transformedItems = originalItems.map((item: any) => {
+            let filterType = item.button?.type;
+            
+            if (filterType === "proficency") {
+              filterType = "proficiency";
+            }
+            
+            const groupedData = groupedOptionsMap.get(filterType);
+            
+            if (groupedData) {
+              const existingOptions = item.options || [];
+              const newOptions = groupedData.options || [];
+              
+              const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
+              
+              const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
+              
+              const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+              
+              return {
+                ...item,
+                type: filterType,
+                filterTypeId: groupedData.filterTypeId,
+                options: mergedOptions
+              };
+            }
+            
+            return item;
+          });
+          
+          component.interactionData = { items: transformedItems };
         }
       }
 
@@ -594,12 +699,23 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      if (filterOption?.proficiency) {
-        filter["proficiency.filterOptionId"] = new ObjectId(filterOption.proficiency);
-      }
-
-      if (filterOption?.category && filterOption?.category?.length > 0) {
-        filter["category.filterOptionId"] = { $in: filterOption.category.map(id => new ObjectId(id)) };
+      if (filterOption) {
+        Object.keys(filterOption).forEach(filterKey => {
+          const filterValue = filterOption[filterKey];
+          
+          if (filterValue) {
+            if (Array.isArray(filterValue)) {
+              const validIds = filterValue.filter(id => id && typeof id === 'string' && id.length === 24);
+              if (validIds.length > 0) {
+                filter[`${filterKey}.filterOptionId`] = { $in: validIds.map(id => new ObjectId(id)) };
+              }
+            } else {
+              if (filterValue && typeof filterValue === 'string' && filterValue.length === 24) {
+                filter[`${filterKey}.filterOptionId`] = new ObjectId(filterValue);
+              }
+            }
+          }
+        });
       }
       let aggregationPipeline = [];
       aggregationPipeline.push({
@@ -1342,7 +1458,7 @@ export class DynamicUiService {
       const data = await this.filterOptionsModel.find({
         status: EStatus.Active,
         filterType: { $in: types }
-      }).lean();
+      }).sort({ sortOrder: 1 }).lean();
       return data
     } catch (error) {
       throw error
