@@ -1107,7 +1107,7 @@ export class PaymentRequestService {
       _id: new ObjectId(payment?.source_id),
     })
     let mixPanelBody: any = {};
-    mixPanelBody.eventName = EMixedPanelEvents.meta_event_send;
+    mixPanelBody.eventName = EMixedPanelEvents.meta_event_sent;
     mixPanelBody.distinctId = payment?.user_id;
     mixPanelBody.properties = {
       user_id: payment?.user_id,
