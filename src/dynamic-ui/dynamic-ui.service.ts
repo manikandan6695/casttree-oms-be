@@ -1016,21 +1016,14 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
-      // console.log("isNewSubscription", isNewSubscription);
-      // console.log("isSubscriber", isSubscriber);
-
       const personalizedBannerComponent = components.find(
         (c) => c.type === EComponentType.userPreferenceBanner
       );
-
-      if (!personalizedBannerComponent?.interactionData?.items?.length) {
-        return [];
-      }
-
       const isFirstSeriesLocked = userProcessedSeries?.actionData.some(
         (action) => action.taskDetail?.isLocked === true
       );
       // console.log("isSubscriber", isSubscriber);
+
 
       let bestMatchBanner: any = null;
       let referralBanner: any = null;
@@ -1044,9 +1037,6 @@ export class DynamicUiService {
         // console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
 
         let isSubscribedRule = rule.isSubscribed;
-
-        // console.log("isSubscribedRule", isSubscribedRule,item.type);
-
         const matchesCountry =
           typeof rule.country === "object" && "$ne" in rule.country
             ? countryCode !== rule.country["$ne"]
@@ -1071,7 +1061,7 @@ export class DynamicUiService {
         }
         if (
           isNewSubscription == isSubscribedRule &&
-            isFirstSeriesLocked == rule.isLocked &&
+          isFirstSeriesLocked == rule.isLocked &&
           item.type == "course"
         ) {
           return [bannerData];
@@ -1090,7 +1080,7 @@ export class DynamicUiService {
 
           return [bannerData];
         }
-          if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
