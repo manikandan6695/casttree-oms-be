@@ -10,7 +10,7 @@ export enum EMixedPanelEvents {
     subscription_add = "subscription_add",
     coin_purchase_success="coin_purchase_success",
     mandate_cancelled = "mandate_cancelled",
-    meta_event_send = "meta_event_send",
+    meta_event_send = "meta_event_sent",
   }
   
 export const ESMixedPanelEvents = [
