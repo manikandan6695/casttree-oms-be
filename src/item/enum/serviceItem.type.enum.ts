@@ -15,9 +15,7 @@ export const ESserviceItemType = [
   EserviceItemType.contest,
   EserviceItemType.coins
 ];
-export enum ESkillId {
-  skillId = "6714be586b9970dadbabab76"
-}
+
 
 
 export enum EServiceItemTag {

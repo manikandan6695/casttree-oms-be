@@ -87,9 +87,9 @@ export class ServiceItemController {
   }
 
   @Get("skills")
-  async getContestDetailBySkillId(){
+  async getContestDetailBySkillId( @Req() req){
     try {
-      const data = await this.serviceItemService.getContestDetailBySkillId();
+      const data = await this.serviceItemService.getContestDetailBySkillId(req.headers["x-userid"]);
       return data
     } catch (error) {
      throw error
