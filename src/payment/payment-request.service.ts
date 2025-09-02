@@ -371,7 +371,6 @@ export class PaymentRequestService {
         user_id: new ObjectId(token.id),
         document_status: EDocumentStatus.completed,
       }).sort({ transactionDate: 1 });
-      
       payment = {
         ...paymentData
       }
