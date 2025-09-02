@@ -28,6 +28,9 @@ import { OrganizationSchema } from "src/shared/schema/organization.schema";
 import { taskSchema } from "src/process/schema/task.schema";
 import { mediaSchema } from "./schema/media.schema";
 import { Achievement, AchievementSchema } from './schema/achievement.schema';
+import { VirtualItem, VirtualItemSchema } from './schema/virtual-item.schema';
+import { VirtualItemGroup, VirtualItemGroupSchema } from './schema/virtual-item-group.schema';
+import { Award, AwardSchema } from './schema/awards.schema';
 
 @Module({
   imports: [
@@ -52,7 +55,10 @@ import { Achievement, AchievementSchema } from './schema/achievement.schema';
       { name: "organization", schema: OrganizationSchema },
       { name: "task", schema: taskSchema },
       { name: "media", schema: mediaSchema },
-      { name: Achievement.name, schema: AchievementSchema }
+      { name: VirtualItem.name, schema: VirtualItemSchema },
+      { name: Achievement.name, schema: AchievementSchema },
+      { name: VirtualItemGroup.name, schema: VirtualItemGroupSchema },
+      { name: Award.name, schema: AwardSchema }
     ]),
     SharedModule,
     AuthModule,

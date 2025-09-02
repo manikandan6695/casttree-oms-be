@@ -41,6 +41,13 @@ import { mediaSchema } from "./schema/media.schema";
 import { mediaModel } from "./schema/media.schema";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
 import { Achievement, AchievementDocument } from './schema/achievement.schema';
+import { CreateQueryDto } from "./dto/create-query.dto";
+import { VirtualItemDocument, VirtualItem } from "./schema/virtual-item.schema";
+import { VirtualItemGroup, VirtualItemGroupDocument } from './schema/virtual-item-group.schema';
+import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
+import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
+import { ItemType } from "./dto/map-virtual-item-to-series.dto";
+import { Award, AwardDocument } from './schema/awards.schema';
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -84,10 +91,17 @@ export class DynamicUiService {
     private readonly taskModel: Model<taskModel>,
     @InjectModel("media")
     private readonly mediaModel: Model<mediaModel>,
-    @InjectModel(Achievement.name) private achievementModel: Model<AchievementDocument>,
+    @InjectModel(Achievement.name)
+    private achievementModel: Model<AchievementDocument>,
+    @InjectModel(VirtualItem.name)
+    private virtualItemModel: Model<VirtualItemDocument>,
+    @InjectModel(VirtualItemGroup.name)
+    private virtualItemGroupModel: Model<VirtualItemGroupDocument>,
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
+    @InjectModel(Award.name)
+    private awardsModel: Model<AwardDocument>,
   ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -1513,7 +1527,7 @@ export class DynamicUiService {
               if (Array.isArray(doc.tag)) {
                 doc.tag.forEach(tagItem => {
                   if (tagItem.name === component.tag.tagName && tagItem.order > highestOrder) {
-                    console.log("tagItem", tagItem);
+                    // console.log("tagItem", tagItem);
                     highestOrder = tagItem.order;
                   }
                 });
@@ -1528,7 +1542,7 @@ export class DynamicUiService {
           tags.push(data);
         }
       }
-      console.log("tags at last", tags);
+      // console.log("tags at last", tags);
       return tags;
     } catch (error) {
       throw error;
@@ -1558,7 +1572,7 @@ export class DynamicUiService {
     const session = await this.itemModel.db.startSession();
     
     try {
-      console.log("data", JSON.stringify(data, null, 2));
+      // console.log("data", JSON.stringify(data, null, 2));
       // Start the transaction
       await session.withTransaction(async () => {
 
@@ -1659,10 +1673,11 @@ export class DynamicUiService {
           {
             $project: {
               skillId: "$_id",
-              skillName: "$skill_name"
+              skill_name: "$skill_name"
             }
           }
         ], { session }); // Pass session to aggregate operation
+        console.log("skill", skill)
 
         // Fetch category data - only those matching frontend data
         const category = await this.filterOptionsModel.aggregate([
@@ -1713,7 +1728,7 @@ export class DynamicUiService {
           "itemSold": 0,
           "skill": {
             "skillId": new ObjectId(skill[0].skillId),
-            "skill_name": skill[0].skillName
+            "skill_name": skill[0].skill_name
           },
           "type": "courses",
           "additionalDetails": {
@@ -1755,7 +1770,7 @@ export class DynamicUiService {
             if (Array.isArray(doc.tag)) {
               doc.tag.forEach(tagItem => {
                 if (tagItem.name === tag && tagItem.order > highestOrder) {
-                  console.log("tagItem", tagItem)
+                  // console.log("tagItem", tagItem)
                   highestOrder = tagItem.order;
                 }
               });
@@ -1767,7 +1782,7 @@ export class DynamicUiService {
           order: highestOrder + 1,
           name: data.category_name
         };
-        console.log("pushData", pushData)
+        // console.log("pushData", pushData)
 
         await this.serviceItemModel.updateOne({
           _id: new ObjectId(serviceItemId)
@@ -1779,7 +1794,7 @@ export class DynamicUiService {
 
         tags.push(pushData); 
       })
-      console.log("tags at last", tags)
+      // console.log("tags at last", tags)
       });
 
       
@@ -1802,7 +1817,7 @@ export class DynamicUiService {
 
   async addNewEpisodes(data: AddNewEpisodesDto) {
     try {
-      console.log("data", JSON.stringify(data, null, 2));
+      // console.log("data", JSON.stringify(data, null, 2));
       
       // Start a session for the transaction
       const session = await this.taskModel.db.startSession();
@@ -2077,6 +2092,306 @@ export class DynamicUiService {
       }
       
       const res = await this.achievementModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateEpisodeMedia(payload: { seriesId: string }) {
+    try {
+      const seriesId = payload.seriesId;
+
+      // First, get all tasks with their media
+      const series = await this.taskModel.aggregate([
+        {
+          $match: {
+            processId: new ObjectId(seriesId)
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            "taskMetaData.media": 1
+          }
+        }
+      ]);
+
+      // Process each task and update story media URLs
+      const updatePromises = series.map(async (task) => {
+        const taskId = task._id;
+        const media = task.taskMetaData?.media || [];
+        
+        // Filter only story type media
+        const storyMedia = media.filter(m => m.type === "story");
+        
+        if (storyMedia.length === 0) return null; // Skip if no story media
+        
+        // Update each story media item
+        const mediaUpdatePromises = storyMedia.map(async (mediaItem, mediaIndex) => {
+          try {
+            console.log("mediaItem", mediaItem);
+            
+            // Only update if the old URL starts with the specified domain
+            if (!mediaItem.mediaUrl.startsWith('https://peertubedev.casttree.in')) {
+              console.log(`Skipping media item ${mediaIndex} - URL doesn't match required domain`);
+              return null;
+            }
+            
+            // Call external endpoint to get new URL
+            const newMediaUrl = await this.generateNewMediaUrl(mediaItem.mediaUrl);
+            console.log("newMediaUrl", newMediaUrl);
+
+            // Check if the new URL still points to the original domain (video not transcoded yet)
+            if (newMediaUrl.startsWith('https://peertubedev.casttree.in')) {
+              console.log(`Video not transcoded yet for media ${mediaItem.mediaId}`);
+              return {
+                status: 'pending',
+                message: 'Video has not been transcoded yet. Please wait and try again.',
+                mediaId: mediaItem.mediaId
+              };
+            }
+            
+            // Update the specific media item in the array
+            const res = await this.taskModel.updateOne(
+              { 
+                _id: taskId,
+                "taskMetaData.media": {
+                  $elemMatch: {
+                    type: "story",
+                    mediaId: mediaItem.mediaId
+                  }
+                }
+              },
+              {
+                $set: {
+                  "taskMetaData.media.$.mediaUrl": newMediaUrl
+                }
+              }
+            );
+
+            // If it's a Q&A episode, also update questionMediaUrl
+            if (task.type === "Q&A") {
+              const updateQandA = await this.taskModel.updateOne(
+                { _id: taskId },  // Only match by task ID
+                {
+                  $set: {
+                    "taskMetaData.questionMediaUrl": newMediaUrl
+                  }
+                }
+              );
+            }
+            
+            console.log("res", res);
+            return res;
+          } catch (error) {
+            console.error(`Failed to update media URL for task ${taskId}, media index ${mediaIndex}:`, error);
+            return null;
+          }
+        });
+        
+        return Promise.all(mediaUpdatePromises);
+      });
+
+      // Execute all updates
+      await Promise.all(updatePromises.filter(Boolean));
+
+      return {
+        success: true,
+        message: "Episode media URLs updated successfully"
+      };
+    } catch (error) {
+      console.error('Error updating episode media:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to call external endpoint
+  private async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post('http://localhost:3000/casttree/peertube', {
+        embeddedURL: oldUrl
+      }, {
+        headers: {
+          'x-api-version': '2',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error generating new media URL:', error);
+      throw error;
+    }
+  }
+
+  async addGiftGroup(payload: {giftGroupId: string, seriesId: string, type: string}) {
+    try {
+      console.log("payload", payload);
+      const findGroup = await this.virtualItemGroupModel.findOne({
+        _id: payload.giftGroupId
+      });
+      
+      if (findGroup) {
+        findGroup.source.push({
+          sourceId: new ObjectId(payload.seriesId),
+          sourceType: payload.type
+        });
+        await findGroup.save();
+      } else {
+        throw new Error("Group not found");
+      }
+      return {
+        success: true,
+        message: "Group added successfully"
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getGiftGroup() {
+    try {
+      const res = await this.virtualItemGroupModel.aggregate().project({
+        _id: 1,
+        virtualItemGroupName: 1
+      });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getVirtualItemList(type: string) {
+    try {
+      const res = await this.virtualItemModel.aggregate([
+        {
+          $match: {
+            type: type
+          }
+        }
+      ]).project({
+        _id: 1,
+        name: 1,
+        mediaUrl: { $arrayElemAt: ["$media.mediaUrl", 0] },
+      });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createVirtualItem(payload: CreateVirtualItemDto) {
+    try {
+      console.log("payload:", payload);
+
+      const uploadData = {
+        "name": payload.name,
+        "type": payload.type, // Now handles both "queries" and "gift"
+        "media": [],
+        "isPayable": payload.isPayable,
+        "status": 'Active',
+        "payableType": new ObjectId("685d1b018e07635f6a8f7021"),
+        "comparePrice": payload.comparePrice || 0,
+        "additionalData": {
+            "key": "value"
+        },
+        "description": payload.description || "",
+        "shortDescription": "",
+        "payableValue": payload.price || 0,
+        "source": []
+      }
+
+      if (payload.type === 'gift') {
+        uploadData["media"] = [
+          payload.media
+        ]
+      }
+
+      if (payload.type === 'gift' && payload.isPayable) {
+        uploadData["stickerSound"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832546781WhatsApp%20Audio%202025-06-25%20at%2010.58.24%20AM.mpeg";
+        uploadData["stickerGif"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832457037Animation%20-%201750829319104.json";
+      } else {
+        uploadData["stickerSound"] = "https://storage.googleapis.com/download/storage/v1/b/ct-bucket-prod/o/1750874302452pop%20sound.mp3?generation=1750874300873927&alt=media";
+        uploadData["stickerGif"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1744786545186confetti.json";
+      }
+
+      if (payload.type === 'queries') {
+        delete uploadData["stickerSound"];
+        delete uploadData["stickerGif"];
+      }
+
+      console.log("uploadData", uploadData);
+
+      const res = await this.virtualItemModel.create(uploadData);
+      
+      return {
+        success: true,
+        message: `${payload.type === 'gift' ? 'Gift' : 'Query'} created successfully`,
+        data: res
+      };
+    } catch (error) {
+      console.error('=== DEBUG: Error creating query ===', error);
+      console.error('Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  async createGiftGroup(payload: {groupName: string, giftIds: string[]}) {
+    try {
+      console.log("payload", payload);
+      const uploadData = {
+        "source": [],
+        "virtualItemGroupName": payload.groupName,
+        "virtualItemIds": payload.giftIds.map(id => new ObjectId(id)),
+      }
+      console.log("uploadData", uploadData);
+      const res = await this.virtualItemGroupModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async mapVirtualItemToSeries(payload: MapVirtualItemToSeriesDto) {
+    try {
+      console.log("payload", payload);
+      
+      const compId = payload.seriesId ? payload.seriesId : payload.awardId;
+      const compType = payload.seriesId ? "process" : "award";
+      const itemIds = payload.itemIds;
+
+      const itemType = payload.itemType;
+
+      if (itemType === ItemType.GIFT_GROUPS) {
+        const res = await this.addGiftGroup({
+          giftGroupId: itemIds[0],
+          seriesId: compId,
+          type: compType
+        });
+        return res;
+      }
+
+      const res = await this.virtualItemModel.updateMany(
+        { _id: { $in: itemIds } },
+        {
+          $push: {
+            source: {
+              sourceId: new ObjectId(compId),
+              sourceType: compType
+            }
+          }
+        }
+      );
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAwardList() {
+    try {
+      const res = await this.awardsModel.find({}).select("_id title");
       return res;
     } catch (error) {
       throw error;
