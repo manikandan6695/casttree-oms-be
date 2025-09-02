@@ -991,19 +991,21 @@ export class PaymentRequestService {
         },
       }, { new: true}
     )
-    let salesDoc = await this.salesDocumentModel.findOne({
-      _id: new ObjectId(payment.source_id),
-    })
-    let mixPanelBody: any = {};
-    mixPanelBody.eventName = EMixedPanelEvents.meta_event_trigger;
-    mixPanelBody.distinctId = payment.user_id;
-    mixPanelBody.properties = {
-      user_id: payment.user_id,
-      payment_id: paymentId,
-      subscription_id: salesDoc?.source_id,
-    };
-    console.log("mixPanelBody", mixPanelBody);
-    await this.helperService.mixPanel(mixPanelBody);
+    if (payment){
+      let salesDoc = await this.salesDocumentModel.findOne({
+        _id: new ObjectId(payment.source_id),
+      })
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.meta_event_send;
+      mixPanelBody.distinctId = payment.user_id;
+      mixPanelBody.properties = {
+        user_id: payment.user_id,
+        payment_id: paymentId,
+        subscription_id: salesDoc?.source_id,
+      };
+      console.log("mixPanelBody", mixPanelBody);
+      await this.helperService.mixPanel(mixPanelBody);
+    }
     return payment
     }
     catch (error){
