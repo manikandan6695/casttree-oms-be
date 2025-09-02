@@ -1,5 +1,5 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
-import { EStatus } from "./../process/enums/process.enum";
+import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -15,7 +15,11 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EComponentKey, EComponentType, EItemType } from "./enum/component.enum";
+import {
+  EComponentKey,
+  EComponentType,
+  EItemType,
+} from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
@@ -23,8 +27,8 @@ import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
 import { EFilterOption } from "./dto/filter-option.dto";
 import { processModel } from "src/process/schema/process.schema";
-import { EUpdateSeriesTag } from './dto/update-series-tag.dto';
-import { EUpdateComponents } from './dto/update-components.dto';
+import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
+import { EUpdateComponents } from "./dto/update-components.dto";
 import { ICategory } from "./schema/category.schema";
 import { AddNewSeriesDto } from "./dto/add-new-series.dto";
 import { IItemModel } from "src/item/schema/item.schema";
@@ -153,7 +157,11 @@ export class DynamicUiService {
     }
   }
 
-  async getPageDetails(token: UserToken, pageId: string, filterOption: EFilterOption) {
+  async getPageDetails(
+    token: UserToken,
+    pageId: string,
+    filterOption: EFilterOption
+  ) {
     try {
       // const subscriptionData =
       //   await this.subscriptionService.validateSubscription(token.id, [
@@ -272,8 +280,10 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
-      
-      const componentsWithInteractionData = componentDocs.filter(comp => comp.interactionData);
+
+      const componentsWithInteractionData = componentDocs.filter(
+        (comp) => comp.interactionData
+      );
       if (componentsWithInteractionData.length > 0) {
         let availableFilterOptions = await this.componentFilterOptions();
 
@@ -294,9 +304,58 @@ export class DynamicUiService {
           return acc;
         }, {});
 
-        componentsWithInteractionData.forEach(component => {
-          if (component.componentKey === EComponentKey.learnFilterActionButton) {
-            component.interactionData = { items: Object.values(grouped) };
+        componentsWithInteractionData.forEach((component) => {
+          if (
+            component.componentKey === EComponentKey.learnFilterActionButton
+          ) {
+            const originalItems = component.interactionData?.items || [];
+
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach(
+              (group: {
+                type: string;
+                filterTypeId: string;
+                options: any[];
+              }) => {
+                groupedOptionsMap.set(group.type, group);
+              }
+            );
+
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+
+              const groupedData = groupedOptionsMap.get(filterType);
+
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+
+                const existingOptionIds = new Set(
+                  existingOptions.map((opt) => opt.filterOptionId)
+                );
+
+                const uniqueNewOptions = newOptions.filter(
+                  (opt) => !existingOptionIds.has(opt.filterOptionId)
+                );
+
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions,
+                };
+              }
+
+              return item;
+            });
+
+            component.interactionData = { items: transformedItems };
           }
         });
       }
@@ -343,7 +402,8 @@ export class DynamicUiService {
           return (
             index ===
             self.findIndex(
-              i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+              (i) =>
+                i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
             )
           );
         });
@@ -372,20 +432,100 @@ export class DynamicUiService {
           return acc;
         }, {});
 
-        if (filterOption?.proficiency) {
-          grouped[EItemType.proficiency]?.options.forEach(opt => {
-            opt.isUserSelected = opt.filterOptionId === filterOption.proficiency;
-          });
-        }
+        if (filterOption) {
+          Object.keys(filterOption).forEach((filterKey) => {
+            const filterValue = filterOption[filterKey];
+            const groupedData = grouped[filterKey];
 
-        if (filterOption?.category && filterOption.category.length > 0) {
-          grouped[EItemType.category]?.options.forEach(opt => {
-            opt.isUserSelected = filterOption.category.includes(opt.filterOptionId);
+            if (groupedData && filterValue) {
+              if (Array.isArray(filterValue)) {
+                groupedData.options.forEach((opt) => {
+                  opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+                });
+              } else {
+                groupedData.options.forEach((opt) => {
+                  opt.isUserSelected = opt.filterOptionId === filterValue;
+                });
+              }
+            }
           });
         }
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
-          component.interactionData = { items: Object.values(grouped) };
+          if (!component.actionData || component.actionData.length === 0) {
+            const completedSeries = await this.processService.getMySeries(
+              token.id,
+              EprocessStatus.Completed
+            );
+            const completedProcessIds = new Set(
+              completedSeries.map((s: any) => String(s.processId))
+            );
+
+            const allServiceItemData = await this.fetchServiceItemDetails(
+              page,
+              token.id,
+              false,
+              0,
+              0,
+              null
+            );
+
+            const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+
+            const nonMatchedSeries = allSeriesData.filter(
+              (series: any) =>
+                !completedProcessIds.has(String(series.processId))
+            );
+
+            if (nonMatchedSeries.length > 0) {
+              component.recommendedList = nonMatchedSeries;
+              component["totalCount"] = nonMatchedSeries.length;
+            }
+          }
+          const originalItems = component.interactionData?.items || [];
+
+          const groupedOptionsMap = new Map();
+          Object.values(grouped).forEach(
+            (group: { type: string; filterTypeId: string; options: any[] }) => {
+              groupedOptionsMap.set(group.type, group);
+            }
+          );
+
+          const transformedItems = originalItems.map((item: any) => {
+            let filterType = item.button?.type;
+
+            if (filterType === "proficency") {
+              filterType = "proficiency";
+            }
+
+            const groupedData = groupedOptionsMap.get(filterType);
+
+            if (groupedData) {
+              const existingOptions = item.options || [];
+              const newOptions = groupedData.options || [];
+
+              const existingOptionIds = new Set(
+                existingOptions.map((opt) => opt.filterOptionId)
+              );
+
+              const uniqueNewOptions = newOptions.filter(
+                (opt) => !existingOptionIds.has(opt.filterOptionId)
+              );
+
+              const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+              return {
+                ...item,
+                type: filterType,
+                filterTypeId: groupedData.filterTypeId,
+                options: mergedOptions,
+              };
+            }
+
+            return item;
+          });
+
+          component.interactionData = { items: transformedItems };
         }
       }
 
@@ -664,12 +804,33 @@ export class DynamicUiService {
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
         status: Estatus.Active,
       };
-      if (filterOption?.proficiency) {
-        filter["proficiency.filterOptionId"] = new ObjectId(filterOption.proficiency);
-      }
+      if (filterOption) {
+        Object.keys(filterOption).forEach((filterKey) => {
+          const filterValue = filterOption[filterKey];
 
-      if (filterOption?.category && filterOption?.category?.length > 0) {
-        filter["category.filterOptionId"] = { $in: filterOption.category.map(id => new ObjectId(id)) };
+          if (filterValue) {
+            if (Array.isArray(filterValue)) {
+              const validIds = filterValue.filter(
+                (id) => id && typeof id === "string" && id.length === 24
+              );
+              if (validIds.length > 0) {
+                filter[`${filterKey}.filterOptionId`] = {
+                  $in: validIds.map((id) => new ObjectId(id)),
+                };
+              }
+            } else {
+              if (
+                filterValue &&
+                typeof filterValue === "string" &&
+                filterValue.length === 24
+              ) {
+                filter[`${filterKey}.filterOptionId`] = new ObjectId(
+                  filterValue
+                );
+              }
+            }
+          }
+        });
       }
       let aggregationPipeline = [];
       aggregationPipeline.push({
@@ -987,7 +1148,8 @@ export class DynamicUiService {
             seriesTitle: mentorUserIds[i].seriesName,
             seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
-        }} 
+        }
+      }
 
       return continueWatching;
     } catch (err) {
@@ -1004,20 +1166,14 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
-      // console.log("isNewSubscription", isNewSubscription);
-      // console.log("isSubscriber", isSubscriber);
-
       const personalizedBannerComponent = components.find(
         (c) => c.type === EComponentType.userPreferenceBanner
       );
-
-      if (!personalizedBannerComponent?.interactionData?.items?.length) {
-        return [];
-      }
-
-      const isFirstSeriesLocked =
-        userProcessedSeries?.actionData?.[0]?.taskDetail?.isLocked || false;
+      const isFirstSeriesLocked = userProcessedSeries?.actionData.some(
+        (action) => action.taskDetail?.isLocked === true
+      );
       // console.log("isSubscriber", isSubscriber);
+
 
       let bestMatchBanner: any = null;
       let referralBanner: any = null;
@@ -1031,9 +1187,6 @@ export class DynamicUiService {
         // console.log("isNewSubscriberRule", isNewSubscriberRule,item.type);
 
         let isSubscribedRule = rule.isSubscribed;
-
-        // console.log("isSubscribedRule", isSubscribedRule,item.type);
-
         const matchesCountry =
           typeof rule.country === "object" && "$ne" in rule.country
             ? countryCode !== rule.country["$ne"]
@@ -1057,25 +1210,27 @@ export class DynamicUiService {
           return [bannerData];
         }
         if (
-          isSubscriber == isSubscribedRule &&
-          isFirstSeriesLocked == false &&
+          isNewSubscription == isSubscribedRule &&
+          isFirstSeriesLocked == rule.isLocked &&
           item.type == "course"
         ) {
           return [bannerData];
         }
         if (
-          (rule.isSubscribed == isSubscriber &&
+          (rule.isSubscribed != isSubscriber &&
+            isFirstSeriesLocked == rule.isLocked &&
             matchesCountry &&
-            isFirstSeriesLocked &&
             item.type == "IAPPayment") ||
-          (matchesCountry && item.type == "IAPPayment")
+          (rule.isSubscribed == isNewSubscription &&
+            isFirstSeriesLocked == rule.isLocked &&
+            matchesCountry &&
+            item.type == "IAPPayment")
         ) {
+          // console.log("inside IAP payment");
+
           return [bannerData];
         }
-        if (
-          rule.isSubscribed === isNewSubscription &&
-          !referralBanner
-        ) {
+        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
@@ -1090,7 +1245,6 @@ export class DynamicUiService {
       throw err;
     }
   }
-
   async evaluateCountryRule(ruleCountry, userCountry) {
     try {
       if (!ruleCountry) return true;
@@ -1141,29 +1295,29 @@ export class DynamicUiService {
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
         ? {
-          media: { mediaUrl: learnBanner.imageUrl },
-          navigation: {
-            page: getScreenName(learnBanner),
-            type: "internal",
-            ...(getScreenName(learnBanner) !== "ReferralScreen" && {
-              params: {
-                processId: learnBanner.processId,
-                taskId: learnBanner.taskId,
-              },
-            }),
-          },
-        }
-        : {
-          media: { mediaUrl: premiumBanner },
-          navigation: {
-            page: getScreenName(premiumBannerObj),
-            type: "internal",
-            params: {
-              processId: premiumBannerObj.processId,
-              taskId: premiumBannerObj.taskId,
+            media: { mediaUrl: learnBanner.imageUrl },
+            navigation: {
+              page: getScreenName(learnBanner),
+              type: "internal",
+              ...(getScreenName(learnBanner) !== "ReferralScreen" && {
+                params: {
+                  processId: learnBanner.processId,
+                  taskId: learnBanner.taskId,
+                },
+              }),
             },
-          },
-        };
+          }
+        : {
+            media: { mediaUrl: premiumBanner },
+            navigation: {
+              page: getScreenName(premiumBannerObj),
+              type: "internal",
+              params: {
+                processId: premiumBannerObj.processId,
+                taskId: premiumBannerObj.taskId,
+              },
+            },
+          };
 
       return banner;
     } catch (err) {
@@ -1224,44 +1378,45 @@ export class DynamicUiService {
     }
   }
 
-  async updatePageComponents(
-    pageId: string,
-    updateDto: EUpdateComponents
-  ) {
+  async updatePageComponents(pageId: string, updateDto: EUpdateComponents) {
     try {
       // console.log("Updating page components:", pageId);
       // console.log("componentIds:", updateDto.components);
 
       // Map components to the correct format
-      const components = updateDto.components.map(item => ({
-        componentId: new ObjectId(item.componentId.$oid)
+      const components = updateDto.components.map((item) => ({
+        componentId: new ObjectId(item.componentId.$oid),
       }));
 
       // Update page components
-      const updatedPage = await this.contentPageModel.findByIdAndUpdate(
-        pageId,
-        {
-          $set: { components }
-        },
-        { new: true }
-      ).lean();
+      const updatedPage = await this.contentPageModel
+        .findByIdAndUpdate(
+          pageId,
+          {
+            $set: { components },
+          },
+          { new: true }
+        )
+        .lean();
 
       // Update order for each component
       const updatePromises = updateDto.components.map((item, index) => {
-        return this.componentModel.findByIdAndUpdate(
-          item.componentId.$oid,
-          {
-            $set: { order: index + 1 }
-          },
-          { new: true }
-        ).lean();
+        return this.componentModel
+          .findByIdAndUpdate(
+            item.componentId.$oid,
+            {
+              $set: { order: index + 1 },
+            },
+            { new: true }
+          )
+          .lean();
       });
       // Wait for all updates to complete
       await Promise.all(updatePromises);
-    
-      const skillName = await this.contentPageModel.findOne(
-        { _id: pageId }
-      ).lean();
+
+      const skillName = await this.contentPageModel
+        .findOne({ _id: pageId })
+        .lean();
       const skill = skillName?.metaData?.skill;
       // console.log("Skill Name:", skill);
 
@@ -1276,21 +1431,21 @@ export class DynamicUiService {
               "tag.name": component.tag,
               "additionalDetails.processId": new ObjectId(series.seriesId.$oid),
             };
-          
+
             // console.log("Update query:", query);
             // console.log("Setting order:", series.order, "for tag:", component.tag);
-          
+
             // Update the order in the tag array where tag.name matches component.tag
             tagUpdatePromises.push(
               this.serviceItemModel.updateOne(
                 query,
                 {
                   $set: {
-                    "tag.$[tagElem].order": series.order
-                  }
+                    "tag.$[tagElem].order": series.order,
+                  },
                 },
                 {
-                  arrayFilters: [{ "tagElem.name": component.tag }]
+                  arrayFilters: [{ "tagElem.name": component.tag }],
                 }
               )
             );
@@ -1307,10 +1462,10 @@ export class DynamicUiService {
       // console.log("tagUpdatePromises", tagUpdatePromises)
 
       return {
-        success: true
+        success: true,
       };
     } catch (err) {
-      console.error('Error updating page components:', err);
+      console.error("Error updating page components:", err);
       throw err;
     }
   }
@@ -1320,10 +1475,12 @@ export class DynamicUiService {
     const compId = new ObjectId(componentId);
 
     // First, find the category document by category_name
-    const categoryDoc = await this.categoryModel.findOne({ 
-      category_name: tag, 
-      status: 'Active' 
-    }).lean();
+    const categoryDoc = await this.categoryModel
+      .findOne({
+        category_name: tag,
+        status: "Active",
+      })
+      .lean();
 
     if (!categoryDoc) {
       throw new Error(`Category with name '${tag}' not found or not active`);
@@ -1355,7 +1512,7 @@ export class DynamicUiService {
     });
 
     // Process unselected series - use Promise.all for parallel execution
-    const unselectedPromises = unselected.map(item => 
+    const unselectedPromises = unselected.map((item) =>
       this.serviceItemModel.updateOne(
         { "additionalDetails.processId": item.id },
         { $pull: { tag: { name: tag } } }
@@ -1366,48 +1523,57 @@ export class DynamicUiService {
     try {
       await Promise.all([...selectedPromises, ...unselectedPromises]);
     } catch (error) {
-      console.error('Error updating series tags:', error);
+      console.error("Error updating series tags:", error);
       throw error;
     }
   }
-  
-  async createOrUpdateUserPreference(userId:string, payload) {
+
+  async createOrUpdateUserPreference(userId: string, payload) {
     try {
       payload.userId = new ObjectId(userId);
       payload.isLatest = true;
       payload.status = EStatus.Active;
-      const allFilterIds = payload.filters.flatMap(f => f.values).map(id => new ObjectId(id));
-      const filterOptions = await this.filterOptionsModel.find({
-        _id: { $in: allFilterIds },
-        status: EStatus.Active
-      }).lean();
+      const allFilterIds = payload.filters
+        .flatMap((f) => f.values)
+        .map((id) => new ObjectId(id));
+      const filterOptions = await this.filterOptionsModel
+        .find({
+          _id: { $in: allFilterIds },
+          status: EStatus.Active,
+        })
+        .lean();
       const optionKeyMap = filterOptions.reduce((acc, fo) => {
         acc[fo._id.toString()] = fo.optionKey;
         return acc;
       }, {});
-      payload.filters = payload.filters.map(payloadData => ({
+      payload.filters = payload.filters.map((payloadData) => ({
         ...payloadData,
-        values: payloadData.values.map(data => ({
+        values: payloadData.values.map((data) => ({
           id: data,
-          optionKey: optionKeyMap[data] || null
-        }))
+          optionKey: optionKeyMap[data] || null,
+        })),
       }));
-      const existingData = await this.userFilterPreferenceModel.findOne({
-        userId: payload.userId,
-        status: EStatus.Active,
-      }).sort({ created_at: -1 }).lean();
+      const existingData = await this.userFilterPreferenceModel
+        .findOne({
+          userId: payload.userId,
+          status: EStatus.Active,
+        })
+        .sort({ created_at: -1 })
+        .lean();
       if (existingData) {
         await this.userFilterPreferenceModel.findOneAndUpdate(
-          { userId: payload.userId, status: EStatus.Active, _id: existingData._id },
+          {
+            userId: payload.userId,
+            status: EStatus.Active,
+            _id: existingData._id,
+          },
           { $set: { isLatest: false } }
         );
 
         await this.userFilterPreferenceModel.create(payload);
-
       } else {
         await this.userFilterPreferenceModel.create(payload);
       }
-
     } catch (error) {
       throw error;
     }
@@ -1416,16 +1582,19 @@ export class DynamicUiService {
   async componentFilterOptions() {
     try {
       let filter = await this.filterTypeModel.find({
-        isActive: true
-      })
-      const types = filter.map(item => item.type);
-      const data = await this.filterOptionsModel.find({
-        status: EStatus.Active,
-        filterType: { $in: types }
-      }).lean();
-      return data
+        isActive: true,
+      });
+      const types = filter.map((item) => item.type);
+      const data = await this.filterOptionsModel
+        .find({
+          status: EStatus.Active,
+          filterType: { $in: types },
+        })
+        .sort({ sortOrder: 1 })
+        .lean();
+      return data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 
@@ -1796,9 +1965,6 @@ export class DynamicUiService {
       })
       // console.log("tags at last", tags)
       });
-
-      
-
       // If we reach here, the transaction was successful
       return {
         success: true,

@@ -15,3 +15,12 @@ export const ESserviceItemType = [
   EserviceItemType.contest,
   EserviceItemType.coins,
 ];
+
+
+export enum EServiceItemTag {
+  trendingSeries = "trendingSeries"
+}
+
+export const ESServiceItemTag = [
+  EServiceItemTag.trendingSeries
+];
