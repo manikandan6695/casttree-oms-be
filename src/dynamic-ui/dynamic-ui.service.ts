@@ -1070,8 +1070,8 @@ export class DynamicUiService {
           return [bannerData];
         }
         if (
-          isSubscriber == isSubscribedRule &&
-          isFirstSeriesLocked == false &&
+          isNewSubscription == isSubscribedRule &&
+            isFirstSeriesLocked == rule.isLocked &&
           item.type == "course"
         ) {
           return [bannerData];
@@ -1090,7 +1090,7 @@ export class DynamicUiService {
 
           return [bannerData];
         }
-        if (rule.isSubscribed === isNewSubscription && !referralBanner) {
+          if (rule.isSubscribed === isNewSubscription && !referralBanner) {
           // console.log("inside referral");
           referralBanner = bannerData;
         }
