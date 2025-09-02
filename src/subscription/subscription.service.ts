@@ -1493,14 +1493,14 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
-          let userData = await this.helperService.getUserById(
-            subscription?.userId
-          );
-          await this.helperService.facebookEvents(
-            userData.data.phoneNumber,
-            invoice.currencyCode,
-            invoice.grand_total
-          );
+          // let userData = await this.helperService.getUserById(
+          //   subscription?.userId
+          // );
+          // await this.helperService.facebookEvents(
+          //   userData.data.phoneNumber,
+          //   invoice.currencyCode,
+          //   invoice.grand_total
+          // );
         }
       }
       //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
