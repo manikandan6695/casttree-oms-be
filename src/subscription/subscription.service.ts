@@ -37,7 +37,7 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EEventId, EEventType } from "./enums/eventType.enum";
+import { EEventId, EEventType, EReferralStatus } from "./enums/eventType.enum";
 import {
   EErrorHandler,
   EProvider,
@@ -51,10 +51,13 @@ import { SubscriptionFactory } from "./subscription.factory";
 import { ServiceItemService } from "src/item/service-item.service";
 import {
   ELIGIBLE_SUBSCRIPTION,
+  EVENT_UPDATE_REFERRAL_STATUS,
   NOT_ELIGIBLE_SUBSCRIPTION,
   SUBSCRIPTION_NOT_FOUND,
 } from "src/shared/app.constants";
 import { IWebhookModel } from "./schema/webhook.schema";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
+import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -74,7 +77,8 @@ export class SubscriptionService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
-    private readonly mandateHistoryService: MandateHistoryService
+    private readonly mandateHistoryService: MandateHistoryService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -1322,6 +1326,18 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
+          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+            let eventBody = {
+              subscriptionId: subscription?._id,
+              userId: subscription?.userId,
+            }
+            await this.sharedService.trackAndEmitEvent(
+              EVENT_UPDATE_REFERRAL_STATUS,
+              eventBody,
+              true,
+              {}
+            );
+          }
         }
       }
     } catch (err) {
@@ -2547,6 +2563,47 @@ export class SubscriptionService {
       return { data: subscription };
     } catch (error) {
       throw error;
+    }
+  }
+  @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
+  async handleUpdateReferralStatus(payload: any) {
+    try {
+      await this.updateReferralStatus(payload);
+
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Complete
+      );
+    } catch (error) {
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Failed
+      );
+      throw error
+    }
+  }
+  async updateReferralStatus(payload: any) {
+    try {
+      let userAdditional = await this.helperService.getUserAdditional(payload?.userId)
+      let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
+
+      const subscription = await this.subscriptionModel.findOne({
+        _id:  new ObjectId(payload?.subscriptionId),
+        userId: new ObjectId(payload?.userId),
+        status: EStatus.Active, 
+        subscriptionStatus: EsubscriptionStatus.active
+      }).lean()
+
+      if(referelData?.referralStatus === EReferralStatus.Onboarded && subscription?.subscriptionStatus === EsubscriptionStatus.active){
+        let body = {
+          refereeUserId: referelData?.refereeUserId,
+          referralId : referelData?._id,
+          referrerId: referelData?.referrerUserId,
+        }
+        await this.helperService.updateReferral(body)
+      }
+    } catch (error) {
+      throw error
     }
   }
 }
