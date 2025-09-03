@@ -1274,22 +1274,31 @@ export class SubscriptionService {
           //   invoice.grand_total
           // );
           if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
-            let userAdditional = await this.helperService.getUserAdditional(subscription?.userId)
-            if (!userAdditional?.referredBy) {
-              return;
-            }
-            let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
-            if(referelData?.referralStatus === EReferralStatus.Onboarded){
-              let eventBody = {
-                subscriptionId: subscription?._id,
-                userId: subscription?.userId,
+            try {
+              let userAdditional = await this.helperService.getUserAdditional(subscription?.userId)
+              
+              if (userAdditional?.referredBy) {
+                try {
+                  let referelData = await this.helperService.getReferralData(payload?.userId, userAdditional.referredBy)
+                  
+                  if (referelData?.referralStatus === EReferralStatus.Onboarded) {
+                    let eventBody = {
+                      subscriptionId: subscription?._id,
+                      userId: subscription?.userId,
+                    }
+                    await this.sharedService.trackAndEmitEvent(
+                      EVENT_UPDATE_REFERRAL_STATUS,
+                      eventBody,
+                      true,
+                      {}
+                    );
+                  }
+                } catch (referralError) {
+                  console.warn(`Referral data fetch failed for user ${payload?.userId}:`, referralError?.message || referralError)
+                }
               }
-              await this.sharedService.trackAndEmitEvent(
-                EVENT_UPDATE_REFERRAL_STATUS,
-                eventBody,
-                true,
-                {}
-              );
+            } catch (userAdditionalError) {
+              console.warn(`User additional data fetch failed for user ${subscription?.userId}:`, userAdditionalError?.message || userAdditionalError)
             }
           }
         }
