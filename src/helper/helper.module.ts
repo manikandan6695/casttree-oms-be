@@ -6,6 +6,7 @@ import { HttpModule } from "@nestjs/axios";
 import { HelperController } from "./helper.controller";
 import { HelperService } from "./helper.service";
 import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware";
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware
     SharedModule,
     AuthModule,
     HttpModule,
+    RedisModule,
   ],
   controllers: [HelperController],
   providers: [HelperService, GetUserOriginMiddleware],
