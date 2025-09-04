@@ -31,6 +31,7 @@ import { processModel } from "src/process/schema/process.schema";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { ICategory } from "./schema/category.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -38,6 +39,8 @@ export class DynamicUiService {
   constructor(
     @InjectModel("appNavBar")
     private readonly appNavBarModel: Model<IAppNavBar>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
     @InjectModel("component")
     private readonly componentModel: Model<IComponent>,
     @InjectModel("serviceitems")
@@ -198,14 +201,19 @@ export class DynamicUiService {
         token.id,
         isSubscriber
       );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      // let banners = await this.fetchUserPreferenceBanner(
+      //   isNewSubscription,
+      //   token.id,
+      //   continueWatching,
+      //   componentDocs,
+      //   country_code,
+      //   isSubscriber
+      // );
+      let banner = await this.helperService.getBannerToShow(token.id);
+      let banners = await this.bannerConfigurationModel.findOne({
+        _id: new ObjectId(banner.bannerToShow),
+        status: EStatus.Active,
+      });
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -222,7 +230,7 @@ export class DynamicUiService {
           };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.interactionData = { items: banners };
+          comp.interactionData = { items: [banners] };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
@@ -1081,7 +1089,6 @@ export class DynamicUiService {
         (action) => action.taskDetail?.isLocked === true
       );
       // console.log("isSubscriber", isSubscriber);
-
 
       let bestMatchBanner: any = null;
       let referralBanner: any = null;

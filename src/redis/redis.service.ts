@@ -152,6 +152,10 @@ export class RedisService implements OnModuleDestroy {
     );
   }
 
+  getClient() {
+    return this.client;
+  }
+
   async onModuleDestroy() {
     this.isPolling = false;
     if (this.isConnected) {
