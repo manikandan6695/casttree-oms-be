@@ -921,6 +921,78 @@ export class HelperService {
       throw err;
     }
   }
+  async updateReferral(body: any) {
+    try {
+      const requestURL = 
+      `${this.configService.get("CASTTREE_BASE_URL")}/referral/${body.referralId}`;
+      // `http://localhost:3000/casttree/referral/${body.referralId}`;
+      const request = this.http_service
+        .patch(requestURL, body)
+        .pipe(
+          map((res) => {
+            // console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            // console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+
+    } catch (error) {
+      throw error 
+    }
+  }
+  async createReferralTransaction(body: any) {
+    try {
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/referral/transaction`;
+      // const requestURL = `http://localhost:3000/casttree/referral/transaction`;
+      const request = this.http_service
+        .post(requestURL, body)
+        .pipe(
+          map((res) => {
+            // console.log(res?.data);
+            return res?.data;
+          })
+        );
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (error) {
+      throw error
+    }
+  }
+  async getUserAdditional(userId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/user-additional-detail/${userId}`,
+          // `http://localhost:3000/casttree/user/user-additional-detail/${userId}`,
+        )
+        .toPromise();
+      return data.data;
+    } catch (err) {
+      // console.log("err is", err);
+      throw err;
+    }
+  }
+  async getReferralData(refereeUserId: string,referrerId: string) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/referral/${refereeUserId}/${referrerId}`,
+          // `http://localhost:3000/casttree/referral/${refereeUserId}/${referrerId}`,
+        )
+        .toPromise();
+      return data.data;
+    } catch (error) {
+      throw error
+    }
+  }
   // @OnEvent(EVENT_UPDATE_USER)
   // async updateUserDetails(updateUserPayload: IUserUpdateEvent): Promise<any> {
   //   try {
