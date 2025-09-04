@@ -1279,7 +1279,7 @@ export class SubscriptionService {
               
               if (userAdditional?.referredBy) {
                 try {
-                  let referelData = await this.helperService.getReferralData(payload?.userId, userAdditional.referredBy)
+                  let referelData = await this.helperService.getReferralData(subscription?.userId, userAdditional?.referredBy)
                   
                   if (referelData?.referralStatus === EReferralStatus.Onboarded) {
                     let eventBody = {
