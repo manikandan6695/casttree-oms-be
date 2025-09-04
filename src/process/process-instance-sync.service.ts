@@ -1,155 +1,299 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { ProcessInstanceSyncEntity } from "./process-instance-sync.entity";
+import { RedisQueueService, QueueJob } from "../redis/redis-queue.service";
+import { getProcessInstanceRedisSyncConfig } from "./redis-sync.config";
 
 @Injectable()
-export class ProcessInstanceSyncService implements OnModuleInit {
+export class ProcessInstanceSyncService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ProcessInstanceSyncService.name);
+  private changeStream: any;
+  private workerInterval: NodeJS.Timeout;
+  private retryQueueInterval: NodeJS.Timeout;
+  private config = getProcessInstanceRedisSyncConfig();
+
   constructor(
     @InjectModel("processInstance")
     private readonly processInstanceModel: Model<processInstanceModel>,
     @InjectRepository(ProcessInstanceSyncEntity)
-    private readonly processInstanceRepository: Repository<ProcessInstanceSyncEntity>
+    private readonly processInstanceRepository: Repository<ProcessInstanceSyncEntity>,
+    private readonly redisQueue: RedisQueueService
   ) {}
 
   async onModuleInit() {
     await this.setupChangeStream();
+    this.startWorker();
+    this.startRetryQueueProcessor();
+    this.logger.log("Redis-based process instance sync service initialized");
+  }
+
+  async onModuleDestroy() {
+    if (this.changeStream) {
+      this.changeStream.close();
+    }
+    if (this.workerInterval) {
+      clearInterval(this.workerInterval);
+    }
+    if (this.retryQueueInterval) {
+      clearInterval(this.retryQueueInterval);
+    }
   }
 
   private async setupChangeStream() {
-    const changeStream = this.processInstanceModel.watch([], {
-      fullDocument: "updateLookup",
-    });
-
-    changeStream.on("change", async (change) => {
-      try {
-        switch (change.operationType) {
-          case "insert":
-          case "update":
-            await this.handleUpsert(change.fullDocument);
-            break;
-          case "delete":
-            await this.handleDelete(change.documentKey._id);
-            break;
-        }
-      } catch (error) {
-        console.error("Error processing process instance change stream:", error);
-      }
-    });
-
-    changeStream.on("error", (error) => {
-      console.error("Process instance change stream error:", error);
-    });
-  }
-
-  private async handleUpsert(processInstance: any) {
     try {
-      // Check if process instance already exists by mongoId
-      const existingProcessInstance = await this.processInstanceRepository.findOne({
-        where: {
-          mongoId: processInstance?._id?.toString()
-        }
+      this.changeStream = this.processInstanceModel.watch([], {
+        fullDocument: "updateLookup",
+        resumeAfter: undefined,
       });
 
+      this.changeStream.on("change", (change) => {
+        this.queueChange(change);
+      });
+
+      this.changeStream.on("error", (error) => {
+        this.logger.error("Change stream error:", error);
+        // Implement retry logic with exponential backoff
+        setTimeout(() => this.setupChangeStream(), 5000);
+      });
+
+      this.logger.log("Change stream initialized successfully");
+    } catch (error) {
+      this.logger.error("Failed to setup change stream:", error);
+      setTimeout(() => this.setupChangeStream(), 10000);
+    }
+  }
+
+  private async queueChange(change: any) {
+    try {
+      const { operationType, fullDocument, documentKey } = change;
+
+      if (!fullDocument && !documentKey) {
+        this.logger.warn("Change event missing document data:", change);
+        return;
+      }
+
+      const job: Omit<QueueJob, 'id' | 'timestamp' | 'retryCount'> = {
+        operationType,
+        document: fullDocument || { _id: documentKey._id },
+        priority: this.getPriority(operationType),
+        maxRetries: this.getMaxRetries(operationType),
+        status: 'pending',
+      };
+
+      await this.redisQueue.enqueueJob(job);
+      this.logger.debug(`Queued ${operationType} job for process instance ${fullDocument?._id || documentKey._id}`);
+    } catch (error) {
+      this.logger.error("Error queuing change:", error);
+    }
+  }
+
+  private getPriority(operationType: string): number {
+    switch (operationType) {
+      case "insert":
+        return this.config.insertPriority;
+      case "update":
+        return this.config.updatePriority;
+      case "delete":
+        return this.config.deletePriority;
+      default:
+        return 1;
+    }
+  }
+
+  private getMaxRetries(operationType: string): number {
+    switch (operationType) {
+      case "insert":
+        return this.config.insertMaxRetries;
+      case "update":
+        return this.config.updateMaxRetries;
+      case "delete":
+        return this.config.deleteMaxRetries;
+      default:
+        return 3;
+    }
+  }
+
+  private startWorker() {
+    this.workerInterval = setInterval(async () => {
+      await this.processJobs();
+    }, this.config.workerInterval);
+  }
+
+  private startRetryQueueProcessor() {
+    this.retryQueueInterval = setInterval(async () => {
+      await this.redisQueue.processRetryQueue();
+    }, this.config.retryQueueInterval);
+  }
+
+  private async processJobs() {
+    try {
+      // Process multiple jobs concurrently based on configuration
+      const concurrentJobs: Promise<void>[] = [];
+
+      for (let i = 0; i < this.config.maxConcurrentJobs; i++) {
+        const job = await this.redisQueue.dequeueJob();
+        if (!job) break;
+
+        const jobPromise = this.processJob(job);
+        concurrentJobs.push(jobPromise);
+      }
+
+      if (concurrentJobs.length > 0) {
+        await Promise.allSettled(concurrentJobs);
+      }
+    } catch (error) {
+      this.logger.error("Error in job processing:", error);
+    }
+  }
+
+  private async processJob(job: QueueJob): Promise<void> {
+    try {
+      this.logger.debug(`Processing job ${job.id}: ${job.operationType}`);
+
+      switch (job.operationType) {
+        case "insert":
+          await this.handleInsert(job.document);
+          break;
+        case "update":
+          await this.handleUpdate(job.document);
+          break;
+        case "delete":
+          await this.handleDelete(job.document._id);
+          break;
+      }
+
+      await this.redisQueue.completeJob(job.id);
+      this.logger.debug(`Job ${job.id} completed successfully`);
+    } catch (error) {
+      this.logger.error(`Job ${job.id} failed:`, error);
+      await this.redisQueue.failJob(job.id, error.message);
+    }
+  }
+
+  private async handleInsert(processInstance: processInstanceModel): Promise<void> {
+    try {
+      const processInstanceEntity = this.mapToProcessInstanceEntity(processInstance);
+      await this.processInstanceRepository.save(processInstanceEntity);
+      this.logger.log(`Inserted new process instance ${processInstance._id} to SQL database`);
+    } catch (error) {
+      this.logger.error(`Error inserting process instance ${processInstance._id}:`, error);
+      throw error;
+    }
+  }
+
+  private async handleUpdate(processInstance: processInstanceModel): Promise<void> {
+    try {
+      const processInstanceEntity = this.mapToProcessInstanceEntity(processInstance);
+      
+      // Check if process instance exists
+      const existingProcessInstance = await this.processInstanceRepository.findOne({
+        where: { mongoId: processInstance._id.toString() }
+      });
+      
       if (existingProcessInstance) {
-        // Update existing process instance
-        const updatedProcessInstance = this.mapToProcessInstanceEntity(processInstance);
-        updatedProcessInstance.id = existingProcessInstance.id; // Keep the existing UUID
-        await this.processInstanceRepository.save(updatedProcessInstance);
-        console.log(`Updated process instance ${processInstance?._id} in SQL database (order: ${processInstance.orderId})`);
+        await this.processInstanceRepository.update(
+          { mongoId: processInstance._id.toString() },
+          processInstanceEntity
+        );
+        this.logger.log(`Updated process instance ${processInstance._id} in SQL database`);
       } else {
-        // Insert new process instance
-        const processInstanceEntity = this.mapToProcessInstanceEntity(processInstance);
+        // If process instance doesn't exist, insert it
         await this.processInstanceRepository.save(processInstanceEntity);
-            console.log(`Inserted new process instance ${processInstance?._id} to SQL database (order: ${processInstance.orderId})`);
+        this.logger.log(`Inserted missing process instance ${processInstance._id} to SQL database`);
       }
     } catch (error) {
-      console.error(`Error syncing process instance ${processInstance?._id}:`, error);
+      this.logger.error(`Error updating process instance ${processInstance._id}:`, error);
+      throw error;
     }
   }
 
-  private async handleDelete(processInstanceId: string) {
+  private async handleDelete(processInstanceId: string): Promise<void> {
     try {
-      // Find and delete by mongoId
-      const existingProcessInstance = await this.processInstanceRepository.findOne({
-        where: {
-          mongoId: processInstanceId
-        }
-      });
-
-      if (existingProcessInstance) {
-        await this.processInstanceRepository.remove(existingProcessInstance);
-        console.log(`Deleted process instance ${processInstanceId} from SQL database`);
-      } else {
-        console.log(`Process instance ${processInstanceId} not found in SQL database for deletion`);
-      }
+      await this.processInstanceRepository.delete({ mongoId: processInstanceId });
+      this.logger.log(`Deleted process instance ${processInstanceId} from SQL database`);
     } catch (error) {
-      console.error(`Error handling delete for process instance ${processInstanceId}:`, error);
+      this.logger.error(`Error deleting process instance ${processInstanceId}:`, error);
+      throw error;
     }
   }
 
-  private mapToProcessInstanceEntity(processInstance: any): ProcessInstanceSyncEntity {
-    const processInstanceEntity = new ProcessInstanceSyncEntity();
-    
-    // id will be auto-generated by TypeORM as UUID
-    processInstanceEntity.mongoId = processInstance?._id?.toString();
-    processInstanceEntity.userId = processInstance.userId?.toString();
-    processInstanceEntity.processId = processInstance.processId?.toString();
-    processInstanceEntity.processType = processInstance.processType;
-    processInstanceEntity.startedAt = new Date(processInstance.startedAt);
-    processInstanceEntity.orderId = processInstance.orderId;
-    processInstanceEntity.processStatus = processInstance.processStatus;
-    processInstanceEntity.progressPercentage = Number(processInstance.progressPercentage);
-    processInstanceEntity.currentTask = processInstance.currentTask?.toString();
-    processInstanceEntity.purchasedAt = new Date(processInstance.purchasedAt);
-    processInstanceEntity.validTill = new Date(processInstance.validTill);
-    processInstanceEntity.status = processInstance.status;
-    processInstanceEntity.createdBy = processInstance.createdBy?.toString();
-    processInstanceEntity.updatedBy = processInstance.updatedBy?.toString();
-    
-    // Timestamps will be auto-managed by TypeORM
-    // created_at and updated_at will be set automatically
-    
-    return processInstanceEntity;
+  private mapToProcessInstanceEntity(processInstance: processInstanceModel): ProcessInstanceSyncEntity {
+    const entity = new ProcessInstanceSyncEntity();
+    entity.mongoId = processInstance._id ? processInstance._id.toString() : null;
+    entity.userId = processInstance.userId ? processInstance.userId.toString() : null;
+    entity.processId = processInstance.processId ? processInstance.processId.toString() : null;
+    entity.processType = processInstance.processType;
+    entity.startedAt = processInstance.startedAt;
+    entity.orderId = processInstance.orderId;
+    entity.processStatus = processInstance.processStatus;
+    entity.progressPercentage = Number(processInstance.progressPercentage);
+    entity.currentTask = processInstance.currentTask ? processInstance.currentTask.toString() : null;
+    entity.purchasedAt = processInstance.purchasedAt;
+    entity.validTill = processInstance.validTill;
+    entity.status = processInstance.status;
+    entity.createdBy = processInstance.createdBy ? processInstance.createdBy.toString() : null;
+    entity.updatedBy = processInstance.updatedBy ? processInstance.updatedBy.toString() : null;
+    return entity;
+  }
+
+  // Public methods for monitoring and control
+  async getSyncStatus() {
+    const queueStats = await this.redisQueue.getQueueStats();
+    return {
+      ...queueStats,
+      changeStreamActive: !!this.changeStream,
+      workerActive: !!this.workerInterval,
+      retryProcessorActive: !!this.retryQueueInterval,
+    };
+  }
+
+  async pauseSync() {
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = null;
+    }
+    this.logger.log("Sync paused");
+  }
+
+  async resumeSync() {
+    if (!this.changeStream) {
+      await this.setupChangeStream();
+    }
+    this.logger.log("Sync resumed");
+  }
+
+  async clearQueue() {
+    await this.redisQueue.clearAllQueues();
+    this.logger.log("Queue cleared");
   }
 
   // Method to manually trigger sync for existing process instances
   async syncExistingProcessInstances() {
     try {
-      console.log("Starting sync of existing process instances...");
+      this.logger.log("Starting sync of existing process instances...");
       
       const processInstances = await this.processInstanceModel.find({}).limit(100); // Limit to avoid memory issues
       
       for (const processInstance of processInstances) {
-        await this.handleUpsert(processInstance);
+        const job: Omit<QueueJob, 'id' | 'timestamp' | 'retryCount'> = {
+          operationType: 'update',
+          document: processInstance,
+          priority: this.config.updatePriority,
+          maxRetries: this.config.updateMaxRetries,
+          status: 'pending',
+        };
+
+        await this.redisQueue.enqueueJob(job);
       }
       
-      console.log(`Successfully synced ${processInstances.length} existing process instances`);
+      this.logger.log(`Successfully queued ${processInstances.length} existing process instances for sync`);
+      return { success: true, queuedCount: processInstances.length };
     } catch (error) {
-      console.error("Error syncing existing process instances:", error);
-    }
-  }
-
-  // Method to get sync status
-  async getSyncStatus() {
-    try {
-      const totalProcessInstances = await this.processInstanceModel.countDocuments({});
-      const syncedProcessInstances = await this.processInstanceRepository.count();
-      
-      console.log(`Total process instances in MongoDB: ${totalProcessInstances}`);
-      console.log(`Total process instances synced to SQL: ${syncedProcessInstances}`);
-      
-      return {
-        totalProcessInstances,
-        syncedProcessInstances,
-        syncStatus: "active",
-        lastSync: new Date()
-      };
-    } catch (error) {
-      console.error("Error getting process instance sync status:", error);
+      this.logger.error("Error syncing existing process instances:", error);
       throw error;
     }
   }
@@ -172,7 +316,7 @@ export class ProcessInstanceSyncService implements OnModuleInit {
         limit
       };
     } catch (error) {
-      console.error("Error getting synced process instances:", error);
+      this.logger.error("Error getting synced process instances:", error);
       throw error;
     }
   }
@@ -184,7 +328,7 @@ export class ProcessInstanceSyncService implements OnModuleInit {
         where: { mongoId }
       });
     } catch (error) {
-      console.error(`Error finding synced process instance by mongoId ${mongoId}:`, error);
+      this.logger.error(`Error finding synced process instance by mongoId ${mongoId}:`, error);
       throw error;
     }
   }
@@ -196,7 +340,7 @@ export class ProcessInstanceSyncService implements OnModuleInit {
         where: { userId }
       });
     } catch (error) {
-      console.error(`Error finding synced process instances by userId ${userId}:`, error);
+      this.logger.error(`Error finding synced process instances by userId ${userId}:`, error);
       throw error;
     }
   }
@@ -208,7 +352,7 @@ export class ProcessInstanceSyncService implements OnModuleInit {
         where: { processId }
       });
     } catch (error) {
-      console.error(`Error finding synced process instances by processId ${processId}:`, error);
+      this.logger.error(`Error finding synced process instances by processId ${processId}:`, error);
       throw error;
     }
   }
@@ -220,7 +364,54 @@ export class ProcessInstanceSyncService implements OnModuleInit {
         where: { status }
       });
     } catch (error) {
-      console.error(`Error finding synced process instances by status ${status}:`, error);
+      this.logger.error(`Error finding synced process instances by status ${status}:`, error);
+      throw error;
+    }
+  }
+
+  // Method to find process instances by process status
+  async findSyncedProcessInstancesByProcessStatus(processStatus: string) {
+    try {
+      return await this.processInstanceRepository.find({
+        where: { processStatus }
+      });
+    } catch (error) {
+      this.logger.error(`Error finding synced process instances by process status ${processStatus}:`, error);
+      throw error;
+    }
+  }
+
+  // Method to find process instances by order ID
+  async findSyncedProcessInstancesByOrderId(orderId: string) {
+    try {
+      return await this.processInstanceRepository.find({
+        where: { orderId }
+      });
+    } catch (error) {
+      this.logger.error(`Error finding synced process instances by order ID ${orderId}:`, error);
+      throw error;
+    }
+  }
+
+  // Method to get process instance statistics
+  async getProcessInstanceStatistics() {
+    try {
+      const [total, active, completed, failed] = await Promise.all([
+        this.processInstanceRepository.count(),
+        this.processInstanceRepository.count({ where: { status: 'Active' } }),
+        this.processInstanceRepository.count({ where: { processStatus: 'Completed' } }),
+        this.processInstanceRepository.count({ where: { processStatus: 'Failed' } })
+      ]);
+
+      return {
+        totalProcessInstances: total,
+        activeProcessInstances: active,
+        completedProcessInstances: completed,
+        failedProcessInstances: failed,
+        lastUpdated: new Date()
+      };
+    } catch (error) {
+      this.logger.error("Error getting process instance statistics:", error);
       throw error;
     }
   }

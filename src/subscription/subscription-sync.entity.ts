@@ -1,15 +1,15 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
 
 @Entity("subscription")
 export class SubscriptionSyncEntity {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+ @PrimaryColumn({ type: "nvarchar", length: 24 })
+  id: string; 
 
   @Column({ type: "nvarchar", length: 24, nullable: true })
   mongoId: string;

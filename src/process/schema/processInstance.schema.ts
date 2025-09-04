@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export interface processInstanceModel {
+    _id?: any;
     userId: string;
     processId: string;
     processType: string;
@@ -14,8 +15,6 @@ export interface processInstanceModel {
     status: string;
     createdBy: string;
     updatedBy: string;
-
-
 }
 export const processInstanceSchema = new mongoose.Schema<any>({
 
