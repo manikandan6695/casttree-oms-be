@@ -370,11 +370,12 @@ export class PaymentRequestService {
       const firstPayment = await this.paymentModel.findOne({
         user_id: new ObjectId(token.id),
         document_status: EDocumentStatus.completed,
-      }).sort({ created_at: 1 });
-      
+      }).sort({ transactionDate: 1 });
       payment = {
-        ...paymentData,
-        isFirstPayment: firstPayment && firstPayment._id.toString() === id.toString(),
+        ...paymentData
+      }
+      if (!paymentData?.metaData?.isSentToMeta) {
+        payment.isFirstPayment = firstPayment && firstPayment._id.toString() === id.toString();
       }
       return { payment };
     } catch (err) {
@@ -679,7 +680,7 @@ export class PaymentRequestService {
         }
       };
 
-      // Step 4: Map payments and set isFirstPayment
+      // Step 4: Map payments and set isFirstPayment (but don't return it)
       allPayments = await Promise.all(
         allPayments.map(async (payment) => {
           let type = getTitleFromSourceType(
@@ -704,25 +705,27 @@ export class PaymentRequestService {
             }
           }
 
+          // Calculate isFirstPayment but don't include it in the return
+          const isFirstPayment =
+            isFirstPaymentToday &&
+            payment._id?.toString() === earliestPaymentId
+              ? true
+              : undefined;
+
           return {
             ...payment,
             type,
-            isFirstPayment:
-              isFirstPaymentToday &&
-              payment._id?.toString() === earliestPaymentId
-                ? true
-                : undefined,
+            // isFirstPayment field is calculated but not returned
           };
         })
       );
 
       // Step 5: Filter valid payments and return first one if today
       const filtered = allPayments.filter((payment) => payment.type !== null);
-      const firstPayment = filtered.find(
-        (payment) => payment.isFirstPayment === true
-      );
-
-      return firstPayment ? [firstPayment] : [];
+      // const firstPayment = filtered.find(
+      //   (payment) => payment.isFirstPayment === true
+      // );
+      return filtered || [];
     } catch (err) {
       throw err;
     }
@@ -1098,6 +1101,20 @@ export class PaymentRequestService {
         },
       }, { new: true}
     )
+    if (payment){
+    let salesDoc = await this.salesDocumentModel.findOne({
+      _id: new ObjectId(payment?.source_id),
+    })
+    let mixPanelBody: any = {};
+    mixPanelBody.eventName = EMixedPanelEvents.meta_event_sent;
+    mixPanelBody.distinctId = payment?.user_id;
+    mixPanelBody.properties = {
+      user_id: payment?.user_id,
+      payment_id: paymentId,
+      subscription_id: salesDoc?.source_id,
+    };
+    await this.helperService.mixPanel(mixPanelBody);
+  }
     return payment
     }
     catch (error){
