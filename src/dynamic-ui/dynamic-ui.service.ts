@@ -3,7 +3,7 @@ import { EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import mongoose, { Model } from "mongoose";
+import { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
@@ -33,15 +33,13 @@ import { IProfileModel } from "src/shared/schema/profile.schema";
 import { ISkillModel } from "src/shared/schema/skills.schema";
 import { IRoleModel } from "src/shared/schema/role.schema";
 import axios from "axios";
-import { UserOrganizationSchema, IUserOrganizationModel } from "src/shared/schema/user-organization.schema";
-import { OrganizationSchema, IOrganizationModel } from "src/shared/schema/organization.schema";
+import { IUserOrganizationModel } from "src/shared/schema/user-organization.schema";
+import { IOrganizationModel } from "src/shared/schema/organization.schema";
 import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
-import { mediaSchema } from "./schema/media.schema";
 import { mediaModel } from "./schema/media.schema";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
 import { Achievement, AchievementDocument } from './schema/achievement.schema';
-import { CreateQueryDto } from "./dto/create-query.dto";
 import { VirtualItemDocument, VirtualItem } from "./schema/virtual-item.schema";
 import { VirtualItemGroup, VirtualItemGroupDocument } from './schema/virtual-item-group.schema';
 import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
@@ -1796,8 +1794,6 @@ export class DynamicUiService {
       })
       // console.log("tags at last", tags)
       });
-
-      
 
       // If we reach here, the transaction was successful
       return {
