@@ -8,18 +8,12 @@ import {
   IsNotEmpty,
 } from "class-validator";
 import { Type } from "class-transformer";
-
-class ObjectIdDto {
-  @IsObject()
-  @IsNotEmpty()
-  $oid: string;
-}
+import { ObjectId } from "mongoose";
 
 class SeriesDto {
   @ValidateNested()
-  @Type(() => ObjectIdDto)
   @IsNotEmpty()
-  seriesId: ObjectIdDto;
+  seriesId: ObjectId;
 
   @IsNumber()
   @IsNotEmpty()
@@ -28,9 +22,8 @@ class SeriesDto {
 
 class ComponentDto {
   @ValidateNested()
-  @Type(() => ObjectIdDto)
   @IsNotEmpty()
-  componentId: ObjectIdDto;
+  componentId: ObjectId;
 
   @IsNumber()
   @IsNotEmpty()

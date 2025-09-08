@@ -76,7 +76,6 @@ export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
 });
 
 export interface tagModel {
-  filter(arg0: (tagItem: any) => boolean): unknown;
   category_id: string;
   name: string;
   order?: number;
@@ -146,7 +145,6 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     // Add the new fields
     category: [categorySchema], // Array of category objects
     proficiency: [proficiencySchema], // Array of proficiency objects
-    __v: { type: Number, default: 0 }, // Add missing __v field
   },
   {
     collection: "serviceitems",
