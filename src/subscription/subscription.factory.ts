@@ -1049,22 +1049,12 @@ export class SubscriptionFactory {
           sku: productId,
         });
         productPriceInfo = productRes.data;
- 
-        if (purchaseInfo.priceAmountMicros && purchaseInfo.priceCurrencyCode) {
-          amount = Number(purchaseInfo.priceAmountMicros) / 1_000_000;
-          // console.log("amount1", amount);
-          currency = purchaseInfo.priceCurrencyCode;
-        } else if (productPriceInfo?.prices?.IN) {
-          amount = Number(productPriceInfo.prices.IN.priceMicros) / 1_000_000;
-          // console.log("amount2", amount);
-          currency = productPriceInfo.prices.IN.currency;
-        } else if (productPriceInfo?.defaultPrice) {
-          amount = Number(productPriceInfo.defaultPrice.priceMicros) / 1_000_000;
-          // console.log("amount3", amount);
-          currency = productPriceInfo.defaultPrice.currency;
-        }
-        // console.log("amount", amount);
-        // console.log("currency", currency);
+
+        const regionCode = purchaseInfo?.regionCode;
+        if (productPriceInfo?.prices?.[regionCode]) {
+          amount = Number(productPriceInfo.prices[regionCode].priceMicros) / 1_000_000;
+          currency = productPriceInfo.prices[regionCode].currency;
+        } 
       } catch (priceErr) {
         console.error("Error fetching product price info:", priceErr);
       }
