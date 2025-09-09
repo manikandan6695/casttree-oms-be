@@ -19,7 +19,9 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
 import { paymentDTO, filterTypeDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
 import {
+  EAdminId,
   ECoinStatus,
+  ECoinTransactionTypes,
   ECurrencyName,
   EFilterType,
   EPaymentSourceType,
@@ -37,6 +39,7 @@ import { EProvider, EProviderId } from "src/subscription/enums/provider.enum";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
+import { SubscriptionService } from "src/subscription/subscription.service";
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -65,7 +68,9 @@ export class PaymentRequestService {
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private redisService: RedisService
+    private redisService: RedisService,
+    @Inject(forwardRef(() => SubscriptionService))
+    private subscriptionService: SubscriptionService
   ) {}
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
     try {
@@ -153,7 +158,18 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceId?.toString(),
       //   body?.invoiceDetail?.sourceType
       // );
-
+      if (
+        body.providerId === EProviderId.apple &&
+        body.providerName === EProvider.apple
+      ) {
+        let appleCoinPurchase =
+          await this.subscriptionService.handleIapCoinTransactions(body, token);
+        return appleCoinPurchase;
+      }
+      else if(body.providerId === EProviderId.google && body.providerName === EProvider.google){
+        let googleCoinPurchase = await this.subscriptionService.handleIapCoinTransactions(body,token)
+        return googleCoinPurchase;
+      }
       let serviceRequest;
       if (body.serviceRequest) {
         serviceRequest = await this.serviceRequestService.createServiceRequest(
@@ -772,7 +788,7 @@ export class PaymentRequestService {
         });
         if (
           coinTransaction?.documentStatus === ECoinStatus.pending &&
-          coinTransaction?.transactionType === ETransactionType.In
+          coinTransaction?.transactionType === ECoinTransactionTypes.In
         ) {
           let updateUserAdditional =
             await this.helperService.updateUserPurchaseCoin({
@@ -804,7 +820,7 @@ export class PaymentRequestService {
         });
         if (
           coinTransactionOut?.documentStatus === ECoinStatus.pending &&
-          coinTransactionOut?.transactionType === ETransactionType.Out
+          coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
         ) {
           let updateUserAdditionalData =
             await this.helperService.updateAdminCoinValue({
@@ -1012,6 +1028,52 @@ export class PaymentRequestService {
       throw error;
     }
   }
+  async createCoinValue(payload) {
+    try {
+      let userAdditional = await this.helperService.updateAdminCoinValue({
+        coinValue: payload.coinValue,
+        userId: EAdminId.userId,
+      });
+      let getUserAdditional =
+        await this.helperService.getUserAdditionalDetails(payload);
+     let d1 = await this.helperService.updateUserPurchaseCoin({
+        coinValue: payload.coinValue,
+        userId: payload.userId,
+      });
+      let totalAmt =
+        getUserAdditional?.userAdditional?.purchasedBalance + payload.coinValue;
+      let body = {
+        documentStatus: EDocumentStatus.completed,
+        transactionDate: new Date(),
+        status: EDocumentStatus.active,
+        coinValue: payload.coinValue,
+        sourceId: payload.sourceId,
+        sourceType: payload.sourceType,
+      };
+      let coinTransactionDetails = await this.coinTransactionModel.create({
+        ...body,
+        type: ETransactionType.purchased,
+        transactionType: ETransactionType.In,
+        currentBalance: totalAmt,
+        userId: payload.userId,
+        senderId: userAdditional?.userId,
+        receiverId: payload.userId,
+      });
+     let coin= await this.coinTransactionModel.create({
+        ...body,
+        userId: userAdditional.userId,
+        senderId: payload?.userId,
+        receiverId: userAdditional.userId,
+        type: ETransactionType.withdrawn,
+        transactionType: ETransactionType.Out,
+        currentBalance: userAdditional?.purchasedBalance,
+      });
+      // console.timeEnd("coin flow")
+      return coinTransactionDetails?._id;
+    } catch (error) {
+      throw error;
+    }
+  } 
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

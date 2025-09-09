@@ -5,7 +5,7 @@ import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { EMandateStatus } from "src/mandates/enum/mandate.enum";
 import { MandateHistoryService } from "src/mandates/mandate-history/mandate-history.service";
-import { EPaymentType } from "src/payment/enum/payment.enum";
+import { EPaymentSourceType, EPaymentType, ETransactionType } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
@@ -17,6 +17,7 @@ import { SubscriptionService } from "./subscription.service";
 import { readFile } from "fs";
 import * as path from "path";
 const { google } = require("googleapis");
+const { ObjectId } = require("mongodb");
 import {
   AppStoreServerAPIClient,
   Environment,
@@ -27,6 +28,7 @@ import {
 import { EEventType } from "./enums/eventType.enum";
 import { ItemService } from "src/item/item.service";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 const issuerId = process.env.ISSUER_ID;
 const keyId = process.env.KEY_ID;
 const bundleId = process.env.BUNDLE_ID;
@@ -48,6 +50,7 @@ export class SubscriptionFactory {
     @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
     private readonly invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService
   ) {}
@@ -664,7 +667,11 @@ export class SubscriptionFactory {
         const transactionHistoryRequest = {
           sort: Order.ASCENDING,
           revoked: false,
-          productTypes: [ProductType.AUTO_RENEWABLE],
+          productTypes: [
+            ProductType.AUTO_RENEWABLE,
+            ProductType.NON_RENEWABLE,
+            ProductType.CONSUMABLE,
+          ],
         };
         try {
           do {
@@ -1234,6 +1241,225 @@ export class SubscriptionFactory {
         },
       };
     } catch (err) {
+      throw err;
+    }
+  }
+  async handleIapCoinPurchase(body, token) {
+    try {
+      // console.log("body",body)
+      if (body.providerName === EProvider.apple) {
+        // console.time("apple")
+        let transactionId =
+          body.transactionDetails.originalTransactionId ||
+          body.transactionDetails.transactionId;
+        let transaction = await this.getTransactionHistoryById(transactionId);
+        //  console.timeEnd("apple")
+         console.log("transaction",transaction)
+        const price = transaction?.price / 1000;
+        const currencyCode = transaction?.currency;
+        const currencyIdRes =
+          await this.helperService.getCurrencyId(currencyCode);
+        const currencyResponse = currencyIdRes?.data?.[0];
+        let provider = EProviderId.apple;
+        const item = await this.itemService.getItemByPlanConfig(
+          body?.transactionDetails?.planId,
+          provider
+        );
+        const invoiceData = {
+          itemId: item._id,
+          source_type: EPaymentSourceType.coinTransaction,
+          sub_total: price,
+          document_status: EDocumentStatus.completed,
+          grand_total: price,
+          user_id: token.id,
+          created_by: token.id,
+          updated_by: token.id,
+          currencyCode: currencyResponse.currency_code,
+          currency: currencyResponse._id,
+        };
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          token.id
+        );
+        const conversionRateAmt = await this.helperService.getConversionRate(
+          currencyCode,
+          price
+        );
+        const baseAmount = Math.round(price * conversionRateAmt);
+        const paymentData = {
+          amount: price,
+          document_status: EDocumentStatus.completed,
+          providerId: EProviderId.apple,
+          providerName: EProvider.apple,
+          transactionDate: new Date(),
+          metaData: {
+            externalId: transaction?.originalTransactionId,
+            transaction: transaction,
+            // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
+          },
+          currencyCode: currencyResponse.currency_code,
+          currencyId: currencyResponse._id,
+          baseAmount: baseAmount,
+          baseCurrency: currencyCode,
+          conversionRate: conversionRateAmt,
+        };
+        let paymentResponse = await this.paymentService.createPaymentRecord(
+          paymentData,
+          token,
+          invoice
+        );
+        let payload = {
+          userId: token.id,
+          coinValue: item?.additionalDetail?.coinValue,
+          sourceId: invoice?._id,
+          sourceType: EDocumentTypeName.invoice,
+        };
+        let createCoinValue =
+          await this.paymentService.createCoinValue(payload);
+        let updatedBody = {
+          _id: new ObjectId(invoice?._id),
+          sourceId: new ObjectId(createCoinValue),
+        };
+        let updatedInvoice =
+          await this.invoiceService.updateSalseDocumentById(updatedBody);
+
+        return { paymentResponse, updatedInvoice };
+      }
+      else if(body.providerName===EProvider.google){
+        let googlePackage = packageName
+        let transaction = await this.validatePurchaseState(googlePackage, body.transactionDetails.transactionId, body.transactionDetails.planId)
+        // console.log("transaction",transaction)
+        const price = transaction?.amount;
+        const currencyCode = transaction?.currency;
+        const currencyIdRes =
+          await this.helperService.getCurrencyId(currencyCode);
+        const currencyResponse = currencyIdRes?.data?.[0];
+        let provider = EProviderId.google;
+        const item = await this.itemService.getItemByPlanConfig(
+         body?.transactionDetails?.planId,
+          provider
+        );
+        const invoiceData = {
+         itemId: item._id,
+         source_type: EPaymentSourceType.coinTransaction,
+         sub_total: price,
+         document_status: EDocumentStatus.completed,
+         grand_total: price,
+         user_id:token.id,
+         created_by: token.id,
+         updated_by: token.id,
+         currencyCode: currencyResponse.currency_code,
+         currency: currencyResponse._id,
+       };
+       const invoice = await this.invoiceService.createInvoice(
+         invoiceData,
+         token.id
+       );
+       const conversionRateAmt = await this.helperService.getConversionRate(
+         currencyCode,
+         price
+       );
+       const baseAmount = Math.round(price * conversionRateAmt);
+       const paymentData = {
+         amount: price,
+         document_status: EDocumentStatus.completed,
+         providerId: EProviderId.google,
+         providerName: EProvider.google,
+         transactionDate: new Date(),
+         metaData: {
+           externalId: body.transactionDetails.transactionId,
+           transaction: transaction
+           // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
+         },
+         currencyCode: currencyResponse.currency_code,
+         currencyId: currencyResponse._id,
+         baseAmount: baseAmount,
+         baseCurrency: currencyCode,
+         conversionRate: conversionRateAmt,
+       };
+      let paymentResponse =  await this.paymentService.createPaymentRecord(
+         paymentData,
+         token,
+         invoice
+       );
+       let payload = {
+         userId: token.id,
+         coinValue: item?.additionalDetail?.coinValue,
+         sourceId:invoice?._id,
+         sourceType: EDocumentTypeName.invoice
+       }
+       console.log("payload", payload);
+      let createCoinValue = await this.paymentService.createCoinValue(payload)
+      console.log("createCoinValue", createCoinValue);
+       let updatedBody = {
+         _id: new ObjectId(invoice?._id),
+         sourceId: new ObjectId(createCoinValue)
+       }
+      let updatedInvoice= await this.invoiceService.updateSalseDocumentById(updatedBody)
+       return {paymentResponse,updatedInvoice}
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+  async validatePurchaseState(
+    packageName: string,
+    purchaseToken: string,
+    productId: string
+  ) {
+    try {
+      const auth = new google.auth.GoogleAuth({
+        keyFile: googleFile,
+        scopes: [scopes],
+      });
+
+      this.androidpublisher = google.androidpublisher({
+        version: "v3",
+        auth,
+      });
+
+      // 🔹 Step 1: Verify the purchase state
+      const res = await this.androidpublisher.purchases.products.get({
+        packageName,
+        productId,
+        token: purchaseToken,
+      });
+      const purchaseInfo = res.data;
+
+      // 🔹 Step 2: Get product details (pricing info)
+      let productPriceInfo = null;
+      let amount: number | null = null;
+      let currency: string | null = null;
+
+      try {
+        const productRes = await this.androidpublisher.inappproducts.get({
+          packageName,
+          sku: productId,
+        });
+        productPriceInfo = productRes.data;
+
+        const regionCode = purchaseInfo?.regionCode;
+        if (productPriceInfo?.prices?.[regionCode]) {
+          amount = Number(productPriceInfo.prices[regionCode].priceMicros) / 1_000_000;
+          currency = productPriceInfo.prices[regionCode].currency;
+        } 
+      } catch (priceErr) {
+        console.error("Error fetching product price info:", priceErr);
+      }
+      return {
+        success: true,
+        purchaseInfo,
+        productPriceInfo,
+        amount,
+        currency,
+        purchaseState: purchaseInfo.purchaseState,
+        consumptionState: purchaseInfo.consumptionState,
+        orderId: purchaseInfo.orderId,
+        purchaseTimeMillis: purchaseInfo.purchaseTimeMillis,
+        acknowledgementState: purchaseInfo.acknowledgementState,
+      };
+    } catch (err) {
+      console.error("purchase state validation err", err);
       throw err;
     }
   }

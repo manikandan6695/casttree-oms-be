@@ -70,6 +70,7 @@ export class SubscriptionService {
     private readonly webhookModel: Model<IWebhookModel>,
     private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
@@ -2618,6 +2619,14 @@ export class SubscriptionService {
         }
         await this.helperService.updateReferral(body)
       }
+    } catch (error) {
+      throw error
+    }
+  }
+  async handleIapCoinTransactions(body,token){
+    try {
+      let transaction = await this.subscriptionFactory.handleIapCoinPurchase(body,token)
+      return transaction
     } catch (error) {
       throw error
     }
