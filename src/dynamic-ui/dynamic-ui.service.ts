@@ -1307,12 +1307,11 @@ export class DynamicUiService {
       // Update order for each component
       updateDto.components.forEach(async (item, index) => {
         return await this.componentModel
-          .findByIdAndUpdate(
-            new ObjectId(item.componentId),
+          .updateOne(
+            {_id: new ObjectId(item.componentId)},
             {
               $set: { order: index + 1 },
-            },
-            { new: true }
+            }
           )
           .lean();
       });
