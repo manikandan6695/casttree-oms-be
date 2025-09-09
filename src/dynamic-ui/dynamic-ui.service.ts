@@ -22,7 +22,11 @@ import { EComponentKey, EComponentType } from "./enum/component.enum";
 import { EFilterOption } from "./dto/filter-option.dto";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
+import { EUpdateComponents } from "./dto/update-components.dto";
+import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 const { ObjectId } = require("mongodb");
+import { ICategory } from "./schema/category.schema";
+
 @Injectable()
 export class DynamicUiService {
   constructor(
@@ -42,7 +46,9 @@ export class DynamicUiService {
     @InjectModel("filterTypes")
     private readonly filterTypeModel: Model<IFilterType>,
     @InjectModel("filterOptions")
-    private readonly filterOptionsModel: Model<IFilterOption>
+    private readonly filterOptionsModel: Model<IFilterOption>,
+    @InjectModel("category")
+    private readonly categoryModel: Model<ICategory>
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -94,7 +100,11 @@ export class DynamicUiService {
     }
   }
 
-  async getPageDetails(token: UserToken, pageId: string, filterOption: EFilterOption) {
+  async getPageDetails(
+    token: UserToken,
+    pageId: string,
+    filterOption: EFilterOption
+  ) {
     try {
       // const subscriptionData =
       //   await this.subscriptionService.validateSubscription(token.id, [
@@ -211,7 +221,9 @@ export class DynamicUiService {
       });
       componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
-      const componentsWithInteractionData = componentDocs.filter(comp => comp.interactionData);
+      const componentsWithInteractionData = componentDocs.filter(
+        (comp) => comp.interactionData
+      );
       if (componentsWithInteractionData.length > 0) {
         let availableFilterOptions = await this.componentFilterOptions();
 
@@ -232,45 +244,57 @@ export class DynamicUiService {
           return acc;
         }, {});
 
-        componentsWithInteractionData.forEach(component => {
-          if (component.componentKey === EComponentKey.learnFilterActionButton) {
+        componentsWithInteractionData.forEach((component) => {
+          if (
+            component.componentKey === EComponentKey.learnFilterActionButton
+          ) {
             const originalItems = component.interactionData?.items || [];
-            
+
             const groupedOptionsMap = new Map();
-            Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
-              groupedOptionsMap.set(group.type, group);
-            });
-            
+            Object.values(grouped).forEach(
+              (group: {
+                type: string;
+                filterTypeId: string;
+                options: any[];
+              }) => {
+                groupedOptionsMap.set(group.type, group);
+              }
+            );
+
             const transformedItems = originalItems.map((item: any) => {
               let filterType = item.button?.type;
-              
+
               if (filterType === "proficency") {
                 filterType = "proficiency";
               }
-              
+
               const groupedData = groupedOptionsMap.get(filterType);
-              
+
               if (groupedData) {
                 const existingOptions = item.options || [];
                 const newOptions = groupedData.options || [];
-                
-                const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
-                
-                const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
-                
+
+                const existingOptionIds = new Set(
+                  existingOptions.map((opt) => opt.filterOptionId)
+                );
+
+                const uniqueNewOptions = newOptions.filter(
+                  (opt) => !existingOptionIds.has(opt.filterOptionId)
+                );
+
                 const mergedOptions = [...existingOptions, ...uniqueNewOptions];
-                
+
                 return {
                   ...item,
                   type: filterType,
                   filterTypeId: groupedData.filterTypeId,
-                  options: mergedOptions
+                  options: mergedOptions,
                 };
               }
-              
+
               return item;
             });
-            
+
             component.interactionData = { items: transformedItems };
           }
         });
@@ -321,7 +345,8 @@ export class DynamicUiService {
           return (
             index ===
             self.findIndex(
-              i => i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
+              (i) =>
+                i.taskDetail?._id?.toString() === item.taskDetail._id.toString()
             )
           );
         });
@@ -351,17 +376,17 @@ export class DynamicUiService {
         }, {});
 
         if (filterOption) {
-          Object.keys(filterOption).forEach(filterKey => {
+          Object.keys(filterOption).forEach((filterKey) => {
             const filterValue = filterOption[filterKey];
             const groupedData = grouped[filterKey];
-            
+
             if (groupedData && filterValue) {
               if (Array.isArray(filterValue)) {
-                groupedData.options.forEach(opt => {
+                groupedData.options.forEach((opt) => {
                   opt.isUserSelected = filterValue.includes(opt.filterOptionId);
                 });
               } else {
-                groupedData.options.forEach(opt => {
+                groupedData.options.forEach((opt) => {
                   opt.isUserSelected = opt.filterOptionId === filterValue;
                 });
               }
@@ -371,9 +396,14 @@ export class DynamicUiService {
 
         if (component.componentKey === EComponentKey.learnFilterActionButton) {
           if (!component.actionData || component.actionData.length === 0) {
-            const completedSeries = await this.processService.getMySeries(token.id, EprocessStatus.Completed);
-            const completedProcessIds = new Set(completedSeries.map((s: any) => String(s.processId)));
-          
+            const completedSeries = await this.processService.getMySeries(
+              token.id,
+              EprocessStatus.Completed
+            );
+            const completedProcessIds = new Set(
+              completedSeries.map((s: any) => String(s.processId))
+            );
+
             const allServiceItemData = await this.fetchServiceItemDetails(
               page,
               token.id,
@@ -382,55 +412,62 @@ export class DynamicUiService {
               0,
               null
             );
-            
+
             const allSeriesData = allServiceItemData.finalData?.allSeries || [];
-    
-            const nonMatchedSeries = allSeriesData.filter((series: any) =>
-              !completedProcessIds.has(String(series.processId))
+
+            const nonMatchedSeries = allSeriesData.filter(
+              (series: any) =>
+                !completedProcessIds.has(String(series.processId))
             );
-          
+
             if (nonMatchedSeries.length > 0) {
               component.recommendedList = nonMatchedSeries;
               component["totalCount"] = nonMatchedSeries.length;
-            } 
+            }
           }
           const originalItems = component.interactionData?.items || [];
-          
+
           const groupedOptionsMap = new Map();
-          Object.values(grouped).forEach((group: { type: string; filterTypeId: string; options: any[] }) => {
-            groupedOptionsMap.set(group.type, group);
-          });
-          
+          Object.values(grouped).forEach(
+            (group: { type: string; filterTypeId: string; options: any[] }) => {
+              groupedOptionsMap.set(group.type, group);
+            }
+          );
+
           const transformedItems = originalItems.map((item: any) => {
             let filterType = item.button?.type;
-            
+
             if (filterType === "proficency") {
               filterType = "proficiency";
             }
-            
+
             const groupedData = groupedOptionsMap.get(filterType);
-            
+
             if (groupedData) {
               const existingOptions = item.options || [];
               const newOptions = groupedData.options || [];
-              
-              const existingOptionIds = new Set(existingOptions.map(opt => opt.filterOptionId));
-              
-              const uniqueNewOptions = newOptions.filter(opt => !existingOptionIds.has(opt.filterOptionId));
-              
+
+              const existingOptionIds = new Set(
+                existingOptions.map((opt) => opt.filterOptionId)
+              );
+
+              const uniqueNewOptions = newOptions.filter(
+                (opt) => !existingOptionIds.has(opt.filterOptionId)
+              );
+
               const mergedOptions = [...existingOptions, ...uniqueNewOptions];
-              
+
               return {
                 ...item,
                 type: filterType,
                 filterTypeId: groupedData.filterTypeId,
-                options: mergedOptions
+                options: mergedOptions,
               };
             }
-            
+
             return item;
           });
-          
+
           component.interactionData = { items: transformedItems };
         }
       }
@@ -688,18 +725,28 @@ export class DynamicUiService {
         status: Estatus.Active,
       };
       if (filterOption) {
-        Object.keys(filterOption).forEach(filterKey => {
+        Object.keys(filterOption).forEach((filterKey) => {
           const filterValue = filterOption[filterKey];
-          
+
           if (filterValue) {
             if (Array.isArray(filterValue)) {
-              const validIds = filterValue.filter(id => id && typeof id === 'string' && id.length === 24);
+              const validIds = filterValue.filter(
+                (id) => id && typeof id === "string" && id.length === 24
+              );
               if (validIds.length > 0) {
-                filter[`${filterKey}.filterOptionId`] = { $in: validIds.map(id => new ObjectId(id)) };
+                filter[`${filterKey}.filterOptionId`] = {
+                  $in: validIds.map((id) => new ObjectId(id)),
+                };
               }
             } else {
-              if (filterValue && typeof filterValue === 'string' && filterValue.length === 24) {
-                filter[`${filterKey}.filterOptionId`] = new ObjectId(filterValue);
+              if (
+                filterValue &&
+                typeof filterValue === "string" &&
+                filterValue.length === 24
+              ) {
+                filter[`${filterKey}.filterOptionId`] = new ObjectId(
+                  filterValue
+                );
               }
             }
           }
@@ -1024,7 +1071,6 @@ export class DynamicUiService {
       );
       // console.log("isSubscriber", isSubscriber);
 
-
       let bestMatchBanner: any = null;
       let referralBanner: any = null;
       for (const item of personalizedBannerComponent.interactionData.items) {
@@ -1228,19 +1274,151 @@ export class DynamicUiService {
       throw err;
     }
   }
+
   async componentFilterOptions() {
     try {
       let filter = await this.filterTypeModel.find({
-        isActive: true
-      })
-      const types = filter.map(item => item.type);
-      const data = await this.filterOptionsModel.find({
-        status: EStatus.Active,
-        filterType: { $in: types }
-      }).sort({ sortOrder: 1 }).lean();
-      return data
+        isActive: true,
+      });
+      const types = filter.map((item) => item.type);
+      const data = await this.filterOptionsModel
+        .find({
+          status: EStatus.Active,
+          filterType: { $in: types },
+        })
+        .sort({ sortOrder: 1 })
+        .lean();
+      return data;
     } catch (error) {
-      throw error
+      throw error;
+    }
+  }
+
+  async updatePageComponents(pageId: string, updateDto: EUpdateComponents) {
+    try {
+      // console.log("Updating page components:", pageId);
+      // console.log("componentIds:", updateDto.components);
+
+      // Map components to the correct format
+      const components = updateDto.components.map((item) => ({
+        componentId: new ObjectId(item.componentId),
+      }));
+
+      // Update order for each component
+      updateDto.components.forEach(async (item, index) => {
+        return await this.componentModel
+          .updateOne(
+            {_id: new ObjectId(item.componentId)},
+            {
+              $set: { order: index + 1 },
+            }
+          )
+          .lean();
+      });
+
+      const skillName = await this.contentPageModel
+        .findOne({ _id: pageId })
+        .lean();
+      const skill = skillName?.metaData?.skill;
+      // console.log("Skill Name:", skill);
+
+      updateDto.components.forEach((component) => {
+        if (component.tag && Array.isArray(component.series)) {
+          component.series.forEach(async (series) => {
+            const query = {
+              type: "courses",
+              "skill.skill_name": skill,
+              "tag.name": component.tag,
+              "additionalDetails.processId": new ObjectId(series.seriesId),
+            };
+
+            // console.log("Update query:", query);
+            // console.log("Setting order:", series.order, "for tag:", component.tag);
+
+            // Update the order in the tag array where tag.name matches component.tag
+              await this.serviceItemModel.updateOne(
+                query,
+                {
+                  $set: {
+                    "tag.$[tagElem].order": series.order,
+                  },
+                },
+                {
+                  arrayFilters: [{ "tagElem.name": component.tag }],
+                }
+              )
+          });
+        }
+      });
+  
+      return {
+        success: true,
+        message: "Page components updated successfully",
+      };
+    } catch (err) {
+      console.error("Error updating page components:", err);
+      throw err;
+    }
+  }
+
+  async updateSeriesTag(data: EUpdateSeriesTag) {
+    try {
+      const { tag, selected: series, componentId, unselected } = data;
+      const compId = new ObjectId(componentId);
+
+      // First, find the category document by category_name
+      const categoryDoc = await this.categoryModel
+        .findOne({
+          category_name: tag,
+          status: "Active",
+        })
+        .lean();
+
+      if (!categoryDoc) {
+        throw new Error(`Category with name '${tag}' not found or not active`);
+      }
+
+      const categoryId = categoryDoc._id;
+      console.log("categoryId", categoryId);
+
+      // Process selected series - use Promise.all for parallel execution
+      series.map(async (item, index) => {
+        // First, remove any existing tags with the same name to prevent duplicates
+        await this.serviceItemModel.updateOne(
+          { "additionalDetails.processId": item.id },
+          { $pull: { tag: { name: tag } } }
+        );
+
+        // Then add the new tag with correct order
+        return await this.serviceItemModel.updateOne(
+          { "additionalDetails.processId": item.id },
+          {
+            $push: {
+              tag: {
+                order: index+1,
+                name: tag,
+                category_id: categoryId,
+              },
+            },
+          }
+        );
+      });
+
+      // Process unselected series
+      unselected.map(async (item) =>
+        await this.serviceItemModel.updateOne(
+          { "additionalDetails.processId": item.id },
+          { $pull: { tag: { name: tag } } }
+        )
+      );
+    
+      return {
+        success: true,
+        message: "Series tags updated successfully",
+      };
+    } catch (error) {
+      console.error("Error updating series tags:", error);
+      throw error;
     }
   }
 }

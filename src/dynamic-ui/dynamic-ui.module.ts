@@ -15,6 +15,7 @@ import { ContentPageSchema } from "./schema/page-content.entity";
 import { BannerConfigurationSchema } from "./schema/banner-configuration.schema";
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { FilterTypeSchema } from "./schema/filter-type.schema";
+import { categorySchema } from "./schema/category.schema";
 
 @Module({
   imports: [
@@ -25,8 +26,9 @@ import { FilterTypeSchema } from "./schema/filter-type.schema";
       { name: "contentPage", schema: ContentPageSchema },
       { name: "serviceitems", schema: serviceitemsSchema },
       { name: "systemConfiguration", schema: SystemConfigurationSchema },
-      { name: "filterTypes", schema: FilterTypeSchema},
-      { name: "filterOptions", schema: FilterOptionSchema},
+      { name: "filterTypes", schema: FilterTypeSchema },
+      { name: "filterOptions", schema: FilterOptionSchema },
+      { name: "category", schema: categorySchema },
     ]),
     SharedModule,
     AuthModule,
