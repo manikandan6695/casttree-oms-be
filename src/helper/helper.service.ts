@@ -1514,4 +1514,19 @@ export class HelperService {
       throw error;
     }
   }
+  async setUserProfile(body: any) {
+    try {
+      console.log("body", body);
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/set-user-profile`,
+          //  `http://localhost:3000/casttree/mixpanel/set-user-profile`,
+          body
+        )
+        .toPromise();
+      return JSON.stringify(data.data);
+    } catch (err) {
+      throw err;
+    }
+  }
 }

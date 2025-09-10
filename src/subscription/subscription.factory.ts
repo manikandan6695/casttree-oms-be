@@ -14,7 +14,7 @@ import { EStatus } from "src/shared/enum/privacy.enum";
 import { SharedService } from "src/shared/shared.service";
 import { MandatesService } from "../mandates/mandates.service";
 import { EsubscriptionStatus } from "./../process/enums/process.enum";
-import { EProvider, EProviderId, EProviderName } from "./enums/provider.enum";
+import { EProvider, EProviderId, EProviderName, ESubscriptionMode } from "./enums/provider.enum";
 import { SubscriptionProvider } from "./subscription.interface";
 import { SubscriptionService } from "./subscription.service";
 import { readFile } from "fs";
@@ -381,6 +381,7 @@ export class SubscriptionFactory {
           createdBy: token.id,
           updatedBy: token.id,
         });
+        const subscriptionCount = await this.subscriptionService.countUserSubscriptions(token?.id);
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = token.id;
@@ -392,8 +393,16 @@ export class SubscriptionFactory {
           subscription_date: createdSubscription?.startAt,
           item_name: item?.itemName,
           subscription_expired: createdSubscription?.endAt,
+          subscription_count: subscriptionCount,
+          subscription_mode: ESubscriptionMode.Auth,
+          subscription_amount: price
         };
         await this.helperService.mixPanel(mixPanelBody);
+        let firstSubscription = await this.subscriptionService.userFirstSubscription(token?.id);
+        let propertie = {
+          first_subscription_date: firstSubscription?.startAt
+        }
+        await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});     
         return subscriptionData;
       }
       return existingSubscription;
@@ -546,6 +555,7 @@ export class SubscriptionFactory {
           createdBy: token.id,
           updatedBy: token.id,
         });
+        const subscriptionCount = await this.subscriptionService.countUserSubscriptions(token?.id);
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = token.id;
@@ -557,8 +567,16 @@ export class SubscriptionFactory {
           subscription_date: createdSubscription?.startAt,
           item_name: item?.itemName,
           subscription_expired: createdSubscription?.endAt,
+          subscription_count: subscriptionCount,
+          subscription_mode: ESubscriptionMode.Auth,
+          subscription_amount: price
         };
         await this.helperService.mixPanel(mixPanelBody);
+        let firstSubscription = await this.subscriptionService.userFirstSubscription(token?.id);
+        let propertie = {
+          first_subscription_date: firstSubscription?.startAt
+        }
+        await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});
         return createdSubscription;
       }
       return existingSubscription;
