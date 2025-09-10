@@ -103,3 +103,4 @@ REDIS_CONNECTION_TIMEOUT = 6000
 #METABASE
 METABASE_BASE_URL = "https://metabase.casttree.in"
 METABASE_USERNAME = "manikandan@casttree.com"
+METABASE_PASSWORD = "tc7pM+vfqywCe4I1s2XwaHf2wLwciDKv"

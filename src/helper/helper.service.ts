@@ -1,8 +1,10 @@
 import { HttpService } from "@nestjs/axios";
 import {
   BadRequestException,
+  forwardRef,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Req,
 } from "@nestjs/common";
@@ -21,7 +23,8 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private redisService: RedisService
+    @Inject(forwardRef(() => RedisService)) 
+    private readonly redisService: RedisService,
   ) {}
 
   getRequiredHeaders(@Req() req) {
@@ -1039,11 +1042,14 @@ export class HelperService {
     try {
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       const username = this.configService.get("METABASE_USERNAME");
-      const password = this.configService.get("METABASE_PASSWORD");
+      const encryptedPassword = this.configService.get("METABASE_PASSWORD");
 
-      if (!metabaseBaseUrl || !username || !password) {
+      if (!metabaseBaseUrl || !username || !encryptedPassword) {
         throw new Error("Metabase credentials not configured");
       }
+
+      // Decrypt the password before using it
+      const password = this.sharedService.decryptMessage(encryptedPassword);
 
       const requestBody = {
         username: username,
