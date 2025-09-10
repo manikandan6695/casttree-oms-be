@@ -146,7 +146,7 @@ export enum ETransactionType {
   withdrawn = "withdrawn",
 }
 export enum EAdminId {
-  userId = "66444eb8076298dadbce1e43"
+  userId = "664c8992ac53bc60fb5fb85e"
 }
 export enum ECoinTransactionTypes {
   In = "In",
