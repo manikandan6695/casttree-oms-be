@@ -1345,7 +1345,7 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
-          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+          if (item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount === subscription?.amount) {
             try {
               let userAdditional = await this.helperService.getUserAdditional(subscription?.userId)
               
