@@ -54,3 +54,6 @@ export enum EEventId {
   purchase = 4,
 }
 export const ESEventId = [EEventId.renew, EEventId.cancel, EEventId.purchase];
+export enum EReferralStatus{
+  Onboarded = "Onboarded",
+}

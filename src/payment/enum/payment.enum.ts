@@ -145,3 +145,15 @@ export enum ETransactionType {
   purchased = "purchased",
   withdrawn = "withdrawn",
 }
+export enum EAdminId {
+  userId = "664c8992ac53bc60fb5fb85e"
+}
+export enum ECoinTransactionTypes {
+  In = "In",
+  Out = "Out",
+  earned = "earned",
+  spent = "spent",
+  withdrawal = "Withdrawal",
+  purchased = "purchased",
+  withdrawn = "withdrawn",
+}

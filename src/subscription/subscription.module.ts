@@ -24,7 +24,7 @@ import { webhookSchema } from "./schema/webhook.schema";
     AuthModule,
     HelperModule,
     InvoiceModule,
-    PaymentRequestModule,
+    forwardRef(() => PaymentRequestModule),
     forwardRef(() => ItemModule),
     MandatesModule,
   ],

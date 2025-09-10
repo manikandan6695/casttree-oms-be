@@ -1,12 +1,12 @@
 import * as mongoose from 'mongoose';
-import { ECoinStatus, ESCoinStatus, ETransactionType, ETransactionTypes } from '../enum/payment.enum';
+import { ECoinStatus, ECoinTransactionTypes, ESCoinStatus, ETransactionType, ETransactionTypes } from '../enum/payment.enum';
 
 export interface ICoinTransaction extends mongoose.Document {
     userId: any;
     senderId: any;
     receiverId: any;
-    type: ETransactionType;
-    transactionType: ETransactionType;
+    type: ECoinTransactionTypes;
+    transactionType: ECoinTransactionTypes;
     currentBalance: number;
     documentStatus: ECoinStatus;
     sourceType: string;
@@ -37,12 +37,12 @@ export const CoinTransactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ETransactionTypes,
+      enum: ECoinTransactionTypes,
       required: true,
     },
     transactionType: {
       type: String,
-      enum: ETransactionTypes,
+      enum: ECoinTransactionTypes,
       required: true,
     },
     currentBalance: {

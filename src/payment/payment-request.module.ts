@@ -15,6 +15,7 @@ import { ItemModule } from "src/item/item.module";
 import { SalesChanelSchema } from "src/item/schema/item.schema";
 import { CoinTransactionSchema } from "./schema/coinPurchase.schema";
 import { RedisModule } from "src/redis/redis.module";
+import { SubscriptionModule } from "src/subscription/subscription.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { RedisModule } from "src/redis/redis.module";
     HttpModule,
     forwardRef(() =>ItemModule),
     RedisModule,
+    forwardRef(() => SubscriptionModule)
   ],
   providers: [PaymentRequestService, PaymentService],
   controllers: [PaymentRequestController],

@@ -31,3 +31,7 @@ export enum EProviderName {
 export enum EErrorHandler {
   notFound = "No active subscription found"
 }
+export enum ESubscriptionMode {
+  Auth = "Auth",
+  Charge = "Charge",
+}

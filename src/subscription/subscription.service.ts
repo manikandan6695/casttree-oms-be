@@ -37,12 +37,13 @@ import {
   UpdatePaymentBody,
   UserUpdateData,
 } from "./dto/subscription.dto";
-import { EEventId, EEventType } from "./enums/eventType.enum";
+import { EEventId, EEventType, EReferralStatus } from "./enums/eventType.enum";
 import {
   EErrorHandler,
   EProvider,
   EProviderId,
   ESProviderId,
+  ESubscriptionMode,
 } from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
@@ -51,10 +52,13 @@ import { SubscriptionFactory } from "./subscription.factory";
 import { ServiceItemService } from "src/item/service-item.service";
 import {
   ELIGIBLE_SUBSCRIPTION,
+  EVENT_UPDATE_REFERRAL_STATUS,
   NOT_ELIGIBLE_SUBSCRIPTION,
   SUBSCRIPTION_NOT_FOUND,
 } from "src/shared/app.constants";
 import { IWebhookModel } from "./schema/webhook.schema";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
+import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -67,6 +71,7 @@ export class SubscriptionService {
     private readonly webhookModel: Model<IWebhookModel>,
     private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
     private helperService: HelperService,
     private sharedService: SharedService,
@@ -74,7 +79,8 @@ export class SubscriptionService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
-    private readonly mandateHistoryService: MandateHistoryService
+    private readonly mandateHistoryService: MandateHistoryService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -577,6 +583,7 @@ export class SubscriptionService {
         conversionRate: conversionRateAmt,
       };
       await this.paymentService.createPaymentRecord(paymentData, null, invoice);
+      const subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = subscription?.userId;
@@ -588,6 +595,9 @@ export class SubscriptionService {
         subscription_date: subscription?.startAt,
         item_name: item?.itemName,
         subscription_expired: subscription?.endAt,
+        subscription_count: subscriptionCount,
+        subscription_mode: ESubscriptionMode.Charge,
+        subscription_amount: amount
       };
       await this.helperService.mixPanel(mixPanelBody);
       return { message: "Created Successfully" };
@@ -903,6 +913,7 @@ export class SubscriptionService {
             invoice
           );
           let mixPanelBody: any = {};
+          let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
           mixPanelBody.properties = {
@@ -913,6 +924,9 @@ export class SubscriptionService {
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
             subscription_expired: subscription?.endAt,
+            subscription_count: subscriptionCount,
+            subscription_mode: ESubscriptionMode.Charge,
+            subscription_amount: price
           };
           await this.helperService.mixPanel(mixPanelBody);
         }
@@ -1299,6 +1313,7 @@ export class SubscriptionService {
           };
           await this.helperService.updateUser(userBody);
           if (subscription.subscriptionStatus === EDocumentStatus.active) {
+            let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
             let mixPanelBody: any = {};
             mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
             mixPanelBody.distinctId = subscription?.userId;
@@ -1310,8 +1325,16 @@ export class SubscriptionService {
               subscription_date: subscription?.startAt,
               item_name: item?.itemName,
               subscription_expired: subscription?.endAt,
+              subscription_count: subscriptionCount,
+              subscription_mode: ESubscriptionMode.Auth,
+              subscription_amount: invoice.grand_total
             };
             await this.helperService.mixPanel(mixPanelBody);
+            let firstSubscription = await this.userFirstSubscription(subscription?.userId);
+            let propertie = {
+              first_subscription_date: firstSubscription?.startAt
+            }
+            await this.helperService.setUserProfile({ distinctId: subscription?.userId,properties: propertie});
           }
 
           // let userData = await this.helperService.getUserById(
@@ -1322,6 +1345,34 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
+          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+            try {
+              let userAdditional = await this.helperService.getUserAdditional(subscription?.userId)
+              
+              if (userAdditional?.referredBy) {
+                try {
+                  let referelData = await this.helperService.getReferralData(subscription?.userId, userAdditional?.referredBy)
+                  
+                  if (referelData?.referralStatus === EReferralStatus.Onboarded) {
+                    let eventBody = {
+                      subscriptionId: subscription?._id,
+                      userId: subscription?.userId,
+                    }
+                    await this.sharedService.trackAndEmitEvent(
+                      EVENT_UPDATE_REFERRAL_STATUS,
+                      eventBody,
+                      true,
+                      {}
+                    );
+                  }
+                } catch (referralError) {
+                  console.warn(`Referral data fetch failed for user ${payload?.userId}:`, referralError?.message || referralError)
+                }
+              }
+            } catch (userAdditionalError) {
+              console.warn(`User additional data fetch failed for user ${subscription?.userId}:`, userAdditionalError?.message || userAdditionalError)
+            }
+          }
         }
       }
     } catch (err) {
@@ -1473,6 +1524,7 @@ export class SubscriptionService {
             serviceItemType: "subscription",
           };
           await this.helperService.mixPanel(mixPanelBodyData);
+          let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
@@ -1484,6 +1536,9 @@ export class SubscriptionService {
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
             subscription_expired: subscription?.endAt,
+            subscription_count: subscriptionCount,
+            subscription_mode: ESubscriptionMode.Auth,
+            subscription_amount: invoice.grand_total
           };
           await this.helperService.mixPanel(mixPanelBody);
 
@@ -1493,6 +1548,11 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
+          let firstSubscription = await this.userFirstSubscription(subscription?.userId);
+          let propertie = {
+            first_subscription_date: firstSubscription?.startAt
+          }
+          await this.helperService.setUserProfile({ distinctId: subscription?.userId,properties: propertie});
           // let userData = await this.helperService.getUserById(
           //   subscription?.userId
           // );
@@ -2078,6 +2138,7 @@ export class SubscriptionService {
       let item = await this.itemService.getItemDetail(
         subscriptionData?.notes?.itemId
       );
+      let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = subscriptionData?.userId;
@@ -2089,6 +2150,9 @@ export class SubscriptionService {
         subscription_date: subscription?.startAt,
         item_name: item?.itemName,
         subscription_expired: subscription?.endAt,
+        subscription_count: subscriptionCount,
+        subscription_mode: ESubscriptionMode.Charge,
+        subscription_amount: invoice.grand_total
       };
       await this.helperService.mixPanel(mixPanelBody);
     }
@@ -2304,6 +2368,7 @@ export class SubscriptionService {
         let item = await this.itemService.getItemDetail(
           subscriptionData?.notes?.itemId
         );
+        let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = subscriptionData?.userId;
@@ -2315,6 +2380,9 @@ export class SubscriptionService {
           subscription_date: subscription?.startAt,
           item_name: item?.itemName,
           subscription_expired: subscription?.endAt,
+          subscription_count: subscriptionCount,
+          subscription_mode: ESubscriptionMode.Charge,
+          subscription_amount: invoice.grand_total
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
@@ -2545,6 +2613,81 @@ export class SubscriptionService {
         );
       }
       return { data: subscription };
+    } catch (error) {
+      throw error;
+    }
+  }
+  @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
+  async handleUpdateReferralStatus(payload: any) {
+    try {
+      await this.updateReferralStatus(payload);
+
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Complete
+      );
+    } catch (error) {
+      await this.sharedService.updateEventProcessingStatus(
+        payload?.commandSource,
+        ECommandProcessingStatus.Failed
+      );
+      throw error
+    }
+  }
+  async updateReferralStatus(payload: any) {
+    try {
+      let userAdditional = await this.helperService.getUserAdditional(payload?.userId)
+      let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
+
+      const subscription = await this.subscriptionModel.findOne({
+        _id:  new ObjectId(payload?.subscriptionId),
+        userId: new ObjectId(payload?.userId),
+        status: EStatus.Active, 
+        subscriptionStatus: EsubscriptionStatus.active
+      }).lean()
+
+      if(referelData?.referralStatus === EReferralStatus.Onboarded && subscription?.subscriptionStatus === EsubscriptionStatus.active){
+        let body = {
+          refereeUserId: referelData?.refereeUserId,
+          referralId : referelData?._id,
+          referrerId: referelData?.referrerUserId,
+        }
+        await this.helperService.updateReferral(body)
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+  async handleIapCoinTransactions(body,token){
+    try {
+      let transaction = await this.subscriptionFactory.handleIapCoinPurchase(body,token)
+      return transaction
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async countUserSubscriptions(userId: string): Promise<number> {
+    try {
+      const count = await this.subscriptionModel.countDocuments({
+        userId: new ObjectId(userId),
+        subscriptionStatus: { $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired] },
+        status: EStatus.Active
+      });
+      return count;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async userFirstSubscription(userId: string) {
+    try {
+      let filter = {
+        userId: new ObjectId(userId),
+        status: EStatus.Active,
+        subscriptionStatus: { $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired] }
+      };
+      let data = await this.subscriptionModel.findOne(filter).sort({createdAt: 1}).lean();
+      return data
     } catch (error) {
       throw error;
     }
