@@ -1,13 +1,18 @@
-import { Injectable, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
-import { createClient, RedisClientType } from 'redis';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
-import { PaymentRequestService } from 'src/payment/payment-request.service';
-import { ECoinStatus, ERedisEventType } from 'src/payment/enum/payment.enum';
-import { EventOutBoxService } from '../event-outbox/event-outbox.service';
-import { IEventOutBox } from 'src/event-outbox/schema/event-outbox.schema';
-import { EConfigType } from './enum/type.enum';
-import { HelperService } from 'src/helper/helper.service';
+import {
+  Injectable,
+  OnModuleDestroy,
+  Inject,
+  forwardRef,
+} from "@nestjs/common";
+import { createClient, RedisClientType } from "redis";
+import { Model } from "mongoose";
+import { InjectModel } from "@nestjs/mongoose";
+import { PaymentRequestService } from "src/payment/payment-request.service";
+import { ECoinStatus, ERedisEventType } from "src/payment/enum/payment.enum";
+import { EventOutBoxService } from "../event-outbox/event-outbox.service";
+import { IEventOutBox } from "src/event-outbox/schema/event-outbox.schema";
+import { EConfigType } from "./enum/type.enum";
+import { HelperService } from "src/helper/helper.service";
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -16,46 +21,44 @@ export class RedisService implements OnModuleDestroy {
   private isConnected = false;
   private isPolling = false;
 
- 
-
   constructor(
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService,
     private eventOutBoxService: EventOutBoxService,
     private helperService: HelperService
-  ) { }
+  ) {}
 
   async initRedisClients() {
     this.client = createClient({
       url: process.env.REDIS_URL,
       socket: {
-          connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
-      }
+        connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
+      },
     });
 
     this.subscriberClient = createClient({
       url: process.env.REDIS_URL,
       socket: {
-          connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
-      }
+        connectTimeout: parseInt(process.env.REDIS_CONNECTION_TIMEOUT),
+      },
     });
 
-    this.client.on('error', (err) => {
-      console.error('[Redis Client Error]', err.message || err);
+    this.client.on("error", (err) => {
+      console.error("[Redis Client Error]", err.message || err);
     });
 
-    this.subscriberClient.on('error', (err) => {
-      console.error('[Redis Subscriber Error]', err.message || err);
+    this.subscriberClient.on("error", (err) => {
+      console.error("[Redis Subscriber Error]", err.message || err);
     });
 
     try {
       await this.client.connect();
       await this.subscriberClient.connect();
       this.isConnected = true;
-      console.log('Redis clients connected');
-      console.log('Redis subscriber connected');
+      console.log("Redis clients connected");
+      console.log("Redis subscriber connected");
     } catch (err) {
-      console.error('Failed to connect to Redis:', err.message || err);
+      console.error("Failed to connect to Redis:", err.message || err);
       this.isConnected = false;
     }
   }
@@ -73,7 +76,9 @@ export class RedisService implements OnModuleDestroy {
   private async startQueuePolling() {
     while (this.isPolling) {
       try {
-        const timeOut = await this.helperService.getSystemConfigByKey(EConfigType.key);
+        const timeOut = await this.helperService.getSystemConfigByKey(
+          EConfigType.key
+        );
         const result = await this.subscriberClient.blPop(
           ERedisEventType.coinPurchase,
           timeOut?.value
@@ -84,8 +89,11 @@ export class RedisService implements OnModuleDestroy {
           await this.paymentRequestService.handleCoinPurchaseFromRedis(result);
         }
       } catch (error) {
-        console.error('[Queue Polling Error]', error.message || error);
-        if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
+        console.error("[Queue Polling Error]", error.message || error);
+        if (
+          error.code === "ECONNRESET" ||
+          error.message?.includes("ECONNRESET")
+        ) {
           this.isConnected = false;
           await this.initRedisClients();
         }
@@ -122,19 +130,23 @@ export class RedisService implements OnModuleDestroy {
         triggeredAt: new Date(),
         sourceId: data?.sourceId,
         sourceType: data?.sourceType,
-        consumer: data?.consumer
+        consumer: data?.consumer,
       };
 
-      const createEvent = await this.eventOutBoxService.createEventOutBox(payload);
+      const createEvent =
+        await this.eventOutBoxService.createEventOutBox(payload);
       const queuePayload = {
         orderId,
-        eventOutBoxId: createEvent?._id
+        eventOutBoxId: createEvent?._id,
       };
 
       // console.log('event', `${queueName}:${sourceId}`);
-      await this.client.lPush(`${queueName}:${sourceId}`, JSON.stringify(queuePayload));
+      await this.client.lPush(
+        `${queueName}:${sourceId}`,
+        JSON.stringify(queuePayload)
+      );
     } catch (error) {
-      console.error('[Push Queue Error]', error.message || error);
+      console.error("[Push Queue Error]", error.message || error);
       throw error;
     }
   }
@@ -151,7 +163,9 @@ export class RedisService implements OnModuleDestroy {
       sourceId
     );
   }
-
+  getClient() {
+    return this.client;
+  }
   async onModuleDestroy() {
     this.isPolling = false;
     if (this.isConnected) {

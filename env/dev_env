@@ -102,3 +102,7 @@ REDIS_CONNECTION_TIMEOUT = 6000
 
 #MIXPANEL
 MIXPANEL_API_SECRET = "7d8ce9abef940aace41f2e285f25d82a"
+
+#METABASE
+METABASE_BASE_URL = "https://metabase.casttree.in"
+METABASE_USERNAME = "manikandan@casttree.com"

@@ -13,6 +13,8 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 import { MixpanelExportService } from "./mixpanel-export.service";
+import { RedisService } from "src/redis/redis.service";
+import { BannerResponseDto } from "./dto/getBanner.dto";
 
 @Injectable()
 export class HelperService {
@@ -20,7 +22,8 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private mixpanelExportService: MixpanelExportService
+    private mixpanelExportService: MixpanelExportService,
+    private redisService: RedisService
   ) {}
 
   getRequiredHeaders(@Req() req) {
@@ -1512,6 +1515,142 @@ export class HelperService {
         res.status(500).json({ error: "Failed to stream Mixpanel data" });
       }
       throw error;
+    }
+  }
+  private async getMetabaseSession(): Promise<string> {
+    try {
+      // Try to get session from Redis first
+      const cachedSession = await this.redisService.getClient()?.get('metabase:sessionId');
+      if (cachedSession && typeof cachedSession === 'string') {
+        return cachedSession;
+      }
+
+      // If no cached session, create a new one
+      return await this.createMetabaseSession();
+    } catch (error) {
+      console.error('Error getting Metabase session:', error);
+      throw error;
+    }
+  }
+
+  private async createMetabaseSession(): Promise<string> {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      const username = this.configService.get("METABASE_USERNAME");
+      const password = this.configService.get("METABASE_PASSWORD");
+
+      if (!metabaseBaseUrl || !username || !password) {
+        throw new Error("Metabase credentials not configured");
+      }
+
+      const requestBody = {
+        username: username,
+        password: password
+      };
+
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      const response = await this.http_service
+        .post(`${metabaseBaseUrl}/api/session/`, requestBody, { headers })
+        .toPromise();
+
+      const sessionId = response.data?.id;
+      if (!sessionId) {
+        throw new Error("Failed to create Metabase session");
+      }
+
+      console.log("Created new Metabase session:", sessionId);
+
+      // Store session in Redis with 24 hour expiration
+      await this.redisService.getClient()?.setEx('metabase:session', 86400, sessionId);
+
+      return sessionId;
+    } catch (error) {
+      console.error('Error creating Metabase session:', error);
+      throw error;
+    }
+  }
+
+  private async refreshMetabaseSession(): Promise<string> {
+    try {
+      // Remove old session from Redis
+      await this.redisService.getClient()?.del('metabase:session');
+
+      // Create new session
+      return await this.createMetabaseSession();
+    } catch (error) {
+      console.error('Error refreshing Metabase session:', error);
+      throw error;
+    }
+  }
+
+  async getBannerToShow(userId: string): Promise<BannerResponseDto> {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      if (!metabaseBaseUrl) {
+        throw new Error("METABASE_BASE_URL environment variable is not set");
+      }
+
+      // Get session (from cache or create new)
+      let metabaseSession = await this.getMetabaseSession();
+
+      const requestBody = {
+        parameters: [
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "userid"]],
+            value: userId,
+          },
+        ],
+      };
+
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Metabase-Session": metabaseSession,
+      };
+
+      const fullUrl = `${metabaseBaseUrl}/api/card/287/query`;
+
+      try {
+        const response = await this.http_service
+          .post(fullUrl, requestBody, { headers })
+          .toPromise();
+
+        // Extract the banner value from the response
+        const bannerToShow =
+          response.data?.data?.rows?.[0]?.[0] || "68627cbac061d0184580adda";
+        return {
+          bannerToShow: bannerToShow,
+        };
+      } catch (apiError) {
+        // If API call fails, try to refresh session and retry once
+        if (apiError.response?.status === 401 || apiError.response?.status === 403) {
+          console.log("Session expired, refreshing...");
+          metabaseSession = await this.refreshMetabaseSession();
+
+          // Update headers with new session
+          headers["X-Metabase-Session"] = metabaseSession;
+          // Retry the API call
+          const retryResponse = await this.http_service
+            .post(fullUrl, requestBody, { headers })
+            .toPromise();
+
+          const bannerToShow =
+            retryResponse.data?.data?.rows?.[0]?.[0] || "68627cbac061d0184580adda";
+          return {
+            bannerToShow: bannerToShow,
+          };
+        }
+        throw apiError;
+      }
+    } catch (err) {
+      console.error("Error fetching banner from Metabase:", err);
+      // Return default banner in case of error
+      return {
+        bannerToShow: "68627cbac061d0184580adda",
+      };
     }
   }
 }

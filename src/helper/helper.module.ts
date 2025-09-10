@@ -7,6 +7,7 @@ import { HelperController } from "./helper.controller";
 import { HelperService } from "./helper.service";
 import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware";
 import { MixpanelExportService } from "./mixpanel-export.service";
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { MixpanelExportService } from "./mixpanel-export.service";
     SharedModule,
     AuthModule,
     HttpModule,
+    RedisModule,
   ],
   controllers: [HelperController],
   providers: [HelperService, GetUserOriginMiddleware, MixpanelExportService],

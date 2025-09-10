@@ -1,9 +1,10 @@
-import { Body, Controller, Post, Get, Query, Res } from "@nestjs/common";
+import { Body, Controller, Post, Get, Query, Res, Param } from "@nestjs/common";
 import { Response } from "express";
 import { ConfigService } from "@nestjs/config";
 import { SharedService } from "src/shared/shared.service";
 import { HelperService } from "./helper.service";
 import { MixpanelExportDto } from "./dto/mixpanel-export.dto";
+import { BannerResponseDto } from "./dto/getBanner.dto";
 
 @Controller("helper")
 export class HelperController {
@@ -118,6 +119,16 @@ export class HelperController {
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to stream Mixpanel data" });
       }
+    }
+  }
+
+  @Get("banner/:userId")
+  async getBannerToShow(@Param("userId") userId: string): Promise<BannerResponseDto> {
+    try {
+      const data = await this.helperService.getBannerToShow(userId);
+      return data;
+    } catch (err) {
+      throw err;
     }
   }
 }
