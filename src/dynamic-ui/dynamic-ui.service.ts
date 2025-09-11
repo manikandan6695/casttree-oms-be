@@ -3,7 +3,7 @@ import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import mongoose, { Model } from "mongoose";
+import { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
@@ -21,7 +21,6 @@ import {
   EItemType,
 } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
-import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
@@ -31,6 +30,26 @@ import { processModel } from "src/process/schema/process.schema";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { ICategory } from "./schema/category.schema";
+import { AddNewSeriesDto } from "./dto/add-new-series.dto";
+import { IItemModel } from "src/item/schema/item.schema";
+import { ILanguage } from "src/shared/schema/language.schema";
+import { IProfileModel } from "src/shared/schema/profile.schema";
+import { ISkillModel } from "src/shared/schema/skills.schema";
+import { IRoleModel } from "src/shared/schema/role.schema";
+import axios from "axios";
+import { IUserOrganizationModel } from "src/shared/schema/user-organization.schema";
+import { IOrganizationModel } from "src/shared/schema/organization.schema";
+import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
+import { taskModel } from "src/process/schema/task.schema";
+import { mediaModel } from "./schema/media.schema";
+import { AddAchievementDto } from "./dto/add-achievement.dto";
+import { Achievement, AchievementDocument } from './schema/achievement.schema';
+import { VirtualItemDocument, VirtualItem } from "./schema/virtual-item.schema";
+import { VirtualItemGroup, VirtualItemGroupDocument } from './schema/virtual-item-group.schema';
+import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
+import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
+import { ItemType } from "./dto/map-virtual-item-to-series.dto";
+import { Award, AwardDocument } from './schema/awards.schema';
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -56,10 +75,36 @@ export class DynamicUiService {
     private readonly processModel: Model<processModel>,
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
+    @InjectModel("item")
+    private readonly itemModel: Model<IItemModel>,
+    @InjectModel("language")
+    private readonly languageModel: Model<ILanguage>,
+    @InjectModel("profile")
+    private readonly profileModel: Model<IProfileModel>,
+    @InjectModel("skills")
+    private readonly skillModel: Model<ISkillModel>,
+    @InjectModel("role")
+    private readonly roleModel: Model<IRoleModel>,
+    @InjectModel("userOrganization")
+    private readonly userOrganizationModel: Model<IUserOrganizationModel>,
+    @InjectModel("organization")
+    private readonly organizationModel: Model<IOrganizationModel>,
+    @InjectModel("task")
+    private readonly taskModel: Model<taskModel>,
+    @InjectModel("media")
+    private readonly mediaModel: Model<mediaModel>,
+    @InjectModel(Achievement.name)
+    private achievementModel: Model<AchievementDocument>,
+    @InjectModel(VirtualItem.name)
+    private virtualItemModel: Model<VirtualItemDocument>,
+    @InjectModel(VirtualItemGroup.name)
+    private virtualItemGroupModel: Model<VirtualItemGroupDocument>,
     private processService: ProcessService,
     private helperService: HelperService,
-    private subscriptionService: SubscriptionService
-  ) {}
+    private subscriptionService: SubscriptionService,
+    @InjectModel(Award.name)
+    private awardsModel: Model<AwardDocument>,
+  ) { }
   async getNavBarDetails(token: any, key: string) {
     try {
       let data = await this.appNavBarModel
@@ -317,6 +362,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+  
   async getComponent(
     token: UserToken,
     componentId: string,
@@ -481,6 +527,35 @@ export class DynamicUiService {
         }
       }
 
+      // ⭐ Add itemName to actionData after getting serviceItemData
+      if (component.actionData && component.actionData.length > 0) {
+        // Get all unique itemIds from actionData
+        const itemIds = [...new Set(
+          component.actionData
+            .map(item => item.itemId)
+            .filter(id => id)
+        )];
+
+        if (itemIds.length > 0) {
+          // Lookup items to get itemNames
+          const items = await this.itemModel
+            .find({ _id: { $in: itemIds } })
+            .select('_id itemName')
+            .lean();
+
+          // Create a map for quick lookup
+          const itemNameMap = new Map(
+            items.map(item => [item._id.toString(), item.itemName])
+          );
+
+          // Add itemName to each actionData element
+          component.actionData = component.actionData.map(item => ({
+            ...item,
+            itemName: itemNameMap.get(item.itemId?.toString()) || null
+          }));
+        }
+      }
+
       return { component };
     } catch (err) {
       throw err;
@@ -553,13 +628,6 @@ export class DynamicUiService {
   //         $group: {
   //           _id: "$_id.tagName",
   //           details: { $push: "$detail" },
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           _id: 0,
-  //           tagName: "$_id",
-  //           details: 1,
   //         },
   //       }
   //     );
@@ -766,6 +834,24 @@ export class DynamicUiService {
       aggregationPipeline.push({
         $match: filter,
       });
+      
+      // ⭐ Add lookup to get item details BEFORE grouping
+      aggregationPipeline.push({
+        $lookup: {
+          from: "item",
+          localField: "itemId",
+          foreignField: "_id",
+          as: "itemDetails"
+        }
+      });
+      
+      // ⭐ Add itemName to the document
+      aggregationPipeline.push({
+        $addFields: {
+          itemName: { $arrayElemAt: ["$itemDetails.itemName", 0] }
+        }
+      });
+      
       let countPipe = [...aggregationPipeline];
       if (isPagination) {
         aggregationPipeline.push({
@@ -828,7 +914,11 @@ export class DynamicUiService {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                  { 
+                    tagOrder: "$tagOrder", 
+                    tagName: "$tagName",
+                    itemName: "$itemName"  // ⭐ Include itemName in the merged object
+                  },
                 ],
               },
             },
@@ -1201,7 +1291,11 @@ export class DynamicUiService {
         countryCode === "IN"
           ? isSubscriber === false
             ? premiumBannerObj?.imageUrl
-            : premiumBannerObj?.imageUrlUpdated
+            : premiumBannerObj?.imageUrl
+      
+      
+      
+      d
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
@@ -1289,6 +1383,156 @@ export class DynamicUiService {
     }
   }
 
+  async updatePageComponents(pageId: string, updateDto: EUpdateComponents) {
+    try {
+      // console.log("Updating page components:", pageId);
+      // console.log("componentIds:", updateDto.components);
+
+      // Map components to the correct format
+      const components = updateDto.components.map((item) => ({
+        componentId: new ObjectId(item.componentId.$oid),
+      }));
+
+      // Update page components
+      const updatedPage = await this.contentPageModel
+        .findByIdAndUpdate(
+          pageId,
+          {
+            $set: { components },
+          },
+          { new: true }
+        )
+        .lean();
+
+      // Update order for each component
+      const updatePromises = updateDto.components.map((item, index) => {
+        return this.componentModel
+          .findByIdAndUpdate(
+            item.componentId.$oid,
+            {
+              $set: { order: index + 1 },
+            },
+            { new: true }
+          )
+          .lean();
+      });
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+
+      const skillName = await this.contentPageModel
+        .findOne({ _id: pageId })
+        .lean();
+      const skill = skillName?.metaData?.skill;
+      // console.log("Skill Name:", skill);
+
+      // { type: "courses", "skill.skill_name": "Singing", "tag.name": "trendingSeries"}
+      const tagUpdatePromises: Promise<any>[] = [];
+      updateDto.components.forEach((component) => {
+        if (component.tag && Array.isArray(component.series)) {
+          component.series.forEach((series) => {
+            const query = {
+              type: "courses",
+              "skill.skill_name": skill,
+              "tag.name": component.tag,
+              "additionalDetails.processId": new ObjectId(series.seriesId.$oid),
+            };
+
+            // console.log("Update query:", query);
+            // console.log("Setting order:", series.order, "for tag:", component.tag);
+
+            // Update the order in the tag array where tag.name matches component.tag
+            tagUpdatePromises.push(
+              this.serviceItemModel.updateOne(
+                query,
+                {
+                  $set: {
+                    "tag.$[tagElem].order": series.order,
+                  },
+                },
+                {
+                  arrayFilters: [{ "tagElem.name": component.tag }],
+                }
+              )
+            );
+          });
+        }
+      });
+
+      // Wait for all tag updates to complete
+      if (tagUpdatePromises.length > 0) {
+        // console.log(`Executing ${tagUpdatePromises.length} tag order updates...`);
+        const results = await Promise.all(tagUpdatePromises);
+      }
+
+      // console.log("tagUpdatePromises", tagUpdatePromises)
+
+      return {
+        success: true,
+      };
+    } catch (err) {
+      console.error("Error updating page components:", err);
+      throw err;
+    }
+  }
+
+  async updateSeriesTag(data: EUpdateSeriesTag) {
+    const { tag, selected: series, componentId, unselected } = data;
+    const compId = new ObjectId(componentId);
+
+    // First, find the category document by category_name
+    const categoryDoc = await this.categoryModel
+      .findOne({
+        category_name: tag,
+        status: "Active",
+      })
+      .lean();
+
+    if (!categoryDoc) {
+      throw new Error(`Category with name '${tag}' not found or not active`);
+    }
+
+    const categoryId = categoryDoc._id;
+
+    // Process selected series - use Promise.all for parallel execution
+    const selectedPromises = series.map(async (item, index) => {
+      // First, remove any existing tags with the same name to prevent duplicates
+      await this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
+        { $pull: { tag: { name: tag } } }
+      );
+
+      // Then add the new tag with correct order
+      return this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
+        {
+          $push: {
+            tag: {
+              order: index,
+              name: tag,
+              category_id: categoryId
+            }
+          }
+        }
+      );
+    });
+
+    // Process unselected series - use Promise.all for parallel execution
+    const unselectedPromises = unselected.map((item) =>
+      this.serviceItemModel.updateOne(
+        { "additionalDetails.processId": item.id },
+        { $pull: { tag: { name: tag } } }
+      )
+    );
+
+    // Execute all operations in parallel
+    try {
+      await Promise.all([...selectedPromises, ...unselectedPromises]);
+    } catch (error) {
+      console.error("Error updating series tags:", error);
+      throw error;
+    }
+  }
+
   async createOrUpdateUserPreference(userId: string, payload) {
     try {
       payload.userId = new ObjectId(userId);
@@ -1359,131 +1603,952 @@ export class DynamicUiService {
     }
   }
 
-  async updatePageComponents(pageId: string, updateDto: EUpdateComponents) {
+  async getFilterOptions() {
     try {
-      // console.log("Updating page components:", pageId);
-      // console.log("componentIds:", updateDto.components);
+      const proficiencyOptions = await this.filterOptionsModel.find({
+        filterType: "proficiency",
+        status: "Active"
+      })
+      .select('_id optionValue')
+      .sort({ sortOrder: 1 })
+      .lean();
 
-      // Map components to the correct format
-      const components = updateDto.components.map((item) => ({
-        componentId: new ObjectId(item.componentId),
-      }));
-
-      // Update order for each component
-      updateDto.components.forEach(async (item, index) => {
-        return await this.componentModel
-          .updateOne(
-            { _id: new ObjectId(item.componentId) },
-            {
-              $set: { order: index + 1 },
-            }
-          )
-          .lean();
-      });
-
-      const skillName = await this.contentPageModel
-        .findOne({ _id: pageId })
-        .lean();
-      const skill = skillName?.metaData?.skill;
-      // console.log("Skill Name:", skill);
-
-      updateDto.components.forEach((component) => {
-        if (component.tag && Array.isArray(component.series)) {
-          component.series.forEach(async (series) => {
-            const query = {
-              type: "courses",
-              "skill.skill_name": skill,
-              "tag.name": component.tag,
-              "additionalDetails.processId": new ObjectId(series.seriesId),
-            };
-
-            // console.log("Update query:", query);
-            // console.log("Setting order:", series.order, "for tag:", component.tag);
-
-            // Update the order in the tag array where tag.name matches component.tag
-            await this.serviceItemModel.updateOne(
-              query,
-              {
-                $set: {
-                  "tag.$[tagElem].order": series.order,
-                },
-              },
-              {
-                arrayFilters: [{ "tagElem.name": component.tag }],
-              }
-            );
-          });
-        }
-      });
+      const categoryOptions = await this.filterOptionsModel.find({
+        filterType: "category",
+        status: "Active"
+      })
+      .select('_id optionValue')
+      .sort({ sortOrder: 1 })
+      .lean();
 
       return {
-        success: true,
-        message: "Page components updated successfully",
+        proficiency: proficiencyOptions,
+        category: categoryOptions
       };
-    } catch (err) {
-      console.error("Error updating page components:", err);
-      throw err;
+    } catch (error) {
+      throw error;
     }
   }
 
-  async updateSeriesTag(data: EUpdateSeriesTag) {
+  async getExpertList() {
     try {
-      const { tag, selected: series, componentId, unselected } = data;
-      const compId = new ObjectId(componentId);
+      const experts = await this.profileModel.find({
+        type: "Expert"
+      }).select("userId displayName").lean();
+      // console.log("experts", experts)
+      
+      return experts;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
 
-      // First, find the category document by category_name
-      const categoryDoc = await this.categoryModel
-        .findOne({
-          category_name: tag,
-          status: "Active",
-        })
-        .lean();
+  async getSkillList() {
+    try {
+      const skills = await this.skillModel.find({
+        status: "Active"
+      }).select("_id skill_name").lean();
+      
+      // console.log("skills", skills);
+      return skills;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
 
-      if (!categoryDoc) {
-        throw new Error(`Category with name '${tag}' not found or not active`);
+  async getRoleList() {
+    try {
+      const roles = await this.roleModel.find({
+        status: "Active"
+      }).select("_id role_name").lean();
+      
+      // console.log("roles", roles);
+      return roles;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getLanguageList() {
+    try {
+      const languages = await this.languageModel.find({
+      }).select("_id language_name").lean();
+      return languages;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
+
+  async getTagList(userToken: UserToken) { 
+    try { 
+      const data = await this.getPageDetails(userToken, "684adad49add744614e43df0", {})
+      const components = data.data.components;
+      let tags = [];
+      for (const component of components) {
+        if (component.tag && component.tag.tagId !== "6821a3ede5095e1edae5c555") {
+          // Find the highest order for this specific tag name
+          const existingTags = await this.serviceItemModel.find({
+            "tag.name": component.tag.tagName
+          }).select("tag").lean();
+
+          let highestOrder = 0;
+          if (existingTags.length > 0) {
+            existingTags.forEach(doc => {
+              if (Array.isArray(doc.tag)) {
+                doc.tag.forEach(tagItem => {
+                  if (tagItem.name === component.tag.tagName && tagItem.order > highestOrder) {
+                    // console.log("tagItem", tagItem);
+                    highestOrder = tagItem.order;
+                  }
+                });
+              }
+            });
+          }
+
+          const data = {
+            tag: component.tag,
+            title: component.title,
+          };
+          tags.push(data);
+        }
+      }
+      // console.log("tags at last", tags);
+      return tags;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getSeriesData(userToken: UserToken) {
+    try {
+      const getSeriesData = {
+        filterOptions: await this.getFilterOptions(),
+        experts: await this.getExpertList(),
+        skills: await this.getSkillList(),
+        roles: await this.getRoleList(),
+        languages: await this.getLanguageList(),
+        tags: await this.getTagList(userToken),
       }
 
-      const categoryId = categoryDoc._id;
-      console.log("categoryId", categoryId);
+      return getSeriesData;
+    }
+    catch (error) {
+      throw error;
+    }
+  }
 
-      // Process selected series - use Promise.all for parallel execution
-      series.map(async (item, index) => {
-        // First, remove any existing tags with the same name to prevent duplicates
-        await this.serviceItemModel.updateOne(
-          { "additionalDetails.processId": item.id },
-          { $pull: { tag: { name: tag } } }
-        );
+  async addNewSeries(data: AddNewSeriesDto, userToken: UserToken) { 
+    // Start a session for the transaction
+    const session = await this.itemModel.db.startSession();
+    
+    try {
+      // console.log("data", JSON.stringify(data, null, 2));
+      // Start the transaction
+      await session.withTransaction(async () => {
 
-        // Then add the new tag with correct order
-        return await this.serviceItemModel.updateOne(
-          { "additionalDetails.processId": item.id },
-          {
-            $push: {
-              tag: {
-                order: index + 1,
-                name: tag,
-                category_id: categoryId,
-              },
+        const expert = await this.profileModel.findOne({
+          type: "Expert",
+          displayName: data.expert
+        }).select("_id displayName userId").session(session).lean();
+
+        const orgId = await this.userOrganizationModel.findOne({
+          userId: new ObjectId(expert.userId),
+        }).select("_id organizationId").lean();
+
+        const org = await this.organizationModel.findOne({
+          _id: orgId.organizationId,
+        }).select("_id organizationName phoneCountryCode phoneNumber").lean();
+        
+        const newItem = await this.itemModel.create([{
+          "platformItemId": new ObjectId("678e5803560c74f7eb0686b3"),
+          "itemName": data.seriesName,
+          "itemDescription": data.itemDescription,
+          "additionalDetail": {
+            "isEnableExpertQueries": data.expertQueriesEnabled,
+            "reponseMode": "FormResponse",
+            "maxFollowup": -1,
+            "maxCustomQuestions": -1,
+            "planDetails": [],
+            "badgeColour": "#FFC107D4",
+            "validity": "for this series",
+            "promotionDetails": {
+              "title": "Buy only this series ",
+              "ctaName": "this series",
+              "planUserSave": "Switch to Pro and save INR 1000+",
+              "subtitle": "This will only unlock the series that you are currently watching",
+              "payWallVideo": "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+              "paywallVisibility": true
             },
+            "allowMulti": false
+          },
+          "itemCommissionMarkupType": "Percent",
+          "itemCommissionMarkup": 0,
+          "isItemCommissionIncluded": false,
+          "itemStatus": "Active",
+          "price": data.price,
+          "currency": {
+            "_id": new ObjectId("6091525bf2d365fa107635e2"),
+            "currency_name": "Indian Rupee",
+            "currency_code": "INR"
+          },
+          "status": "Active",
+          "item_taxes": [
+            {
+              "item_tax_specification": new ObjectId("6093710eaf330d4074429afe"),
+              "item_tax_id": new ObjectId("61d3dc51c62fec16fec825e8")
+            }
+          ],
+          "comparePrice": data.comparePrice,
+          "orgId": {
+            "_id": org._id,
+            "phoneCountryCode": org.phoneCountryCode,
+            "phoneNumber": org.phoneNumber,  // ⭐ Changed from { "$numberLong": org.phoneNumber } to simple string
+            "created_at": new Date(),
+            "updated_at": new Date(),
+            "__v": 0,
+            "organizationName": org.organizationName,
+            "organizationId": org._id
           }
-        );
+        }], { session }); // Pass session to create operation
+        const itemId = newItem[0]._id; // Note: create with session returns array
+        console.log("itemId", itemId)
+
+        // Create the process document
+        const newProcess = await this.processModel.create([{
+          "processMetaData": {},
+          "parentProcessId": "null"
+        }], { session }); // Pass session to create operation
+        const processId = newProcess[0]._id; // Note: create with session returns array
+        console.log("processId", processId)
+
+        // Fetch language data
+        const language = await this.languageModel.aggregate([
+          {
+            $match: { language_name: { $in: data.languages } }
+          },
+          {
+            $project: {
+              languageId: "$_id",                
+              languageName: "$language_name",    
+              languageCode: "$language_code"
+            }
+          }
+        ], { session }); // Pass session to aggregate operation
+
+        // Fetch skill data
+        const skill = await this.skillModel.aggregate([
+          {
+            $match: { skill_name: { $in: data.skills } }
+          },
+          {
+            $project: {
+              skillId: "$_id",
+              skill_name: "$skill_name"
+            }
+          }
+        ], { session }); // Pass session to aggregate operation
+        console.log("skill", skill)
+
+        // Fetch category data - only those matching frontend data
+        const category = await this.filterOptionsModel.aggregate([
+          {
+            $match: {
+              filterType: "category",
+              status: "Active",
+              optionValue: { $in: data.category }  // ⭐ Only get categories from frontend data
+            }
+          },
+          {
+            $project: {
+              name: "$optionValue",
+              filterOptionId: "$_id"
+            }
+          }
+        ], { session });
+
+        // Fetch proficiency data - only those matching frontend data
+        const proficiency = await this.filterOptionsModel.aggregate([
+          {
+            $match: {
+              filterType: "proficiency",
+              status: "Active",
+              optionValue: { $in: data.proficiency }  // ⭐ Only get proficiencies from frontend data
+            }
+          },
+          {
+            $project: {
+              name: "$optionValue",
+              filterOptionId: "$_id"
+            }
+          }
+        ], { session });
+  
+        // Get the tag order length
+        const tagOrder = await this.getComponent(userToken, "6857a1a98f7f9f8133738fe5", 0, 100, {})
+        const tagOrderData = tagOrder.component.actionData
+        const length = tagOrderData[tagOrderData.length - 1].tagOrder;
+
+        // Create the service item document
+        const newServiceItem = await this.serviceItemModel.create([{
+          "itemId": new ObjectId(itemId),
+          "userId": new ObjectId(expert.userId),
+          "language": language,
+          "status": "Active",
+          "__v": 0,
+          "itemSold": 0,
+          "skill": {
+            "skillId": new ObjectId(skill[0].skillId),
+            "skill_name": skill[0].skill_name
+          },
+          "type": "courses",
+          "additionalDetails": {
+            "ctaName": "Start Learning",
+            "navigationURL": "a",
+            "thumbnail": data.thumbnail,
+            "processId": new ObjectId(processId),
+            "parentProcessId": new ObjectId(processId)
+          },
+          "tag": [
+            {
+              "category_id": new ObjectId("6821a3ede5095e1edae5c555"),
+              "order": length + 1,
+              "name": "allSeries"
+            }
+          ],
+          "priorityOrder": 2,
+          "proficiency": proficiency,
+          "category": category
+        }], { session }); // Pass session to create operation
+        const serviceItemId = newServiceItem[0]._id;
+        console.log("newServiceItem id", serviceItemId)
+
+        const tagsData = data.tags;
+      const tags = [];
+      tagsData.map(async tag => { 
+        const data = await this.categoryModel.findOne({
+          category_name: tag
+        }).select("_id category_name").lean();
+        // in serviceItemModel find the last order number that contains the tagname in tag.name 
+        const existingTags = await this.serviceItemModel.find({
+          "tag.name": tag
+        }).select("tag").lean();
+
+        let highestOrder = 0;
+        if (existingTags.length > 0) {
+          // Find the highest order number from all existing tags with this name
+          existingTags.map(doc => {
+            if (Array.isArray(doc.tag)) {
+              doc.tag.forEach(tagItem => {
+                if (tagItem.name === tag && tagItem.order > highestOrder) {
+                  // console.log("tagItem", tagItem)
+                  highestOrder = tagItem.order;
+                }
+              });
+            }
+          });
+        }
+        const pushData = {
+          category_id: data._id,
+          order: highestOrder + 1,
+          name: data.category_name
+        };
+        // console.log("pushData", pushData)
+
+        await this.serviceItemModel.updateOne({
+          _id: new ObjectId(serviceItemId)
+        }, {
+          $push: {
+            tag: pushData
+          }
+        })
+
+        tags.push(pushData); 
+      })
+      // console.log("tags at last", tags)
+      });
+      // If we reach here, the transaction was successful
+      return {
+        success: true,
+        message: "Series created successfully"
+      }
+      
+    } catch (error) {
+      // Transaction will automatically rollback on error
+      console.error("Transaction failed:", error);
+      throw error;
+    } finally {
+      // Always end the session
+      await session.endSession();
+    }
+  }
+
+  async addNewEpisodes(data: AddNewEpisodesDto) {
+    try {
+      // Start a session for the transaction
+      const session = await this.taskModel.db.startSession();
+      
+      try {
+        // Start the transaction
+        const createdEpisodes = await session.withTransaction(async () => {
+          // Prepare episodes for creation
+          const episodesToCreate = await Promise.all(
+            data.episodes.map(async (episode) => {
+              // ⭐ Declare taskMetaData at the top
+              let taskMetaData;
+              let processedMedia;
+              
+              if (episode.type === 'advertisement') {
+                // For advertisement episodes, handle ObjectId format for mediaId
+                processedMedia = await Promise.all(
+                  episode.taskMetaData.media.map(async (media) => {
+                    let mediaId = '';
+                    
+                    // Handle both string and ObjectId format
+                    mediaId = media.mediaId.toString();
+                    
+                    if (media.type === "story" && mediaId) {
+                      try {
+                        // Lookup the media document by mediaId to get location
+                        // Remove session from media lookup to avoid transaction issues
+                        const mediaDoc = await this.mediaModel.findOne({
+                          _id: new ObjectId(mediaId)
+                        }).select('location').lean();
+                        
+                        if (mediaDoc && mediaDoc.location) {
+                          return {
+                            type: media.type,
+                            mediaId: new ObjectId(mediaId),  // Store as ObjectId for advertisement
+                            mediaUrl: mediaDoc.location
+                          };
+                        }
+                      } catch (error) {
+                        console.warn(`Failed to lookup media for mediaId: ${mediaId}`, error);
+                      }
+                    }
+                    
+                    // For non-story types or if lookup fails, use original data
+                    return {
+                      type: media.type,
+                      mediaId: mediaId ? new ObjectId(mediaId) : "",  // Convert ALL mediaIds to ObjectId for advertisement episodes
+                      mediaUrl: media.mediaUrl || ""
+                    };
+                  })
+                );
+
+                const advMetaData = episode.taskMetaData as any;
+                taskMetaData = {
+                  media: processedMedia,
+                  shareText: advMetaData.shareText || "",
+                  redirectionUrl: advMetaData.redirectionUrl || "",
+                  type: advMetaData.type || "Image",
+                  expertId: advMetaData.expertId ? 
+                    (typeof advMetaData.expertId === 'object' && advMetaData.expertId.$oid ? 
+                      new ObjectId(advMetaData.expertId.$oid) : 
+                      new ObjectId(advMetaData.expertId)) : null,
+                  ctaname: advMetaData.ctaname || ""
+                };
+              } else if (episode.type === 'Break') {
+                // ⭐ For Break episodes, handle similar to advertisement but with string mediaId
+                processedMedia = await Promise.all(
+                  episode.taskMetaData.media.map(async (media) => {
+                    let mediaId = '';
+                    
+                    // Handle both string and ObjectId format
+                    if (typeof media.mediaId === 'object' && media.mediaId) {
+                      mediaId = media.mediaId.toString();
+                    } else if (typeof media.mediaId === 'string') {
+                      mediaId = media.mediaId;
+                    }
+                    
+                    if (media.type === "story" && mediaId) {
+                      try {
+                        // Lookup the media document by mediaId to get location
+                        const mediaDoc = await this.mediaModel.findOne({
+                          _id: new ObjectId(mediaId)
+                        }).select('location').lean();
+                        
+                        if (mediaDoc && mediaDoc.location) {
+                          return {
+                            type: media.type,
+                            mediaId: mediaId,  // ⭐ Store as string for Break type (like video episodes)
+                            mediaUrl: mediaDoc.location
+                          };
+                        }
+                      } catch (error) {
+                        console.warn(`Failed to lookup media for mediaId: ${mediaId}`, error);
+                      }
+                    }
+                    
+                    // For non-story types or if lookup fails, use original data
+                    return {
+                      type: media.type,
+                      mediaId: mediaId || "",  // ⭐ Store as string for Break episodes
+                      mediaUrl: media.mediaUrl || ""
+                    };
+                  })
+                );
+
+                const breakMetaData = episode.taskMetaData as any;
+                taskMetaData = {
+                  timeDurationInMin: breakMetaData.timeDurationInMin,
+                  media: processedMedia,
+                  shareText: breakMetaData.shareText || ""
+                };
+              } else if (episode.type === 'Q&A') {
+                // ⭐ For Q&A episodes, handle media and other fields
+                const qaMetaData = episode.taskMetaData as any;
+                
+                // Handle media if present (some Q&A might not have media)
+                processedMedia = [];
+                if (qaMetaData.media && Array.isArray(qaMetaData.media)) {
+                  processedMedia = await Promise.all(
+                    qaMetaData.media.map(async (media) => {
+                      if (media.type === "story" && media.mediaId) {
+                        try {
+                          const id = typeof media.mediaId === 'object' && media.mediaId
+                            ? media.mediaId.toString()
+                            : media.mediaId;
+                          const mediaDoc = await this.mediaModel
+                            .findOne({ _id: new ObjectId(id) })
+                            .select('location')
+                            .lean();
+                          if (mediaDoc?.location) {
+                            return { type: media.type, mediaId: id, mediaUrl: mediaDoc.location };
+                          }
+                        } catch (err) {
+                          console.warn(`Failed to lookup media for mediaId: ${media.mediaId}`, err);
+                        }
+                      }
+                      return {
+                        type: media.type,
+                        mediaId: media.mediaId || '',
+                        mediaUrl: media.mediaUrl || ''
+                      };
+                    })
+                  );
+                }
+
+                // ⭐ Copy mediaUrl from first media item to use as questionMediaUrl
+                let questionMediaUrl = qaMetaData.questionMediaUrl || '';
+                if (processedMedia.length > 0 && processedMedia[0].mediaUrl) {
+                  questionMediaUrl = processedMedia[0].mediaUrl;
+                }
+
+                taskMetaData = {
+                  question: qaMetaData.question,
+                  questionType: qaMetaData.questionType || '',
+                  questionMediaUrl: questionMediaUrl,
+                  responseFormat: qaMetaData.responseFormat || '',
+                  response: qaMetaData.response || '',
+                  options: qaMetaData.options || [],
+                  correctAnswer: qaMetaData.correctAnswer || '',
+                  isSkippable: !!qaMetaData.isSkippable,
+                  media: processedMedia,
+                  shareText: qaMetaData.shareText || ''
+                };
+              } else {
+                // For video/audio episodes (existing logic)
+                processedMedia = await Promise.all(
+                  episode.taskMetaData.media.map(async (media) => {
+                    if (media.type === "story" && media.mediaId) {
+                      try {
+                        const mediaDoc = await this.mediaModel.findOne({
+                          _id: new ObjectId(media.mediaId)
+                        }).select('location').lean();
+                        if (mediaDoc && mediaDoc.location) {
+                          return {
+                            type: media.type,
+                            mediaId: media.mediaId,
+                            mediaUrl: mediaDoc.location
+                          };
+                        }
+                      } catch (error) {
+                        console.warn(`Failed to lookup media for mediaId: ${media.mediaId}`, error);
+                      }
+                    }
+                    return {
+                      type: media.type,
+                      mediaId: media.mediaId || "",
+                      mediaUrl: media.mediaUrl || ""
+                    };
+                  })
+                );
+
+                taskMetaData = {
+                  media: processedMedia,
+                  shareText: episode.taskMetaData.shareText || ""
+                };
+              }
+
+              return {
+                title: episode.title,
+                type: episode.type,
+                isLocked: episode.isLocked,
+                taskNumber: episode.taskNumber,
+                parentProcessId: new ObjectId(episode.parentProcessId),
+                processId: new ObjectId(episode.processId),
+                taskMetaData: taskMetaData,
+                status: "Active"
+              };
+            })
+          );
+
+          // Create all episodes in the transaction
+          const createdTasks = await this.taskModel.create(episodesToCreate, { 
+            session,
+            ordered: true 
+          });
+          
+          console.log(`Successfully created ${createdTasks.length} episodes`);
+          return createdTasks;
+        });
+
+        return {
+          success: true,
+          message: `${createdEpisodes.length} episodes created successfully`
+        };
+        
+        
+      } finally {
+        // Always end the session
+        await session.endSession();
+      }
+      
+    } catch (error) {
+      console.error("Error creating episodes:", error);
+      throw error;
+    }
+  }
+
+  async addNewAchievement(payload: AddAchievementDto) {
+    try {
+      const uploadData = {
+        "key": "course_complete",
+        "title": "Course Completion Certificate",
+        "type": "Certificate",
+        "metaData": {
+          "shareOptions": {
+            "text": payload.shareText
+          },
+          "templateUrl": payload.image.mediaUrl,
+          "textColor": payload.color
+        },
+        "status": "Active",
+        "sourceId": new ObjectId(payload.seriesId),
+        "sourceType": "process",
+        "visibilityStatus": true,
+        "provider": "casttree",
+        "version": 1,
+        "description": "string",
+        "createdBy": new ObjectId(payload.seriesId),
+        "updatedBy": new ObjectId(payload.seriesId)
+      }
+      
+      const res = await this.achievementModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateEpisodeMedia(payload: { seriesId: string }) {
+    try {
+      const seriesId = payload.seriesId;
+
+      // First, get all tasks with their media
+      const series = await this.taskModel.aggregate([
+        {
+          $match: {
+            processId: new ObjectId(seriesId)
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            "taskMetaData.media": 1
+          }
+        }
+      ]);
+
+      // Process each task and update story media URLs
+      const updatePromises = series.map(async (task) => {
+        const taskId = task._id;
+        const media = task.taskMetaData?.media || [];
+        
+        // Filter only story type media
+        const storyMedia = media.filter(m => m.type === "story");
+        
+        if (storyMedia.length === 0) return null; // Skip if no story media
+        
+        // Update each story media item
+        const mediaUpdatePromises = storyMedia.map(async (mediaItem, mediaIndex) => {
+          try {
+            console.log("mediaItem", mediaItem);
+            
+            // Only update if the old URL starts with the specified domain
+            if (!mediaItem.mediaUrl.startsWith('https://peertubedev.casttree.in')) {
+              console.log(`Skipping media item ${mediaIndex} - URL doesn't match required domain`);
+              return null;
+            }
+            
+            // Call external endpoint to get new URL
+            const newMediaUrl = await this.generateNewMediaUrl(mediaItem.mediaUrl);
+            console.log("newMediaUrl", newMediaUrl);
+
+            // Check if the new URL still points to the original domain (video not transcoded yet)
+            if (newMediaUrl.startsWith('https://peertubedev.casttree.in')) {
+              console.log(`Video not transcoded yet for media ${mediaItem.mediaId}`);
+              return {
+                status: 'pending',
+                message: 'Video has not been transcoded yet. Please wait and try again.',
+                mediaId: mediaItem.mediaId
+              };
+            }
+            
+            // Update the specific media item in the array
+            const res = await this.taskModel.updateOne(
+              { 
+                _id: taskId,
+                "taskMetaData.media": {
+                  $elemMatch: {
+                    type: "story",
+                    mediaId: mediaItem.mediaId
+                  }
+                }
+              },
+              {
+                $set: {
+                  "taskMetaData.media.$.mediaUrl": newMediaUrl
+                }
+              }
+            );
+
+            // If it's a Q&A episode, also update questionMediaUrl
+            if (task.type === "Q&A") {
+              const updateQandA = await this.taskModel.updateOne(
+                { _id: taskId },  // Only match by task ID
+                {
+                  $set: {
+                    "taskMetaData.questionMediaUrl": newMediaUrl
+                  }
+                }
+              );
+            }
+            
+            console.log("res", res);
+            return res;
+          } catch (error) {
+            console.error(`Failed to update media URL for task ${taskId}, media index ${mediaIndex}:`, error);
+            return null;
+          }
+        });
+        
+        return Promise.all(mediaUpdatePromises);
       });
 
-      // Process unselected series
-      unselected.map(
-        async (item) =>
-          await this.serviceItemModel.updateOne(
-            { "additionalDetails.processId": item.id },
-            { $pull: { tag: { name: tag } } }
-          )
-      );
+      // Execute all updates
+      await Promise.all(updatePromises.filter(Boolean));
 
       return {
         success: true,
-        message: "Series tags updated successfully",
+        message: "Episode media URLs updated successfully"
       };
     } catch (error) {
-      console.error("Error updating series tags:", error);
+      console.error('Error updating episode media:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to call external endpoint
+  private async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post('http://localhost:3000/casttree/peertube', {
+        embeddedURL: oldUrl
+      }, {
+        headers: {
+          'x-api-version': '2',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error generating new media URL:', error);
+      throw error;
+    }
+  }
+
+  async addGiftGroup(payload: {giftGroupId: string, seriesId: string, type: string}) {
+    try {
+      console.log("payload", payload);
+      const findGroup = await this.virtualItemGroupModel.findOne({
+        _id: payload.giftGroupId
+      });
+      
+      if (findGroup) {
+        findGroup.source.push({
+          sourceId: new ObjectId(payload.seriesId),
+          sourceType: payload.type
+        });
+        await findGroup.save();
+      } else {
+        throw new Error("Group not found");
+      }
+      return {
+        success: true,
+        message: "Group added successfully"
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getGiftGroup() {
+    try {
+      const res = await this.virtualItemGroupModel.aggregate().project({
+        _id: 1,
+        virtualItemGroupName: 1
+      });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getVirtualItemList(type: string) {
+    try {
+      const res = await this.virtualItemModel.aggregate([
+        {
+          $match: {
+            type: type
+          }
+        }
+      ]).project({
+        _id: 1,
+        name: 1,
+        mediaUrl: { $arrayElemAt: ["$media.mediaUrl", 0] },
+      });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createVirtualItem(payload: CreateVirtualItemDto) {
+    try {
+      console.log("payload:", payload);
+
+      const uploadData = {
+        "name": payload.name,
+        "type": payload.type, // Now handles both "queries" and "gift"
+        "media": [],
+        "isPayable": payload.isPayable,
+        "status": 'Active',
+        "payableType": new ObjectId("685d1b018e07635f6a8f7021"),
+        "comparePrice": payload.comparePrice || 0,
+        "additionalData": {
+            "key": "value"
+        },
+        "description": payload.description || "",
+        "shortDescription": "",
+        "payableValue": payload.price || 0,
+        "source": []
+      }
+
+      if (payload.type === 'gift') {
+        uploadData["media"] = [
+          payload.media
+        ]
+      }
+
+      if (payload.type === 'gift' && payload.isPayable) {
+        uploadData["stickerSound"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832546781WhatsApp%20Audio%202025-06-25%20at%2010.58.24%20AM.mpeg";
+        uploadData["stickerGif"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832457037Animation%20-%201750829319104.json";
+      } else {
+        uploadData["stickerSound"] = "https://storage.googleapis.com/download/storage/v1/b/ct-bucket-prod/o/1750874302452pop%20sound.mp3?generation=1750874300873927&alt=media";
+        uploadData["stickerGif"] = "https://tecxprt-media.sgp1.digitaloceanspaces.com/1744786545186confetti.json";
+      }
+
+      if (payload.type === 'queries') {
+        delete uploadData["stickerSound"];
+        delete uploadData["stickerGif"];
+      }
+
+      console.log("uploadData", uploadData);
+
+      const res = await this.virtualItemModel.create(uploadData);
+      
+      return {
+        success: true,
+        message: `${payload.type === 'gift' ? 'Gift' : 'Query'} created successfully`,
+        data: res
+      };
+    } catch (error) {
+      console.error('=== DEBUG: Error creating query ===', error);
+      console.error('Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  async createGiftGroup(payload: {groupName: string, giftIds: string[]}) {
+    try {
+      console.log("payload", payload);
+      const uploadData = {
+        "source": [],
+        "virtualItemGroupName": payload.groupName,
+        "virtualItemIds": payload.giftIds.map(id => new ObjectId(id)),
+      }
+      console.log("uploadData", uploadData);
+      const res = await this.virtualItemGroupModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async mapVirtualItemToSeries(payload: MapVirtualItemToSeriesDto) {
+    try {
+      const compId = payload.seriesId ? payload.seriesId : payload.awardId;
+      const compType = payload.seriesId ? "process" : "award";
+      const itemIds = payload.itemIds;
+
+      const itemType = payload.itemType;
+
+      if (itemType === ItemType.GIFT_GROUPS) {
+        const res = await this.addGiftGroup({
+          giftGroupId: itemIds[0],
+          seriesId: compId,
+          type: compType
+        });
+        return res;
+      }
+
+      const res = await this.virtualItemModel.updateMany(
+        { _id: { $in: itemIds } },
+        {
+          $push: {
+            source: {
+              sourceId: new ObjectId(compId),
+              sourceType: compType
+            }
+          }
+        }
+      );
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAwardList() {
+    try {
+      const res = await this.awardsModel.find({}).select("_id title");
+      return res;
+    } catch (error) {
       throw error;
     }
   }

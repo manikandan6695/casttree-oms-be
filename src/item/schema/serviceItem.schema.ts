@@ -45,7 +45,7 @@ export interface proficiencyModel {
 export const proficiencySchema = new mongoose.Schema<any>({
   name: {
     type: String,
-    required: true,
+    required: true
   },
   filterOptionId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -65,8 +65,7 @@ export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "process",
   },
-  parentProcessId: {
-    // Add missing field
+  parentProcessId: {  
     type: mongoose.Schema.Types.ObjectId,
     ref: "process",
   },
