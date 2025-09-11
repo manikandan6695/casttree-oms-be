@@ -158,7 +158,18 @@ export class PaymentRequestService {
       //   body?.invoiceDetail?.sourceId?.toString(),
       //   body?.invoiceDetail?.sourceType
       // );
-
+      if (
+        body.providerId === EProviderId.apple &&
+        body.providerName === EProvider.apple
+      ) {
+        let appleCoinPurchase =
+          await this.subscriptionService.handleIapCoinTransactions(body, token);
+        return appleCoinPurchase;
+      }
+      else if(body.providerId === EProviderId.google && body.providerName === EProvider.google){
+        let googleCoinPurchase = await this.subscriptionService.handleIapCoinTransactions(body,token)
+        return googleCoinPurchase;
+      }
       let serviceRequest;
       if (body.serviceRequest) {
         serviceRequest = await this.serviceRequestService.createServiceRequest(
@@ -242,14 +253,7 @@ export class PaymentRequestService {
 
       await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
-      if (
-        body.providerId === EProviderId.apple &&
-        body.providerName === EProvider.apple
-      ) {
-        let appleCoinPurchase =
-          await this.subscriptionService.handleIapCoinTransactions(body, token);
-        return appleCoinPurchase;
-      }
+     
       return { paymentData, serviceRequest };
     } catch (err) {
       throw err;

@@ -1086,18 +1086,22 @@ export class DynamicUiService {
       const processIds = serviceItemData.flatMap((item) =>
         item.details.map((detail) => detail.processId)
       );
+      // console.log("processIds", processIds);
+
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
+      // console.log("firstTasks", firstTasks);
+
       const taskMap = new Map(
-        firstTasks.map((task) => [task.processId.toString(), task])
+        firstTasks.map((task) => [task?.processId.toString(), task])
       );
-      //   console.log("taskMap", taskMap);
+      // console.log("taskMap", taskMap);
 
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
-          const matchingTask = taskMap.get(detail.processId.toString());
+          const matchingTask = taskMap.get(detail?.processId.toString());
           return {
             ...detail,
             taskDetail: matchingTask || null,
@@ -1133,16 +1137,16 @@ export class DynamicUiService {
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWatching["actionData"].push({
             thumbnail: await this.processService.getThumbNail(
-              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
+              pendingProcessInstanceData[i].currentTask?.taskMetaData?.media
             ),
-            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            title: pendingProcessInstanceData[i].currentTask?.taskTitle,
             ctaName: "Continue",
             progressPercentage: pendingProcessInstanceData[i].completed,
             navigationURL:
               "process/" +
               pendingProcessInstanceData[i].processId +
               "/task/" +
-              pendingProcessInstanceData[i].currentTask._id,
+              pendingProcessInstanceData[i].currentTask?._id,
             taskDetail: pendingProcessInstanceData[i].currentTask,
             mentorImage: mentorUserIds[i].media,
             mentorName: mentorUserIds[i].displayName,
@@ -1290,7 +1294,11 @@ export class DynamicUiService {
         countryCode === "IN"
           ? isSubscriber === false
             ? premiumBannerObj?.imageUrl
-            : premiumBannerObj?.imageUrlUpdated
+            : premiumBannerObj?.imageUrl
+      
+      
+      
+      d
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
@@ -2043,7 +2051,6 @@ export class DynamicUiService {
 
         // console.log("tags at last", tags)
       });
-
       // If we reach here, the transaction was successful
       return {
         success: true,
