@@ -12,6 +12,7 @@ import {
   IsNotEmpty
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ObjectId } from 'mongoose';
 
 export class MediaDto {
   @IsString()
@@ -20,7 +21,7 @@ export class MediaDto {
   type: string;
 
   @IsOptional()
-  mediaId?: string | ObjectIdDto;  // Support both string and ObjectId format
+  mediaId?: string | ObjectId;  // Support both string and ObjectId format
 
   @IsString()
   @IsOptional()
@@ -67,7 +68,7 @@ export class AdvertisementTaskMetaDataDto {
   type?: string;
 
   @IsOptional()
-  expertId?: string | ObjectIdDto;  // Support both string and ObjectId format
+  expertId?: string | ObjectId;  // Support both string and ObjectId format
 
   @IsString()
   @IsOptional()
@@ -137,18 +138,7 @@ export class QATaskMetaDataDto {
   shareText?: string;
 }
 
-export class ObjectIdDto {
-  @IsString()
-  @IsNotEmpty()
-  $oid: string;
-}
-
 export class EpisodeDto {
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ObjectIdDto)
-  _id?: ObjectIdDto;
-
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -198,17 +188,6 @@ export class EpisodeDto {
 }
 
 export class AddNewEpisodesDto {
-  @IsString()
-  @IsNotEmpty()
-  seriesId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  seriesTitle: string;
-
-  @IsNumber()
-  episodeCount: number;
-
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EpisodeDto)

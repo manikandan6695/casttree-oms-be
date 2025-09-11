@@ -6,9 +6,7 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
-  Headers,
   Req,
-  Version,
   Post,
   Body,
 } from "@nestjs/common";
@@ -24,9 +22,7 @@ import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { ObjectId } from "mongodb";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
-import { CreateQueryDto } from "./dto/create-query.dto";
 import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
 import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
 
@@ -144,8 +140,7 @@ export class DynamicUiController {
     @Body(new ValidationPipe({ transform: true })) createDto: AddNewSeriesDto
   ) {
     try {
-      const res = await this.dynamicUIService.addNewSeries(createDto, token); 
-      console.log("res", res);
+      const res = await this.dynamicUIService.addNewSeries(createDto, token);
       return res;
     } catch (err) {
       throw err;
@@ -214,10 +209,9 @@ export class DynamicUiController {
   @Post("virtual-item/create")
   async createVirtualItem(
     @Req() req,
-    @Body(new ValidationPipe({ transform: true })) payload: any
+    @Body(new ValidationPipe({ transform: true })) payload: CreateVirtualItemDto
   ) {
     try {
-      console.log("payload", payload);
       const res = await this.dynamicUIService.createVirtualItem(payload);
       return res;
     } catch (err) {

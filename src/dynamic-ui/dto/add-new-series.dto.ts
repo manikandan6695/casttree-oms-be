@@ -1,18 +1,10 @@
 import { 
   IsArray, 
   IsString, 
-  IsNumber, 
   IsOptional, 
-  IsObject, 
-  IsMongoId,
-  ValidateNested,
-  ArrayMinSize,
-  IsIn,
-  IsEmpty,
   IsNotEmpty,
   IsBoolean
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
 
 export class AddNewSeriesDto {
   @IsOptional()

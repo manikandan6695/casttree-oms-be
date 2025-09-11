@@ -6,12 +6,6 @@ export enum VirtualItemType {
   GIFT = 'gift'
 }
 
-export enum VirtualItemStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  PENDING = 'pending'
-}
-
 class MediaDto {
   @IsString()
   mediaId: string;
@@ -32,22 +26,6 @@ export class CreateVirtualItemDto {
   @IsNumber()
   @Transform(({ value }) => value === null ? null : Number(value))
   comparePrice?: number | null;
-
-  @IsString()
-  sectionId: string;
-
-  @IsString()
-  sectionName: string;
-
-  @IsString()
-  seriesId: string;
-
-  @IsString()
-  seriesName: string;
-
-  @IsEnum(VirtualItemStatus)
-  @IsOptional()
-  status?: VirtualItemStatus;
 
   @IsEnum(VirtualItemType)
   type: VirtualItemType;

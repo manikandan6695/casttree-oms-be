@@ -1982,8 +1982,6 @@ export class DynamicUiService {
 
   async addNewEpisodes(data: AddNewEpisodesDto) {
     try {
-      // console.log("data", JSON.stringify(data, null, 2));
-      
       // Start a session for the transaction
       const session = await this.taskModel.db.startSession();
       
@@ -2004,11 +2002,7 @@ export class DynamicUiService {
                     let mediaId = '';
                     
                     // Handle both string and ObjectId format
-                    if (typeof media.mediaId === 'object' && media.mediaId?.$oid) {
-                      mediaId = media.mediaId.$oid;
-                    } else if (typeof media.mediaId === 'string') {
-                      mediaId = media.mediaId;
-                    }
+                    mediaId = media.mediaId.toString();
                     
                     if (media.type === "story" && mediaId) {
                       try {
@@ -2058,8 +2052,8 @@ export class DynamicUiService {
                     let mediaId = '';
                     
                     // Handle both string and ObjectId format
-                    if (typeof media.mediaId === 'object' && media.mediaId?.$oid) {
-                      mediaId = media.mediaId.$oid;
+                    if (typeof media.mediaId === 'object' && media.mediaId) {
+                      mediaId = media.mediaId.toString();
                     } else if (typeof media.mediaId === 'string') {
                       mediaId = media.mediaId;
                     }
@@ -2109,8 +2103,8 @@ export class DynamicUiService {
                     qaMetaData.media.map(async (media) => {
                       if (media.type === "story" && media.mediaId) {
                         try {
-                          const id = typeof media.mediaId === 'object' && media.mediaId.$oid
-                            ? media.mediaId.$oid
+                          const id = typeof media.mediaId === 'object' && media.mediaId
+                            ? media.mediaId.toString()
                             : media.mediaId;
                           const mediaDoc = await this.mediaModel
                             .findOne({ _id: new ObjectId(id) })
@@ -2209,17 +2203,9 @@ export class DynamicUiService {
 
         return {
           success: true,
-          message: `${createdEpisodes.length} episodes created successfully`,
-          seriesId: data.seriesId,
-          seriesTitle: data.seriesTitle,
-          createdEpisodes: createdEpisodes.map(ep => ({
-            _id: ep._id,
-            title: ep.title,
-            taskNumber: ep.taskNumber,
-            type: ep.type,
-            isLocked: ep.isLocked
-          }))
+          message: `${createdEpisodes.length} episodes created successfully`
         };
+        
         
       } finally {
         // Always end the session
@@ -2246,7 +2232,7 @@ export class DynamicUiService {
           "textColor": payload.color
         },
         "status": "Active",
-        "sourceId": payload.seriesId,
+        "sourceId": new ObjectId(payload.seriesId),
         "sourceType": "process",
         "visibilityStatus": true,
         "provider": "casttree",
@@ -2520,8 +2506,6 @@ export class DynamicUiService {
 
   async mapVirtualItemToSeries(payload: MapVirtualItemToSeriesDto) {
     try {
-      console.log("payload", payload);
-      
       const compId = payload.seriesId ? payload.seriesId : payload.awardId;
       const compType = payload.seriesId ? "process" : "award";
       const itemIds = payload.itemIds;

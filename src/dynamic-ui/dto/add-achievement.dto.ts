@@ -4,7 +4,6 @@ import {
   IsOptional, 
   IsMongoId,
   ValidateNested,
-  IsIn
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -34,21 +33,5 @@ export class AddAchievementDto {
 
   @IsMongoId()
   @IsNotEmpty()
-  sectionId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  sectionName: string;
-
-  @IsMongoId()
-  @IsNotEmpty()
   seriesId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  seriesName: string;
-
-  @IsString()
-  @IsIn(['active', 'inactive'])
-  status: string;
 }
