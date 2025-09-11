@@ -1,4 +1,15 @@
-import { Body, Controller, Post, Get, Query, Res } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Param,
+  Inject,
+  forwardRef,
+  Query,
+  Res
+} from "@nestjs/common";
+import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { Response } from "express";
 import { ConfigService } from "@nestjs/config";
 import { SharedService } from "src/shared/shared.service";
@@ -32,6 +43,15 @@ export class HelperController {
     }
   }
 
+  @Get("banner/:userId")
+  async getBannerToShow(@Param("userId") userId: string): Promise<BannerResponseDto> {
+    try {
+      const data = await this.helperService.getBannerToShow(userId);
+      return data;
+    } catch (err) {
+      throw err;
+    }
+}
   @Get("mixpanel/export")
   async exportMixpanelData(@Query() query: any, @Res() res?: Response) {
     try {

@@ -46,6 +46,7 @@ export class SubscriptionFactory {
   private client: AppStoreServerAPIClient;
   private androidpublisher: any;
   constructor(
+    @Inject(forwardRef(() => HelperService))
     private readonly helperService: HelperService,
     private readonly sharedService: SharedService,
     private readonly mandateService: MandatesService,

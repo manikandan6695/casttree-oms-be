@@ -45,7 +45,7 @@ import { FilterTypeSchema } from "src/dynamic-ui/schema/filter-type.schema";
       { name: "filterTypes", schema: FilterTypeSchema },
     ]),
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     SubscriptionModule,
     MandatesModule,
     forwardRef(() => ServiceRequestModule),

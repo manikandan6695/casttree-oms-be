@@ -100,5 +100,11 @@ ENVIRONMENT=SANDBOX
 REDIS_URL = 'redis://:creedom_redis_dev@2025@20.193.249.9:6379'
 REDIS_CONNECTION_TIMEOUT = 6000
 
+#METABASE
+METABASE_BASE_URL = "https://metabase.casttree.in"
+METABASE_USERNAME = "manikandan@casttree.com"
+METABASE_PASSWORD = "tc7pM+vfqywCe4I1s2XwaHf2wLwciDKv"
+
 #MIXPANEL
 MIXPANEL_API_SECRET = "7d8ce9abef940aace41f2e285f25d82a"
+

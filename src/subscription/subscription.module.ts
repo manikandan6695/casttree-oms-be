@@ -21,7 +21,7 @@ import { SubscriptionFactory } from "./subscription.factory";
     ]),
     SharedModule,
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     InvoiceModule,
     forwardRef(() => PaymentRequestModule),
 
