@@ -35,3 +35,7 @@ export const LanguageSchema = new mongoose.Schema(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
+
+// Indexes for name/code lookups
+LanguageSchema.index({ language_name: 1 });
+LanguageSchema.index({ language_code: 1 });

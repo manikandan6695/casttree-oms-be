@@ -12,30 +12,37 @@ export interface IRole {
 
 export interface IRoleModel extends IRole, mongoose.Document {}
 
-export const RoleSchema = new mongoose.Schema<IRoleModel>({
-  role_name: {
-    type: String,
-    required: true,
-    trim: true
+export const RoleSchema = new mongoose.Schema<IRoleModel>(
+  {
+    role_name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    role_description: {
+      type: String,
+      default: "",
+    },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive", "Deleted"],
+      default: "Active",
+    },
+    is_default: {
+      type: Boolean,
+      default: false,
+    },
+    is_system: {
+      type: Boolean,
+      default: false,
+    },
   },
-  role_description: {
-    type: String,
-    default: ""
-  },
-  status: {
-    type: String,
-    enum: ["Active", "Inactive", "Deleted"],
-    default: "Active"
-  },
-  is_default: {
-    type: Boolean,
-    default: false
-  },
-  is_system: {
-    type: Boolean,
-    default: false
+  {
+    collection: "role",
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
-}, {
-  collection: "role",
-  timestamps: { createdAt: "created_at", updatedAt: "updated_at" }
-});
+);
+
+// Indexes for role lookups
+RoleSchema.index({ status: 1 });
+RoleSchema.index({ role_name: 1 });

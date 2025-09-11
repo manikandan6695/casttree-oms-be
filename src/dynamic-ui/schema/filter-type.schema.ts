@@ -21,7 +21,8 @@ export const validationRulesSchema = new mongoose.Schema({
     minSelections: { type: Number },
     maxSelections: { type: Number },
 },{_id:false})
-export const FilterTypeSchema = new mongoose.Schema({
+export const FilterTypeSchema = new mongoose.Schema(
+  {
     type: { type: String },
     displayName: { type: String },
     discription: { type: String },
@@ -29,8 +30,13 @@ export const FilterTypeSchema = new mongoose.Schema({
     isActive: { type: Boolean },
     sortOrder: { type: Number },
     validationRules: validationRulesSchema,
-},{
+  },
+  {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     collection: "filterTypes",
   }
-)
+);
+
+// Indexes for quick filter type queries
+FilterTypeSchema.index({ isActive: 1, sortOrder: 1 });
+FilterTypeSchema.index({ type: 1 });

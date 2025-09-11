@@ -14,9 +14,10 @@ export interface IFilterOption extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-export const FilterOptionSchema = new mongoose.Schema({
+export const FilterOptionSchema = new mongoose.Schema(
+  {
     filterTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "filterTypes" },
-    filterType: { type: String},
+    filterType: { type: String },
     optionKey: { type: String },
     optionValue: { type: String },
     description: { type: String },
@@ -25,9 +26,16 @@ export const FilterOptionSchema = new mongoose.Schema({
     status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     sortOrder: { type: Number },
     metaData: {
-        type: mongoose.Schema.Types.Mixed,
-    }
-}, {
+      type: mongoose.Schema.Types.Mixed,
+    },
+  },
+  {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     collection: "filterOptions",
-});
+  }
+);
+
+// Indexes for quick filtering and sorting
+FilterOptionSchema.index({ filterType: 1, status: 1, sortOrder: 1 });
+FilterOptionSchema.index({ filterTypeId: 1 });
+FilterOptionSchema.index({ status: 1 });
