@@ -470,7 +470,7 @@ export class ProcessService {
             pendingTasks[i].currentTask.isLocked = false;
           }
         }
-        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
+        let completedTaskNumber = pendingTasks[i].currentTask?.taskNumber - 1;
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
@@ -732,9 +732,9 @@ export class ProcessService {
 
   async getThumbNail(media) {
     let mediaUrl = "";
-    media.forEach((mediaData) => {
-      if (mediaData.type === "thumbNail") {
-        mediaUrl = mediaData.mediaUrl;
+    media?.forEach((mediaData) => {
+      if (mediaData?.type === "thumbNail") {
+        mediaUrl = mediaData?.mediaUrl;
       }
     });
     return mediaUrl;

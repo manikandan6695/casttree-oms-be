@@ -16,6 +16,7 @@ import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { RedisService } from "src/redis/redis.service";
+import { MixpanelExportService } from "./mixpanel-export.service";
 
 @Injectable()
 export class HelperService {
@@ -25,6 +26,7 @@ export class HelperService {
     private sharedService: SharedService,
     // @Inject(forwardRef(() => RedisService)) 
     private readonly redisService: RedisService,
+    private mixpanelExportService: MixpanelExportService
   ) {}
 
   getRequiredHeaders(@Req() req) {
@@ -830,6 +832,7 @@ export class HelperService {
       .join("");
     return hashHex;
   }
+
   async getSystemConfig(contestId: string) {
     try {
       let data = await this.http_service
@@ -1034,6 +1037,123 @@ export class HelperService {
       return await this.createMetabaseSession();
     } catch (error) {
       console.error('Error getting Metabase session:', error);
+    }
+}
+
+  async fetchMixpanelData(
+    fromDate?: string,
+    toDate?: string,
+    event?: string,
+    limit?: number
+  ): Promise<string> {
+    try {
+      console.log("inside mixpanel event");
+
+      const mixpanelApiSecret = this.configService.get("MIXPANEL_API_SECRET");
+
+      if (!mixpanelApiSecret) {
+        throw new Error("MIXPANEL_API_SECRET environment variable is not set");
+      }
+
+      // Use default date range if not provided
+      const dateRange = this.mixpanelExportService.getDefaultDateRange();
+      const from = fromDate || dateRange.fromDate;
+      const to = toDate || dateRange.toDate;
+
+      const params: any = {
+        from_date: from,
+        to_date: to,
+      };
+
+      // Add event filter if provided
+      if (event) {
+        params.event = `["${event}"]`;
+      }
+      if (limit) {
+        params.limit = limit;
+      } else {
+        // Set a default limit to prevent memory issues
+        params.limit = 10000;
+      }
+
+      // Use streaming response to handle large datasets
+      const response = await axios.get(
+        "https://data.mixpanel.com/api/2.0/export",
+        {
+          auth: {
+            username: mixpanelApiSecret,
+            password: "",
+          },
+          params,
+          responseType: 'stream', // Use stream to handle large responses
+          timeout: 300000, // 5 minutes timeout for large datasets
+        }
+      );
+
+      // Process the stream line by line with a size limit
+      return new Promise((resolve, reject) => {
+        let data = '';
+        let buffer = '';
+        let lineCount = 0;
+        const maxLines = limit || 10000;
+
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString('utf8');
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
+          
+          // Process complete lines
+          for (const line of lines) {
+            if (line.trim()) {
+              data += line + '\n';
+              lineCount++;
+              
+              // Stop processing if we've reached the limit
+              if (lineCount >= maxLines) {
+                response.data.destroy(); // Stop the stream
+                resolve(data);
+                return;
+              }
+            }
+          }
+        });
+
+        response.data.on('end', () => {
+          try {
+            // Process any remaining data in buffer
+            if (buffer.trim()) {
+              data += buffer + '\n';
+            }
+            resolve(data);
+          } catch (error) {
+            reject(new Error('Failed to process response data: ' + error.message));
+          }
+        });
+
+        response.data.on('error', (error: Error) => {
+          reject(new Error('Stream error: ' + error.message));
+        });
+      });
+    } catch (error) {
+      console.error("Error fetching Mixpanel data:", error);
+      throw error;
+    }
+  }
+
+  async exportMixpanelToCsv(
+    fromDate?: string,
+    toDate?: string,
+    event?: string,
+    limit?: number
+  ): Promise<string> {
+    try {
+      // For large datasets, use streaming approach
+      console.log("Using streaming approach for CSV export...");
+      return await this.streamToCsvString(fromDate, toDate, event, limit);
+    } catch (error) {
+      console.error("Error exporting Mixpanel data to CSV:", error);
       throw error;
     }
   }
@@ -1077,6 +1197,153 @@ export class HelperService {
       return sessionId;
     } catch (error) {
       console.error('Error creating Metabase session:', error);
+    }
+  }
+  private async streamToCsvString(
+    fromDate?: string,
+    toDate?: string,
+    event?: string,
+    limit?: number
+  ): Promise<string> {
+    try {
+      const mixpanelApiSecret = this.configService.get("MIXPANEL_API_SECRET");
+
+      if (!mixpanelApiSecret) {
+        throw new Error("MIXPANEL_API_SECRET environment variable is not set");
+      }
+
+      // Use default date range if not provided
+      const dateRange = this.mixpanelExportService.getDefaultDateRange();
+      const from = fromDate || dateRange.fromDate;
+      const to = toDate || dateRange.toDate;
+
+      const params: any = {
+        from_date: from,
+        to_date: to,
+      };
+
+      // Add event filter if provided
+      if (event) {
+        params.event = `["${event}"]`;
+      }
+      if (limit) {
+        params.limit = limit;
+      }
+
+      // Use streaming response
+      const response = await axios.get(
+        "https://data.mixpanel.com/api/2.0/export",
+        {
+          auth: {
+            username: mixpanelApiSecret,
+            password: "",
+          },
+          params,
+          responseType: 'stream',
+          timeout: 300000, // 5 minutes timeout
+        }
+      );
+
+      return new Promise((resolve, reject) => {
+        let csvData = '';
+        let isFirstRow = true;
+        let headers: string[] = [];
+        let buffer = '';
+
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString('utf8');
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim()) {
+                          try {
+              const item = JSON.parse(line);
+              // Include all properties as JSON string
+              const flattened = {
+                event: item.event,
+                time: item.properties?.time,
+                distinct_id: item.properties?.distinct_id,
+                properties: JSON.stringify(item.properties || {}),
+              };
+
+              if (isFirstRow) {
+                // Extract headers from first row - this will include all custom properties
+                headers = Object.keys(flattened);
+                csvData += headers.join(',') + '\n';
+                isFirstRow = false;
+              }
+
+                // Create CSV row
+                const row = headers.map(header => {
+                  const value = flattened[header];
+                  if (value === null || value === undefined) {
+                    return '';
+                  }
+                  // Escape CSV values
+                  const stringValue = String(value);
+                  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                    return `"${stringValue.replace(/"/g, '""')}"`;
+                  }
+                  return stringValue;
+                });
+                
+                csvData += row.join(',') + '\n';
+              } catch (parseError) {
+                console.warn('Skipping invalid JSON line:', parseError.message);
+                continue;
+              }
+            }
+          }
+        });
+
+        response.data.on('end', () => {
+          // Process any remaining data in buffer
+          if (buffer.trim()) {
+            try {
+              const item = JSON.parse(buffer);
+              // Include all properties as JSON string
+              const flattened = {
+                event: item.event,
+                time: item.properties?.time,
+                distinct_id: item.properties?.distinct_id,
+                properties: JSON.stringify(item.properties || {}),
+              };
+
+              if (isFirstRow) {
+                headers = Object.keys(flattened);
+                csvData += headers.join(',') + '\n';
+              }
+
+              const row = headers.map(header => {
+                const value = flattened[header];
+                if (value === null || value === undefined) {
+                  return '';
+                }
+                const stringValue = String(value);
+                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                  return `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+              });
+              
+              csvData += row.join(',') + '\n';
+            } catch (parseError) {
+              console.warn('Skipping invalid JSON line in final buffer:', parseError.message);
+            }
+          }
+          resolve(csvData);
+        });
+
+        response.data.on('error', (error: Error) => {
+          console.error('Stream error:', error);
+          reject(new Error('Stream processing failed: ' + error.message));
+        });
+      });
+    } catch (error) {
+      console.error("Error streaming to CSV string:", error);
       throw error;
     }
   }
@@ -1159,6 +1426,249 @@ export class HelperService {
       return {
         bannerToShow: "68627cbac061d0184580adda",
       };
+    }
+  }
+  private async processLargeDatasetToCsv(jsonlData: string): Promise<string> {
+    try {
+      const lines = jsonlData.trim().split('\n');
+      const csvRows: string[] = [];
+      let headers: string[] = [];
+      let isFirstRow = true;
+
+      // Process in chunks to avoid memory issues
+      const chunkSize = 1000; // Process 1000 lines at a time
+      
+      for (let i = 0; i < lines.length; i += chunkSize) {
+        const chunk = lines.slice(i, i + chunkSize);
+        
+        for (const line of chunk) {
+          try {
+            const item = JSON.parse(line);
+            // Flatten all properties including custom ones using the utility function
+            const baseProperties = {
+              event: item.event,
+              time: item.properties?.time,
+              distinct_id: item.properties?.distinct_id,
+            };
+            
+            // Include all properties as JSON string
+            const flattened = {
+              event: item.event,
+              time: item.properties?.time,
+              distinct_id: item.properties?.distinct_id,
+              properties: JSON.stringify(item.properties || {}),
+            };
+
+            if (isFirstRow) {
+              // Extract headers from first row - this will include all custom properties
+              headers = Object.keys(flattened);
+              csvRows.push(headers.join(','));
+              isFirstRow = false;
+            }
+
+            // Create CSV row
+            const row = headers.map(header => {
+              const value = flattened[header];
+              if (value === null || value === undefined) {
+                return '';
+              }
+              // Escape CSV values
+              const stringValue = String(value);
+              if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+              }
+              return stringValue;
+            });
+            
+            csvRows.push(row.join(','));
+          } catch (parseError) {
+            console.warn('Skipping invalid JSON line:', parseError.message);
+            continue;
+          }
+        }
+      }
+
+      return csvRows.join('\n');
+    } catch (error) {
+      console.error('Error processing large dataset:', error);
+      throw new Error('Failed to process large dataset: ' + error.message);
+    }
+  }
+
+  async streamMixpanelToCsv(
+    fromDate?: string,
+    toDate?: string,
+    event?: string,
+    limit?: number,
+    res?: any
+  ): Promise<void> {
+    try {
+      const mixpanelApiSecret = this.configService.get("MIXPANEL_API_SECRET");
+
+      if (!mixpanelApiSecret) {
+        throw new Error("MIXPANEL_API_SECRET environment variable is not set");
+      }
+
+      // Use default date range if not provided
+      const dateRange = this.mixpanelExportService.getDefaultDateRange();
+      const from = fromDate || dateRange.fromDate;
+      const to = toDate || dateRange.toDate;
+
+      const params: any = {
+        from_date: from,
+        to_date: to,
+      };
+
+      // Add event filter if provided
+      if (event) {
+        params.event = `["${event}"]`;
+      }
+      if (limit) {
+        params.limit = limit;
+      }
+
+      // Use streaming response
+      const response = await axios.get(
+        "https://data.mixpanel.com/api/2.0/export",
+        {
+          auth: {
+            username: mixpanelApiSecret,
+            password: "",
+          },
+          params,
+          responseType: 'stream',
+          timeout: 300000, // 5 minutes timeout
+        }
+      );
+
+      let isFirstRow = true;
+      let headers: string[] = [];
+      let buffer = '';
+
+      response.data.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString('utf8');
+        const lines = buffer.split('\n');
+        
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const item = JSON.parse(line);
+              // Include all properties as JSON string
+              const flattened = {
+                event: item.event,
+                time: item.properties?.time,
+                distinct_id: item.properties?.distinct_id,
+                properties: JSON.stringify(item.properties || {}),
+              };
+
+              if (isFirstRow) {
+                // Extract headers from first row - this will include all custom properties
+                headers = Object.keys(flattened);
+                const csvHeader = headers.join(',') + '\n';
+                res.write(csvHeader);
+                isFirstRow = false;
+              }
+
+              // Create CSV row
+              const row = headers.map(header => {
+                const value = flattened[header];
+                if (value === null || value === undefined) {
+                  return '';
+                }
+                // Escape CSV values
+                const stringValue = String(value);
+                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                  return `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+              });
+              
+              res.write(row.join(',') + '\n');
+            } catch (parseError) {
+              console.warn('Skipping invalid JSON line:', parseError.message);
+              continue;
+            }
+          }
+        }
+      });
+
+      response.data.on('end', () => {
+        // Process any remaining data in buffer
+        if (buffer.trim()) {
+          try {
+            const item = JSON.parse(buffer);
+            // Flatten all properties including custom ones using the utility function
+            const baseProperties = {
+              event: item.event,
+              time: item.properties?.time,
+              distinct_id: item.properties?.distinct_id,
+            };
+            
+            // Include all properties as JSON string
+            const flattened = {
+              event: item.event,
+              time: item.properties?.time,
+              distinct_id: item.properties?.distinct_id,
+              properties: JSON.stringify(item.properties || {}),
+            };
+
+            if (isFirstRow) {
+              headers = Object.keys(flattened);
+              const csvHeader = headers.join(',') + '\n';
+              res.write(csvHeader);
+            }
+
+            const row = headers.map(header => {
+              const value = flattened[header];
+              if (value === null || value === undefined) {
+                return '';
+              }
+              const stringValue = String(value);
+              if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+              }
+              return stringValue;
+            });
+            
+            res.write(row.join(',') + '\n');
+          } catch (parseError) {
+            console.warn('Skipping invalid JSON line in final buffer:', parseError.message);
+          }
+        }
+        res.end();
+      });
+
+      response.data.on('error', (error: Error) => {
+        console.error('Stream error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Stream processing failed' });
+        }
+      });
+
+    } catch (error) {
+      console.error("Error streaming Mixpanel data:", error);
+      if (res && !res.headersSent) {
+        res.status(500).json({ error: "Failed to stream Mixpanel data" });
+      }
+      throw error;
+    }
+  }
+  async setUserProfile(body: any) {
+    try {
+      console.log("body", body);
+      let data = await this.http_service
+        .post(
+          `${this.configService.get("CASTTREE_BASE_URL")}/mixpanel/set-user-profile`,
+          //  `http://localhost:3000/casttree/mixpanel/set-user-profile`,
+          body
+        )
+        .toPromise();
+      return JSON.stringify(data.data);
+    } catch (err) {
+      throw err;
     }
   }
 }

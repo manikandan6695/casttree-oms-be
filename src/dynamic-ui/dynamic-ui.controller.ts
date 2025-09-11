@@ -107,18 +107,4 @@ export class DynamicUiController {
       throw err;
     }
   }
-
-  @UseGuards(JwtAuthGuard)
-  @Post("series/create")
-  async addNewSeries(
-    @Req() req,
-    @Body(new ValidationPipe({ transform: true })) createDto: any
-  ) {
-    try {
-      const res = await this.dynamicUIService.addNewSeries(createDto);    
-      return res;
-    } catch (err) {
-      throw err;
-    }
-  }
 }
