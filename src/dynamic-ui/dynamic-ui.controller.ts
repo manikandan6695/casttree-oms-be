@@ -117,7 +117,7 @@ export class DynamicUiController {
       throw err;
     }
   }
-
+  
   @UseGuards(JwtAuthGuard)
   @Get("series/data")
   async getSeriesData(
