@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NestMiddleware } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import { HelperService } from "../helper.service";
 import { ConfigService } from "@nestjs/config";
@@ -7,6 +7,7 @@ var jwt = require("jsonwebtoken");
 @Injectable()
 export class GetUserOriginMiddleware implements NestMiddleware {
   constructor(
+    // @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     private configService: ConfigService
   ) {}

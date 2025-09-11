@@ -22,6 +22,7 @@ export class RedisService implements OnModuleDestroy {
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService,
     private eventOutBoxService: EventOutBoxService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) { }
 

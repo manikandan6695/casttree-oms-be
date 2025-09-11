@@ -23,7 +23,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService,
-    @Inject(forwardRef(() => RedisService)) 
+    // @Inject(forwardRef(() => RedisService)) 
     private readonly redisService: RedisService,
   ) {}
 

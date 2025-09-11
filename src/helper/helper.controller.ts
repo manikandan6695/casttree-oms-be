@@ -3,7 +3,9 @@ import {
   Controller,
   Post,
   Get,
-  Param
+  Param,
+  Inject,
+  forwardRef
 } from "@nestjs/common";
 import { SharedService } from "src/shared/shared.service";
 import { HelperService } from "./helper.service";
@@ -13,6 +15,7 @@ import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 export class HelperController {
   constructor(
     private sservice: SharedService,
+    // @Inject(forwardRef(() => HelperService))  
     private helperService: HelperService
   ) {}
   @Post("sendMail")

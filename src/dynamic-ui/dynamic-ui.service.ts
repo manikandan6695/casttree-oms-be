@@ -1,7 +1,7 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose, { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
@@ -60,6 +60,7 @@ export class DynamicUiService {
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
     private processService: ProcessService,
+    // @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     private subscriptionService: SubscriptionService
   ) {}

@@ -61,6 +61,7 @@ export class PaymentRequestService {
     private invoiceService: InvoiceService,
     private currency_service: CurrencyService,
     private configService: ConfigService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
@@ -68,6 +69,7 @@ export class PaymentRequestService {
     private readonly salesDocumentModel: Model<ISalesDocumentModel>,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
+    @Inject(forwardRef(() => RedisService))
     private redisService: RedisService,
     private subscriptionService: SubscriptionService
   ) {}

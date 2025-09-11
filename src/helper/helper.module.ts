@@ -1,5 +1,5 @@
 import { MongooseModule } from "@nestjs/mongoose";
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { SharedModule } from "src/shared/shared.module";
 import { AuthModule } from "src/auth/auth.module";
 import { HttpModule } from "@nestjs/axios";
@@ -14,7 +14,7 @@ import { RedisModule } from "src/redis/redis.module";
     SharedModule,
     AuthModule,
     HttpModule,
-    RedisModule,
+    forwardRef(() => RedisModule),
   ],
   controllers: [HelperController],
   providers: [HelperService, GetUserOriginMiddleware],

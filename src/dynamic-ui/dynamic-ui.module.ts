@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
@@ -36,7 +36,7 @@ import { categorySchema } from "./schema/category.schema";
     ]),
     SharedModule,
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     ProcessModule,
     SubscriptionModule,
   ],
