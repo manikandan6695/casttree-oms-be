@@ -7,7 +7,7 @@ import { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
-import { serviceitems } from "src/item/schema/serviceItem.schema";
+import { serviceitems, tagSchema } from "src/item/schema/serviceItem.schema";
 import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 import { Estatus } from "src/item/enum/status.enum";
 import { ProcessService } from "src/process/process.service";
@@ -1295,10 +1295,6 @@ export class DynamicUiService {
           ? isSubscriber === false
             ? premiumBannerObj?.imageUrl
             : premiumBannerObj?.imageUrl
-      
-      
-      
-      d
           : premiumBannerObj?.iapImageUrl;
       if (!learnBanner || !premiumBannerObj) return;
       const banner = isNewSubscription
@@ -1697,52 +1693,69 @@ export class DynamicUiService {
 
   async getTagList(userToken: UserToken) {
     try {
-      const data = await this.getPageDetails(
-        userToken,
-        "684adad49add744614e43df0",
-        {}
-      );
-      const components = data.data.components;
-      let tags = [];
-      for (const component of components) {
-        if (
-          component.tag &&
-          component.tag.tagId !== "6821a3ede5095e1edae5c555"
-        ) {
-          // Find the highest order for this specific tag name
-          const existingTags = await this.serviceItemModel
-            .find({
-              "tag.name": component.tag.tagName,
-            })
-            .select("tag")
-            .lean();
+      const components = await this.componentModel.aggregate([
+        {
+          $match: {
+            componentKey: {
+              $in: ["course-series-card", "upcoming-series-card"],
+            },
+            title: { $ne: "All Series" },
+          },
+        },
+        {
+          $project: {
+            tag: 1,
+            title: 1,
+          },
+        },
+      ]);
+      // let tags = [];
+      console.log("components", components);
+      // const data = await this.getPageDetails(
+      //   userToken,
+      //   "684adad49add744614e43df0",
+      //   {}
+      // );
+      // const components = data.data.components;
+      // let tags = [];
+      // for (const component of components) {
+      //   if (
+      //     component.tag &&
+      //     component.tag.tagId !== "6821a3ede5095e1edae5c555"
+      //   ) {
+      //     // Find the highest order for this specific tag name
+      //     const existingTags = await this.serviceItemModel
+      //       .find({
+      //         "tag.name": component.tag.tagName,
+      //       })
+      //       .select("tag")
+      //       .lean();
 
-          let highestOrder = 0;
-          if (existingTags.length > 0) {
-            existingTags.forEach((doc) => {
-              if (Array.isArray(doc.tag)) {
-                doc.tag.forEach((tagItem) => {
-                  if (
-                    tagItem.name === component.tag.tagName &&
-                    tagItem.order > highestOrder
-                  ) {
-                    // console.log("tagItem", tagItem);
-                    highestOrder = tagItem.order;
-                  }
-                });
-              }
-            });
-          }
+      //     let highestOrder = 0;
+      //     if (existingTags.length > 0) {
+      //       existingTags.forEach((doc) => {
+      //         if (Array.isArray(doc.tag)) {
+      //           doc.tag.forEach((tagItem) => {
+      //             if (
+      //               tagItem.name === component.tag.tagName &&
+      //               tagItem.order > highestOrder
+      //             ) {
+      //               // console.log("tagItem", tagItem);
+      //               highestOrder = tagItem.order;
+      //             }
+      //           });
+      //         }
+      //       });
+      //     }
 
-          const data = {
-            tag: component.tag,
-            title: component.title,
-          };
-          tags.push(data);
-        }
-      }
-      // console.log("tags at last", tags);
-      return tags;
+      //     const data = {
+      //       tag: component.tag,
+      //       title: component.title,
+      //     };
+      //     tags.push(data);
+      //   }
+      // }
+      return components;
     } catch (error) {
       throw error;
     }
@@ -1948,19 +1961,34 @@ export class DynamicUiService {
           .findOne({
             title: "All Series",
           })
-          .select("_id")
+          .select("tag")
           .lean();
 
-        // Get the tag order length
-        const tagOrder = await this.getComponent(
-          userToken,
-          componentId._id.toString(),
-          0,
-          100,
-          {}
-        );
-        const tagOrderData = tagOrder.component.actionData;
-        const length = tagOrderData[tagOrderData.length - 1].tagOrder;
+        // ⭐ Replace the getComponent call with direct database query
+        const existingAllSeriesTags = await this.serviceItemModel
+          .find({
+            "tag.name": "allSeries"
+          })
+          .select("tag")
+          .lean();
+
+        let highestAllSeriesOrder = 0;
+        if (existingAllSeriesTags.length > 0) {
+          existingAllSeriesTags.forEach((doc) => {
+            if (Array.isArray(doc.tag)) {
+              doc.tag.forEach((tagItem) => {
+                if (
+                  tagItem.name === "allSeries" &&
+                  tagItem.order > highestAllSeriesOrder
+                ) {
+                  highestAllSeriesOrder = tagItem.order;
+                }
+              });
+            }
+          });
+        }
+
+        const length = highestAllSeriesOrder;
 
         // Precompute all tag data before creating the service item
         const tagsData = data.tags;
@@ -2009,7 +2037,7 @@ export class DynamicUiService {
         // Prepare the complete tag array including the default "allSeries" tag
         const allTags = [
           {
-            category_id: new ObjectId("6821a3ede5095e1edae5c555"),
+            category_id: new ObjectId(componentId.tag.tagId.toString()),
             order: length + 1,
             name: "allSeries",
           },
@@ -2027,7 +2055,7 @@ export class DynamicUiService {
               itemSold: 0,
               skill: {
                 skillId: new ObjectId(skill[0].skillId),
-                skill_name: skill[0].skill_name,
+                skill_name: data.skills[0],
               },
               type: "courses",
               additionalDetails: {
