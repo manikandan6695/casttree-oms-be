@@ -11,7 +11,6 @@ export interface IOrganization {
   state: mongoose.Types.ObjectId;
   created_at?: Date;
   updated_at?: Date;
-  __v?: number;
 }
 
 export interface IOrganizationModel extends IOrganization, mongoose.Document {}

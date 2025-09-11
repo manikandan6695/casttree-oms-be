@@ -6,7 +6,6 @@ export interface ISkill {
   role: mongoose.Types.ObjectId[];
   created_at?: Date;
   updated_at?: Date;
-  __v?: number;
 }
 
 export interface ISkillModel extends ISkill, mongoose.Document {}

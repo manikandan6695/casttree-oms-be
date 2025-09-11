@@ -264,10 +264,6 @@ export const OrganizationEmbeddedSchema = new mongoose.Schema<any>({
     type: Date,
     default: Date.now 
   },
-  __v: { 
-    type: Number, 
-    default: 0 
-  },
   organizationName: { 
     type: String,
     required: true 

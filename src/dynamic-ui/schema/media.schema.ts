@@ -21,7 +21,6 @@ export interface mediaModel {
   status: string;
   created_at?: Date;
   updated_at?: Date;
-  __v?: number;
 }
 
 // Define description schema

@@ -144,7 +144,6 @@ export const serviceitemsSchema = new mongoose.Schema<any>({
   // Add the new fields
   category: [categorySchema],  // Array of category objects
   proficiency: [proficiencySchema],  // Array of proficiency objects
-  __v: { type: Number, default: 0 },  // Add missing __v field
 }, {
   collection: "serviceitems",
   timestamps: { createdAt: "created_at", updatedAt: "updated_at" }

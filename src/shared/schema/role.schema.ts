@@ -8,7 +8,6 @@ export interface IRole {
   is_system: boolean;
   created_at?: Date;
   updated_at?: Date;
-  __v?: number;
 }
 
 export interface IRoleModel extends IRole, mongoose.Document {}

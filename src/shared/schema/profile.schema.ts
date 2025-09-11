@@ -36,7 +36,6 @@ export interface IProfile {
   type: string;
   created_at: Date;
   updated_at: Date;
-  __v: number;
 }
 
 export interface IProfileModel extends IProfile, mongoose.Document {}

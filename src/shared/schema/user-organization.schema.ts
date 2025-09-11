@@ -8,7 +8,6 @@ export interface IUserOrganization {
   updatedBy: mongoose.Types.ObjectId;
   created_at?: Date;
   updated_at?: Date;
-  __v?: number;
 }
 
 export interface IUserOrganizationModel extends IUserOrganization, mongoose.Document {}
