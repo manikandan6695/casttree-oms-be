@@ -2289,4 +2289,13 @@ export class SubscriptionService {
     }
   }
 
+  async getSubscriptionBySubscriptionId(subscriptionId: string) {
+    try {
+      const subscription = await this.subscriptionModel.findOne({ _id:new ObjectId(subscriptionId) }).lean();
+      return subscription;
+    } catch (error) {
+      throw error;
+    }
+  }
+
 }

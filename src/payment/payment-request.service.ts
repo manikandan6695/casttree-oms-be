@@ -570,63 +570,116 @@ export class PaymentRequestService {
     try {
       const orderId = order?.payment_order_id;
       const sourceId = order?.source_id;
-
+      console.log("orderId",orderId)
       let payments = [];
 
       if (provider === EProvider.razorpay) {
         // console.log("Processing Razorpay order:", orderId);
 
-        const razorpayData = await this.helperService.getRazorpayPaymentByOrderId(orderId);
+        // const razorpayData = await this.helperService.getRazorpayPaymentByOrderId(orderId);
         // console.log("Razorpay API Response:", razorpayData);
 
-        payments = razorpayData?.items || [];
+        // payments = razorpayData?.items || [];
 
       } else if (provider === EProvider.cashfree) {
         const salesDocument = await this.invoiceService.getInvoiceDetail(sourceId);
+        // console.log("salesDocument", salesDocument)
         const mandates = await this.mandateService.getMandatesBySourceId(salesDocument?.source_id);
-        const { subscription_id, payment_id } = mandates?.metaData || {};
-
+        let paymentDetail = await this.paymentModel.findOne({source_id:salesDocument?.source_id});
+        let subscription_id;
+        let payment_id;
+        let cashfreeResult = null;
+        if (!mandates) {
+          // console.log("subscription_id or payment_id is missing, attempting to fetch from subscription table and Cashfree API");
+          const subscription = await this.subscriptionService.getSubscriptionBySubscriptionId(
+            salesDocument?.source_id
+          );
+          // console.log("subscription",subscription)
+          if (subscription && subscription.metaData?.subscription_id) {
+            subscription_id = subscription.metaData.subscription_id;
+            // console.log("Found subscription_id from subscription table:", subscription_id);
+          }
+          // First get all payment data from Cashfree API
+          const allPaymentData = await this.getPaymentIdFromCashfree(subscription_id);
+          
+          // Filter to find the payment that matches orderId
+          if (allPaymentData.paymentData && allPaymentData.paymentData.length > 0) {
+            console.log("Looking for orderId:", orderId);
+            console.log("Available cf_payment_ids:", allPaymentData.paymentData.map(p => p.cf_payment_id));
+            
+            const matchedPayment = allPaymentData.paymentData.find(payment => 
+              payment.cf_payment_id === orderId
+            );
+            
+            if (matchedPayment) {
+              console.log(`Found matching payment: ${matchedPayment.cf_payment_id} === ${orderId}`);
+              // Get the payment_id from the matched payment
+              payment_id = matchedPayment.authorization_details?.payment_id;
+              console.log("Found payment_id from matched payment:", payment_id);
+            } else {
+              console.log(`No payment found matching orderId: ${orderId}`);
+            }
+          }
+        
+        }
+        // console.log("mandates", mandates)
+        // let { subscription_id, payment_id } = mandates?.metaData || {};
+        // console.log("subscription_id", subscription_id, payment_id)
+        
+        // If subscription_id or payment_id is empty/null, try to get them
+       
+        
         if (subscription_id && payment_id) {
+          // Use reconcileQueue with the found payment_id to get paymentData
           const paymentData = await this.reconcileQueue.enqueue(subscription_id, payment_id);
-          payments = paymentData;
-          // console.log("payments", payments);
+          payments = paymentData || [];
+          console.log("Using paymentData from reconcileQueue with matched payment_id:", payments);
+        } else {
+          console.log("Unable to get subscription_id or payment_id for reconciliation");
         }
       }
       if (payments.length >= 1) {
         paymentStatus.push(payments.map(payment => payment.payment_status))
         // console.log("payments", payments);
 
-        // for (const payment of payments) {
-        //   await this.handlePaymentUpdate(order, payment);
-        // }
+        for (const payment of payments) {
+          await this.handlePaymentUpdate(order, payment);
+        }
 
       }
 
-      // console.log(`Completed processing all payments for order ${order.payment_order_id}`);
+      console.log(`Completed processing all payments for order ${order.payment_order_id}`);
     } catch (error) {
       console.error('Error in reconcileOrder:', error);
       throw error;
     }
   }
 
-  @Cron('* */4 * * *')
+  @Cron('*/5 * * * *')
   async handleRecon() {
     try {
-      const payments = await this.paymentModel.find({
+      const query: any = {
         document_status: EDocumentStatus.pending,
-        providerName: EProvider.cashfree  
-      }).lean();
+        providerName: EProvider.cashfree,
+        paymentType: "Charge",
+        created_at: {
+          $lte: "2025-09-10T23:59:59.000+00:00"
+        },
+      };
 
+      const payments = await this.paymentModel.find(query).lean();
 
+      console.log("length", payments.length)
       for (const order of payments) {
         try {
+          // console.log("order", order)
           await this.reconcileOrder(order, EProvider.cashfree);
         } catch (error) {
           console.error(`Error processing order ${order.payment_order_id}:`, error);
           continue;
         }
       }
-      // console.log(`✅ Reconciliation completed for ${payments.length} orders`);
+      console.log(`✅ Reconciliation completed for ${payments.length} orders`);
     } catch (error) {
       console.error('Error in handleRecon:', error);
       throw error;
@@ -656,7 +709,7 @@ export class PaymentRequestService {
         }
       }
 
-      // console.log(`[${providerName}] Reconciliation completed for ${payments.length} orders`);
+      console.log(`[${providerName}] Reconciliation completed for ${payments.length} orders`);
 
     } catch (error) {
       throw error;
@@ -668,40 +721,40 @@ export class PaymentRequestService {
     let documentStatus;
     let reason;
 
-    const existingPayment = await this.paymentModel.findOne({
-      payment_order_id: providerName === EProvider.cashfree ? payment?.cf_payment_id : orderId,
-      document_status: { $ne: EDocumentStatus.pending }
-    });
+    // const existingPayment = await this.paymentModel.findOne({
+    //   payment_order_id: providerName === EProvider.cashfree ? payment?.cf_payment_id : orderId,
+    //   document_status: { $ne: EDocumentStatus.pending }
+    // });
 
     // if (existingPayment) {
-    //   // console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
+    //   console.log(`[${providerName}] Payment ${orderId} already processed, skipping...`);
     //   return;
     // }
 
     if (providerName === EProvider.razorpay && payment?.id) {
-      await this.paymentModel.updateOne(
-        {
-          payment_order_id: orderId,
-          status: EStatus.Active,
-          providerName: EProvider.razorpay,
-          providerId: EProviderId.razorpay,
-          document_status: EDocumentStatus.pending,
-        },
-        { $set: { referenceId: payment.id } }
-      );
+      // await this.paymentModel.updateOne(
+      //   {
+      //     payment_order_id: orderId,
+      //     status: EStatus.Active,
+      //     providerName: EProvider.razorpay,
+      //     providerId: EProviderId.razorpay,
+      //     document_status: EDocumentStatus.pending,
+      //   },
+      //   { $set: { referenceId: payment.id } }
+      // );
 
-      switch (payment.status) {
-        case 'authorized':
-        case 'captured':
-          documentStatus = EDocumentStatus.completed;
-          break;
-        case 'failed':
-          documentStatus = EDocumentStatus.failed;
-          reason = payment?.error_description || null;
-          break;
-        default:
-          documentStatus = EDocumentStatus.pending;
-      }
+      // switch (payment.status) {
+      //   case 'authorized':
+      //   case 'captured':
+      //     documentStatus = EDocumentStatus.completed;
+      //     break;
+      //   case 'failed':
+      //     documentStatus = EDocumentStatus.failed;
+      //     reason = payment?.error_description || null;
+      //     break;
+      //   default:
+      //     documentStatus = EDocumentStatus.pending;
+      // }
     }
     else if (providerName === EProvider.cashfree) {
       switch (payment.payment_status) {
@@ -714,6 +767,10 @@ export class PaymentRequestService {
           break;
         case 'PENDING':
           documentStatus = EDocumentStatus.pending;
+          break;
+        case 'CANCELLED':
+          documentStatus = EDocumentStatus.failed;
+          reason = payment?.failure_details?.failure_reason || null;
           break;
         default:
           documentStatus = EDocumentStatus.pending;
@@ -730,7 +787,7 @@ export class PaymentRequestService {
     } else {
       matchQuery["payment_order_id"] = orderId;
     }
-
+    console.log("matchQuery", matchQuery,documentStatus)
     const updatedPayment = await this.paymentModel.findOneAndUpdate(
       matchQuery,
       {
@@ -738,21 +795,68 @@ export class PaymentRequestService {
       },
       { new: true }
     );
-
+    console.log("updatedPayment", updatedPayment)
     if (updatedPayment?.source_id) {
       const body = {
         id: updatedPayment?.source_id,
         document_status: documentStatus,
       };
+      console.log("body",body)
       const salesDocument = await this.invoiceService.updateSalesDocument(body);
       await this.subscriptionService.updateSubscriptionData({
         id: salesDocument?.source_id,
         subscriptionStatus: documentStatus,
         providerName,
       });
-      // console.log("completed")
+      console.log("completed")
     }
-    // console.log("paymentStatus", paymentStatus)
+    console.log("paymentStatus", paymentStatus,reason)
+  }
+
+  async getPaymentIdFromCashfree(subscriptionId: string): Promise<{ payment_id: string | null, paymentData: any[] }> {
+    try {
+      const cashfreeBaseUrl = this.configService.get('CASHFREE_BASE_URL');
+      const clientId = this.configService.get('CASHFREE_CLIENT_ID');
+      const clientSecret = this.configService.get('CASHFREE_CLIENT_SECRET');
+
+      if (!cashfreeBaseUrl || !clientId || !clientSecret) {
+        console.error('Cashfree configuration is missing');
+        return { payment_id: null, paymentData: [] };
+      }
+
+      const url = `${cashfreeBaseUrl}/pg/subscriptions/${subscriptionId}/payments`;
+      
+      const headers = {
+        'x-client-id': clientId,
+        'x-client-secret': clientSecret,
+        'x-api-version': '2025-01-01',
+        'Content-Type': 'application/json'
+      };
+
+      // console.log(`Fetching payments for subscription: ${subscriptionId}`);
+      // console.log(`Cashfree API URL: ${url}`);
+      
+      const response = await this.http_service.axiosRef.get(url, { headers });
+      if (response.data && response.data.length > 0) {
+        // Get the latest payment (assuming they are ordered by creation date)
+        const latestPayment = response.data[0];
+        return {
+          payment_id: latestPayment.authorization_details?.payment_id,
+          paymentData: response.data
+        };
+      }
+      
+      console.log(`No payments found for subscription: ${subscriptionId}`);
+      return { payment_id: null, paymentData: [] };
+    } catch (error) {
+      console.error(`Error fetching payment_id for subscription ${subscriptionId}:`, error.response?.data || error.message);
+      if (error.response?.status === 404) {
+        console.log(`Subscription ${subscriptionId} not found in Cashfree`);
+      } else if (error.response?.status === 401) {
+        console.error('Cashfree API authentication failed');
+      }
+      return { payment_id: null, paymentData: [] };
+    }
   }
 
 }
