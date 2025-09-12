@@ -24,3 +24,7 @@ export const ESMixedPanelEvents = [
     EMixedPanelEvents.subscription_end,
     EMixedPanelEvents.mandate_cancelled,
 ];
+export enum EMetabaseUrlLimit {
+    metabase_cart = "metabase_cart",
+    full_size_banner = "full-size-banner",
+}
