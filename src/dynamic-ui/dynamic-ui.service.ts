@@ -20,7 +20,7 @@ import {
   EComponentType,
   EItemType,
 } from "./enum/component.enum";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { EMetabaseUrlLimit, EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
@@ -210,7 +210,8 @@ export class DynamicUiService {
       //   country_code,
       //   isSubscriber
       // );
-      let banner = await this.helperService.getBannerToShow(token.id);
+      const fullSizeBannerComponents = componentDocs.filter(comp => comp.componentKey === EMetabaseUrlLimit.full_size_banner);
+      let banner = await this.helperService.getBannerToShow(token.id,fullSizeBannerComponents[0].componentKey);
       let banners = await this.bannerConfigurationModel.findOne({
         _id: new ObjectId(banner.bannerToShow),
         status: EStatus.Active,

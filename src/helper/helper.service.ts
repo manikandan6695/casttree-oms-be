@@ -17,6 +17,7 @@ import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto"
 import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { RedisService } from "src/redis/redis.service";
 import { MixpanelExportService } from "./mixpanel-export.service";
+import { EMetabaseUrlLimit } from "./enums/mixedPanel.enums";
 
 @Injectable()
 export class HelperService {
@@ -1361,7 +1362,7 @@ export class HelperService {
     }
   }
 
-  async getBannerToShow(userId: string): Promise<BannerResponseDto> {
+  async getBannerToShow(userId: string, componentKey: string): Promise<BannerResponseDto> {
     try {
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       if (!metabaseBaseUrl) {
@@ -1385,8 +1386,16 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
-
-      const fullUrl = `${metabaseBaseUrl}/api/card/287/query`;
+      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.metabase_cart);
+      let metaCart;
+      
+      if (systemConfiguration?.value && Array.isArray(systemConfiguration.value)) {
+        const matchingConfig = systemConfiguration.value.find(config => config.key === componentKey);
+        if (matchingConfig) {
+          metaCart = matchingConfig.value;
+        }
+      }
+      const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
 
       try {
         const response = await this.http_service
