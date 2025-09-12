@@ -107,4 +107,31 @@ export class DynamicUiController {
       throw err;
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("media/get-media/:mediaId")
+  async getMedia(
+    @Req() req,
+    @Param("mediaId") mediaId: string
+  ) {
+    try {
+      const res = await this.dynamicUIService.getMedia(mediaId);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("expert/get-experts")
+  async getExpert(
+    @Req() req
+  ) {
+    try {
+      const res = await this.dynamicUIService.getExpert();
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

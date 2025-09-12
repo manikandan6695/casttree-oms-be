@@ -32,6 +32,8 @@ import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { ICategory } from "./schema/category.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { IProfile } from "src/shared/schema/profile.schema";
+import { mediaModel } from "src/media/schema/media.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -62,7 +64,11 @@ export class DynamicUiService {
     private processService: ProcessService,
     // @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    @InjectModel("profile")
+    private readonly profileModel: Model<IProfile>,
+    @InjectModel("media")
+    private readonly mediaModel: Model<mediaModel>
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -1494,6 +1500,53 @@ export class DynamicUiService {
     } catch (error) {
       console.error("Error updating series tags:", error);
       throw error;
+    }
+  }
+
+  async getExpert() {
+    try {
+      const experts = await this.profileModel.aggregate([
+        {
+          $match: {
+            type: EprofileType.Expert,
+          },
+        },
+        {
+          $project: {
+            userId: 1,
+            displayName: 1,
+            about: 1,
+            about2: 1,
+            media: 1,
+            language: 1,
+            tags: 1,
+            coverDocument: 1,
+            workDocument: 1,
+          },
+        },
+        {
+          $sort: {
+            created_at: -1,
+          },
+        },
+      ]);
+      // const experts = await this.profileModel.find({
+      //   type: EprofileType.Expert,
+      // }).sort({ created_at: -1 });
+      return experts;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async getMedia(mediaId: string) {
+    try {
+      const media = await this.mediaModel.findOne({ _id: mediaId }).lean();
+      const mediaUrl = media.media_url && media.media_url;
+      
+      return mediaUrl;
+    } catch (err) {
+      throw err;
     }
   }
 }

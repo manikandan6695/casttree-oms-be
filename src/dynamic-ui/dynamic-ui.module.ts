@@ -18,6 +18,8 @@ import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { processSchema } from "src/process/schema/process.schema";
 import { categorySchema } from "./schema/category.schema";
+import { ProfileSchema } from "src/shared/schema/profile.schema";
+import { mediaSchema } from "src/media/schema/media.schema";
 
 @Module({
   imports: [
@@ -32,7 +34,9 @@ import { categorySchema } from "./schema/category.schema";
       { name: "filterTypes", schema: FilterTypeSchema},
       { name: "filterOptions", schema: FilterOptionSchema},
       { name: "process", schema: processSchema },
-      { name: "category", schema: categorySchema }
+      { name: "category", schema: categorySchema },
+      { name: "profile", schema: ProfileSchema },
+      { name: "media", schema: mediaSchema }
     ]),
     SharedModule,
     AuthModule,
