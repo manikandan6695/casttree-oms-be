@@ -25,6 +25,6 @@ export const ESMixedPanelEvents = [
     EMixedPanelEvents.mandate_cancelled,
 ];
 export enum EMetabaseUrlLimit {
-    metabase_cart = "metabase_cart",
+    dynamic_banner = "dynamic-banner",
     full_size_banner = "full-size-banner",
 }

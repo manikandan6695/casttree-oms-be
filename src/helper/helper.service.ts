@@ -1386,7 +1386,7 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
-      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.metabase_cart);
+      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.dynamic_banner);
       let metaCart;
       
       if (systemConfiguration?.value && Array.isArray(systemConfiguration.value)) {
