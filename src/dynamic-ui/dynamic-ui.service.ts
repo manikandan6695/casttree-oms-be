@@ -55,6 +55,7 @@ import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto"
 import { ItemType } from "./dto/map-virtual-item-to-series.dto";
 import { Award, AwardDocument } from "./schema/awards.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { ConfigService } from "@nestjs/config";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -111,7 +112,8 @@ export class DynamicUiService {
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
     @InjectModel(Award.name)
-    private awardsModel: Model<AwardDocument>
+    private awardsModel: Model<AwardDocument>,
+    private configService: ConfigService
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -1548,7 +1550,7 @@ export class DynamicUiService {
       }
 
       const categoryId = categoryDoc._id;
-      console.log("categoryId", categoryId);
+      // console.log("categoryId", categoryId);
 
       // Process selected series - use Promise.all for parallel execution
       series.map(async (item, index) => {
@@ -1700,7 +1702,7 @@ export class DynamicUiService {
         },
       ]);
       // let tags = [];
-      console.log("components", components);
+      // console.log("components", components);
       // const data = await this.getPageDetails(
       //   userToken,
       //   "684adad49add744614e43df0",
@@ -1858,7 +1860,7 @@ export class DynamicUiService {
           { session }
         ); // Pass session to create operation
         const itemId = newItem[0]._id; // Note: create with session returns array
-        console.log("itemId", itemId);
+        // console.log("itemId", itemId);
 
         // Create the process document
         const newProcess = await this.processModel.create(
@@ -1905,7 +1907,7 @@ export class DynamicUiService {
           ],
           { session }
         ); // Pass session to aggregate operation
-        console.log("skill", skill);
+        // console.log("skill", skill);
 
         // Fetch category data - only those matching frontend data
         const category = await this.filterOptionsModel.aggregate(
@@ -2329,7 +2331,7 @@ export class DynamicUiService {
             ordered: true,
           });
 
-          console.log(`Successfully created ${createdTasks.length} episodes`);
+          // console.log(`Successfully created ${createdTasks.length} episodes`);
           return createdTasks;
         });
 
@@ -2419,7 +2421,7 @@ export class DynamicUiService {
               // Only update if the old URL starts with the specified domain
               if (
                 !mediaItem.mediaUrl.startsWith(
-                  "https://peertubedev.casttree.in"
+                  this.configService.get("PEERTUBE_BASE_URL")
                 )
               ) {
                 console.log(
@@ -2435,7 +2437,7 @@ export class DynamicUiService {
               // console.log("newMediaUrl", newMediaUrl);
 
               // Check if the new URL still points to the original domain (video not transcoded yet)
-              if (newMediaUrl.startsWith("https://peertubedev.casttree.in")) {
+              if (newMediaUrl.startsWith(this.configService.get("PEERTUBE_BASE_URL"))) {
                 console.log(
                   `Video not transcoded yet for media ${mediaItem.mediaId}`
                 );
@@ -2498,7 +2500,8 @@ export class DynamicUiService {
   private async generateNewMediaUrl(oldUrl: string): Promise<string> {
     try {
       const response = await axios.post(
-        "https://api-dev.casttree.in/casttree/peertube",
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
         {
           embeddedURL: oldUrl,
         },
