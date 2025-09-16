@@ -11,7 +11,7 @@ import { HelperModule } from 'src/helper/helper.module';
     forwardRef(() => PaymentRequestModule),
     MongooseModule.forFeature([{ name: 'eventOutBox', schema: EventOutBoxSchema }]),
     EventOutBoxModule,
-    HelperModule
+    forwardRef(() => HelperModule)
   ],
   providers: [RedisService],
   exports: [RedisService],

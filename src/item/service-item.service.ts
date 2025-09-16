@@ -38,6 +38,7 @@ export class ServiceItemService {
     private priceListItemModel: Model<IPriceListItemsModel>,
     @InjectModel("systemConfiguration")
     private systemConfigurationModel: Model<ISystemConfigurationModel>,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     @Inject(forwardRef(() => ProcessService))
     private processService: ProcessService,

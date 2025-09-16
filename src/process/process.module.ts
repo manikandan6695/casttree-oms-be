@@ -21,8 +21,8 @@ import { taskSchema } from "./schema/task.schema";
     ]),
     forwardRef(() => ItemModule),
     SubscriptionModule,
-    PaymentRequestModule,
-    HelperModule
+    forwardRef(() => PaymentRequestModule),
+    forwardRef(() => HelperModule)
   ],
   controllers: [ProcessController],
   providers: [ProcessService],

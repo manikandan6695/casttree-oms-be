@@ -1,7 +1,7 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
@@ -21,6 +21,8 @@ import {
   EItemType,
 } from "./enum/component.enum";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { EMetabaseUrlLimit, EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
@@ -53,6 +55,7 @@ import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
 import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
 import { ItemType } from "./dto/map-virtual-item-to-series.dto";
 import { Award, AwardDocument } from "./schema/awards.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -60,6 +63,8 @@ export class DynamicUiService {
   constructor(
     @InjectModel("appNavBar")
     private readonly appNavBarModel: Model<IAppNavBar>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
     @InjectModel("component")
     private readonly componentModel: Model<IComponent>,
     @InjectModel("serviceitems")
@@ -103,6 +108,7 @@ export class DynamicUiService {
     @InjectModel(VirtualItemGroup.name)
     private virtualItemGroupModel: Model<VirtualItemGroupDocument>,
     private processService: ProcessService,
+    // @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
     @InjectModel(Award.name)
@@ -246,14 +252,20 @@ export class DynamicUiService {
         token.id,
         isSubscriber
       );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      // let banners = await this.fetchUserPreferenceBanner(
+      //   isNewSubscription,
+      //   token.id,
+      //   continueWatching,
+      //   componentDocs,
+      //   country_code,
+      //   isSubscriber
+      // );
+      const fullSizeBannerComponents = componentDocs.filter(comp => comp.componentKey === EMetabaseUrlLimit.full_size_banner);
+      let banner = await this.helperService.getBannerToShow(token.id,fullSizeBannerComponents[0].componentKey);
+      let banners = await this.bannerConfigurationModel.findOne({
+        _id: new ObjectId(banner.bannerToShow),
+        status: EStatus.Active,
+      });
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -270,7 +282,7 @@ export class DynamicUiService {
           };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.interactionData = { items: banners };
+          comp.interactionData = { items: [banners] };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {

@@ -1,5 +1,5 @@
 import { HttpModule } from "@nestjs/axios";
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
@@ -16,7 +16,7 @@ import { ServiceResponseFormatService } from "./service-response-format.service"
     SharedModule,
     AuthModule,
     HttpModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
   ],
   controllers: [ServiceResponseFormatController],
   providers: [ServiceResponseFormatService],
