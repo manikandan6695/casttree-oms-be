@@ -2403,6 +2403,7 @@ export class DynamicUiService {
           $project: {
             _id: 1,
             "taskMetaData.media": 1,
+            "type": 1,
           },
         },
       ]);
@@ -2411,6 +2412,8 @@ export class DynamicUiService {
       const updatePromises = series.map(async (task) => {
         const taskId = task._id;
         const media = task.taskMetaData?.media || [];
+        const type = task.type;
+        // console.log(task, type)
 
         // Filter only story type media
         const storyMedia = media.filter((m) => m.type === "story");
@@ -2421,7 +2424,7 @@ export class DynamicUiService {
         const mediaUpdatePromises = storyMedia.map(
           async (mediaItem, mediaIndex) => {
             try {
-              console.log("mediaItem", mediaItem);
+              // console.log("mediaItem", mediaItem);
 
               // Only update if the old URL starts with the specified domain
               if (
@@ -2439,7 +2442,7 @@ export class DynamicUiService {
               const newMediaUrl = await this.generateNewMediaUrl(
                 mediaItem.mediaUrl
               );
-              console.log("newMediaUrl", newMediaUrl);
+              // console.log("newMediaUrl", newMediaUrl);
 
               // Check if the new URL still points to the original domain (video not transcoded yet)
               if (newMediaUrl.startsWith("https://peertubedev.casttree.in")) {
@@ -2468,23 +2471,12 @@ export class DynamicUiService {
                 {
                   $set: {
                     "taskMetaData.media.$.mediaUrl": newMediaUrl,
+                    "taskMetaData.questionMediaUrl": type === "Q&A" ? newMediaUrl : "",
                   },
                 }
               );
 
-              // If it's a Q&A episode, also update questionMediaUrl
-              if (task.type === "Q&A") {
-                const updateQandA = await this.taskModel.updateOne(
-                  { _id: taskId }, // Only match by task ID
-                  {
-                    $set: {
-                      "taskMetaData.questionMediaUrl": newMediaUrl,
-                    },
-                  }
-                );
-              }
-
-              console.log("res", res);
+              // console.log("res", res);
               return res;
             } catch (error) {
               console.error(
@@ -2495,6 +2487,7 @@ export class DynamicUiService {
             }
           }
         );
+
 
         return Promise.all(mediaUpdatePromises);
       });
@@ -2541,7 +2534,7 @@ export class DynamicUiService {
     type: string;
   }) {
     try {
-      console.log("payload", payload);
+      // console.log("payload", payload);
       const findGroup = await this.virtualItemGroupModel.findOne({
         _id: payload.giftGroupId,
       });
@@ -2599,7 +2592,7 @@ export class DynamicUiService {
 
   async createVirtualItem(payload: CreateVirtualItemDto) {
     try {
-      console.log("payload:", payload);
+      // console.log("payload:", payload);
 
       const uploadData = {
         name: payload.name,
@@ -2639,7 +2632,7 @@ export class DynamicUiService {
         delete uploadData["stickerGif"];
       }
 
-      console.log("uploadData", uploadData);
+      // console.log("uploadData", uploadData);
 
       const res = await this.virtualItemModel.create(uploadData);
 
@@ -2657,13 +2650,13 @@ export class DynamicUiService {
 
   async createGiftGroup(payload: { groupName: string; giftIds: string[] }) {
     try {
-      console.log("payload", payload);
+      // console.log("payload", payload);
       const uploadData = {
         source: [],
         virtualItemGroupName: payload.groupName,
         virtualItemIds: payload.giftIds.map((id) => new ObjectId(id)),
       };
-      console.log("uploadData", uploadData);
+      // console.log("uploadData", uploadData);
       const res = await this.virtualItemGroupModel.create(uploadData);
       return res;
     } catch (error) {
