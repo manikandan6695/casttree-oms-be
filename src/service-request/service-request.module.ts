@@ -20,7 +20,7 @@ import { ItemModule } from "src/item/item.module";
     AuthModule,
     forwardRef(() => ServiceResponseModule),
     HttpModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     forwardRef(() => ItemModule)
 ],
   controllers: [ServiceRequestController],
