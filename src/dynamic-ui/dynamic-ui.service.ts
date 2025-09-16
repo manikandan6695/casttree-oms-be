@@ -2487,7 +2487,7 @@ export class DynamicUiService {
   private async generateNewMediaUrl(oldUrl: string): Promise<string> {
     try {
       const response = await axios.post(
-        "http://localhost:3000/casttree/peertube",
+        "https://api-dev.casttree.in/casttree/peertube",
         {
           embeddedURL: oldUrl,
         },
