@@ -20,7 +20,6 @@ import {
   EComponentType,
   EItemType,
 } from "./enum/component.enum";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { EMetabaseUrlLimit, EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
