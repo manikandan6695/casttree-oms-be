@@ -3,7 +3,8 @@ import {
   IsString, 
   IsOptional, 
   IsNotEmpty,
-  IsBoolean
+  IsBoolean,
+  ArrayMinSize
 } from 'class-validator';
 
 export class AddNewSeriesDto {
@@ -12,8 +13,8 @@ export class AddNewSeriesDto {
   @IsString({ each: true })
   category: string[];
 
-  @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @IsString({ each: true })
   proficiency: string[];
 
@@ -25,9 +26,8 @@ export class AddNewSeriesDto {
   @IsNotEmpty()
   itemDescription: string;
 
-  @IsOptional()
   @IsString()
-  thumbnail?: string;
+  thumbnail: string;
 
   @IsString()
   @IsNotEmpty()
@@ -45,12 +45,10 @@ export class AddNewSeriesDto {
   @IsNotEmpty()
   expert: string;
 
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   languages: string[];
 
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   skills: string[];

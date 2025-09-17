@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsBoolean, ValidateIf, IsObject, ValidateNested } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsBoolean, ValidateIf, IsObject, ValidateNested, IsNotEmpty } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export enum VirtualItemType {
@@ -42,4 +42,8 @@ export class CreateVirtualItemDto {
   @ValidateNested()
   @Type(() => MediaDto)
   media?: MediaDto;
+
+  @IsString()
+  @IsNotEmpty()
+  currencyId: string;
 }

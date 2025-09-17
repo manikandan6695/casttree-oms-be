@@ -119,13 +119,12 @@ export class DynamicUiController {
   }
   
   @UseGuards(JwtAuthGuard)
-  @Get("series/data")
+  @Get("series/initial-data") 
   async getSeriesData(
     @Req() req,
-    @GetToken() token: UserToken
   ) {
     try {
-      const res = await this.dynamicUIService.getSeriesData(token);
+      const res = await this.dynamicUIService.getSeriesData();
       return res;
     } catch (err) {
       throw err;
@@ -140,7 +139,7 @@ export class DynamicUiController {
     @Body(new ValidationPipe({ transform: true })) createDto: AddNewSeriesDto
   ) {
     try {
-      const res = await this.dynamicUIService.addNewSeries(createDto, token);
+      const res = await this.dynamicUIService.addNewSeries(createDto);
       return res;
     } catch (err) {
       throw err;
@@ -156,6 +155,19 @@ export class DynamicUiController {
   ) {
     try {
       const res = await this.dynamicUIService.addNewEpisodes(createDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("currency")
+  async getCurrencyList(
+    @Req() req
+  ) {
+    try {
+      const res = await this.dynamicUIService.getCurrencyList();
       return res;
     } catch (err) {
       throw err;
@@ -235,11 +247,11 @@ export class DynamicUiController {
 
   @UseGuards(JwtAuthGuard)
   @Get("gift/group")
-  async getGiftGroup(
+  async getVirtualItemGroup(
     @Req() req
   ) {
     try {
-      const res = await this.dynamicUIService.getGiftGroup();
+      const res = await this.dynamicUIService.getVirtualItemGroup();
       return res;
     } catch (err) {
       throw err;
@@ -248,12 +260,12 @@ export class DynamicUiController {
 
   @UseGuards(JwtAuthGuard)
   @Post("gift/group/create")
-  async createGiftGroup(
+  async createVirtualItemGroup(
     @Req() req,
     @Body(new ValidationPipe({ transform: true })) payload: {groupName: string, giftIds: string[]}
   ) {
     try {
-      const res = await this.dynamicUIService.createGiftGroup(payload);
+      const res = await this.dynamicUIService.createVirtualItemGroup(payload);
       return res;
     } catch (err) {
       throw err;

@@ -31,6 +31,7 @@ import { Achievement, AchievementSchema } from './schema/achievement.schema';
 import { VirtualItem, VirtualItemSchema } from './schema/virtual-item.schema';
 import { VirtualItemGroup, VirtualItemGroupSchema } from './schema/virtual-item-group.schema';
 import { Award, AwardSchema } from './schema/awards.schema';
+import { CurrencySchema } from '../shared/schema/currency.schema';
 
 @Module({
   imports: [
@@ -58,7 +59,8 @@ import { Award, AwardSchema } from './schema/awards.schema';
       { name: VirtualItem.name, schema: VirtualItemSchema },
       { name: Achievement.name, schema: AchievementSchema },
       { name: VirtualItemGroup.name, schema: VirtualItemGroupSchema },
-      { name: Award.name, schema: AwardSchema }
+      { name: Award.name, schema: AwardSchema },
+      { name: "currency", schema: CurrencySchema },
     ]),
     SharedModule,
     AuthModule,

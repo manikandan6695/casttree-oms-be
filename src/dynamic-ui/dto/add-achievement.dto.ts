@@ -1,7 +1,6 @@
 import { 
   IsString, 
   IsNotEmpty, 
-  IsOptional, 
   IsMongoId,
   ValidateNested,
 } from 'class-validator';
@@ -18,10 +17,10 @@ export class ImageDto {
 }
 
 export class AddAchievementDto {
-  @IsOptional()
+  @IsNotEmpty()
   @ValidateNested()
   @Type(() => ImageDto)
-  image?: ImageDto;
+  image: ImageDto;
 
   @IsString()
   @IsNotEmpty()
@@ -33,5 +32,5 @@ export class AddAchievementDto {
 
   @IsMongoId()
   @IsNotEmpty()
-  seriesId: string;
+  processId: string;
 }

@@ -1,9 +1,14 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
+import { Model, Connection, ClientSession } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
@@ -20,7 +25,10 @@ import {
   EComponentType,
   EItemType,
 } from "./enum/component.enum";
-import { EMetabaseUrlLimit, EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import {
+  EMetabaseUrlLimit,
+  EMixedPanelEvents,
+} from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
@@ -56,6 +64,9 @@ import { ItemType } from "./dto/map-virtual-item-to-series.dto";
 import { Award, AwardDocument } from "./schema/awards.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { ConfigService } from "@nestjs/config";
+import { EAchievementType } from "src/item/enum/achievement.enum";
+import { ICurrencyModel } from "src/shared/schema/currency.schema";
+import { ESeriesTag } from "./enum/series-tag.enum";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -113,14 +124,19 @@ export class DynamicUiService {
     private subscriptionService: SubscriptionService,
     @InjectModel(Award.name)
     private awardsModel: Model<AwardDocument>,
-    private configService: ConfigService
+    private configService: ConfigService,
+    @InjectConnection()
+    private connection: Connection,
+    @InjectModel("currency")
+    private currencyModel: Model<ICurrencyModel>
   ) {}
+
   async getNavBarDetails(token: any, key: string) {
     try {
       let data = await this.appNavBarModel
         .findOne({
           key: key,
-          status: "Active",
+          status: EStatus.Active,
         })
         .lean();
       let tabs = await this.matchRoleByUser(token, data.tabs);
@@ -261,8 +277,13 @@ export class DynamicUiService {
       //   country_code,
       //   isSubscriber
       // );
-      const fullSizeBannerComponents = componentDocs.filter(comp => comp.componentKey === EMetabaseUrlLimit.full_size_banner);
-      let banner = await this.helperService.getBannerToShow(token.id,fullSizeBannerComponents[0].componentKey);
+      const fullSizeBannerComponents = componentDocs.filter(
+        (comp) => comp.componentKey === EMetabaseUrlLimit.full_size_banner
+      );
+      let banner = await this.helperService.getBannerToShow(
+        token.id,
+        fullSizeBannerComponents[0].componentKey
+      );
       let banners = await this.bannerConfigurationModel.findOne({
         _id: new ObjectId(banner.bannerToShow),
         status: EStatus.Active,
@@ -1262,6 +1283,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+
   async evaluateCountryRule(ruleCountry, userCountry) {
     try {
       if (!ruleCountry) return true;
@@ -1541,7 +1563,7 @@ export class DynamicUiService {
       const categoryDoc = await this.categoryModel
         .findOne({
           category_name: tag,
-          status: "Active",
+          status: EStatus.Active,
         })
         .lean();
 
@@ -1598,8 +1620,8 @@ export class DynamicUiService {
     try {
       const proficiencyOptions = await this.filterOptionsModel
         .find({
-          filterType: "proficiency",
-          status: "Active",
+          filterType: EItemType.proficiency,
+          status: EStatus.Active,
         })
         .select("_id optionValue")
         .sort({ sortOrder: 1 })
@@ -1607,8 +1629,8 @@ export class DynamicUiService {
 
       const categoryOptions = await this.filterOptionsModel
         .find({
-          filterType: "category",
-          status: "Active",
+          filterType: EItemType.category,
+          status: EStatus.Active,
         })
         .select("_id optionValue")
         .sort({ sortOrder: 1 })
@@ -1643,7 +1665,7 @@ export class DynamicUiService {
     try {
       const skills = await this.skillModel
         .find({
-          status: "Active",
+          status: EStatus.Active,
         })
         .select("_id skill_name")
         .lean();
@@ -1659,7 +1681,7 @@ export class DynamicUiService {
     try {
       const roles = await this.roleModel
         .find({
-          status: "Active",
+          status: EStatus.Active,
         })
         .select("_id role_name")
         .lean();
@@ -1683,7 +1705,7 @@ export class DynamicUiService {
     }
   }
 
-  async getTagList(userToken: UserToken) {
+  async getTagList() {
     try {
       const components = await this.componentModel.aggregate([
         {
@@ -1701,59 +1723,13 @@ export class DynamicUiService {
           },
         },
       ]);
-      // let tags = [];
-      // console.log("components", components);
-      // const data = await this.getPageDetails(
-      //   userToken,
-      //   "684adad49add744614e43df0",
-      //   {}
-      // );
-      // const components = data.data.components;
-      // let tags = [];
-      // for (const component of components) {
-      //   if (
-      //     component.tag &&
-      //     component.tag.tagId !== "6821a3ede5095e1edae5c555"
-      //   ) {
-      //     // Find the highest order for this specific tag name
-      //     const existingTags = await this.serviceItemModel
-      //       .find({
-      //         "tag.name": component.tag.tagName,
-      //       })
-      //       .select("tag")
-      //       .lean();
-
-      //     let highestOrder = 0;
-      //     if (existingTags.length > 0) {
-      //       existingTags.forEach((doc) => {
-      //         if (Array.isArray(doc.tag)) {
-      //           doc.tag.forEach((tagItem) => {
-      //             if (
-      //               tagItem.name === component.tag.tagName &&
-      //               tagItem.order > highestOrder
-      //             ) {
-      //               // console.log("tagItem", tagItem);
-      //               highestOrder = tagItem.order;
-      //             }
-      //           });
-      //         }
-      //       });
-      //     }
-
-      //     const data = {
-      //       tag: component.tag,
-      //       title: component.title,
-      //     };
-      //     tags.push(data);
-      //   }
-      // }
       return components;
     } catch (error) {
       throw error;
     }
   }
 
-  async getSeriesData(userToken: UserToken) {
+  async getSeriesData() {
     try {
       const getSeriesData = {
         filterOptions: await this.getFilterOptions(),
@@ -1761,7 +1737,7 @@ export class DynamicUiService {
         skills: await this.getSkillList(),
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
-        tags: await this.getTagList(userToken),
+        tags: await this.getTagList(),
       };
 
       return getSeriesData;
@@ -1770,17 +1746,30 @@ export class DynamicUiService {
     }
   }
 
-  async addNewSeries(data: AddNewSeriesDto, userToken: UserToken) {
+  async getCurrencyList() {
+    try {
+      const currencies = await this.currencyModel
+        .find({})
+        .sort({ _id: -1 })
+        .select("_id currency_name currency_code")
+        .lean();
+      return currencies;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async addNewSeries(data: AddNewSeriesDto) {
     // Start a session for the transaction
-    const session = await this.itemModel.db.startSession();
+    const session = await this.connection.startSession();
     try {
       // console.log("data", JSON.stringify(data, null, 2));
       // Start the transaction
       await session.withTransaction(async () => {
         const expert = await this.profileModel
           .findOne({
-            type: "Expert",
-            displayName: data.expert,
+            type: EprofileType.Expert,
+            _id: new ObjectId(data.expert),
           })
           .select("_id displayName userId")
           .session(session)
@@ -1829,14 +1818,14 @@ export class DynamicUiService {
               itemCommissionMarkupType: "Percent",
               itemCommissionMarkup: 0,
               isItemCommissionIncluded: false,
-              itemStatus: "Active",
+              itemStatus: EStatus.Active,
               price: data.price,
               currency: {
                 _id: new ObjectId("6091525bf2d365fa107635e2"),
                 currency_name: "Indian Rupee",
                 currency_code: "INR",
               },
-              status: "Active",
+              status: EStatus.Active,
               item_taxes: [
                 {
                   item_tax_specification: new ObjectId(
@@ -1876,10 +1865,11 @@ export class DynamicUiService {
         console.log("processId", processId);
 
         // Fetch language data
+        const languageIds = data.languages.map((id) => new ObjectId(id));
         const language = await this.languageModel.aggregate(
           [
             {
-              $match: { language_name: { $in: data.languages } },
+              $match: { _id: { $in: languageIds } },
             },
             {
               $project: {
@@ -1890,13 +1880,14 @@ export class DynamicUiService {
             },
           ],
           { session }
-        ); // Pass session to aggregate operation
+        ); // Pass session to aggregate operation // Pass session to aggregate operation
 
         // Fetch skill data
+        const skillIds = data.skills.map((id) => new ObjectId(id));
         const skill = await this.skillModel.aggregate(
           [
             {
-              $match: { skill_name: { $in: data.skills } },
+              $match: { _id: { $in: skillIds } },
             },
             {
               $project: {
@@ -1914,8 +1905,8 @@ export class DynamicUiService {
           [
             {
               $match: {
-                filterType: "category",
-                status: "Active",
+                filterType: EItemType.category,
+                status: EStatus.Active,
                 optionValue: { $in: data.category }, // ⭐ Only get categories from frontend data
               },
             },
@@ -1934,8 +1925,8 @@ export class DynamicUiService {
           [
             {
               $match: {
-                filterType: "proficiency",
-                status: "Active",
+                filterType: EItemType.proficiency,
+                status: EStatus.Active,
                 optionValue: { $in: data.proficiency }, // ⭐ Only get proficiencies from frontend data
               },
             },
@@ -1956,30 +1947,24 @@ export class DynamicUiService {
           .select("tag")
           .lean();
 
-        // ⭐ Replace the getComponent call with direct database query
-        const existingAllSeriesTags = await this.serviceItemModel
-          .find({
-            "tag.name": "allSeries"
-          })
-          .select("tag")
-          .lean();
+        // ⭐ Optimized: get highest "allSeries" order via aggregation (desc sort + limit 1)
+        const [allSeriesMax] = await this.serviceItemModel
+          .aggregate([
+            {
+              $match: {
+                "tag.name": ESeriesTag.allSeries,
+                "skill.skillId": skillIds[0],
+              },
+            },
+            { $unwind: "$tag" },
+            { $match: { "tag.name": ESeriesTag.allSeries } },
+            { $sort: { "tag.order": -1 } },
+            { $limit: 1 },
+            { $project: { _id: 0, order: "$tag.order" } },
+          ])
+          .exec();
 
-        let highestAllSeriesOrder = 0;
-        if (existingAllSeriesTags.length > 0) {
-          existingAllSeriesTags.forEach((doc) => {
-            if (Array.isArray(doc.tag)) {
-              doc.tag.forEach((tagItem) => {
-                if (
-                  tagItem.name === "allSeries" &&
-                  tagItem.order > highestAllSeriesOrder
-                ) {
-                  highestAllSeriesOrder = tagItem.order;
-                }
-              });
-            }
-          });
-        }
-
+        const highestAllSeriesOrder = allSeriesMax?.order ?? 0;
         const length = highestAllSeriesOrder;
 
         // Precompute all tag data before creating the service item
@@ -1995,27 +1980,24 @@ export class DynamicUiService {
             .select("_id category_name")
             .lean();
 
-          // Find the last order number that contains the tagname in tag.name
-          const existingTags = await this.serviceItemModel
-            .find({
-              "tag.name": tag,
-            })
-            .select("tag")
-            .lean();
+          // ⭐ Optimized: get highest order for this tag via aggregation
+          const [maxTagOrder] = await this.serviceItemModel
+            .aggregate([
+              {
+                $match: {
+                  "tag.name": tag,
+                  "skill.skillId": skillIds[0],
+                },
+              },
+              { $unwind: "$tag" },
+              { $match: { "tag.name": tag } },
+              { $sort: { "tag.order": -1 } },
+              { $limit: 1 },
+              { $project: { _id: 0, order: "$tag.order" } },
+            ])
+            .exec();
 
-          let highestOrder = 0;
-          if (existingTags.length > 0) {
-            // Find the highest order number from all existing tags with this name
-            existingTags.forEach((doc) => {
-              if (Array.isArray(doc.tag)) {
-                doc.tag.forEach((tagItem) => {
-                  if (tagItem.name === tag && tagItem.order > highestOrder) {
-                    highestOrder = tagItem.order;
-                  }
-                });
-              }
-            });
-          }
+          const highestOrder = maxTagOrder?.order ?? 0;
 
           const tagData = {
             category_id: categoryData._id,
@@ -2031,7 +2013,7 @@ export class DynamicUiService {
           {
             category_id: new ObjectId(componentId.tag.tagId.toString()),
             order: length + 1,
-            name: "allSeries",
+            name: ESeriesTag.allSeries,
           },
           ...additionalTags,
         ];
@@ -2043,11 +2025,11 @@ export class DynamicUiService {
               itemId: new ObjectId(itemId),
               userId: new ObjectId(expert.userId),
               language: language,
-              status: "Active",
+              status: EStatus.Active,
               itemSold: 0,
               skill: {
-                skillId: new ObjectId(skill[0].skillId),
-                skill_name: data.skills[0],
+                skillId: new ObjectId(skillIds[0]),
+                skill_name: skill[0].skill_name,
               },
               type: "courses",
               additionalDetails: {
@@ -2086,6 +2068,165 @@ export class DynamicUiService {
     }
   }
 
+  /**
+   * Process advertisement episode metadata
+   */
+  private async processAdvertisementEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        let mediaId = media.mediaId.toString();
+
+        if (media.type === "story" && mediaId) {
+          const loc = await this.lookupStoryMediaLocation(mediaId, session);
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: new ObjectId(mediaId), // advertisement requires ObjectId
+              mediaUrl: loc,
+            };
+          }
+        }
+
+        // For non-story types or if lookup fails, use original data
+        return {
+          type: media.type,
+          mediaId: new ObjectId(mediaId), // Convert ALL mediaIds to ObjectId for advertisement episodes
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    const advMetaData = episode.taskMetaData as any;
+    return {
+      media: processedMedia,
+      shareText: advMetaData.shareText,
+      redirectionUrl: advMetaData.redirectionUrl,
+      type: advMetaData.type,
+      expertId: new ObjectId(advMetaData.expertId),
+      ctaname: advMetaData.ctaname,
+    };
+  }
+
+  /**
+   * Process break episode metadata
+   */
+  private async processBreakEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        let mediaId = media.mediaId.toString();
+
+        if (media.type === "story" && mediaId) {
+          const loc = await this.lookupStoryMediaLocation(mediaId, session);
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: mediaId, // Break stores as string
+              mediaUrl: loc,
+            };
+          }
+        }
+
+        // For non-story types or if lookup fails, use original data
+        return {
+          type: media.type,
+          mediaId: mediaId, // Store as string for Break episodes
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    const breakMetaData = episode.taskMetaData as any;
+    return {
+      timeDurationInMin: breakMetaData.timeDurationInMin,
+      media: processedMedia,
+      shareText: breakMetaData.shareText,
+    };
+  }
+
+  /**
+   * Process Q&A episode metadata
+   */
+  private async processQAEpisode(episode: any, session: any) {
+    const qaMetaData = episode.taskMetaData as any;
+
+    // Handle media if present (some Q&A might not have media)
+    let processedMedia = [];
+    if (qaMetaData.media && Array.isArray(qaMetaData.media)) {
+      processedMedia = await Promise.all(
+        qaMetaData.media.map(async (media) => {
+          if (media.type === "story" && media.mediaId) {
+            const id = media.mediaId.toString();
+            const loc = await this.lookupStoryMediaLocation(id, session);
+            if (loc) {
+              return {
+                type: media.type,
+                mediaId: id, // Q&A uses string id here
+                mediaUrl: loc,
+              };
+            }
+          }
+          return {
+            type: media.type,
+            mediaId: media.mediaId,
+            mediaUrl: media.mediaUrl,
+          };
+        })
+      );
+    }
+
+    // Copy mediaUrl from first media item to use as questionMediaUrl
+    let questionMediaUrl = qaMetaData.questionMediaUrl;
+    if (processedMedia.length > 0 && processedMedia[0].mediaUrl) {
+      questionMediaUrl = processedMedia[0].mediaUrl;
+    }
+
+    return {
+      question: qaMetaData.question,
+      questionType: qaMetaData.questionType,
+      questionMediaUrl: questionMediaUrl,
+      responseFormat: qaMetaData.responseFormat,
+      response: qaMetaData.response,
+      options: qaMetaData.options,
+      correctAnswer: qaMetaData.correctAnswer,
+      isSkippable: !!qaMetaData.isSkippable,
+      media: processedMedia,
+      shareText: qaMetaData.shareText,
+    };
+  }
+
+  /**
+   * Process default episode metadata (video/audio episodes)
+   */
+  private async processDefaultEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        if (media.type === "story" && media.mediaId) {
+          const loc = await this.lookupStoryMediaLocation(
+            media.mediaId,
+            session
+          );
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: media.mediaId, // default flow keeps original format
+              mediaUrl: loc,
+            };
+          }
+        }
+        return {
+          type: media.type,
+          mediaId: media.mediaId,
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    return {
+      media: processedMedia,
+      shareText: episode.taskMetaData.shareText,
+    };
+  }
+
   async addNewEpisodes(data: AddNewEpisodesDto) {
     try {
       // Start a session for the transaction
@@ -2097,219 +2238,32 @@ export class DynamicUiService {
           // Prepare episodes for creation
           const episodesToCreate = await Promise.all(
             data.episodes.map(async (episode) => {
-              // ⭐ Declare taskMetaData at the top
               let taskMetaData;
-              let processedMedia;
 
-              if (episode.type === "advertisement") {
-                // For advertisement episodes, handle ObjectId format for mediaId
-                processedMedia = await Promise.all(
-                  episode.taskMetaData.media.map(async (media) => {
-                    let mediaId = "";
-
-                    // Handle both string and ObjectId format
-                    mediaId = media.mediaId.toString();
-
-                    if (media.type === "story" && mediaId) {
-                      try {
-                        // Lookup the media document by mediaId to get location
-                        // Remove session from media lookup to avoid transaction issues
-                        const mediaDoc = await this.mediaModel
-                          .findOne({
-                            _id: new ObjectId(mediaId),
-                          })
-                          .select("location")
-                          .lean();
-
-                        if (mediaDoc && mediaDoc.location) {
-                          return {
-                            type: media.type,
-                            mediaId: new ObjectId(mediaId), // Store as ObjectId for advertisement
-                            mediaUrl: mediaDoc.location,
-                          };
-                        }
-                      } catch (error) {
-                        console.warn(
-                          `Failed to lookup media for mediaId: ${mediaId}`,
-                          error
-                        );
-                      }
-                    }
-
-                    // For non-story types or if lookup fails, use original data
-                    return {
-                      type: media.type,
-                      mediaId: mediaId ? new ObjectId(mediaId) : "", // Convert ALL mediaIds to ObjectId for advertisement episodes
-                      mediaUrl: media.mediaUrl || "",
-                    };
-                  })
-                );
-
-                const advMetaData = episode.taskMetaData as any;
-                taskMetaData = {
-                  media: processedMedia,
-                  shareText: advMetaData.shareText || "",
-                  redirectionUrl: advMetaData.redirectionUrl || "",
-                  type: advMetaData.type || "Image",
-                  expertId: advMetaData.expertId
-                    ? typeof advMetaData.expertId === "object" &&
-                      advMetaData.expertId
-                      ? new ObjectId(advMetaData.expertId)
-                      : new ObjectId(advMetaData.expertId)
-                    : null,
-                  ctaname: advMetaData.ctaname || "",
-                };
-              } else if (episode.type === "Break") {
-                // ⭐ For Break episodes, handle similar to advertisement but with string mediaId
-                processedMedia = await Promise.all(
-                  episode.taskMetaData.media.map(async (media) => {
-                    let mediaId = "";
-
-                    // Handle both string and ObjectId format
-                    if (typeof media.mediaId === "object" && media.mediaId) {
-                      mediaId = media.mediaId.toString();
-                    } else if (typeof media.mediaId === "string") {
-                      mediaId = media.mediaId;
-                    }
-
-                    if (media.type === "story" && mediaId) {
-                      try {
-                        // Lookup the media document by mediaId to get location
-                        const mediaDoc = await this.mediaModel
-                          .findOne({
-                            _id: new ObjectId(mediaId),
-                          })
-                          .select("location")
-                          .lean();
-
-                        if (mediaDoc && mediaDoc.location) {
-                          return {
-                            type: media.type,
-                            mediaId: mediaId, // ⭐ Store as string for Break type (like video episodes)
-                            mediaUrl: mediaDoc.location,
-                          };
-                        }
-                      } catch (error) {
-                        console.warn(
-                          `Failed to lookup media for mediaId: ${mediaId}`,
-                          error
-                        );
-                      }
-                    }
-
-                    // For non-story types or if lookup fails, use original data
-                    return {
-                      type: media.type,
-                      mediaId: mediaId || "", // ⭐ Store as string for Break episodes
-                      mediaUrl: media.mediaUrl || "",
-                    };
-                  })
-                );
-
-                const breakMetaData = episode.taskMetaData as any;
-                taskMetaData = {
-                  timeDurationInMin: breakMetaData.timeDurationInMin,
-                  media: processedMedia,
-                  shareText: breakMetaData.shareText || "",
-                };
-              } else if (episode.type === "Q&A") {
-                // ⭐ For Q&A episodes, handle media and other fields
-                const qaMetaData = episode.taskMetaData as any;
-
-                // Handle media if present (some Q&A might not have media)
-                processedMedia = [];
-                if (qaMetaData.media && Array.isArray(qaMetaData.media)) {
-                  processedMedia = await Promise.all(
-                    qaMetaData.media.map(async (media) => {
-                      if (media.type === "story" && media.mediaId) {
-                        try {
-                          const id =
-                            typeof media.mediaId === "object" && media.mediaId
-                              ? media.mediaId.toString()
-                              : media.mediaId;
-                          const mediaDoc = await this.mediaModel
-                            .findOne({ _id: new ObjectId(id) })
-                            .select("location")
-                            .lean();
-                          if (mediaDoc?.location) {
-                            return {
-                              type: media.type,
-                              mediaId: id,
-                              mediaUrl: mediaDoc.location,
-                            };
-                          }
-                        } catch (err) {
-                          console.warn(
-                            `Failed to lookup media for mediaId: ${media.mediaId}`,
-                            err
-                          );
-                        }
-                      }
-                      return {
-                        type: media.type,
-                        mediaId: media.mediaId || "",
-                        mediaUrl: media.mediaUrl || "",
-                      };
-                    })
+              // Process episode based on type using dedicated functions
+              switch (episode.type) {
+                case "advertisement":
+                  taskMetaData = await this.processAdvertisementEpisode(
+                    episode,
+                    session
                   );
-                }
-
-                // ⭐ Copy mediaUrl from first media item to use as questionMediaUrl
-                let questionMediaUrl = qaMetaData.questionMediaUrl || "";
-                if (processedMedia.length > 0 && processedMedia[0].mediaUrl) {
-                  questionMediaUrl = processedMedia[0].mediaUrl;
-                }
-
-                taskMetaData = {
-                  question: qaMetaData.question,
-                  questionType: qaMetaData.questionType || "",
-                  questionMediaUrl: questionMediaUrl,
-                  responseFormat: qaMetaData.responseFormat || "",
-                  response: qaMetaData.response || "",
-                  options: qaMetaData.options || [],
-                  correctAnswer: qaMetaData.correctAnswer || "",
-                  isSkippable: !!qaMetaData.isSkippable,
-                  media: processedMedia,
-                  shareText: qaMetaData.shareText || "",
-                };
-              } else {
-                // For video/audio episodes (existing logic)
-                processedMedia = await Promise.all(
-                  episode.taskMetaData.media.map(async (media) => {
-                    if (media.type === "story" && media.mediaId) {
-                      try {
-                        const mediaDoc = await this.mediaModel
-                          .findOne({
-                            _id: new ObjectId(media.mediaId),
-                          })
-                          .select("location")
-                          .lean();
-                        if (mediaDoc && mediaDoc.location) {
-                          return {
-                            type: media.type,
-                            mediaId: media.mediaId,
-                            mediaUrl: mediaDoc.location,
-                          };
-                        }
-                      } catch (error) {
-                        console.warn(
-                          `Failed to lookup media for mediaId: ${media.mediaId}`,
-                          error
-                        );
-                      }
-                    }
-                    return {
-                      type: media.type,
-                      mediaId: media.mediaId || "",
-                      mediaUrl: media.mediaUrl || "",
-                    };
-                  })
-                );
-
-                taskMetaData = {
-                  media: processedMedia,
-                  shareText: episode.taskMetaData.shareText || "",
-                };
+                  break;
+                case "Break":
+                  taskMetaData = await this.processBreakEpisode(
+                    episode,
+                    session
+                  );
+                  break;
+                case "Q&A":
+                  taskMetaData = await this.processQAEpisode(episode, session);
+                  break;
+                default:
+                  // For video/audio episodes (existing logic)
+                  taskMetaData = await this.processDefaultEpisode(
+                    episode,
+                    session
+                  );
+                  break;
               }
 
               return {
@@ -2320,7 +2274,7 @@ export class DynamicUiService {
                 parentProcessId: new ObjectId(episode.parentProcessId),
                 processId: new ObjectId(episode.processId),
                 taskMetaData: taskMetaData,
-                status: "Active",
+                status: EStatus.Active,
               };
             })
           );
@@ -2331,7 +2285,6 @@ export class DynamicUiService {
             ordered: true,
           });
 
-          // console.log(`Successfully created ${createdTasks.length} episodes`);
           return createdTasks;
         });
 
@@ -2352,9 +2305,9 @@ export class DynamicUiService {
   async addNewAchievement(payload: AddAchievementDto) {
     try {
       const uploadData = {
-        key: "course_complete",
-        title: "Course Completion Certificate",
-        type: "Certificate",
+        key: EAchievementType.course_complete,
+        title: EAchievementType.title,
+        type: EAchievementType.certificate,
         metaData: {
           shareOptions: {
             text: payload.shareText,
@@ -2362,15 +2315,15 @@ export class DynamicUiService {
           templateUrl: payload.image.mediaUrl,
           textColor: payload.color,
         },
-        status: "Active",
-        sourceId: new ObjectId(payload.seriesId),
+        status: EStatus.Active,
+        sourceId: new ObjectId(payload.processId),
         sourceType: "process",
         visibilityStatus: true,
         provider: "casttree",
         version: 1,
         description: "string",
-        createdBy: new ObjectId(payload.seriesId),
-        updatedBy: new ObjectId(payload.seriesId),
+        createdBy: new ObjectId(payload.processId),
+        updatedBy: new ObjectId(payload.processId),
       };
 
       const res = await this.achievementModel.create(uploadData);
@@ -2403,7 +2356,7 @@ export class DynamicUiService {
       // Process each task and update story media URLs
       const updatePromises = series.map(async (task) => {
         const taskId = task._id;
-        const media = task.taskMetaData?.media || [];
+        const media = task.taskMetaData?.media;
         const type = task.type;
         // console.log(task, type)
 
@@ -2431,13 +2384,17 @@ export class DynamicUiService {
               }
 
               // Call external endpoint to get new URL
-              const newMediaUrl = await this.generateNewMediaUrl(
+              const newMediaUrl = await this.helperService.generateNewMediaUrl(
                 mediaItem.mediaUrl
               );
               // console.log("newMediaUrl", newMediaUrl);
 
               // Check if the new URL still points to the original domain (video not transcoded yet)
-              if (newMediaUrl.startsWith(this.configService.get("PEERTUBE_BASE_URL"))) {
+              if (
+                newMediaUrl.startsWith(
+                  this.configService.get("PEERTUBE_BASE_URL")
+                )
+              ) {
                 console.log(
                   `Video not transcoded yet for media ${mediaItem.mediaId}`
                 );
@@ -2463,7 +2420,8 @@ export class DynamicUiService {
                 {
                   $set: {
                     "taskMetaData.media.$.mediaUrl": newMediaUrl,
-                    "taskMetaData.questionMediaUrl": type === "Q&A" ? newMediaUrl : "",
+                    "taskMetaData.questionMediaUrl":
+                      type === "Q&A" ? newMediaUrl : "",
                   },
                 }
               );
@@ -2492,30 +2450,6 @@ export class DynamicUiService {
       };
     } catch (error) {
       console.error("Error updating episode media:", error);
-      throw error;
-    }
-  }
-
-  // Helper method to call external endpoint
-  private async generateNewMediaUrl(oldUrl: string): Promise<string> {
-    try {
-      const response = await axios.post(
-        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
-        // "http://localhost:3000/casttree/peertube",
-        {
-          embeddedURL: oldUrl,
-        },
-        {
-          headers: {
-            "x-api-version": "2",
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error("Error generating new media URL:", error);
       throw error;
     }
   }
@@ -2549,7 +2483,7 @@ export class DynamicUiService {
     }
   }
 
-  async getGiftGroup() {
+  async getVirtualItemGroup() {
     try {
       const res = await this.virtualItemGroupModel.aggregate().project({
         _id: 1,
@@ -2584,22 +2518,17 @@ export class DynamicUiService {
 
   async createVirtualItem(payload: CreateVirtualItemDto) {
     try {
-      // console.log("payload:", payload);
-
       const uploadData = {
         name: payload.name,
         type: payload.type, // Now handles both "queries" and "gift"
         media: [],
         isPayable: payload.isPayable,
-        status: "Active",
-        payableType: new ObjectId("685d1b018e07635f6a8f7021"),
-        comparePrice: payload.comparePrice || 0,
-        additionalData: {
-          key: "value",
-        },
-        description: payload.description || "",
+        status: EStatus.Active,
+        payableType: new ObjectId(payload.currencyId),
+        comparePrice: payload.comparePrice || payload.price,
+        description: payload.description,
         shortDescription: "",
-        payableValue: payload.price || 0,
+        payableValue: payload.price,
         source: [],
       };
 
@@ -2640,7 +2569,10 @@ export class DynamicUiService {
     }
   }
 
-  async createGiftGroup(payload: { groupName: string; giftIds: string[] }) {
+  async createVirtualItemGroup(payload: {
+    groupName: string;
+    giftIds: string[];
+  }) {
     try {
       // console.log("payload", payload);
       const uploadData = {
@@ -2696,6 +2628,27 @@ export class DynamicUiService {
       return res;
     } catch (error) {
       throw error;
+    }
+  }
+
+  private async lookupStoryMediaLocation(
+    mediaId: any,
+    session?: ClientSession
+  ): Promise<string | null> {
+    try {
+      let query = this.mediaModel
+        .findOne({ _id: new ObjectId(mediaId.toString()) })
+        .select("location");
+
+      if (session) {
+        query = query.session(session);
+      }
+
+      const mediaDoc = await query.lean();
+      return mediaDoc?.location ?? null;
+    } catch (e) {
+      console.warn(`Failed to lookup media for mediaId: ${mediaId}`, e);
+      return null;
     }
   }
 }
