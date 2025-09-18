@@ -20,6 +20,7 @@ import { processSchema } from "src/process/schema/process.schema";
 import { categorySchema } from "./schema/category.schema";
 import { ProfileSchema } from "src/shared/schema/profile.schema";
 import { mediaSchema } from "src/media/schema/media.schema";
+import { LanguageSchema } from "src/shared/schema/language.schema";
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { mediaSchema } from "src/media/schema/media.schema";
       { name: "process", schema: processSchema },
       { name: "category", schema: categorySchema },
       { name: "profile", schema: ProfileSchema },
-      { name: "media", schema: mediaSchema }
+      { name: "media", schema: mediaSchema },
+      { name: "language", schema: LanguageSchema }
     ]),
     SharedModule,
     AuthModule,

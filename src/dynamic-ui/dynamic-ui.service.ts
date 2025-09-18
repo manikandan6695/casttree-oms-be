@@ -34,6 +34,7 @@ import { ICategory } from "./schema/category.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { IProfile } from "src/shared/schema/profile.schema";
 import { mediaModel } from "src/media/schema/media.schema";
+import { ILanguage } from "src/shared/schema/language.schema";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -68,7 +69,9 @@ export class DynamicUiService {
     @InjectModel("profile")
     private readonly profileModel: Model<IProfile>,
     @InjectModel("media")
-    private readonly mediaModel: Model<mediaModel>
+    private readonly mediaModel: Model<mediaModel>,
+    @InjectModel("language")
+    private readonly languageModel: Model<ILanguage>
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -1502,51 +1505,27 @@ export class DynamicUiService {
       throw error;
     }
   }
-
-  async getExpert() {
+  
+  async getLanguageList() {
     try {
-      const experts = await this.profileModel.aggregate([
-        {
-          $match: {
-            type: EprofileType.Expert,
-          },
-        },
-        {
-          $project: {
-            userId: 1,
-            displayName: 1,
-            about: 1,
-            about2: 1,
-            media: 1,
-            language: 1,
-            tags: 1,
-            coverDocument: 1,
-            workDocument: 1,
-          },
-        },
-        {
-          $sort: {
-            created_at: -1,
-          },
-        },
-      ]);
-      // const experts = await this.profileModel.find({
-      //   type: EprofileType.Expert,
-      // }).sort({ created_at: -1 });
-      return experts;
-    } catch (err) {
-      throw err;
+      const languages = await this.languageModel
+        .find({})
+        .select("_id language_name")
+        .lean();
+      return languages;
+    } catch (error) {
+      throw error;
     }
   }
 
-  async getMedia(mediaId: string) {
+  async getExpertTag() {
     try {
-      const media = await this.mediaModel.findOne({ _id: mediaId }).lean();
-      const mediaUrl = media.media_url && media.media_url;
-      
-      return mediaUrl;
-    } catch (err) {
-      throw err;
+      const expertTag = await this.categoryModel.find({
+        category_type: "tags"
+      });
+      return expertTag;
+    } catch (error) {
+      throw error;
     }
   }
 }

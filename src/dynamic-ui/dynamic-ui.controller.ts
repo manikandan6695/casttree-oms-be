@@ -107,15 +107,15 @@ export class DynamicUiController {
       throw err;
     }
   }
-
+  
   @UseGuards(JwtAuthGuard)
-  @Get("media/get-media/:mediaId")
-  async getMedia(
+  @Get("language")
+  async getLanguageList(
     @Req() req,
-    @Param("mediaId") mediaId: string
+    @GetToken() token: UserToken
   ) {
     try {
-      const res = await this.dynamicUIService.getMedia(mediaId);
+      const res = await this.dynamicUIService.getLanguageList();
       return res;
     } catch (err) {
       throw err;
@@ -123,12 +123,13 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("expert/get-experts")
-  async getExpert(
-    @Req() req
+  @Get("expert/tag")
+  async getExpertTag(
+    @Req() req,
+    @GetToken() token: UserToken
   ) {
     try {
-      const res = await this.dynamicUIService.getExpert();
+      const res = await this.dynamicUIService.getExpertTag();
       return res;
     } catch (err) {
       throw err;
