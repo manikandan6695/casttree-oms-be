@@ -1730,8 +1730,8 @@ export class HelperService {
   async generateNewMediaUrl(oldUrl: string): Promise<string> {
     try {
       const response = await axios.post(
-        // this.configService.get("CASTTREE_BASE_URL") + "/peertube",
-        "http://localhost:3000/casttree/peertube",
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
         {
           embeddedURL: oldUrl,
         },
