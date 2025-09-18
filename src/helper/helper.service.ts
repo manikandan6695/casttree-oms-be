@@ -12,13 +12,17 @@ import { catchError, lastValueFrom, map } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
+import { RedisService } from "src/redis/redis.service";
+import { BannerResponseDto } from "./dto/getBanner.dto";
+import { EMetabaseUrlLimit } from "./enums/mixedPanel.enums";
 
 @Injectable()
 export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService,
-    private sharedService: SharedService
+    private sharedService: SharedService,
+    private readonly redisService: RedisService,
   ) {}
 
   getRequiredHeaders(@Req() req) {
@@ -1006,6 +1010,158 @@ export class HelperService {
       return data.data;
     } catch (error) {
       throw error
+    }
+  }
+  private async createMetabaseSession(): Promise<string> {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      const username = this.configService.get("METABASE_USERNAME");
+      const encryptedPassword = this.configService.get("METABASE_PASSWORD");
+
+      if (!metabaseBaseUrl || !username || !encryptedPassword) {
+        throw new Error("Metabase credentials not configured");
+      }
+
+      // Decrypt the password before using it
+      const password = this.sharedService.decryptMessage(encryptedPassword);
+
+      const requestBody = {
+        username: username,
+        password: password
+      };
+      // console.log("requestBody",requestBody)
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      const response = await this.http_service
+        .post(`${metabaseBaseUrl}/api/session/`, requestBody, { headers })
+        .toPromise();
+
+      const sessionId = response.data?.id;
+      if (!sessionId) {
+        throw new Error("Failed to create Metabase session");
+      }
+
+      // console.log("Created new Metabase session:", sessionId);
+
+      // Store session in Redis with 24 hour expiration
+      await this.redisService.getClient()?.setEx('metabase:session', 86400, sessionId);
+      
+      return sessionId;
+    } catch (error) {
+      console.error('Error creating Metabase session:', error);
+      throw new Error(`Failed to create Metabase session: ${error.message}`);
+    }
+  }
+  private async getMetabaseSession(): Promise<string> {
+    try {
+      // Try to get session from Redis first
+      const cachedSession = await this.redisService.getClient()?.get('metabase:session');
+      if (cachedSession && typeof cachedSession === 'string') {
+        return cachedSession;
+      }
+
+      // If no cached session, create a new one
+      return await this.createMetabaseSession();
+    } catch (error) {
+      console.error('Error getting Metabase session:', error);
+      // Fallback to creating a new session if Redis fails
+      return await this.createMetabaseSession();
+    }
+}
+  async getBannerToShow(userId: string, componentKey: string): Promise<BannerResponseDto> {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      if (!metabaseBaseUrl) {
+        throw new Error("METABASE_BASE_URL environment variable is not set");
+      }
+
+      // Get session (from cache or create new)
+      let metabaseSession = await this.getMetabaseSession();
+
+      const requestBody = {
+        parameters: [
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "userid"]],
+            value: userId,
+          },
+        ],
+      };
+
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Metabase-Session": metabaseSession,
+      };
+      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.dynamic_banner);
+      let metaCart;
+      
+      if (systemConfiguration?.value && Array.isArray(systemConfiguration.value)) {
+        const matchingConfig = systemConfiguration.value.find(config => config.key === componentKey);
+        if (matchingConfig) {
+          metaCart = matchingConfig.value;
+        }
+      }
+      
+      // If no matching config found, throw an error
+      if (!metaCart) {
+        throw new Error(`No Metabase card configuration found for component key: ${componentKey}`);
+      }
+      
+      const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
+      console.log("fullUrl", fullUrl);
+      try {
+        const response = await this.http_service
+          .post(fullUrl, requestBody, { headers })
+          .toPromise();
+        let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
+        // Extract the banner value from the response
+        const bannerToShow =
+          response.data?.data?.rows?.[0]?.[0] || defaultBannerId?.value;
+        return {
+          bannerToShow: bannerToShow,
+        };
+      } catch (apiError) {
+        // If API call fails, try to refresh session and retry once
+        if (apiError.response?.status === 401 || apiError.response?.status === 403) {
+          // console.log("Session expired, refreshing...");
+          metabaseSession = await this.refreshMetabaseSession();
+          let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
+          // Update headers with new session
+          headers["X-Metabase-Session"] = metabaseSession;
+          // Retry the API call
+          const retryResponse = await this.http_service
+            .post(fullUrl, requestBody, { headers })
+            .toPromise();
+          
+          const bannerToShow =
+            retryResponse.data?.data?.rows?.[0]?.[0] || defaultBannerId?.value;
+          return {
+            bannerToShow: bannerToShow,
+          };
+        }
+        throw apiError;
+      }
+    } catch (err) {
+      console.error("Error fetching banner from Metabase:", err);
+      let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
+      // Return default banner in case of error
+      return {
+        bannerToShow: defaultBannerId?.value,
+      };
+    }
+  }
+  private async refreshMetabaseSession(): Promise<string> {
+    try {
+      // Remove old session from Redis
+      await this.redisService.getClient()?.del('metabase:session');
+      
+      // Create new session
+      return await this.createMetabaseSession();
+    } catch (error) {
+      console.error('Error refreshing Metabase session:', error);
+      throw error;
     }
   }
   // @OnEvent(EVENT_UPDATE_USER)

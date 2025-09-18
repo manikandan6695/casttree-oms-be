@@ -20,9 +20,9 @@ import { taskSchema } from "./schema/task.schema";
       { name: "task", schema: taskSchema },
     ]),
     forwardRef(() => ItemModule),
-    SubscriptionModule,
-    PaymentRequestModule,
-    HelperModule
+    forwardRef(() => SubscriptionModule),
+    forwardRef(() => PaymentRequestModule),
+    forwardRef(() => HelperModule)
   ],
   controllers: [ProcessController],
   providers: [ProcessService],

@@ -40,7 +40,7 @@ import { FilterOptionSchema } from "src/dynamic-ui/schema/filter-option.schema";
       { name: "filterTypes", schema: FilterTypeSchema },
     ]),
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     SubscriptionModule,
     MandatesModule,
     forwardRef(() => ServiceRequestModule),

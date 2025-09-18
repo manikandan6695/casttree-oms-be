@@ -15,7 +15,7 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { EMixedPanelEvents, EMetabaseUrlLimit } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { EComponentKey, EComponentType } from "./enum/component.enum";
@@ -26,6 +26,7 @@ import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 const { ObjectId } = require("mongodb");
 import { ICategory } from "./schema/category.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 
 @Injectable()
 export class DynamicUiService {
@@ -48,7 +49,9 @@ export class DynamicUiService {
     @InjectModel("filterOptions")
     private readonly filterOptionsModel: Model<IFilterOption>,
     @InjectModel("category")
-    private readonly categoryModel: Model<ICategory>
+    private readonly categoryModel: Model<ICategory>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -153,6 +156,7 @@ export class DynamicUiService {
         })
         .populate("interactionData.items.banner")
         .lean();
+      // console.log("componentDocs", componentDocs);
       let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
@@ -186,14 +190,20 @@ export class DynamicUiService {
         token.id,
         isSubscriber
       );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      // let banners = await this.fetchUserPreferenceBanner(
+      //   isNewSubscription,
+      //   token.id,
+      //   continueWatching,
+      //   componentDocs,
+      //   country_code,
+      //   isSubscriber
+      // );
+      const fullSizeBannerComponents = componentDocs.filter(comp => comp.componentKey === EMetabaseUrlLimit.full_size_banner);
+      let banner = await this.helperService.getBannerToShow(token.id,fullSizeBannerComponents[0].componentKey);
+      let banners = await this.bannerConfigurationModel.findOne({
+        _id: new ObjectId(banner.bannerToShow),
+        status: EStatus.Active,
+      });
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -210,7 +220,7 @@ export class DynamicUiService {
           };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.interactionData = { items: banners };
+          comp.interactionData = { items: [banners] };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {

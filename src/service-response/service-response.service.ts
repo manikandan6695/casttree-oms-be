@@ -25,6 +25,7 @@ export class ServiceResponseService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private shared_service: SharedService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     private readonly eventEmitter: EventEmitter2
   ) {}

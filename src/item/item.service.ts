@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { FilterPlatformItemDTO } from "./dto/filter-platformItem.dto";
@@ -13,6 +13,7 @@ export class ItemService {
   constructor(
     @InjectModel("platformItem")
     private platformItem: Model<IPlatformItemModel>,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     @InjectModel("item") private itemModel: Model<IItemModel>,
     @InjectModel("filterOptions")

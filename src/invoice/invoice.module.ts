@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
@@ -19,7 +19,7 @@ import { SalesDocumentSchema } from "./schema/sales-document.schema";
     ]),
     SharedModule,
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, ItemDocumentService],

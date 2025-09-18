@@ -23,11 +23,11 @@ import { SubscriptionModule } from "src/subscription/subscription.module";
     SharedModule,
     AuthModule,
     InvoiceModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     forwardRef(() =>  ServiceRequestModule),
     HttpModule,
     forwardRef(() =>ItemModule),
-    RedisModule,
+    forwardRef(() => RedisModule),
     forwardRef(() => SubscriptionModule)
   ],
   providers: [PaymentRequestService, PaymentService],
