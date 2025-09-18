@@ -25,7 +25,8 @@ export enum EEventType {
   tokenPaused = "token.paused",
   tokenRejected = "token.rejected",
   didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
-  autoRenewDisabled="AUTO_RENEW_DISABLED"
+  autoRenewDisabled="AUTO_RENEW_DISABLED",
+  paymentRefunded = "refund.processed"
 }
 
 export const ESEventType = [
