@@ -22,6 +22,6 @@ export const processSchema = new mongoose.Schema<any>({
 }
 );
 
-
-
-
+// Indexes for process lookups
+processSchema.index({ status: 1 });
+processSchema.index({ parentProcessId: 1 });

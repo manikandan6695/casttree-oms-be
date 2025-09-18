@@ -111,3 +111,10 @@ export const ComponentSchema = new mongoose.Schema(
     collection: "component",
   }
 );
+
+// Indexes to support queries and sorts
+ComponentSchema.index({ status: 1 });
+ComponentSchema.index({ order: 1 });
+ComponentSchema.index({ componentKey: 1 });
+ComponentSchema.index({ componentKey: 1, status: 1, order: 1 });
+ComponentSchema.index({ title: 1 });

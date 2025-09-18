@@ -16,6 +16,21 @@ import { BannerConfigurationSchema } from "./schema/banner-configuration.schema"
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { categorySchema } from "./schema/category.schema";
+import { AchievementSchema } from "./schema/achievement.schema";
+import { VirtualItemSchema } from "./schema/virtual-item.schema";
+import { VirtualItemGroupSchema } from "./schema/virtual-item-group.schema";
+import { mediaSchema } from "./schema/media.schema";
+import { AwardSchema } from "./schema/awards.schema";
+import { ProfileSchema } from "src/shared/schema/profile.schema";
+import { UserOrganizationSchema } from "src/shared/schema/user-organization.schema";
+import { OrganizationSchema } from "src/shared/schema/organization.schema";
+import { ItemSchema } from "src/item/schema/item.schema";
+import { processSchema } from "src/process/schema/process.schema";
+import { taskSchema } from "src/process/schema/task.schema";
+import { SkillsSchema } from "src/shared/schema/skill.schema";
+import { RoleSchema } from "src/shared/schema/role.schema";
+import { LanguageSchema } from "src/shared/schema/language.schema";
+import { CurrencySchema } from "src/shared/schema/currency.schema";
 
 @Module({
   imports: [
@@ -29,6 +44,21 @@ import { categorySchema } from "./schema/category.schema";
       { name: "filterTypes", schema: FilterTypeSchema },
       { name: "filterOptions", schema: FilterOptionSchema },
       { name: "category", schema: categorySchema },
+      { name: "achievement", schema: AchievementSchema },
+      { name: "virtualItem", schema: VirtualItemSchema },
+      { name: "virtualItemGroup", schema: VirtualItemGroupSchema },
+      { name: "media", schema: mediaSchema },
+      { name: "awards", schema: AwardSchema },
+      { name: "profile", schema: ProfileSchema },
+      { name: "userOrganization", schema: UserOrganizationSchema },
+      { name: "organization", schema: OrganizationSchema },
+      { name: "item", schema: ItemSchema },
+      { name: "process", schema: processSchema },
+      { name: "task", schema: taskSchema },
+      { name: "skill", schema: SkillsSchema },
+      { name: "role", schema: RoleSchema },
+      { name: "language", schema: LanguageSchema },
+      { name: "currency", schema: CurrencySchema },
     ]),
     SharedModule,
     AuthModule,

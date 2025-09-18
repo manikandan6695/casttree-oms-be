@@ -27,3 +27,10 @@ export const taskSchema = new mongoose.Schema<any>({
         collection: "task",
         timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     });
+
+// Indexes for episode/task fetches and updates
+taskSchema.index({ processId: 1 });
+taskSchema.index({ parentProcessId: 1 });
+taskSchema.index({ type: 1 });
+taskSchema.index({ status: 1 });
+taskSchema.index({ taskNumber: 1 });
