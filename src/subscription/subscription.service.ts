@@ -333,6 +333,17 @@ export class SubscriptionService {
           await this.handleRazorpayRejectedMandate(payload);
           // await this.handleRazorpaySubscription(payload);
         }
+        if (event === EEventType.paymentRefunded) {
+          const payload = req?.body?.payload;
+          await this.webhookModel.create({
+            transaction: event,
+            provider: EProvider.razorpay,
+            providerId: EProviderId.razorpay,
+            webhookPayload: req?.body,
+            status: EStatus.Active,
+          });
+          await this.handleRazorpayRefund(payload);
+        }
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
@@ -1039,6 +1050,95 @@ export class SubscriptionService {
       throw err;
     }
   }
+  async handleRazorpayRefund(payload: any) {
+    try {
+      const paymentId = payload?.payment?.entity?.order_id;
+      const refundReason = payload?.refund?.entity?.notes?.reason;
+
+      const paymentRecord = await this.paymentService.fetchPaymentByOrderId(paymentId);
+
+      if (paymentRecord.document_status === EPaymentStatus.completed) {
+        const paymentUpdateBody = {
+          document_status: EPaymentStatus.failed,
+          reason: {
+            failureReason: refundReason,
+          },
+          isPaymentRefunded: true
+        };
+
+        await this.paymentService.updateStatus(
+          paymentRecord._id,
+          paymentUpdateBody,
+          
+        );
+        await this.paymentService.updateMetaData(paymentRecord._id, payload);
+
+        const updatedInvoice = await this.invoiceService.updateInvoice(
+          paymentRecord.source_id,
+          EPaymentStatus.failed
+        );
+
+        if (updatedInvoice?.invoice?.source_id) {
+          const subscriptionUpdateResult =
+            await this.subscriptionModel.updateOne(
+              {
+                _id: updatedInvoice.invoice.source_id,
+                subscriptionStatus: {
+                  $in: [
+                    EsubscriptionStatus.active,
+                    EsubscriptionStatus.initiated,
+                  ],
+                },
+              },
+              {
+                $set: {
+                  subscriptionStatus: EsubscriptionStatus.failed,
+                  updatedAt: new Date(),
+                },
+              }
+            );
+
+          const subscription = await this.subscriptionModel.findOne(
+            {
+              _id: new ObjectId(updatedInvoice.invoice.source_id),
+              subscriptionStatus: EsubscriptionStatus.failed
+            }
+          );
+
+          if (subscription) {
+            const userUpdateBody = {
+              userId: subscription.userId,
+              membership: "",
+              badge: "",
+            };
+
+            await this.helperService.updateUser(userUpdateBody);
+            // const item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
+            // const mixPanelBody: any = {
+            //   eventName: EMixedPanelEvents.subscription_refund,
+            //   distinctId: subscription.userId,
+            //   properties: {
+            //     user_id: subscription.userId,
+            //     provider: EProvider.razorpay,
+            //     subscription_id: subscription._id,
+            //     subscription_status: EsubscriptionStatus.failed,
+            //     refund_amount: refundAmount,
+            //     refund_id: refundId,
+            //     refund_reason: refundReason,
+            //     item_name: item?.itemName,
+            //     refund_date: new Date().toISOString()
+            //   }
+            // };
+            // await this.helperService.mixPanel(mixPanelBody);
+          }
+        }
+      }
+      return { message: "Refund processed successfully" };
+    } catch (error) {
+      console.error("Error processing Razorpay refund:", error);
+      throw error;
+    }
+  }
 
   async handleRazorpayCancelledMandate(payload: any) {
     try {
@@ -1314,6 +1414,8 @@ export class SubscriptionService {
           await this.helperService.updateUser(userBody);
           if (subscription.subscriptionStatus === EDocumentStatus.active) {
             let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+            let paymentRequest =
+            await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
             let mixPanelBody: any = {};
             mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
             mixPanelBody.distinctId = subscription?.userId;
@@ -1326,7 +1428,7 @@ export class SubscriptionService {
               item_name: item?.itemName,
               subscription_expired: subscription?.endAt,
               subscription_count: subscriptionCount,
-              subscription_mode: ESubscriptionMode.Auth,
+              subscription_mode: paymentRequest?.paymentType,
               subscription_amount: invoice.grand_total
             };
             await this.helperService.mixPanel(mixPanelBody);
