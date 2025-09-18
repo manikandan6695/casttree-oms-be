@@ -225,7 +225,7 @@ export class DynamicUiService {
       // ⭐ Add itemName to serviceItemData - OPTIMIZE HERE
       const serviceItem = serviceItemData.finalData;
       const allItemIds = new Set();
-      
+
       // Collect all unique itemIds from all categories
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
