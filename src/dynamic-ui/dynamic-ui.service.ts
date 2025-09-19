@@ -32,6 +32,10 @@ import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { ICategory } from "./schema/category.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { IAwardModel } from "src/awards/schema/award.schema";
+import { INominationModel } from "src/nominations/schema/nomination.schema";
+import { UpdateNomineeTagDto } from "./dto/update-nominee-tag.dto";
+import { UpdateNomineePositionDto } from "./dto/update-nominee-position.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -59,6 +63,10 @@ export class DynamicUiService {
     private readonly processModel: Model<processModel>,
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
+    @InjectModel("award")
+    private readonly awardModel: Model<IAwardModel>,
+    @InjectModel("nomination")
+    private readonly nominationModel: Model<INominationModel>,
     private processService: ProcessService,
     // @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
@@ -210,8 +218,13 @@ export class DynamicUiService {
       //   country_code,
       //   isSubscriber
       // );
-      const fullSizeBannerComponents = componentDocs.filter(comp => comp.componentKey === EMetabaseUrlLimit.full_size_banner);
-      let banner = await this.helperService.getBannerToShow(token.id,fullSizeBannerComponents[0].componentKey);
+      const fullSizeBannerComponents = componentDocs.filter(
+        (comp) => comp.componentKey === EMetabaseUrlLimit.full_size_banner
+      );
+      let banner = await this.helperService.getBannerToShow(
+        token.id,
+        fullSizeBannerComponents[0].componentKey
+      );
       let banners = await this.bannerConfigurationModel.findOne({
         _id: new ObjectId(banner.bannerToShow),
         status: EStatus.Active,
@@ -1497,4 +1510,103 @@ export class DynamicUiService {
       throw error;
     }
   }
+
+  async getContestsList() {
+    try {
+      const contests = await this.awardModel
+        .find({ status: EStatus.Active })
+        .sort({ _id: -1 })
+        .select("_id title")
+        .lean();
+      return contests;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getNomineesList(awardId: string) {
+    try {
+      const nominees = await this.nominationModel
+        .find({ awardId: awardId })
+        .sort({ _id: -1 })
+        .select(
+          "_id userId nomineeName nomineePhoneNumber documentNumber media tags position"
+        )
+        .lean();
+      return nominees;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCategoryTags(type: string) {
+    try {
+      const categoryTags = await this.categoryModel
+        .find({ category_type: type })
+        .lean();
+      return categoryTags;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateNomineeTag(payload: UpdateNomineeTagDto) {
+    try {
+      // console.log("Payload", payload);
+      const { nomineeId, tags } = payload;
+      tags.forEach(async (item) => {
+        item.iconName = "medal";
+      });
+      await this.nominationModel
+        .updateOne(
+          { _id: nomineeId },
+          {
+            $set: {
+              tags: tags,
+            },
+          }
+        )
+        .lean();
+
+      return {
+        success: true,
+        message: "Nominee tags updated successfully",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateNomineePosition( payload: UpdateNomineePositionDto) {
+    try {
+      await this.nominationModel.updateMany(
+        { position: { $exists: true } },
+        {
+          $set: {
+            position: null,
+            rewardDescription: null
+          }
+        }
+      )
+      const positions = payload.positions;
+      positions.forEach(async (item) => {
+        await this.nominationModel.updateOne(
+          { _id: item.nomineeId },
+          {
+            $set: {
+              position: item.position,
+              rewardDescription: item.amount
+            }
+          }
+        ).lean();
+      });
+      return {
+        success: true,
+        message: "Nominee positions updated successfully",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
+
