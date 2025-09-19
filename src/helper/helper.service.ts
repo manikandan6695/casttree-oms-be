@@ -15,6 +15,8 @@ import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto"
 import { RedisService } from "src/redis/redis.service";
 import { BannerResponseDto } from "./dto/getBanner.dto";
 import { EMetabaseUrlLimit } from "./enums/mixedPanel.enums";
+import * as http from "http";
+import * as https from "https";
 
 @Injectable()
 export class HelperService {
@@ -22,8 +24,30 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService,
-    private readonly redisService: RedisService,
+    private readonly redisService: RedisService
   ) {}
+
+  private httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
+  private httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
+
+  private async getSystemConfigByKeyCached(
+    key: string,
+    ttlSeconds = 300
+  ): Promise<any> {
+    const cacheKey = `systemConfig:${key}`;
+    const client = this.redisService.getClient();
+    try {
+      const cached = await client?.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
+    } catch (e) {}
+    const fresh = await this.getSystemConfigByKey(key);
+    try {
+      await client?.setEx(cacheKey, ttlSeconds, JSON.stringify(fresh));
+    } catch (e) {}
+    return fresh;
+  }
 
   getRequiredHeaders(@Req() req) {
     const reqHeaders = {
@@ -942,8 +966,7 @@ export class HelperService {
   }
   async updateReferral(body: any) {
     try {
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/referral/${body.referralId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/referral/${body.referralId}`;
       // `http://localhost:3000/casttree/referral/${body.referralId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -962,34 +985,31 @@ export class HelperService {
 
       const response = await lastValueFrom(request);
       return response;
-
     } catch (error) {
-      throw error 
+      throw error;
     }
   }
   async createReferralTransaction(body: any) {
     try {
       const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/referral/transaction`;
       // const requestURL = `http://localhost:3000/casttree/referral/transaction`;
-      const request = this.http_service
-        .post(requestURL, body)
-        .pipe(
-          map((res) => {
-            // console.log(res?.data);
-            return res?.data;
-          })
-        );
+      const request = this.http_service.post(requestURL, body).pipe(
+        map((res) => {
+          // console.log(res?.data);
+          return res?.data;
+        })
+      );
       const response = await lastValueFrom(request);
       return response;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   async getUserAdditional(userId: string) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/user/user-additional-detail/${userId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/user-additional-detail/${userId}`
           // `http://localhost:3000/casttree/user/user-additional-detail/${userId}`,
         )
         .toPromise();
@@ -999,17 +1019,17 @@ export class HelperService {
       throw err;
     }
   }
-  async getReferralData(refereeUserId: string,referrerId: string) {
+  async getReferralData(refereeUserId: string, referrerId: string) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/referral/${refereeUserId}/${referrerId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/referral/${refereeUserId}/${referrerId}`
           // `http://localhost:3000/casttree/referral/${refereeUserId}/${referrerId}`,
         )
         .toPromise();
       return data.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   private async createMetabaseSession(): Promise<string> {
@@ -1027,11 +1047,11 @@ export class HelperService {
 
       const requestBody = {
         username: username,
-        password: password
+        password: password,
       };
       // console.log("requestBody",requestBody)
       const headers = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       };
 
       const response = await this.http_service
@@ -1046,31 +1066,38 @@ export class HelperService {
       // console.log("Created new Metabase session:", sessionId);
 
       // Store session in Redis with 24 hour expiration
-      await this.redisService.getClient()?.setEx('metabase:session', 86400, sessionId);
-      
+      await this.redisService
+        .getClient()
+        ?.setEx("metabase:session", 86400, sessionId);
+
       return sessionId;
     } catch (error) {
-      console.error('Error creating Metabase session:', error);
+      console.error("Error creating Metabase session:", error);
       throw new Error(`Failed to create Metabase session: ${error.message}`);
     }
   }
   private async getMetabaseSession(): Promise<string> {
     try {
       // Try to get session from Redis first
-      const cachedSession = await this.redisService.getClient()?.get('metabase:session');
-      if (cachedSession && typeof cachedSession === 'string') {
+      const cachedSession = await this.redisService
+        .getClient()
+        ?.get("metabase:session");
+      if (cachedSession && typeof cachedSession === "string") {
         return cachedSession;
       }
 
       // If no cached session, create a new one
       return await this.createMetabaseSession();
     } catch (error) {
-      console.error('Error getting Metabase session:', error);
+      console.error("Error getting Metabase session:", error);
       // Fallback to creating a new session if Redis fails
       return await this.createMetabaseSession();
     }
-}
-  async getBannerToShow(userId: string, componentKey: string): Promise<BannerResponseDto> {
+  }
+  async getBannerToShow(
+    userId: string,
+    componentKey: string
+  ): Promise<BannerResponseDto> {
     try {
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       if (!metabaseBaseUrl) {
@@ -1079,7 +1106,6 @@ export class HelperService {
 
       // Get session (from cache or create new)
       let metabaseSession = await this.getMetabaseSession();
-
       const requestBody = {
         parameters: [
           {
@@ -1094,47 +1120,79 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
-      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.dynamic_banner);
+     
+      let systemConfiguration = await this.getSystemConfigByKeyCached(
+        EMetabaseUrlLimit.dynamic_banner
+      );
       let metaCart;
-      
-      if (systemConfiguration?.value && Array.isArray(systemConfiguration.value)) {
-        const matchingConfig = systemConfiguration.value.find(config => config.key === componentKey);
+
+      if (
+        systemConfiguration?.value &&
+        Array.isArray(systemConfiguration.value)
+      ) {
+        const matchingConfig = systemConfiguration.value.find(
+          (config) => config.key === componentKey
+        );
         if (matchingConfig) {
           metaCart = matchingConfig.value;
         }
       }
-      
+
       // If no matching config found, throw an error
       if (!metaCart) {
-        throw new Error(`No Metabase card configuration found for component key: ${componentKey}`);
+        throw new Error(
+          `No Metabase card configuration found for component key: ${componentKey}`
+        );
       }
-      
+
       const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
-      console.log("fullUrl", fullUrl);
+      
       try {
+        
+
         const response = await this.http_service
-          .post(fullUrl, requestBody, { headers })
+          .post(fullUrl, requestBody, {
+            headers,
+            timeout: 5000,
+            httpAgent: this.httpAgent,
+            httpsAgent: this.httpsAgent,
+          })
           .toPromise();
-        let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
-        // Extract the banner value from the response
+       
+       
+        let defaultBannerId = await this.getSystemConfigByKeyCached(
+          EMetabaseUrlLimit.default_banner
+        );
+
         const bannerToShow =
           response.data?.data?.rows?.[0]?.[0] || defaultBannerId?.value;
+
         return {
           bannerToShow: bannerToShow,
         };
       } catch (apiError) {
         // If API call fails, try to refresh session and retry once
-        if (apiError.response?.status === 401 || apiError.response?.status === 403) {
-          // console.log("Session expired, refreshing...");
+        if (
+          apiError.response?.status === 401 ||
+          apiError.response?.status === 403
+        ) {
           metabaseSession = await this.refreshMetabaseSession();
-          let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
+          let defaultBannerId = await this.getSystemConfigByKeyCached(
+            EMetabaseUrlLimit.default_banner
+          );
           // Update headers with new session
           headers["X-Metabase-Session"] = metabaseSession;
           // Retry the API call
           const retryResponse = await this.http_service
-            .post(fullUrl, requestBody, { headers })
+            .post(fullUrl, requestBody, {
+              headers,
+              timeout: 5000,
+              httpAgent: this.httpAgent,
+              httpsAgent: this.httpsAgent,
+            })
             .toPromise();
-          
+
+
           const bannerToShow =
             retryResponse.data?.data?.rows?.[0]?.[0] || defaultBannerId?.value;
           return {
@@ -1145,7 +1203,9 @@ export class HelperService {
       }
     } catch (err) {
       console.error("Error fetching banner from Metabase:", err);
-      let defaultBannerId = await this.getSystemConfigByKey(EMetabaseUrlLimit.default_banner);
+      let defaultBannerId = await this.getSystemConfigByKeyCached(
+        EMetabaseUrlLimit.default_banner
+      );
       // Return default banner in case of error
       return {
         bannerToShow: defaultBannerId?.value,
@@ -1155,12 +1215,12 @@ export class HelperService {
   private async refreshMetabaseSession(): Promise<string> {
     try {
       // Remove old session from Redis
-      await this.redisService.getClient()?.del('metabase:session');
-      
+      await this.redisService.getClient()?.del("metabase:session");
+
       // Create new session
       return await this.createMetabaseSession();
     } catch (error) {
-      console.error('Error refreshing Metabase session:', error);
+      console.error("Error refreshing Metabase session:", error);
       throw error;
     }
   }

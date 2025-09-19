@@ -16,6 +16,7 @@ import { BannerConfigurationSchema } from "./schema/banner-configuration.schema"
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { categorySchema } from "./schema/category.schema";
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { categorySchema } from "./schema/category.schema";
     forwardRef(() => HelperModule),
     ProcessModule,
     SubscriptionModule,
+    RedisModule
   ],
   controllers: [DynamicUiController],
   providers: [DynamicUiService],
