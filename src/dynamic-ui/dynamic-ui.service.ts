@@ -222,50 +222,23 @@ export class DynamicUiService {
         null
       );
 
-      // ⭐ Add itemName to serviceItemData - OPTIMIZE HERE
-      const serviceItem = serviceItemData.finalData;
-      const allItemIds = new Set();
-
-      // Collect all unique itemIds from all categories
-      for (const category in serviceItem) {
-        if (Array.isArray(serviceItem[category])) {
-          serviceItem[category].forEach((item) => {
-            if (item.itemId) {
-              allItemIds.add(item.itemId);
-            }
-          });
-        }
-      }
-
-      // Fetch itemNames for all collected itemIds
-      if (allItemIds.size > 0) {
-        const items = await this.itemModel
-          .find({ _id: { $in: Array.from(allItemIds) } })
-          .select("_id itemName")
-          .lean();
-
-        const itemNameMap = new Map(
-          items.map((item) => [item._id.toString(), item.itemName])
-        );
-
-        // Add itemName to all items in all categories
-        for (const category in serviceItem) {
-          if (Array.isArray(serviceItem[category])) {
-            serviceItem[category] = serviceItem[category].map((item) => ({
-              ...item,
-              itemName: itemNameMap.get(item.itemId?.toString()) || null,
-            }));
-          }
-        }
-      }
+      // console.log("serviceItemData", serviceItemData.finalData.trendingSeries);
 
       const processIds = [];
 
+      const serviceItem = serviceItemData.finalData;
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
-          serviceItem[category].forEach((item) => {
+          serviceItem[category].forEach(async (item) => {
             if (item.processId) {
               processIds.push(item.processId);
+              const itemId = await this.serviceItemModel
+                .findOne({ "additionalDetails.processId": item.processId })
+                .select("itemId")
+                .lean();
+              const itemName = await this.itemModel.findOne({ _id: itemId.itemId }).select("itemName").lean();
+              item.itemName = itemName.itemName;
+              // console.log("itemName", itemName);
             }
           });
         }
