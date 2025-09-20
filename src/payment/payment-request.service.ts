@@ -812,7 +812,8 @@ export class PaymentRequestService {
       let paymentData = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId),
       }).lean();
-      let totalBalance;
+      // console.log("paymentData", paymentData);
+      
       let invoiceData = await this.invoiceService.getInvoiceDetail(
         paymentData?.source_id
       );
@@ -820,11 +821,13 @@ export class PaymentRequestService {
         user_id: new ObjectId(token.id),
         document_status: EDocumentStatus.completed,
       }).sort({ created_at: 1 });
+      // console.log("firstPayment", firstPayment);
       
       payment = {
         ...paymentData,
         isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
       }
+      
       if (
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
@@ -833,84 +836,40 @@ export class PaymentRequestService {
           ECurrencyName.currencyId,
           ECurrencyName.casttreeCoin
         );
-
+        // console.log("coinData", coinData);
+        
         let coinTransaction = await this.coinTransactionModel.findOne({
           sourceId: new ObjectId(invoiceData?._id),
           transactionType: ETransactionType.In,
           type: ETransactionType.purchased,
         });
-        if (
-          coinTransaction?.documentStatus === ECoinStatus.pending &&
-          coinTransaction?.transactionType === ETransactionType.In
-        ) {
-          let updateUserAdditional =
-            await this.helperService.updateUserPurchaseCoin({
-              userId: coinTransaction?.userId,
-              coinValue: coinTransaction?.coinValue,
-            });
-          totalBalance =
-            (updateUserAdditional?.purchasedBalance || 0) +
-            (updateUserAdditional?.earnedBalance || 0);
-          await this.coinTransactionModel.updateOne(
-            {
-              sourceId: new ObjectId(invoiceData?._id),
-              transactionType: ETransactionType.In,
-              documentStatus: ECoinStatus.pending,
-            },
-            {
-              $set: {
-                documentStatus: ECoinStatus.completed,
-                updatedAt: new Date(),
-                currentBalance: totalBalance,
-              },
-            }
-          );
-        }
-        let coinTransactionOut = await this.coinTransactionModel.findOne({
-          sourceId: new ObjectId(invoiceData?._id),
-          transactionType: ETransactionType.Out,
-          type: ETransactionType.withdrawn,
+        // console.log("coinTransaction", coinTransaction);
+        
+        // Get user's current balance for totalCoinValue
+        let userAdditional = await this.helperService.getUserAdditionalDetails({
+          userId: coinTransaction?.userId
         });
-        if (
-          coinTransactionOut?.documentStatus === ECoinStatus.pending &&
-          coinTransactionOut?.transactionType === ETransactionType.Out
-        ) {
-          let updateUserAdditionalData =
-            await this.helperService.updateAdminCoinValue({
-              userId: coinTransactionOut?.userId,
-              coinValue: coinTransactionOut?.coinValue,
-            });
-          await this.coinTransactionModel.updateOne(
-            {
-              sourceId: new ObjectId(invoiceData?._id),
-              transactionType: ETransactionType.Out,
-              documentStatus: ECoinStatus.pending,
-            },
-            {
-              $set: {
-                documentStatus: ECoinStatus.completed,
-                updatedAt: new Date(),
-                currentBalance: updateUserAdditionalData?.purchasedBalance,
-              },
-            }
-          );
-        }
+        let totalCoinValue = (userAdditional?.userAdditional?.purchasedBalance || 0) + 
+                           (userAdditional?.userAdditional?.earnedBalance || 0);
+        
         let finalResponse = {
           coinValue: coinTransaction?.coinValue,
-          totalBalance: totalBalance,
+          totalBalance: totalCoinValue,
           coinMedia: coinData?.media,
           paymentData: payment,
         };
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
-        mixPanelBody.distinctId = coinTransaction?.userId;
-        mixPanelBody.properties = {
-          user_id: coinTransaction?.userId,
-          amount: payment?.amount,
-          currency: invoiceData?.currencyCode,
-          coin_value: coinTransaction?.coinValue,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+        // console.log("finalResponse", finalResponse);
+        
+        // let mixPanelBody: any = {};
+        // mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+        // mixPanelBody.distinctId = coinTransaction?.userId;
+        // mixPanelBody.properties = {
+        //   user_id: coinTransaction?.userId,
+        //   amount: payment?.amount,
+        //   currency: invoiceData?.currencyCode,
+        //   coin_value: coinTransaction?.coinValue,
+        // };
+        // await this.helperService.mixPanel(mixPanelBody);
         return finalResponse;
       } else {
         return {
