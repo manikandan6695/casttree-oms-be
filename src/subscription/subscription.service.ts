@@ -23,6 +23,9 @@ import {
   EPaymentSourceType,
   EPaymentStatus,
   EPaymentType,
+  ECoinStatus,
+  ECoinTransactionTypes,
+  ETransactionType,
 } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
@@ -59,6 +62,7 @@ import {
 import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
+import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -80,7 +84,9 @@ export class SubscriptionService {
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    @InjectModel("coinTransaction")
+    private readonly coinTransactionModel: Model<ICoinTransaction>
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -1400,6 +1406,102 @@ export class SubscriptionService {
               );
             }
           }
+        }
+      }
+      if(invoice?.source_type === ECoinTransactionTypes.coinTransaction){
+        try {
+          // console.log("paymentRequest", paymentRequest);
+          
+          let coinTransaction = await this.coinTransactionModel.findOne({
+            sourceId: new ObjectId(invoice?._id),
+            transactionType: ETransactionType.In,
+            type: ETransactionType.purchased,
+          });
+          // console.log("coinTransaction", coinTransaction);
+          
+          if (
+            coinTransaction?.documentStatus === ECoinStatus.pending &&
+            coinTransaction?.transactionType === ECoinTransactionTypes.In
+          ) {
+            let updateUserAdditional =
+              await this.helperService.updateUserPurchaseCoin({
+                userId: coinTransaction?.userId,
+                coinValue: coinTransaction?.coinValue,
+              });
+            // console.log("updateUserAdditional", updateUserAdditional);
+            
+            let totalBalance =
+              (updateUserAdditional?.purchasedBalance || 0) +
+              (updateUserAdditional?.earnedBalance || 0);
+              
+            // Update coin transaction status
+            await this.coinTransactionModel.updateOne(
+              {
+                sourceId: new ObjectId(invoice?._id),
+                transactionType: ETransactionType.In,
+                documentStatus: ECoinStatus.pending,
+              },
+              {
+                $set: {
+                  documentStatus: ECoinStatus.completed,
+                  updatedAt: new Date(),
+                  currentBalance: totalBalance,
+                },
+              }
+            );
+          }
+          
+          // Handle coin transaction out (withdrawal)
+          let coinTransactionOut = await this.coinTransactionModel.findOne({
+            sourceId: new ObjectId(invoice?._id),
+            transactionType: ETransactionType.Out,
+            type: ETransactionType.withdrawn,
+          });
+          // console.log("coinTransactionOut", coinTransactionOut);
+          
+          if (
+            coinTransactionOut?.documentStatus === ECoinStatus.pending &&
+            coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
+          ) {
+            let updateUserAdditionalData =
+              await this.helperService.updateAdminCoinValue({
+                userId: coinTransactionOut?.userId,
+                coinValue: coinTransactionOut?.coinValue,
+              });
+            // console.log("updateUserAdditionalData", updateUserAdditionalData);
+            
+            await this.coinTransactionModel.updateOne(
+              {
+                sourceId: new ObjectId(invoice?._id),
+                transactionType: ETransactionType.Out,
+                documentStatus: ECoinStatus.pending,
+              },
+              {
+                $set: {
+                  documentStatus: ECoinStatus.completed,
+                  updatedAt: new Date(),
+                  currentBalance: updateUserAdditionalData?.purchasedBalance,
+                },
+              }
+            );
+          }
+          
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+          mixPanelBody.distinctId = coinTransaction?.userId;
+          mixPanelBody.properties = {
+            user_id: coinTransaction?.userId,
+            amount: paymentRequest?.amount,
+            currency: invoice?.currencyCode,
+            coin_value: coinTransaction?.coinValue,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+          
+        } catch (error) {
+          console.warn(
+            `Coin transaction update failed for user ${subscription?.userId}:`,
+            error?.message || error
+          );
         }
       }
     } catch (err) {
