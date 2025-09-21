@@ -25,7 +25,7 @@ export class HelperService {
     private http_service: HttpService,
     private configService: ConfigService,
     private sharedService: SharedService,
-    // @Inject(forwardRef(() => RedisService)) 
+    // @Inject(forwardRef(() => RedisService))
     private readonly redisService: RedisService,
     private mixpanelExportService: MixpanelExportService
   ) {}
@@ -1029,17 +1029,19 @@ export class HelperService {
   private async getMetabaseSession(): Promise<string> {
     try {
       // Try to get session from Redis first
-      const cachedSession = await this.redisService.getClient()?.get('metabase:sessionId');
-      if (cachedSession && typeof cachedSession === 'string') {
+      const cachedSession = await this.redisService
+        .getClient()
+        ?.get("metabase:sessionId");
+      if (cachedSession && typeof cachedSession === "string") {
         return cachedSession;
       }
 
       // If no cached session, create a new one
       return await this.createMetabaseSession();
     } catch (error) {
-      console.error('Error getting Metabase session:', error);
+      console.error("Error getting Metabase session:", error);
     }
-}
+  }
 
   async fetchMixpanelData(
     fromDate?: string,
@@ -1086,31 +1088,31 @@ export class HelperService {
             password: "",
           },
           params,
-          responseType: 'stream', // Use stream to handle large responses
+          responseType: "stream", // Use stream to handle large responses
           timeout: 300000, // 5 minutes timeout for large datasets
         }
       );
 
       // Process the stream line by line with a size limit
       return new Promise((resolve, reject) => {
-        let data = '';
-        let buffer = '';
+        let data = "";
+        let buffer = "";
         let lineCount = 0;
         const maxLines = limit || 10000;
 
-        response.data.on('data', (chunk: Buffer) => {
-          buffer += chunk.toString('utf8');
-          const lines = buffer.split('\n');
-          
+        response.data.on("data", (chunk: Buffer) => {
+          buffer += chunk.toString("utf8");
+          const lines = buffer.split("\n");
+
           // Keep the last incomplete line in buffer
-          buffer = lines.pop() || '';
-          
+          buffer = lines.pop() || "";
+
           // Process complete lines
           for (const line of lines) {
             if (line.trim()) {
-              data += line + '\n';
+              data += line + "\n";
               lineCount++;
-              
+
               // Stop processing if we've reached the limit
               if (lineCount >= maxLines) {
                 response.data.destroy(); // Stop the stream
@@ -1121,20 +1123,22 @@ export class HelperService {
           }
         });
 
-        response.data.on('end', () => {
+        response.data.on("end", () => {
           try {
             // Process any remaining data in buffer
             if (buffer.trim()) {
-              data += buffer + '\n';
+              data += buffer + "\n";
             }
             resolve(data);
           } catch (error) {
-            reject(new Error('Failed to process response data: ' + error.message));
+            reject(
+              new Error("Failed to process response data: " + error.message)
+            );
           }
         });
 
-        response.data.on('error', (error: Error) => {
-          reject(new Error('Stream error: ' + error.message));
+        response.data.on("error", (error: Error) => {
+          reject(new Error("Stream error: " + error.message));
         });
       });
     } catch (error) {
@@ -1174,11 +1178,11 @@ export class HelperService {
 
       const requestBody = {
         username: username,
-        password: password
+        password: password,
       };
 
       const headers = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       };
 
       const response = await this.http_service
@@ -1193,11 +1197,13 @@ export class HelperService {
       console.log("Created new Metabase session:", sessionId);
 
       // Store session in Redis with 24 hour expiration
-      await this.redisService.getClient()?.setEx('metabase:session', 86400, sessionId);
-      
+      await this.redisService
+        .getClient()
+        ?.setEx("metabase:session", 86400, sessionId);
+
       return sessionId;
     } catch (error) {
-      console.error('Error creating Metabase session:', error);
+      console.error("Error creating Metabase session:", error);
     }
   }
   private async streamToCsvString(
@@ -1240,67 +1246,71 @@ export class HelperService {
             password: "",
           },
           params,
-          responseType: 'stream',
+          responseType: "stream",
           timeout: 300000, // 5 minutes timeout
         }
       );
 
       return new Promise((resolve, reject) => {
-        let csvData = '';
+        let csvData = "";
         let isFirstRow = true;
         let headers: string[] = [];
-        let buffer = '';
+        let buffer = "";
 
-        response.data.on('data', (chunk: Buffer) => {
-          buffer += chunk.toString('utf8');
-          const lines = buffer.split('\n');
-          
+        response.data.on("data", (chunk: Buffer) => {
+          buffer += chunk.toString("utf8");
+          const lines = buffer.split("\n");
+
           // Keep the last incomplete line in buffer
-          buffer = lines.pop() || '';
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             if (line.trim()) {
-                          try {
-              const item = JSON.parse(line);
-              // Include all properties as JSON string
-              const flattened = {
-                event: item.event,
-                time: item.properties?.time,
-                distinct_id: item.properties?.distinct_id,
-                properties: JSON.stringify(item.properties || {}),
-              };
+              try {
+                const item = JSON.parse(line);
+                // Include all properties as JSON string
+                const flattened = {
+                  event: item.event,
+                  time: item.properties?.time,
+                  distinct_id: item.properties?.distinct_id,
+                  properties: JSON.stringify(item.properties || {}),
+                };
 
-              if (isFirstRow) {
-                // Extract headers from first row - this will include all custom properties
-                headers = Object.keys(flattened);
-                csvData += headers.join(',') + '\n';
-                isFirstRow = false;
-              }
+                if (isFirstRow) {
+                  // Extract headers from first row - this will include all custom properties
+                  headers = Object.keys(flattened);
+                  csvData += headers.join(",") + "\n";
+                  isFirstRow = false;
+                }
 
                 // Create CSV row
-                const row = headers.map(header => {
+                const row = headers.map((header) => {
                   const value = flattened[header];
                   if (value === null || value === undefined) {
-                    return '';
+                    return "";
                   }
                   // Escape CSV values
                   const stringValue = String(value);
-                  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                  if (
+                    stringValue.includes(",") ||
+                    stringValue.includes('"') ||
+                    stringValue.includes("\n")
+                  ) {
                     return `"${stringValue.replace(/"/g, '""')}"`;
                   }
                   return stringValue;
                 });
-                
-                csvData += row.join(',') + '\n';
+
+                csvData += row.join(",") + "\n";
               } catch (parseError) {
-                console.warn('Skipping invalid JSON line:', parseError.message);
+                console.warn("Skipping invalid JSON line:", parseError.message);
                 continue;
               }
             }
           }
         });
 
-        response.data.on('end', () => {
+        response.data.on("end", () => {
           // Process any remaining data in buffer
           if (buffer.trim()) {
             try {
@@ -1315,32 +1325,39 @@ export class HelperService {
 
               if (isFirstRow) {
                 headers = Object.keys(flattened);
-                csvData += headers.join(',') + '\n';
+                csvData += headers.join(",") + "\n";
               }
 
-              const row = headers.map(header => {
+              const row = headers.map((header) => {
                 const value = flattened[header];
                 if (value === null || value === undefined) {
-                  return '';
+                  return "";
                 }
                 const stringValue = String(value);
-                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                if (
+                  stringValue.includes(",") ||
+                  stringValue.includes('"') ||
+                  stringValue.includes("\n")
+                ) {
                   return `"${stringValue.replace(/"/g, '""')}"`;
                 }
                 return stringValue;
               });
-              
-              csvData += row.join(',') + '\n';
+
+              csvData += row.join(",") + "\n";
             } catch (parseError) {
-              console.warn('Skipping invalid JSON line in final buffer:', parseError.message);
+              console.warn(
+                "Skipping invalid JSON line in final buffer:",
+                parseError.message
+              );
             }
           }
           resolve(csvData);
         });
 
-        response.data.on('error', (error: Error) => {
-          console.error('Stream error:', error);
-          reject(new Error('Stream processing failed: ' + error.message));
+        response.data.on("error", (error: Error) => {
+          console.error("Stream error:", error);
+          reject(new Error("Stream processing failed: " + error.message));
         });
       });
     } catch (error) {
@@ -1352,17 +1369,20 @@ export class HelperService {
   private async refreshMetabaseSession(): Promise<string> {
     try {
       // Remove old session from Redis
-      await this.redisService.getClient()?.del('metabase:session');
-      
+      await this.redisService.getClient()?.del("metabase:session");
+
       // Create new session
       return await this.createMetabaseSession();
     } catch (error) {
-      console.error('Error refreshing Metabase session:', error);
+      console.error("Error refreshing Metabase session:", error);
       throw error;
     }
   }
 
-  async getBannerToShow(userId: string, componentKey: string): Promise<BannerResponseDto> {
+  async getBannerToShow(
+    userId: string,
+    componentKey: string
+  ): Promise<BannerResponseDto> {
     try {
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       if (!metabaseBaseUrl) {
@@ -1386,11 +1406,18 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
-      let systemConfiguration = await this.getSystemConfigByKey(EMetabaseUrlLimit.dynamic_banner);
+      let systemConfiguration = await this.getSystemConfigByKey(
+        EMetabaseUrlLimit.dynamic_banner
+      );
       let metaCart;
-      
-      if (systemConfiguration?.value && Array.isArray(systemConfiguration.value)) {
-        const matchingConfig = systemConfiguration.value.find(config => config.key === componentKey);
+
+      if (
+        systemConfiguration?.value &&
+        Array.isArray(systemConfiguration.value)
+      ) {
+        const matchingConfig = systemConfiguration.value.find(
+          (config) => config.key === componentKey
+        );
         if (matchingConfig) {
           metaCart = matchingConfig.value;
         }
@@ -1401,7 +1428,7 @@ export class HelperService {
         const response = await this.http_service
           .post(fullUrl, requestBody, { headers })
           .toPromise();
-        
+
         // Extract the banner value from the response
         const bannerToShow =
           response.data?.data?.rows?.[0]?.[0] || "68627cbac061d0184580adda";
@@ -1410,19 +1437,23 @@ export class HelperService {
         };
       } catch (apiError) {
         // If API call fails, try to refresh session and retry once
-        if (apiError.response?.status === 401 || apiError.response?.status === 403) {
+        if (
+          apiError.response?.status === 401 ||
+          apiError.response?.status === 403
+        ) {
           console.log("Session expired, refreshing...");
           metabaseSession = await this.refreshMetabaseSession();
-          
+
           // Update headers with new session
           headers["X-Metabase-Session"] = metabaseSession;
           // Retry the API call
           const retryResponse = await this.http_service
             .post(fullUrl, requestBody, { headers })
             .toPromise();
-          
+
           const bannerToShow =
-            retryResponse.data?.data?.rows?.[0]?.[0] || "68627cbac061d0184580adda";
+            retryResponse.data?.data?.rows?.[0]?.[0] ||
+            "68627cbac061d0184580adda";
           return {
             bannerToShow: bannerToShow,
           };
@@ -1439,17 +1470,17 @@ export class HelperService {
   }
   private async processLargeDatasetToCsv(jsonlData: string): Promise<string> {
     try {
-      const lines = jsonlData.trim().split('\n');
+      const lines = jsonlData.trim().split("\n");
       const csvRows: string[] = [];
       let headers: string[] = [];
       let isFirstRow = true;
 
       // Process in chunks to avoid memory issues
       const chunkSize = 1000; // Process 1000 lines at a time
-      
+
       for (let i = 0; i < lines.length; i += chunkSize) {
         const chunk = lines.slice(i, i + chunkSize);
-        
+
         for (const line of chunk) {
           try {
             const item = JSON.parse(line);
@@ -1459,7 +1490,7 @@ export class HelperService {
               time: item.properties?.time,
               distinct_id: item.properties?.distinct_id,
             };
-            
+
             // Include all properties as JSON string
             const flattened = {
               event: item.event,
@@ -1471,36 +1502,40 @@ export class HelperService {
             if (isFirstRow) {
               // Extract headers from first row - this will include all custom properties
               headers = Object.keys(flattened);
-              csvRows.push(headers.join(','));
+              csvRows.push(headers.join(","));
               isFirstRow = false;
             }
 
             // Create CSV row
-            const row = headers.map(header => {
+            const row = headers.map((header) => {
               const value = flattened[header];
               if (value === null || value === undefined) {
-                return '';
+                return "";
               }
               // Escape CSV values
               const stringValue = String(value);
-              if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+              if (
+                stringValue.includes(",") ||
+                stringValue.includes('"') ||
+                stringValue.includes("\n")
+              ) {
                 return `"${stringValue.replace(/"/g, '""')}"`;
               }
               return stringValue;
             });
-            
-            csvRows.push(row.join(','));
+
+            csvRows.push(row.join(","));
           } catch (parseError) {
-            console.warn('Skipping invalid JSON line:', parseError.message);
+            console.warn("Skipping invalid JSON line:", parseError.message);
             continue;
           }
         }
       }
 
-      return csvRows.join('\n');
+      return csvRows.join("\n");
     } catch (error) {
-      console.error('Error processing large dataset:', error);
-      throw new Error('Failed to process large dataset: ' + error.message);
+      console.error("Error processing large dataset:", error);
+      throw new Error("Failed to process large dataset: " + error.message);
     }
   }
 
@@ -1545,21 +1580,21 @@ export class HelperService {
             password: "",
           },
           params,
-          responseType: 'stream',
+          responseType: "stream",
           timeout: 300000, // 5 minutes timeout
         }
       );
 
       let isFirstRow = true;
       let headers: string[] = [];
-      let buffer = '';
+      let buffer = "";
 
-      response.data.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString('utf8');
-        const lines = buffer.split('\n');
-        
+      response.data.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString("utf8");
+        const lines = buffer.split("\n");
+
         // Keep the last incomplete line in buffer
-        buffer = lines.pop() || '';
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim()) {
@@ -1576,35 +1611,39 @@ export class HelperService {
               if (isFirstRow) {
                 // Extract headers from first row - this will include all custom properties
                 headers = Object.keys(flattened);
-                const csvHeader = headers.join(',') + '\n';
+                const csvHeader = headers.join(",") + "\n";
                 res.write(csvHeader);
                 isFirstRow = false;
               }
 
               // Create CSV row
-              const row = headers.map(header => {
+              const row = headers.map((header) => {
                 const value = flattened[header];
                 if (value === null || value === undefined) {
-                  return '';
+                  return "";
                 }
                 // Escape CSV values
                 const stringValue = String(value);
-                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                if (
+                  stringValue.includes(",") ||
+                  stringValue.includes('"') ||
+                  stringValue.includes("\n")
+                ) {
                   return `"${stringValue.replace(/"/g, '""')}"`;
                 }
                 return stringValue;
               });
-              
-              res.write(row.join(',') + '\n');
+
+              res.write(row.join(",") + "\n");
             } catch (parseError) {
-              console.warn('Skipping invalid JSON line:', parseError.message);
+              console.warn("Skipping invalid JSON line:", parseError.message);
               continue;
             }
           }
         }
       });
 
-      response.data.on('end', () => {
+      response.data.on("end", () => {
         // Process any remaining data in buffer
         if (buffer.trim()) {
           try {
@@ -1615,7 +1654,7 @@ export class HelperService {
               time: item.properties?.time,
               distinct_id: item.properties?.distinct_id,
             };
-            
+
             // Include all properties as JSON string
             const flattened = {
               event: item.event,
@@ -1626,37 +1665,43 @@ export class HelperService {
 
             if (isFirstRow) {
               headers = Object.keys(flattened);
-              const csvHeader = headers.join(',') + '\n';
+              const csvHeader = headers.join(",") + "\n";
               res.write(csvHeader);
             }
 
-            const row = headers.map(header => {
+            const row = headers.map((header) => {
               const value = flattened[header];
               if (value === null || value === undefined) {
-                return '';
+                return "";
               }
               const stringValue = String(value);
-              if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+              if (
+                stringValue.includes(",") ||
+                stringValue.includes('"') ||
+                stringValue.includes("\n")
+              ) {
                 return `"${stringValue.replace(/"/g, '""')}"`;
               }
               return stringValue;
             });
-            
-            res.write(row.join(',') + '\n');
+
+            res.write(row.join(",") + "\n");
           } catch (parseError) {
-            console.warn('Skipping invalid JSON line in final buffer:', parseError.message);
+            console.warn(
+              "Skipping invalid JSON line in final buffer:",
+              parseError.message
+            );
           }
         }
         res.end();
       });
 
-      response.data.on('error', (error: Error) => {
-        console.error('Stream error:', error);
+      response.data.on("error", (error: Error) => {
+        console.error("Stream error:", error);
         if (!res.headersSent) {
-          res.status(500).json({ error: 'Stream processing failed' });
+          res.status(500).json({ error: "Stream processing failed" });
         }
       });
-
     } catch (error) {
       console.error("Error streaming Mixpanel data:", error);
       if (res && !res.headersSent) {
@@ -1678,6 +1723,30 @@ export class HelperService {
       return JSON.stringify(data.data);
     } catch (err) {
       throw err;
+    }
+  }
+
+  // Helper method to call external endpoint
+  async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post(
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
+        {
+          embeddedURL: oldUrl,
+        },
+        {
+          headers: {
+            "x-api-version": "2",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error generating new media URL:", error);
+      throw error;
     }
   }
 }

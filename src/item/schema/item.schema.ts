@@ -80,6 +80,7 @@ export interface IItemModel extends mongoose.Document {
   parentItemId: string;
   price: number;
   currency: any;
+  isEnableExpertQueries: boolean;
   filterTypeId?: string;
 }
 
@@ -146,7 +147,7 @@ export const ItemTaxSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "taxSpecification",
   },
-  item_tax_id: { type: mongoose.Schema.Types.Mixed },
+  item_tax_id: { type: mongoose.Schema.Types.ObjectId },
 });
 
 export const ItemCodeSchema = new mongoose.Schema<any>({
@@ -221,12 +222,61 @@ export const MediaSchema = new mongoose.Schema({
   },
 });
 
+export interface ICurrency {
+  _id: string;
+  currency_name: string;
+  currency_code: string;
+}
+
+export const CurrencySchema = new mongoose.Schema<any>({
+  _id: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  currency_name: {
+    type: String,
+    required: true
+  },
+  currency_code: {
+    type: String,
+    required: true
+  }
+}, { _id: false }); // _id: false prevents Mongoose from creating an additional _id
+
+export const OrganizationEmbeddedSchema = new mongoose.Schema<any>({
+  _id: { 
+    type: mongoose.Schema.Types.ObjectId,
+    required: true 
+  },
+  phoneCountryCode: { 
+    type: String,
+    required: true 
+  },
+  phoneNumber: { 
+    type: String,
+    required: true 
+  },
+  created_at: { 
+    type: Date,
+    default: Date.now 
+  },
+  updated_at: { 
+    type: Date,
+    default: Date.now 
+  },
+  organizationName: { 
+    type: String,
+    required: true 
+  },
+  organizationId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    required: true 
+  }
+}, { _id: false }); // _id: false prevents Mongoose from creating an additional _id
+
 export const ItemSchema = new mongoose.Schema<any>(
   {
-    orgId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "organization",
-    },
+    orgId: OrganizationEmbeddedSchema,  // ⭐ Change from ObjectId ref to embedded organization object
     platformItemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "platformItem",
@@ -321,7 +371,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     stock_details: [StockDetailsSchema],
     status: { type: String, default: "Active" },
     price: { type: Number },
-    currency: { type: mongoose.Schema.Types.ObjectId, ref: "currency" },
+    currency: CurrencySchema,  // ⭐ Change from ObjectId ref to embedded currency object
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
@@ -332,7 +382,7 @@ export const ItemSchema = new mongoose.Schema<any>(
     },
     E_material_code: { type: String },
     comparePrice: { type: Number },
-    
+    isEnableExpertQueries: { type: Boolean },
   },
   {
     collection: "item",

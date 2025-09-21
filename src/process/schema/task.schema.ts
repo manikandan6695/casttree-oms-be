@@ -10,7 +10,8 @@ export interface taskModel {
     taskMetaData: any;
     status: string;
 }
-export const taskSchema = new mongoose.Schema<any>({
+export const taskSchema = new mongoose.Schema<any>(
+  {
     title: { type: String },
     parentProcessId: { type: mongoose.Schema.Types.ObjectId, ref: "process" },
     processId: { type: mongoose.Schema.Types.ObjectId, ref: "process" },
@@ -19,11 +20,16 @@ export const taskSchema = new mongoose.Schema<any>({
     isLocked: { type: Boolean },
     taskMetaData: { type: Object },
     status: { type: String },
+  },
+  {
+    collection: "task",
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+  }
+);
 
-}
-    ,
-
-    {
-        collection: "task",
-        timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
-    });
+// Indexes for episode/task fetches and updates
+taskSchema.index({ processId: 1 });
+taskSchema.index({ parentProcessId: 1 });
+taskSchema.index({ type: 1 });
+taskSchema.index({ status: 1 });
+taskSchema.index({ taskNumber: 1 });

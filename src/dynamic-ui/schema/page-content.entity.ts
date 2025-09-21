@@ -29,3 +29,7 @@ export const ContentPageSchema = new mongoose.Schema(
     collection: "contentPage",
   }
 );
+
+// Indexes to support lookups by component reference and status
+ContentPageSchema.index({ status: 1 });
+ContentPageSchema.index({ "components.componentId": 1 });
