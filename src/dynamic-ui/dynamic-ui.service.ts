@@ -310,7 +310,7 @@ export class DynamicUiService {
         if (tagName && serviceItemData?.finalData?.[tagName]) {
           comp.actionData = serviceItemData.finalData[tagName];
           comp["isViewAll"] =
-            serviceItemData.finalData[tagName].length > 10 ? true : false;
+            serviceItemData.finalData[tagName].length > 5 ? true : false;
         }
       });
       componentDocs.sort((a, b) => a.order - b.order);
