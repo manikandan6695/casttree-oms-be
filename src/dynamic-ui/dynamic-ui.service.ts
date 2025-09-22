@@ -15,7 +15,10 @@ import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import {
+  EMixedPanelEvents,
+  EMetabaseUrlLimit,
+} from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { EComponentKey, EComponentType } from "./enum/component.enum";
@@ -26,6 +29,8 @@ import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 const { ObjectId } = require("mongodb");
 import { ICategory } from "./schema/category.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class DynamicUiService {
@@ -48,7 +53,10 @@ export class DynamicUiService {
     @InjectModel("filterOptions")
     private readonly filterOptionsModel: Model<IFilterOption>,
     @InjectModel("category")
-    private readonly categoryModel: Model<ICategory>
+    private readonly categoryModel: Model<ICategory>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
+    private readonly redisService: RedisService
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -103,41 +111,27 @@ export class DynamicUiService {
   async getPageDetails(
     token: UserToken,
     pageId: string,
+    skip: number | undefined,
+    limit: number | undefined,
     filterOption: EFilterOption
   ) {
     try {
-      // const subscriptionData =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //     EsubscriptionStatus.expired,
-      //   ]);
-      // const existingUserSubscription =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //   ]);
-      // const isNewSubscription = subscriptionData ? true : false;
-      // const isSubscriber = existingUserSubscription ? true : false;
-      const [subscriptionData, existingUserSubscription] = await Promise.all([
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-          EsubscriptionStatus.expired,
-        ]),
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]),
-      ]);
-      const isNewSubscription = !!subscriptionData;
-      const isSubscriber = !!existingUserSubscription;
-      console.log("subscriber", isNewSubscription, isSubscriber);
-
-      const { data: { country_code: countryCode } = {} } =
-        await this.helperService.getUserById(token.id);
-      let country_code = countryCode;
-
+      // Cache key composed of user, page, pagination, and filters
+      const normalizedFilters = filterOption
+        ? Object.keys(filterOption)
+            .sort()
+            .reduce((acc, k) => {
+              acc[k] = (filterOption as any)[k];
+              return acc;
+            }, {} as any)
+        : {};
+      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
+        normalizedFilters
+      )}`;
+      const cached = await this.redisService.getClient()?.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -146,14 +140,16 @@ export class DynamicUiService {
         .lean();
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-      let componentDocs = await this.componentModel
+
+      const componentDocsPromise = this.componentModel
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
         .populate("interactionData.items.banner")
         .lean();
-      let serviceItemData = await this.fetchServiceItemDetails(
+
+      const serviceItemPromise = this.fetchServiceItemDetails(
         data,
         token.id,
         false,
@@ -162,6 +158,20 @@ export class DynamicUiService {
         null
       );
 
+      const bannerIdPromise = this.helperService.getBannerToShow(
+        token.id,
+        EMetabaseUrlLimit.full_size_banner
+      );
+
+      const filterOptionsPromise = this.componentFilterOptions();
+
+      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
+        await Promise.all([
+          componentDocsPromise,
+          serviceItemPromise,
+          bannerIdPromise,
+          filterOptionsPromise,
+        ]);
       const processIds = [];
 
       const serviceItem = serviceItemData.finalData;
@@ -181,36 +191,18 @@ export class DynamicUiService {
         token.id,
         unquieProcessIds
       );
-      let singleAdBanner = await this.fetchSingleAdBanner(
-        isNewSubscription,
-        token.id,
-        isSubscriber
-      );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      // Resolve banner configuration document now
+      let componentDocs = componentDocsRaw;
+      let banners = await this.bannerConfigurationModel.findOne({
+        _id: new ObjectId(bannerResp.bannerToShow),
+        status: EStatus.Active,
+      });
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.media = singleAdBanner?.media;
-          comp.banner = {
-            ...comp.banner,
-            bannerImage: singleAdBanner?.media?.mediaUrl,
-          };
-          comp.navigation = {
-            ...singleAdBanner?.navigation,
-            type: comp?.navigation?.type,
-          };
-        }
-        if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.interactionData = { items: banners };
+          comp.interactionData = { items: [banners] };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
@@ -220,12 +212,20 @@ export class DynamicUiService {
         }
       });
       componentDocs.sort((a, b) => a.order - b.order);
+      if (typeof limit === "number" && limit > 0) {
+        const start = Math.max(
+          0,
+          typeof skip === "number" && isFinite(skip) ? skip : 0
+        );
+        const end = start + limit;
+        componentDocs = componentDocs.slice(start, end);
+      }
       data["components"] = componentDocs;
       const componentsWithInteractionData = componentDocs.filter(
         (comp) => comp.interactionData
       );
       if (componentsWithInteractionData.length > 0) {
-        let availableFilterOptions = await this.componentFilterOptions();
+        let availableFilterOptions = filterOptions;
 
         const grouped = availableFilterOptions.reduce((acc, opt) => {
           if (!acc[opt.filterType]) {
@@ -299,7 +299,12 @@ export class DynamicUiService {
           }
         });
       }
-      return { data };
+      const response = { data };
+      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
+      await this.redisService
+        .getClient()
+        ?.setEx(cacheKey, 30, JSON.stringify(response));
+      return response;
     } catch (err) {
       throw err;
     }
@@ -1308,7 +1313,7 @@ export class DynamicUiService {
       updateDto.components.forEach(async (item, index) => {
         return await this.componentModel
           .updateOne(
-            {_id: new ObjectId(item.componentId)},
+            { _id: new ObjectId(item.componentId) },
             {
               $set: { order: index + 1 },
             }
@@ -1336,21 +1341,21 @@ export class DynamicUiService {
             // console.log("Setting order:", series.order, "for tag:", component.tag);
 
             // Update the order in the tag array where tag.name matches component.tag
-              await this.serviceItemModel.updateOne(
-                query,
-                {
-                  $set: {
-                    "tag.$[tagElem].order": series.order,
-                  },
+            await this.serviceItemModel.updateOne(
+              query,
+              {
+                $set: {
+                  "tag.$[tagElem].order": series.order,
                 },
-                {
-                  arrayFilters: [{ "tagElem.name": component.tag }],
-                }
-              )
+              },
+              {
+                arrayFilters: [{ "tagElem.name": component.tag }],
+              }
+            );
           });
         }
       });
-  
+
       return {
         success: true,
         message: "Page components updated successfully",
@@ -1395,7 +1400,7 @@ export class DynamicUiService {
           {
             $push: {
               tag: {
-                order: index+1,
+                order: index + 1,
                 name: tag,
                 category_id: categoryId,
               },
@@ -1405,13 +1410,14 @@ export class DynamicUiService {
       });
 
       // Process unselected series
-      unselected.map(async (item) =>
-        await this.serviceItemModel.updateOne(
-          { "additionalDetails.processId": item.id },
-          { $pull: { tag: { name: tag } } }
-        )
+      unselected.map(
+        async (item) =>
+          await this.serviceItemModel.updateOne(
+            { "additionalDetails.processId": item.id },
+            { $pull: { tag: { name: tag } } }
+          )
       );
-    
+
       return {
         success: true,
         message: "Series tags updated successfully",

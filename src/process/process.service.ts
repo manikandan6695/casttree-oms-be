@@ -32,7 +32,9 @@ export class ProcessService {
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
+    @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) { }
   async getTaskDetail(processId, taskId, token) {

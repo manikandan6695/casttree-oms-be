@@ -16,13 +16,12 @@ export class RedisService implements OnModuleDestroy {
   private isConnected = false;
   private isPolling = false;
 
-  // @InjectModel('eventOutBox')
-  // private eventOutBoxModel: Model<IEventOutBox>;
 
   constructor(
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService,
     private eventOutBoxService: EventOutBoxService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) { }
 
@@ -151,6 +150,10 @@ export class RedisService implements OnModuleDestroy {
       orderId,
       sourceId
     );
+  }
+
+  getClient() {
+    return this.client;
   }
 
   async onModuleDestroy() {

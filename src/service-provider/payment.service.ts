@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { forwardRef, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HelperService } from "src/helper/helper.service";
 import { AppException } from "src/shared/app-exception";
@@ -11,6 +11,7 @@ const Razorpay = require("razorpay");
 export class PaymentService {
   constructor(
     private configService: ConfigService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) {}
 
