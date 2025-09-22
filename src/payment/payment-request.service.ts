@@ -602,6 +602,9 @@ export class PaymentRequestService {
       if (conversionBody.metaData) {
         updateFields.metaData = conversionBody.metaData;
       }
+      if(body?.isPaymentRefunded){
+        updateFields.isPaymentRefunded = body.isPaymentRefunded;
+      }
       console.log("updateFields", updateFields);
 
       const updateData = await this.paymentModel.updateOne(

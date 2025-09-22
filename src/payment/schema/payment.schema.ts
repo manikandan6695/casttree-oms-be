@@ -52,6 +52,7 @@ export interface IPaymentModel extends mongoose.Document {
   metaData: any;
   created_by: any;
   updated_by: any;
+  isPaymentRefunded: boolean;
 }
 export const PaymentSchema = new mongoose.Schema(
   {
@@ -191,6 +192,9 @@ export const PaymentSchema = new mongoose.Schema(
     },
     metaData: {
       type: mongoose.Schema.Types.Mixed,
+    },
+    isPaymentRefunded:{
+      type: Boolean
     },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
