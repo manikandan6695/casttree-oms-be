@@ -1539,12 +1539,7 @@ export class SubscriptionService {
             await this.subscriptionModel.updateOne(
               {
                 _id: updatedInvoice.invoice.source_id,
-                subscriptionStatus: {
-                  $in: [
-                    EsubscriptionStatus.active,
-                    EsubscriptionStatus.initiated,
-                  ],
-                },
+                subscriptionStatus: EsubscriptionStatus.active
               },
               {
                 $set: {
