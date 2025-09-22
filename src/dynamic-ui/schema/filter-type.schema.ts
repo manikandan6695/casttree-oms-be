@@ -31,7 +31,8 @@ export const sourceSchema = new mongoose.Schema({
     sourceId: { type: mongoose.Schema.Types.ObjectId, ref: "component" }
 },{_id:false})
 
-export const FilterTypeSchema = new mongoose.Schema({
+export const FilterTypeSchema = new mongoose.Schema(
+  {
     type: { type: String },
     displayName: { type: String },
     discription: { type: String },
@@ -44,4 +45,8 @@ export const FilterTypeSchema = new mongoose.Schema({
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     collection: "filterTypes",
   }
-)
+);
+
+// Indexes for quick filter type queries
+FilterTypeSchema.index({ isActive: 1, sortOrder: 1 });
+FilterTypeSchema.index({ type: 1 });

@@ -45,7 +45,7 @@ export interface proficiencyModel {
 export const proficiencySchema = new mongoose.Schema<any>({
   name: {
     type: String,
-    required: true,
+    required: true
   },
   filterOptionId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -65,8 +65,7 @@ export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "process",
   },
-  parentProcessId: {
-    // Add missing field
+  parentProcessId: {  
     type: mongoose.Schema.Types.ObjectId,
     ref: "process",
   },
@@ -151,3 +150,15 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
+ 
+// Indexes for frequent queries in DynamicUiService
+serviceitemsSchema.index({ type: 1, status: 1 });
+serviceitemsSchema.index({ "skill.skillId": 1 });
+serviceitemsSchema.index({ "skill.skill_name": 1 });
+serviceitemsSchema.index({ "additionalDetails.processId": 1 });
+serviceitemsSchema.index({ "additionalDetails.parentProcessId": 1 });
+serviceitemsSchema.index({ "tag.name": 1 });
+serviceitemsSchema.index({ "tag.name": 1, "tag.order": 1 });
+serviceitemsSchema.index({ "proficiency.filterOptionId": 1 });
+serviceitemsSchema.index({ "category.filterOptionId": 1 });
+serviceitemsSchema.index({ userId: 1 });

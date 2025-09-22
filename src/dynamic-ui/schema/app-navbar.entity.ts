@@ -62,3 +62,7 @@ export const AppNavBarSchema = new mongoose.Schema(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
+
+// Indexes for quick navbar lookup
+AppNavBarSchema.index({ key: 1 });
+AppNavBarSchema.index({ status: 1 });
