@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsArray, IsMongoId, ValidateIf } from "class-validator";
-import { Transform } from "class-transformer";
+import { IsOptional, IsString, IsArray, IsMongoId, ValidateIf, IsInt, Min } from "class-validator";
+import { Transform, Type } from "class-transformer";
 
 export class EFilterOption {
 
@@ -23,3 +23,19 @@ export class EFilterOption {
     @IsString({ each: true })
     category?: string[] | null;
 }
+
+export class ComponentFilterQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    @Transform(({ value }) => parseInt(value))
+    skip?: number = 0;
+    
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Transform(({ value }) => parseInt(value))
+    limit?: number = 10;
+  }

@@ -26,7 +26,7 @@ import { ENavBar } from "./enum/nav-bar.enum";
 import { IUserFilterPreference } from "./schema/user-filter-preference.schema";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
-import { EFilterOption } from "./dto/filter-option.dto";
+import { ComponentFilterQueryDto, EFilterOption } from "./dto/filter-option.dto";
 import { processModel } from "src/process/schema/process.schema";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
@@ -1495,6 +1495,467 @@ export class DynamicUiService {
     } catch (error) {
       console.error("Error updating series tags:", error);
       throw error;
+    }
+  }
+    
+  async getFilterComponent(
+    token: UserToken,
+    componentId: string,
+    query: ComponentFilterQueryDto,
+    filterOption: EFilterOption
+  ) {
+    try {
+      const { skip, limit } = query;
+      const baseComponent = await this.componentModel
+        .findOne({
+          componentKey: EComponentKey.filterActionButton,
+          status: EStatus.Active,
+        })
+        .lean();
+
+      let actualComponent = await this.componentModel
+        .findOne({ _id: componentId, status: EStatus.Active })
+        .lean();
+
+      const tagName = actualComponent?.tag?.tagName;
+
+      let page = await this.contentPageModel
+        .findOne({ "components.componentId": componentId })
+        .lean();
+
+      let serviceItemData;
+      let filteredData: any[] = [];
+
+      if (page) {
+        serviceItemData = await this.fetchServiceItemDetails(
+          page,
+          token.id,
+          true,
+          skip,
+          limit,
+          filterOption
+        );
+        if (tagName && serviceItemData?.finalData?.[tagName]) {
+          filteredData = serviceItemData.finalData[tagName];
+        } else {
+          filteredData = [];
+        }
+      } 
+      // else {
+      //   console.log("inside else")
+      //   if (tagName) {
+      //     const serviceItemsWithTag = await this.serviceItemModel
+      //       .find({
+      //         "tag.name": tagName,
+      //         status: Estatus.Active,
+      //         type: EserviceItemType.courses,
+      //       })
+      //       .limit(1)
+      //       .lean();
+
+      //     if (serviceItemsWithTag.length > 0) {
+      //       const skillId = serviceItemsWithTag[0].skill?.skillId;
+
+      //       if (skillId) {
+      //         const mockPage = {
+      //           metaData: {
+      //             skillId: skillId,
+      //           },
+      //         };
+
+      //         serviceItemData = await this.fetchServiceItemDetails(
+      //           mockPage,
+      //           token.id,
+      //           false,
+      //           skip,
+      //           limit,
+      //           filterOption
+      //         );
+
+      //         if (serviceItemData?.finalData?.[tagName]) {
+      //           filteredData = serviceItemData.finalData[tagName];
+      //         } else {
+      //           filteredData = [];
+      //         }
+      //       }
+      //     }
+      //   } else {
+
+      //     filteredData = [];
+      //   }
+      // }
+
+      let componentFilterData;
+      try {
+        componentFilterData = await this.getComponentFilterOptions(componentId, token, filterOption);
+      } catch (error) {
+        // console.log("Error getting component filter options:", error);
+        componentFilterData = { interactionData: { items: [] } };
+      }
+
+      const interactionDataToUse = componentFilterData?.interactionData?.items || [];
+  
+      const finalInteractionData = interactionDataToUse;
+
+
+      const componentFilterTypes = [];
+      if (finalInteractionData.length > 0) {
+        finalInteractionData.forEach((item: any) => {
+          if (item.button?.type || item.type) {
+            let filterType = item.button?.type || item.type;
+            if (filterType === "proficency") {
+              filterType = "proficiency";
+            }
+            componentFilterTypes.push(filterType);
+          }
+        });
+      }
+
+      let availableFilterOptions = await this.componentFilterOptions();      
+
+      const filteredOptions = componentFilterTypes.length > 0 
+        ? availableFilterOptions.filter(opt => componentFilterTypes.includes(opt.filterType))
+        : availableFilterOptions; 
+
+      const grouped = filteredOptions.reduce((acc, opt) => {
+        if (!acc[opt.filterType]) {
+          acc[opt.filterType] = {
+            type: opt.filterType,
+            filterTypeId: opt.filterTypeId.toString(),
+            options: [],
+          };
+        }
+        acc[opt.filterType].options.push({
+          filterOptionId: opt._id.toString(),
+          filterType: opt.filterType,
+          optionKey: opt.optionKey,
+          optionValue: opt.optionValue,
+          isUserSelected: false,
+        });
+        return acc;
+      }, {});
+
+      if (filterOption) {
+        Object.keys(filterOption).forEach((filterKey) => {
+          const filterValue = filterOption[filterKey];
+          const groupedData = grouped[filterKey];
+
+          if (groupedData && filterValue) {
+            if (Array.isArray(filterValue)) {
+              groupedData.options.forEach((opt) => {
+                opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+              });
+            } else {
+              groupedData.options.forEach((opt) => {
+                opt.isUserSelected = opt.filterOptionId === filterValue;
+              });
+            }
+          }
+        });
+      }
+
+      if (baseComponent?.interactionData) {
+        const groupedOptionsMap = new Map();
+        Object.values(grouped).forEach(
+          (group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          }
+        );
+
+        const transformedItems = finalInteractionData.map((item: any) => {
+          let filterType = item.button?.type || item.type;
+          if (filterType === "proficency") {
+            filterType = "proficiency";
+          }
+          const groupedData = groupedOptionsMap.get(filterType);
+
+          if (groupedData) {
+            const existingOptions = item.options || [];
+            const newOptions = groupedData.options || [];
+
+            const existingOptionIds = new Set(
+              existingOptions.map((opt) => opt.filterOptionId)
+            );
+
+            const uniqueNewOptions = newOptions.filter(
+              (opt) => !existingOptionIds.has(opt.filterOptionId)
+            );
+
+            const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+            return {
+              ...item,
+              type: filterType,
+              filterTypeId: groupedData.filterTypeId,
+              options: mergedOptions,
+            };
+          }
+
+          return item;
+        });
+
+        baseComponent.interactionData = { items: transformedItems };
+      }
+
+      baseComponent.actionData = filteredData;
+
+      let totalCount = 0;
+      if (tagName && serviceItemData?.finalData?.[tagName]) {
+        const tagNameCount = await this.getTagNameTotalCount(
+          serviceItemData,
+          tagName,
+          token.id,
+          filterOption
+        );
+        totalCount = tagNameCount;
+      } else {
+        totalCount = 0;
+      }
+
+      baseComponent["totalCount"] = totalCount;
+
+      return { component: baseComponent };
+    } catch (err) {
+      throw err;
+    }
+  }
+  // async getComponentFilterOptions(componentId: string, token?: UserToken, filterOption?: EFilterOption): Promise<any> {
+  //   try {
+
+  //     const filterTypes = await this.filterTypeModel
+  //       .find({
+  //         "source.sourceId": new ObjectId(componentId),
+  //         isActive: true
+  //       })
+  //       .sort({ sortOrder: 1 })
+  //       .lean();
+  //     if (!filterTypes || filterTypes.length === 0) {
+  //       return {
+  //         componentId: componentId,
+  //         filterTypes: [],
+  //         interactionData: { items: [] }
+  //       };
+  //     }
+
+  //     const filterTypeIds = filterTypes.map(ft => ft._id);
+  //     const filterOptions = await this.filterOptionsModel
+  //       .find({
+  //         filterTypeId: { $in: filterTypeIds },
+  //         status: EStatus.Active
+  //       })
+  //       .sort({ sortOrder: 1 })
+  //       .lean();
+
+  //     const groupedOptions = filterOptions.reduce((acc, option) => {
+  //       const filterTypeId = option.filterTypeId.toString();
+  //       if (!acc[filterTypeId]) {
+  //         acc[filterTypeId] = [];
+  //       }
+  //       acc[filterTypeId].push({
+  //         filterOptionId: option._id.toString(),
+  //         filterType: option.filterType,
+  //         optionKey: option.optionKey,
+  //         optionValue: option.optionValue,
+  //         description: option.description,
+  //         icon: option.icon,
+  //         color: option.color,
+  //         metaData: option.metaData
+  //       });
+  //       return acc;
+  //     }, {});
+
+  //     const interactionItems = filterTypes.map(filterType => {
+  //       const filterTypeId = filterType._id.toString();
+  //       const options = groupedOptions[filterTypeId] || [];
+
+  //       return {
+  //         button: {
+  //           type: filterType.type,
+  //           lable: filterType.displayName,
+  //           selectionType: filterType.validationRules?.maxSelections > 1 ? "multiple" : "single"
+  //         },
+  //         type: filterType.type,
+  //         filterTypeId: filterTypeId,
+  //         options: options.map(option => {
+  //           let isUserSelected = false;
+            
+  //           if (filterOption && filterOption[filterType.type]) {
+  //             const filterValue = filterOption[filterType.type];
+  //             if (Array.isArray(filterValue)) {
+  //               isUserSelected = filterValue.includes(option.filterOptionId);
+  //             } else {
+  //               isUserSelected = filterValue === option.filterOptionId;
+  //             }
+  //           }
+
+  //           return {
+  //             filterOptionId: option.filterOptionId,
+  //             filterType: option.filterType,
+  //             optionKey: option.optionKey,
+  //             optionValue: option.optionValue,
+  //             isUserSelected: isUserSelected
+  //           };
+  //         })
+  //       };
+  //     });
+  //     let finalData = {
+  //       interactionData: {
+  //         items: interactionItems
+  //       }
+  //     };
+  //     return finalData
+
+
+  //   } catch (error) {
+  //     // console.error('Error getting component filter options:', error);
+  //     throw error;
+  //   }
+  // }
+  async getComponentFilterOptions(
+    componentId: string,
+    token?: UserToken,
+    filterOption?: EFilterOption
+  ): Promise<any> {
+    try {
+      const filterTypes = await this.filterTypeModel
+        .find({
+          "source.sourceId": new ObjectId(componentId),
+          isActive: true,
+        })
+        .sort({ sortOrder: 1 })
+        .lean();
+  
+      if (!filterTypes?.length) {
+        return {
+          componentId,
+          filterTypes: [],
+          interactionData: { items: [] },
+        };
+      }
+  
+      const filterTypeIds = filterTypes.map((ft) => ft._id);
+      const filterOptions = await this.filterOptionsModel
+        .find({
+          filterTypeId: { $in: filterTypeIds },
+          status: EStatus.Active,
+        })
+        .sort({ sortOrder: 1 })
+        .lean();
+  
+      const groupedOptions = filterOptions.reduce<Record<string, any[]>>(
+        (acc, option) => {
+          const filterTypeId = option.filterTypeId.toString();
+          if (!acc[filterTypeId]) acc[filterTypeId] = [];
+          acc[filterTypeId].push({
+            filterOptionId: option._id.toString(),
+            filterType: option.filterType,
+            optionKey: option.optionKey,
+            optionValue: option.optionValue,
+            description: option.description,
+            icon: option.icon,
+            color: option.color,
+            metaData: option.metaData,
+          });
+          return acc;
+        },
+        {}
+      );
+  
+      const interactionItems = filterTypes.map((filterType) => {
+        const filterTypeId = filterType._id.toString();
+        const options = groupedOptions[filterTypeId] || [];
+  
+        return {
+          button: {
+            type: filterType.type,
+            lable: filterType.displayName,
+            selectionType:
+              filterType.validationRules?.maxSelections > 1
+                ? "multiple"
+                : "single",
+          },
+          type: filterType.type,
+          filterTypeId,
+          options: options.map((option) => {
+            const userValue = filterOption?.[filterType.type];
+            const isUserSelected = Array.isArray(userValue)
+              ? userValue.includes(option.filterOptionId)
+              : userValue === option.filterOptionId;
+  
+            return {
+              filterOptionId: option.filterOptionId,
+              filterType: option.filterType,
+              optionKey: option.optionKey,
+              optionValue: option.optionValue,
+              isUserSelected,
+            };
+          }),
+        };
+      });
+  
+      return {
+        componentId,
+        interactionData: { items: interactionItems },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  private async getTagNameTotalCount(
+    serviceItemData: any,
+    tagName: string,
+    userId: string,
+    filterOption: EFilterOption
+  ): Promise<number> {
+    try {
+      if (serviceItemData?.finalData?.[tagName]) {
+        let page = null;
+
+        if (serviceItemData.page) {
+          page = serviceItemData.page;
+        } else {
+          const serviceItemsWithTag = await this.serviceItemModel
+            .find({
+              "tag.name": tagName,
+              status: Estatus.Active,
+              type: EserviceItemType.courses,
+            })
+            .limit(1)
+            .lean();
+
+          if (serviceItemsWithTag.length > 0) {
+            const skillId = serviceItemsWithTag[0].skill?.skillId;
+            if (skillId) {
+              page = {
+                metaData: {
+                  skillId: skillId,
+                },
+              };
+            }
+          }
+        }
+
+        if (page) {
+          const fullServiceItemData = await this.fetchServiceItemDetails(
+            page,
+            userId,
+            false,
+            0,
+            0,
+            filterOption
+          );
+
+          if (fullServiceItemData?.finalData?.[tagName]) {
+            return fullServiceItemData.finalData[tagName].length;
+          }
+        }
+      }
+
+      return serviceItemData?.finalData?.[tagName]?.length || 0;
+    } catch (error) {
+      console.error("Error getting tagName total count:", error);
+      return 0;
     }
   }
 }

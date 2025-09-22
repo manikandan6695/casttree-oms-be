@@ -18,7 +18,7 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
-import { EFilterOption } from "./dto/filter-option.dto";
+import { ComponentFilterQueryDto, EFilterOption } from "./dto/filter-option.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -103,6 +103,29 @@ export class DynamicUiController {
     try {
       const res = await this.dynamicUIService.updateSeriesTag(updateDto);
       return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("filter-component/:componentId")
+  async getFilterComponent(
+    @Req() req,
+    @Param("componentId") componentId: string,
+    @GetToken() token: UserToken,
+    @Query(new ValidationPipe({ whitelist: true }))
+    query: ComponentFilterQueryDto,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
+  ) {
+    try {
+      let data = await this.dynamicUIService.getFilterComponent(
+        token,
+        componentId,
+        query,
+        filterOption
+      );
+      return data;
     } catch (err) {
       throw err;
     }
