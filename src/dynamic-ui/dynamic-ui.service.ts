@@ -2640,10 +2640,6 @@ export class DynamicUiService {
         .findOne({ _id: new ObjectId(mediaId.toString()) })
         .select("location");
 
-      if (session) {
-        query = query.session(session);
-      }
-
       const mediaDoc = await query.lean();
       return mediaDoc?.location ?? null;
     } catch (e) {
