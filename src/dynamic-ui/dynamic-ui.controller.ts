@@ -120,7 +120,7 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("filter-component/:componentId")
+  @Get("series-filter/:componentId")
   async getFilterComponent(
     @Req() req,
     @Param("componentId") componentId: string,
