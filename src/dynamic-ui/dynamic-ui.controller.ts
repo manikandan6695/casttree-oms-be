@@ -19,6 +19,11 @@ import { DynamicUiService } from "./dynamic-ui.service";
 import { EFilterOption } from "./dto/filter-option.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
+import { AddNewSeriesDto } from "./dto/add-new-series.dto";
+import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
+import { AddAchievementDto } from "./dto/add-achievement.dto";
+import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
+import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -109,6 +114,163 @@ export class DynamicUiController {
   ) {
     try {
       const res = await this.dynamicUIService.updateSeriesTag(updateDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("series/initial-data")
+  async getSeriesData(@Req() req) {
+    try {
+      const res = await this.dynamicUIService.getSeriesData();
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/create")
+  async addNewSeries(
+    @Req() req,
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ transform: true })) createDto: AddNewSeriesDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewSeries(createDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("episode/add")
+  async addNewEpisodes(
+    @Req() req,
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ transform: true })) createDto: AddNewEpisodesDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewEpisodes(createDto);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("currency")
+  async getCurrencyList(@Req() req) {
+    try {
+      const res = await this.dynamicUIService.getCurrencyList();
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("achievement/add")
+  async addAchievement(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) payload: AddAchievementDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.addNewAchievement(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("episode/media/update")
+  async updateEpisodeMedia(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) payload: { seriesId: string }
+  ) {
+    try {
+      const res = await this.dynamicUIService.updateEpisodeMedia(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("virtual-item/:type")
+  async getVirtualItemList(@Req() req, @Param("type") type: string) {
+    try {
+      const res = await this.dynamicUIService.getVirtualItemList(type);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("virtual-item/create")
+  async createVirtualItem(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) payload: CreateVirtualItemDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.createVirtualItem(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("virtual-item/series/map")
+  async mapVirtualItemToSeries(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true }))
+    payload: MapVirtualItemToSeriesDto
+  ) {
+    try {
+      const res = await this.dynamicUIService.mapVirtualItemToSeries(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("gift/group")
+  async getVirtualItemGroup(@Req() req) {
+    try {
+      const res = await this.dynamicUIService.getVirtualItemGroup();
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("gift/group/create")
+  async createVirtualItemGroup(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true }))
+    payload: { groupName: string; giftIds: string[] }
+  ) {
+    try {
+      const res = await this.dynamicUIService.createVirtualItemGroup(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("award")
+  async getAwardList(@Req() req) {
+    try {
+      const res = await this.dynamicUIService.getAwardList();
       return res;
     } catch (err) {
       throw err;

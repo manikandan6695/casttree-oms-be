@@ -151,3 +151,5 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
+
+serviceitemsSchema.index({ "tag.name": 1 });
