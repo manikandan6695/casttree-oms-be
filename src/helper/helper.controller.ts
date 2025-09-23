@@ -44,9 +44,9 @@ export class HelperController {
   }
 
   @Get("banner/:userId")
-  async getBannerToShow(@Param("userId") userId: string, @Query("componentKey") componentKey: string): Promise<BannerResponseDto> {
+  async getBannerToShow(@Param("userId") userId: string,@Param("skillId") skillId: string, @Query("componentKey") componentKey: string, @Query("skillType") skillType: string): Promise<BannerResponseDto> {
     try {
-      const data = await this.helperService.getBannerToShow(userId,componentKey);
+      const data = await this.helperService.getBannerToShow(userId,skillId,skillType,componentKey);
       return data;
     } catch (err) {
       throw err;

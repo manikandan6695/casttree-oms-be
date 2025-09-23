@@ -232,8 +232,12 @@ export class DynamicUiService {
         0,
         null
       );
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
       const bannerIdPromise = this.helperService.getBannerToShow(
         token.id,
+        skillId,
+        skillType,
         EMetabaseUrlLimit.full_size_banner
       );
       const filterOptionsPromise = this.componentFilterOptions();
