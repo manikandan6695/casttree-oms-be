@@ -236,8 +236,10 @@ export class DynamicUiService {
                 .findOne({ "additionalDetails.processId": item.processId })
                 .select("itemId")
                 .lean();
-              const itemName = await this.itemModel.findOne({ _id: itemId.itemId }).select("itemName").lean();
-              item.itemName = itemName.itemName;
+              if (itemId) {
+                const itemName = await this.itemModel.findOne({ _id: itemId.itemId }).select("itemName").lean();
+                item.itemName = itemName?.itemName;
+              }
               // console.log("itemName", itemName);
             }
           });
