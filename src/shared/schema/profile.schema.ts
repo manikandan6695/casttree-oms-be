@@ -140,6 +140,3 @@ export const ProfileSchema = new mongoose.Schema<IProfileModel>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
-
-// Indexes for common profile lookups
-ProfileSchema.index({ userId: 1 }, { unique: true });
