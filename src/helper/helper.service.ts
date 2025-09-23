@@ -1403,6 +1403,8 @@ export class HelperService {
   }
   async getBannerToShow(
     userId: string,
+    skillId: string,
+    skillType: string,
     componentKey: string
   ): Promise<BannerResponseDto> {
     try {
@@ -1420,6 +1422,11 @@ export class HelperService {
             target: ["variable", ["template-tag", "userid"]],
             value: userId,
           },
+          {
+            "type": "text",
+            "target": ["variable", ["template-tag", "skill_id"]],
+            "value": skillId
+          }
         ],
       };
 
@@ -1462,12 +1469,24 @@ export class HelperService {
           })
           .toPromise();
        
-       
+
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
+        let defaultBanner;
+        // Find matching banner based on skillId and skillType
+        if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
+          const matchingBanner = defaultBannerId.value.find(
+            (banner) => 
+              banner.sourceId.toString() === skillId.toString() && 
+              banner.sourceType === skillType
+          );
+          if (matchingBanner) {
+            defaultBanner = matchingBanner.bannerId.toString();
+          }
+        }
         const flattenedRows = response.data?.data?.rows?.flat() || [];
-        const bannerToShow = flattenedRows || defaultBannerId?.value;
+        const bannerToShow = flattenedRows || defaultBanner;
         return {
           bannerToShow: bannerToShow,
         };
@@ -1494,8 +1513,21 @@ export class HelperService {
             .toPromise();
 
 
-          const bannerToShow =
-            retryResponse.data?.data?.rows?.[0]?.[0] || defaultBannerId?.value;
+            let defaultBanner;
+            
+            // Find matching banner based on skillId and skillType
+            if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
+              const matchingBanner = defaultBannerId.value.find(
+                (banner) => 
+                  banner.sourceId.toString() === skillId.toString() && 
+                  banner.sourceType === skillType
+              );
+              if (matchingBanner) {
+                defaultBanner = matchingBanner.bannerId.toString();
+              }
+            }
+            const flattenedRows =  retryResponse.data?.data?.rows?.flat() || [];
+            const bannerToShow = flattenedRows || defaultBanner;
           return {
             bannerToShow: bannerToShow,
           };
@@ -1507,9 +1539,21 @@ export class HelperService {
       let defaultBannerId = await this.getSystemConfigByKeyCached(
         EMetabaseUrlLimit.default_banner
       );
+      let defaultBanner;
+      // Find matching banner based on skillId and skillType
+      if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
+        const matchingBanner = defaultBannerId.value.find(
+          (banner) => 
+            banner.sourceId.toString() === skillId && 
+            banner.sourceType === skillType
+        );
+        if (matchingBanner) {
+          defaultBanner = matchingBanner.bannerId.toString();
+        }
+      }
       // Return default banner in case of error
       return {
-        bannerToShow: defaultBannerId?.value,
+        bannerToShow: defaultBanner,
       };
     }
   }
