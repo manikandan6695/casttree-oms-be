@@ -32,6 +32,7 @@ import { VirtualItem, VirtualItemSchema } from './schema/virtual-item.schema';
 import { VirtualItemGroup, VirtualItemGroupSchema } from './schema/virtual-item-group.schema';
 import { Award, AwardSchema } from './schema/awards.schema';
 import { CurrencySchema } from '../shared/schema/currency.schema';
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { CurrencySchema } from '../shared/schema/currency.schema';
     forwardRef(() => HelperModule),
     ProcessModule,
     SubscriptionModule,
+    RedisModule
   ],
   controllers: [DynamicUiController],
   providers: [DynamicUiService],
