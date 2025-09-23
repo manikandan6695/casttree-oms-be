@@ -152,14 +152,4 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
   }
 );
 
-// Indexes for frequent queries in DynamicUiService
-serviceitemsSchema.index({ type: 1, status: 1 });
-serviceitemsSchema.index({ "skill.skillId": 1 });
-serviceitemsSchema.index({ "skill.skill_name": 1 });
-serviceitemsSchema.index({ "additionalDetails.processId": 1 });
-serviceitemsSchema.index({ "additionalDetails.parentProcessId": 1 });
 serviceitemsSchema.index({ "tag.name": 1 });
-serviceitemsSchema.index({ "tag.name": 1, "tag.order": 1 });
-serviceitemsSchema.index({ "proficiency.filterOptionId": 1 });
-serviceitemsSchema.index({ "category.filterOptionId": 1 });
-serviceitemsSchema.index({ userId: 1 });

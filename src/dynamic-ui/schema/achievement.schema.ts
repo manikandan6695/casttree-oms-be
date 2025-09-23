@@ -61,8 +61,3 @@ export class Achievement {
 }
 
 export const AchievementSchema = SchemaFactory.createForClass(Achievement);
-
-// Indexes for achievement lookups/filters
-AchievementSchema.index({ key: 1 }, { unique: true });
-AchievementSchema.index({ status: 1 });
-AchievementSchema.index({ sourceId: 1, sourceType: 1 });

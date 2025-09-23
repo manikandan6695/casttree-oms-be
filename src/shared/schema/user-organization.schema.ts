@@ -49,11 +49,3 @@ export const UserOrganizationSchema =
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     }
   );
-
-// Add indexes for better query performance
-UserOrganizationSchema.index({ userId: 1 });
-UserOrganizationSchema.index({ organizationId: 1 });
-UserOrganizationSchema.index(
-  { userId: 1, organizationId: 1 },
-  { unique: true }
-);

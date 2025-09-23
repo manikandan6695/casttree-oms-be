@@ -42,7 +42,3 @@ export const RoleSchema = new mongoose.Schema<IRoleModel>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
-
-// Indexes for role lookups
-RoleSchema.index({ status: 1 });
-RoleSchema.index({ role_name: 1 });

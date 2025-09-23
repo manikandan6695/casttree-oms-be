@@ -67,9 +67,3 @@ export class VirtualItem {
 }
 
 export const VirtualItemSchema = SchemaFactory.createForClass(VirtualItem);
-
-// Indexes for virtual item queries
-VirtualItemSchema.index({ type: 1 });
-VirtualItemSchema.index({ status: 1 });
-VirtualItemSchema.index({ isPayable: 1 });
-VirtualItemSchema.index({ "source.sourceId": 1, "source.sourceType": 1 });

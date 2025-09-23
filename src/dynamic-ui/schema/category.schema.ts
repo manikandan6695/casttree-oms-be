@@ -24,7 +24,3 @@ export class CategorySchema {
 }
 
 export const categorySchema = SchemaFactory.createForClass(CategorySchema);
-
-// Indexes for category lookups in DynamicUiService
-categorySchema.index({ category_name: 1, status: 1 });
-categorySchema.index({ category_type: 1 });

@@ -34,7 +34,3 @@ export const SkillsSchema = new mongoose.Schema<ISkillModel>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
-
-// Indexes for skill lookups
-SkillsSchema.index({ status: 1 });
-SkillsSchema.index({ skill_name: 1 });

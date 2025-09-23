@@ -90,10 +90,3 @@ export const mediaSchema = new mongoose.Schema<mediaModel>(
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
-
-// Add indexes for better query performance
-mediaSchema.index({ created_by: 1 });
-mediaSchema.index({ media_type: 1 });
-mediaSchema.index({ status: 1 });
-mediaSchema.index({ privacy: 1 });
-mediaSchema.index({ created_at: -1 });

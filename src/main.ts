@@ -18,8 +18,7 @@ async function bootstrap() {
       ),
       methods: process.env.CORS_ALLOWED_METHODS,
     },
-  });
-  app.enableCors();
+});
   app.use(helmet());
   app.use(bodyParser.json({ limit: "50mb" }));
   app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));

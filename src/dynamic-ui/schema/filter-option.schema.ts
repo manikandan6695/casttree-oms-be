@@ -31,8 +31,3 @@ export const FilterOptionSchema = new mongoose.Schema({
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     collection: "filterOptions",
 });
-
-// Indexes for quick filtering and sorting
-FilterOptionSchema.index({ filterType: 1, status: 1, sortOrder: 1 });
-FilterOptionSchema.index({ filterTypeId: 1 });
-FilterOptionSchema.index({ status: 1 });

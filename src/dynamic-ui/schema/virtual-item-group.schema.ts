@@ -39,8 +39,3 @@ export class VirtualItemGroup {
 
 export const VirtualItemGroupSchema =
   SchemaFactory.createForClass(VirtualItemGroup);
-
-// Indexes for group queries and membership
-VirtualItemGroupSchema.index({ virtualItemGroupName: 1 });
-VirtualItemGroupSchema.index({ "source.sourceId": 1, "source.sourceType": 1 });
-VirtualItemGroupSchema.index({ virtualItemIds: 1 });

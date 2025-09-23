@@ -147,7 +147,7 @@ export const ItemTaxSchema = new mongoose.Schema<any>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "taxSpecification",
   },
-  item_tax_id: { type: mongoose.Schema.Types.ObjectId },
+  item_tax_id: { type: mongoose.Schema.Types.Mixed },
 });
 
 export const ItemCodeSchema = new mongoose.Schema<any>({

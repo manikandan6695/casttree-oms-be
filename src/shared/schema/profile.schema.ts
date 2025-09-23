@@ -143,5 +143,3 @@ export const ProfileSchema = new mongoose.Schema<IProfileModel>(
 
 // Indexes for common profile lookups
 ProfileSchema.index({ userId: 1 }, { unique: true });
-ProfileSchema.index({ type: 1 });
-ProfileSchema.index({ displayName: 1 });

@@ -34,7 +34,3 @@ export const FilterTypeSchema = new mongoose.Schema({
     collection: "filterTypes",
   }
 )
-
-// Indexes for quick filter type queries
-FilterTypeSchema.index({ isActive: 1, sortOrder: 1 });
-FilterTypeSchema.index({ type: 1 });
