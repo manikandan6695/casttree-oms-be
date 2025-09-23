@@ -44,17 +44,13 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
-    @GetToken() token: UserToken,
-    @Query("skip") skip?: string,
-    @Query("limit") limit?: string,
-    @Query(new ValidationPipe({ transform: true })) filterOption?: EFilterOption
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
+    @GetToken() token: UserToken
   ) {
     try {
       let data = await this.dynamicUIService.getPageDetails(
         token,
         pageId,
-        skip ? parseInt(skip as any, 10) : undefined,
-        limit ? parseInt(limit as any, 10) : undefined,
         filterOption
       );
       return data;

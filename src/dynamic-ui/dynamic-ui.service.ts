@@ -111,27 +111,28 @@ export class DynamicUiService {
   async getPageDetails(
     token: UserToken,
     pageId: string,
-    skip: number | undefined,
-    limit: number | undefined,
     filterOption: EFilterOption
   ) {
     try {
-      // Cache key composed of user, page, pagination, and filters
-      const normalizedFilters = filterOption
-        ? Object.keys(filterOption)
-            .sort()
-            .reduce((acc, k) => {
-              acc[k] = (filterOption as any)[k];
-              return acc;
-            }, {} as any)
-        : {};
-      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
-        normalizedFilters
-      )}`;
-      const cached = await this.redisService.getClient()?.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached as string);
-      }
+      const [subscriptionData, existingUserSubscription] = await Promise.all([
+        this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+          EsubscriptionStatus.expired,
+        ]),
+        this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]),
+      ]);
+      const isNewSubscription = !!subscriptionData;
+      const isSubscriber = !!existingUserSubscription;
+      // console.log("subscriber", isNewSubscription, isSubscriber);
+
+      const { data: { country_code: countryCode } = {} } =
+        await this.helperService.getUserById(token.id);
+      let country_code = countryCode;
+
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
@@ -140,15 +141,14 @@ export class DynamicUiService {
         .lean();
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-      const componentDocsPromise = this.componentModel
+      let componentDocs = await this.componentModel
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
         .populate("interactionData.items.banner")
         .lean();
-
-      const serviceItemPromise = this.fetchServiceItemDetails(
+      let serviceItemData = await this.fetchServiceItemDetails(
         data,
         token.id,
         false,
@@ -156,24 +156,7 @@ export class DynamicUiService {
         0,
         null
       );
-      let skillId = data.metaData?.skillId;
-      let skillType = data.metaData?.skill;
-      const bannerIdPromise = this.helperService.getBannerToShow(
-        token.id,
-        skillId,
-        skillType,
-        EMetabaseUrlLimit.full_size_banner
-      );
 
-      const filterOptionsPromise = this.componentFilterOptions();
-
-      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
-        await Promise.all([
-          componentDocsPromise,
-          serviceItemPromise,
-          bannerIdPromise,
-          filterOptionsPromise,
-        ]);
       const processIds = [];
 
       const serviceItem = serviceItemData.finalData;
@@ -193,17 +176,33 @@ export class DynamicUiService {
         token.id,
         unquieProcessIds
       );
-      // Resolve banner configuration document now
-      let componentDocs = componentDocsRaw;
-      let banners = await this.bannerConfigurationModel.find({
-        _id: {
-          $in: bannerResp?.bannerToShow
-        },
-        status: EStatus.Active,
-      });
+      let singleAdBanner = await this.fetchSingleAdBanner(
+        isNewSubscription,
+        token.id,
+        isSubscriber
+      );
+      let banners = await this.fetchUserPreferenceBanner(
+        isNewSubscription,
+        token.id,
+        continueWatching,
+        componentDocs,
+        country_code,
+        isSubscriber
+      );
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
+        }
+        if (comp.type == EComponentType.userPreferenceBanner) {
+          comp.media = singleAdBanner?.media;
+          comp.banner = {
+            ...comp.banner,
+            bannerImage: singleAdBanner?.media?.mediaUrl,
+          };
+          comp.navigation = {
+            ...singleAdBanner?.navigation,
+            type: comp?.navigation?.type,
+          };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
           comp.interactionData = { items: banners };
@@ -216,20 +215,12 @@ export class DynamicUiService {
         }
       });
       componentDocs.sort((a, b) => a.order - b.order);
-      if (typeof limit === "number" && limit > 0) {
-        const start = Math.max(
-          0,
-          typeof skip === "number" && isFinite(skip) ? skip : 0
-        );
-        const end = start + limit;
-        componentDocs = componentDocs.slice(start, end);
-      }
       data["components"] = componentDocs;
       const componentsWithInteractionData = componentDocs.filter(
         (comp) => comp.interactionData
       );
       if (componentsWithInteractionData.length > 0) {
-        let availableFilterOptions = filterOptions;
+        let availableFilterOptions = await this.componentFilterOptions();
 
         const grouped = availableFilterOptions.reduce((acc, opt) => {
           if (!acc[opt.filterType]) {
@@ -303,12 +294,7 @@ export class DynamicUiService {
           }
         });
       }
-      const response = { data };
-      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
-      await this.redisService
-        .getClient()
-        ?.setEx(cacheKey, 30, JSON.stringify(response));
-      return response;
+      return { data };
     } catch (err) {
       throw err;
     }
