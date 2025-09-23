@@ -118,4 +118,27 @@ export class DynamicUiController {
       throw err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("page-detail/:pageId")
+  async getPageDetail(
+    @Req() req,
+    @Param("pageId") pageId: string,
+    @GetToken() token: UserToken,
+    @Query("skip") skip?: string,
+    @Query("limit") limit?: string,
+    @Query(new ValidationPipe({ transform: true })) filterOption?: EFilterOption
+  ) {
+    try {
+      let data = await this.dynamicUIService.getPageDetail(
+        token,
+        pageId,
+        skip ? parseInt(skip as any, 10) : undefined,
+        limit ? parseInt(limit as any, 10) : undefined,
+        filterOption
+      );
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

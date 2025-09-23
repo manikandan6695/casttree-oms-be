@@ -1431,4 +1431,209 @@ export class DynamicUiService {
       throw error;
     }
   }
+  async getPageDetail(
+    token: UserToken,
+    pageId: string,
+    skip: number | undefined,
+    limit: number | undefined,
+    filterOption: EFilterOption
+  ) {
+    try {
+      // Cache key composed of user, page, pagination, and filters
+      const normalizedFilters = filterOption
+        ? Object.keys(filterOption)
+            .sort()
+            .reduce((acc, k) => {
+              acc[k] = (filterOption as any)[k];
+              return acc;
+            }, {} as any)
+        : {};
+      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
+        normalizedFilters
+      )}`;
+      const cached = await this.redisService.getClient()?.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
+      let data = await this.contentPageModel
+        .findOne({
+          _id: pageId,
+          status: EStatus.Active,
+        })
+        .lean();
+      //   console.log("data", data);
+      let componentIds = data.components.map((e) => e.componentId);
+      const componentDocsPromise = this.componentModel
+        .find({
+          _id: { $in: componentIds },
+          status: EStatus.Active,
+        })
+        .populate("interactionData.items.banner")
+        .lean();
+
+      const serviceItemPromise = this.fetchServiceItemDetails(
+        data,
+        token.id,
+        false,
+        0,
+        0,
+        null
+      );
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
+      const bannerIdPromise = this.helperService.getBannerToShow(
+        token.id,
+        skillId,
+        skillType,
+        EMetabaseUrlLimit.full_size_banner
+      );
+
+      const filterOptionsPromise = this.componentFilterOptions();
+
+      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
+        await Promise.all([
+          componentDocsPromise,
+          serviceItemPromise,
+          bannerIdPromise,
+          filterOptionsPromise,
+        ]);
+      const processIds = [];
+
+      const serviceItem = serviceItemData.finalData;
+      for (const category in serviceItem) {
+        if (Array.isArray(serviceItem[category])) {
+          serviceItem[category].forEach((item) => {
+            if (item.processId) {
+              processIds.push(item.processId);
+            }
+          });
+        }
+      }
+
+      let unquieProcessIds = [...new Set(processIds)];
+
+      let continueWatching = await this.fetchContinueWatching(
+        token.id,
+        unquieProcessIds
+      );
+      // Resolve banner configuration document now
+      let componentDocs = componentDocsRaw;
+      let banners = await this.bannerConfigurationModel.find({
+        _id: {
+          $in: bannerResp?.bannerToShow
+        },
+        status: EStatus.Active,
+      });
+      componentDocs.forEach((comp) => {
+        if (comp.type == "userPreference") {
+          comp.actionData = continueWatching?.actionData;
+        }
+        if (comp.type == EComponentType.userPreferenceBanner) {
+          comp.interactionData = { items: banners };
+        }
+        const tagName = comp?.tag?.tagName;
+        if (tagName && serviceItemData?.finalData?.[tagName]) {
+          comp.actionData = serviceItemData.finalData[tagName];
+          comp["isViewAll"] =
+            serviceItemData.finalData[tagName].length > 10 ? true : false;
+        }
+      });
+      componentDocs.sort((a, b) => a.order - b.order);
+      if (typeof limit === "number" && limit > 0) {
+        const start = Math.max(
+          0,
+          typeof skip === "number" && isFinite(skip) ? skip : 0
+        );
+        const end = start + limit;
+        componentDocs = componentDocs.slice(start, end);
+      }
+      data["components"] = componentDocs;
+      const componentsWithInteractionData = componentDocs.filter(
+        (comp) => comp.interactionData
+      );
+      if (componentsWithInteractionData.length > 0) {
+        let availableFilterOptions = filterOptions;
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+          });
+          return acc;
+        }, {});
+
+        componentsWithInteractionData.forEach((component) => {
+          if (
+            component.componentKey === EComponentKey.learnFilterActionButton
+          ) {
+            const originalItems = component.interactionData?.items || [];
+
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach(
+              (group: {
+                type: string;
+                filterTypeId: string;
+                options: any[];
+              }) => {
+                groupedOptionsMap.set(group.type, group);
+              }
+            );
+
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+
+              const groupedData = groupedOptionsMap.get(filterType);
+
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+
+                const existingOptionIds = new Set(
+                  existingOptions.map((opt) => opt.filterOptionId)
+                );
+
+                const uniqueNewOptions = newOptions.filter(
+                  (opt) => !existingOptionIds.has(opt.filterOptionId)
+                );
+
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions,
+                };
+              }
+
+              return item;
+            });
+
+            component.interactionData = { items: transformedItems };
+          }
+        });
+      }
+      const response = { data };
+      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
+      await this.redisService
+        .getClient()
+        ?.setEx(cacheKey, 30, JSON.stringify(response));
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
