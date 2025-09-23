@@ -140,7 +140,6 @@ export class DynamicUiService {
         .lean();
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-
       const componentDocsPromise = this.componentModel
         .find({
           _id: { $in: componentIds },
@@ -157,9 +156,12 @@ export class DynamicUiService {
         0,
         null
       );
-
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
       const bannerIdPromise = this.helperService.getBannerToShow(
         token.id,
+        skillId,
+        skillType,
         EMetabaseUrlLimit.full_size_banner
       );
 
@@ -193,8 +195,10 @@ export class DynamicUiService {
       );
       // Resolve banner configuration document now
       let componentDocs = componentDocsRaw;
-      let banners = await this.bannerConfigurationModel.findOne({
-        _id: new ObjectId(bannerResp.bannerToShow),
+      let banners = await this.bannerConfigurationModel.find({
+        _id: {
+          $in: bannerResp?.bannerToShow
+        },
         status: EStatus.Active,
       });
       componentDocs.forEach((comp) => {
@@ -202,7 +206,7 @@ export class DynamicUiService {
           comp.actionData = continueWatching?.actionData;
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.interactionData = { items: [banners] };
+          comp.interactionData = { items: banners };
         }
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {

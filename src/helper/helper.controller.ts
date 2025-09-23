@@ -31,12 +31,13 @@ export class HelperController {
   @Get("banner/:userId")
   async getBannerToShow(
     @Param("userId") userId: string,
+    @Query("skillId") skillId: string,
+    @Query("skillType") skillType: string,
     @Query("componentKey") componentKey: string
   ): Promise<BannerResponseDto> {
     try {
       const data = await this.helperService.getBannerToShow(
-        userId,
-        componentKey
+        userId,skillId,skillType,componentKey
       );
       return data;
     } catch (err) {
