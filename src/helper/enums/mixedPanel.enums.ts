@@ -27,4 +27,5 @@ export const ESMixedPanelEvents = [
 export enum EMetabaseUrlLimit {
     dynamic_banner = "dynamic-banner",
     full_size_banner = "full-size-banner",
+    default_banner = "default-banner",
 }

@@ -221,4 +221,33 @@ export class InvoiceService {
       throw error
     }
   }
+
+  async getSalesDocumentBySourceId(sourceId: string) {
+    try {
+      const salesDocument = await this.salesDocumentModel.findOne({
+        source_id: new ObjectId(sourceId)
+      });
+      return salesDocument;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateSalesDocumentStatus(salesDocumentId: string, status: string) {
+    try {
+      const updatedSalesDocument = await this.salesDocumentModel.findOneAndUpdate(
+        { _id: new ObjectId(salesDocumentId) },
+        {
+          $set: {
+            document_status: status,
+            updated_at: new Date()
+          }
+        },
+        { new: true }
+      );
+      return updatedSalesDocument;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

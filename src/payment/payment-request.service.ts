@@ -593,7 +593,9 @@ export class PaymentRequestService {
         document_status: body.document_status || body.status,
         metaData: body.metaData,
       };
-
+      if(body?.isPaymentRefunded){
+        updateFields.isPaymentRefunded = body.isPaymentRefunded;
+      }
       const conversionBody = body.conversionBody || {};
       const optionalFields = ["baseAmount", "baseCurrency", "conversionRate"];
 

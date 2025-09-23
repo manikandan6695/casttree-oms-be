@@ -5,6 +5,10 @@ export interface IValidationRules {
     minSelections: number;
     maxSelections: number;
 }
+export interface ISource {
+    sourceId: string;
+}
+
 export interface IFilterType extends Document {
     type: string;
     displayName: string;
@@ -13,6 +17,7 @@ export interface IFilterType extends Document {
     isActive: boolean;
     sortOrder: number;
     validationRules: IValidationRules;
+    source: ISource[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -21,6 +26,11 @@ export const validationRulesSchema = new mongoose.Schema({
     minSelections: { type: Number },
     maxSelections: { type: Number },
 },{_id:false})
+
+export const sourceSchema = new mongoose.Schema({
+    sourceId: { type: mongoose.Schema.Types.ObjectId, ref: "component" }
+},{_id:false})
+
 export const FilterTypeSchema = new mongoose.Schema(
   {
     type: { type: String },
@@ -30,8 +40,8 @@ export const FilterTypeSchema = new mongoose.Schema(
     isActive: { type: Boolean },
     sortOrder: { type: Number },
     validationRules: validationRulesSchema,
-  },
-  {
+    source: [sourceSchema],
+},{
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     collection: "filterTypes",
   }
