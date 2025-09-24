@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module ,forwardRef} from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { HelperModule } from "src/helper/helper.module";
@@ -16,6 +16,7 @@ import { BannerConfigurationSchema } from "./schema/banner-configuration.schema"
 import { FilterOptionSchema } from "./schema/filter-option.schema";
 import { FilterTypeSchema } from "./schema/filter-type.schema";
 import { categorySchema } from "./schema/category.schema";
+import { RedisModule } from "src/redis/redis.module";
 import { AchievementSchema } from "./schema/achievement.schema";
 import { VirtualItemSchema } from "./schema/virtual-item.schema";
 import { VirtualItemGroupSchema } from "./schema/virtual-item-group.schema";
@@ -62,9 +63,10 @@ import { CurrencySchema } from "src/shared/schema/currency.schema";
     ]),
     SharedModule,
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     ProcessModule,
     SubscriptionModule,
+    RedisModule
   ],
   controllers: [DynamicUiController],
   providers: [DynamicUiService],

@@ -27,6 +27,7 @@ export class ServiceRequestService {
     private readonly serviceRequestModel: Model<IServiceRequestModel>,
     @Inject(forwardRef(() => ServiceResponseService))
     private serviceResponseService: ServiceResponseService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,

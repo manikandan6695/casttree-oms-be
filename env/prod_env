@@ -110,3 +110,8 @@ SCOPES="https://www.googleapis.com/auth/androidpublisher"
 #redis server 
 REDIS_URL = 'redis://:creedom_redis_prod@redis-prod.casttree.com:6379'
 REDIS_CONNECTION_TIMEOUT = 6000
+
+#METABASE
+METABASE_BASE_URL = "https://metabase.casttree.in"
+METABASE_USERNAME = "manikandan@casttree.com"
+METABASE_PASSWORD = "tc7pM+vfqywCe4I1s2XwaHf2wLwciDKv"

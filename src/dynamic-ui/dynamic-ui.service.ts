@@ -14,7 +14,10 @@ import { ProcessService } from "src/process/process.service";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import {
+  EMixedPanelEvents,
+  EMetabaseUrlLimit,
+} from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { EComponentKey, EComponentType } from "./enum/component.enum";
@@ -25,6 +28,8 @@ import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 const { ObjectId } = require("mongodb");
 import { ICategory } from "./schema/category.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { RedisService } from "src/redis/redis.service";
 import { AddNewSeriesDto } from "./dto/add-new-series.dto";
 import { IProfile } from "src/shared/schema/profile.schema";
 import { IUserOrganization } from "src/shared/schema/user-organization.schema";
@@ -54,6 +59,7 @@ import { VirtualItemGroup } from "./schema/virtual-item-group.schema";
 import { Award } from "./schema/awards.schema";
 import { mediaModel } from "./schema/media.schema";
 
+
 @Injectable()
 export class DynamicUiService {
   constructor(
@@ -77,6 +83,9 @@ export class DynamicUiService {
     private readonly filterOptionsModel: Model<IFilterOption>,
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
+    private readonly redisService: RedisService
     @InjectModel("profile")
     private readonly profileModel: Model<IProfile>,
     @InjectModel("userOrganization")
@@ -166,19 +175,6 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
-      // const subscriptionData =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //     EsubscriptionStatus.expired,
-      //   ]);
-      // const existingUserSubscription =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //   ]);
-      // const isNewSubscription = subscriptionData ? true : false;
-      // const isSubscriber = existingUserSubscription ? true : false;
       const [subscriptionData, existingUserSubscription] = await Promise.all([
         this.subscriptionService.validateSubscription(token.id, [
           EsubscriptionStatus.initiated,
@@ -192,7 +188,7 @@ export class DynamicUiService {
       ]);
       const isNewSubscription = !!subscriptionData;
       const isSubscriber = !!existingUserSubscription;
-      console.log("subscriber", isNewSubscription, isSubscriber);
+      // console.log("subscriber", isNewSubscription, isSubscriber);
 
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(token.id);
@@ -1492,6 +1488,211 @@ export class DynamicUiService {
     } catch (error) {
       console.error("Error updating series tags:", error);
       throw error;
+    }
+  }
+  async getPageDetail(
+    token: UserToken,
+    pageId: string,
+    skip: number | undefined,
+    limit: number | undefined,
+    filterOption: EFilterOption
+  ) {
+    try {
+      // Cache key composed of user, page, pagination, and filters
+      const normalizedFilters = filterOption
+        ? Object.keys(filterOption)
+            .sort()
+            .reduce((acc, k) => {
+              acc[k] = (filterOption as any)[k];
+              return acc;
+            }, {} as any)
+        : {};
+      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
+        normalizedFilters
+      )}`;
+      const cached = await this.redisService.getClient()?.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached as string);
+      }
+      let data = await this.contentPageModel
+        .findOne({
+          _id: pageId,
+          status: EStatus.Active,
+        })
+        .lean();
+      //   console.log("data", data);
+      let componentIds = data.components.map((e) => e.componentId);
+      const componentDocsPromise = this.componentModel
+        .find({
+          _id: { $in: componentIds },
+          status: EStatus.Active,
+        })
+        .populate("interactionData.items.banner")
+        .lean();
+
+      const serviceItemPromise = this.fetchServiceItemDetails(
+        data,
+        token.id,
+        false,
+        0,
+        0,
+        null
+      );
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
+      const bannerIdPromise = this.helperService.getBannerToShow(
+        token.id,
+        skillId,
+        skillType,
+        EMetabaseUrlLimit.full_size_banner
+      );
+
+      const filterOptionsPromise = this.componentFilterOptions();
+
+      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
+        await Promise.all([
+          componentDocsPromise,
+          serviceItemPromise,
+          bannerIdPromise,
+          filterOptionsPromise,
+        ]);
+      const processIds = [];
+
+      const serviceItem = serviceItemData.finalData;
+      for (const category in serviceItem) {
+        if (Array.isArray(serviceItem[category])) {
+          serviceItem[category].forEach((item) => {
+            if (item.processId) {
+              processIds.push(item.processId);
+            }
+          });
+        }
+      }
+
+      let unquieProcessIds = [...new Set(processIds)];
+
+      let continueWatching = await this.fetchContinueWatching(
+        token.id,
+        unquieProcessIds
+      );
+      // Resolve banner configuration document now
+      let componentDocs = componentDocsRaw;
+      let banners = await this.bannerConfigurationModel.find({
+        _id: {
+          $in: bannerResp?.bannerToShow
+        },
+        status: EStatus.Active,
+      });
+      componentDocs.forEach((comp) => {
+        if (comp.type == "userPreference") {
+          comp.actionData = continueWatching?.actionData;
+        }
+        if (comp.type == EComponentType.userPreferenceBanner) {
+          comp.interactionData = { items: banners };
+        }
+        const tagName = comp?.tag?.tagName;
+        if (tagName && serviceItemData?.finalData?.[tagName]) {
+          comp.actionData = serviceItemData.finalData[tagName];
+          comp["isViewAll"] =
+            serviceItemData.finalData[tagName].length > 10 ? true : false;
+        }
+      });
+      componentDocs.sort((a, b) => a.order - b.order);
+      if (typeof limit === "number" && limit > 0) {
+        const start = Math.max(
+          0,
+          typeof skip === "number" && isFinite(skip) ? skip : 0
+        );
+        const end = start + limit;
+        componentDocs = componentDocs.slice(start, end);
+      }
+      data["components"] = componentDocs;
+      const componentsWithInteractionData = componentDocs.filter(
+        (comp) => comp.interactionData
+      );
+      if (componentsWithInteractionData.length > 0) {
+        let availableFilterOptions = filterOptions;
+
+        const grouped = availableFilterOptions.reduce((acc, opt) => {
+          if (!acc[opt.filterType]) {
+            acc[opt.filterType] = {
+              type: opt.filterType,
+              filterTypeId: opt.filterTypeId.toString(),
+              options: [],
+            };
+          }
+          acc[opt.filterType].options.push({
+            filterOptionId: opt._id.toString(),
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+          });
+          return acc;
+        }, {});
+
+        componentsWithInteractionData.forEach((component) => {
+          if (
+            component.componentKey === EComponentKey.learnFilterActionButton
+          ) {
+            const originalItems = component.interactionData?.items || [];
+
+            const groupedOptionsMap = new Map();
+            Object.values(grouped).forEach(
+              (group: {
+                type: string;
+                filterTypeId: string;
+                options: any[];
+              }) => {
+                groupedOptionsMap.set(group.type, group);
+              }
+            );
+
+            const transformedItems = originalItems.map((item: any) => {
+              let filterType = item.button?.type;
+
+              if (filterType === "proficency") {
+                filterType = "proficiency";
+              }
+
+              const groupedData = groupedOptionsMap.get(filterType);
+
+              if (groupedData) {
+                const existingOptions = item.options || [];
+                const newOptions = groupedData.options || [];
+
+                const existingOptionIds = new Set(
+                  existingOptions.map((opt) => opt.filterOptionId)
+                );
+
+                const uniqueNewOptions = newOptions.filter(
+                  (opt) => !existingOptionIds.has(opt.filterOptionId)
+                );
+
+                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+                return {
+                  ...item,
+                  type: filterType,
+                  filterTypeId: groupedData.filterTypeId,
+                  options: mergedOptions,
+                };
+              }
+
+              return item;
+            });
+
+            component.interactionData = { items: transformedItems };
+          }
+        });
+      }
+      const response = { data };
+      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
+      await this.redisService
+        .getClient()
+        ?.setEx(cacheKey, 30, JSON.stringify(response));
+      return response;
+    } catch (err) {
+      throw err;
     }
   }
 
