@@ -2485,14 +2485,11 @@ export class DynamicUiService {
   ) {
     try {
       const { skip, limit } = query;
-      console.time("fetchBaseComponents");
       const [baseComponent, actualComponent, page] =
         await this.fetchBaseComponents(componentId);
       if (!baseComponent) {
         throw new NotFoundException("Filter component not found");
       }
-      console.timeEnd("fetchBaseComponents");
-      console.time("fetchServiceItemData");
       const tagName = actualComponent?.tag?.tagName;
 
       const { serviceItemData, filteredData } = await this.fetchServiceItemData(
@@ -2503,8 +2500,6 @@ export class DynamicUiService {
         limit,
         filterOption
       );
-      console.timeEnd("fetchServiceItemData");
-      console.time("getComponentFilterOptions");
       const componentFilterData = await this.getComponentFilterOptions(
         componentId,
         token,
@@ -2512,22 +2507,16 @@ export class DynamicUiService {
       );
       const finalInteractionData =
         componentFilterData?.interactionData?.items || [];
-      console.timeEnd("getComponentFilterOptions");
-      console.time("processFilterOptions");
       const processedFilterOptions = await this.processFilterOptions(
         finalInteractionData,
         filterOption
       );
-      console.timeEnd("processFilterOptions");
-      console.time("updateBaseComponentWithFilterData");
       this.updateBaseComponentWithFilterData(
         baseComponent,
         finalInteractionData,
         processedFilterOptions,
         filteredData
       );
-      console.timeEnd("updateBaseComponentWithFilterData");
-      console.time("calculateTotalCount");
       const totalCount = await this.calculateTotalCount(
         serviceItemData,
         tagName,
@@ -2535,7 +2524,38 @@ export class DynamicUiService {
         filterOption
       );
       baseComponent["totalCount"] = totalCount;
-      console.timeEnd("calculateTotalCount");
+
+      if (!filteredData || filteredData.length === 0) {
+        const completedSeries = await this.processService.getMySeries(
+          token.id,
+          EprocessStatus.Completed
+        );
+        const completedProcessIds = new Set(
+          completedSeries.map((s: any) => String(s.processId))
+        );
+
+        const allServiceItemData = await this.fetchServiceItemDetails(
+          page,
+          token.id,
+          false,
+          0,
+          0,
+          null
+        );
+
+        const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+
+        const nonMatchedSeries = allSeriesData.filter(
+          (series: any) =>
+            !completedProcessIds.has(String(series.processId))
+        );
+
+        if (nonMatchedSeries.length > 0) {
+          baseComponent.recommendedList = nonMatchedSeries;
+          baseComponent["totalCount"] = nonMatchedSeries.length;
+        }
+      }
+      
       return { component: baseComponent };
     } catch (err) {
       throw err;
