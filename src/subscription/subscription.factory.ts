@@ -1272,11 +1272,11 @@ export class SubscriptionFactory {
         let transactionId =
           body.transactionDetails.originalTransactionId ||
           body.transactionDetails.transactionId;
-          let getPaymentDetail = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple)
-       if(!getPaymentDetail){
         let transaction = await this.getTransactionHistoryById(transactionId);
+        // console.log("transaction",transaction)
+        let getPaymentDetail = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple)
+       if(!getPaymentDetail){
         //  console.timeEnd("apple")
-         console.log("transaction",transaction)
         const price = transaction?.price / 1000;
         const currencyCode = transaction?.currency;
         const currencyIdRes =
