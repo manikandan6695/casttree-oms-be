@@ -1074,6 +1074,14 @@ export class PaymentRequestService {
       throw error;
     }
   } 
+  async getPaymentByExternalId(externalId: string, provider: EProviderId) {
+    try {
+      let payment = await this.paymentModel.findOne({"metaData.externalId": externalId ,providerId: provider})
+      return payment
+    } catch (error) {
+      throw error;
+    }
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

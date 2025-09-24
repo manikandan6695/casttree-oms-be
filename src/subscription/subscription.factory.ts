@@ -1272,6 +1272,8 @@ export class SubscriptionFactory {
         let transactionId =
           body.transactionDetails.originalTransactionId ||
           body.transactionDetails.transactionId;
+          let getPaymentDetail = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple)
+       if(!getPaymentDetail){
         let transaction = await this.getTransactionHistoryById(transactionId);
         //  console.timeEnd("apple")
          console.log("transaction",transaction)
@@ -1344,6 +1346,8 @@ export class SubscriptionFactory {
           await this.invoiceService.updateSalseDocumentById(updatedBody);
 
         return { paymentResponse, updatedInvoice };
+       }
+       return { paymentResponse:getPaymentDetail }
       }
       else if(body.providerName===EProvider.google){
         let googlePackage = packageName
