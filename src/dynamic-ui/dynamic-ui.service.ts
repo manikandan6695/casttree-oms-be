@@ -85,7 +85,7 @@ export class DynamicUiService {
     private readonly categoryModel: Model<ICategory>,
     @InjectModel("bannerConfiguration")
     private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
     @InjectModel("profile")
     private readonly profileModel: Model<IProfile>,
     @InjectModel("userOrganization")
