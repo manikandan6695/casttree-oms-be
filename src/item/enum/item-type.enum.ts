@@ -1,9 +1,11 @@
 export enum EItemType {
   goods = "Goods",
   service = "Service",
+  proficiency = "proficiency",
+  category = "category",
 }
 
-export const ESItemType = [EItemType.goods, EItemType.service];
+export const ESItemType = [EItemType.goods, EItemType.service, EItemType.proficiency, EItemType.category];
 export enum EItemName {
   pro = "PRO",
 }

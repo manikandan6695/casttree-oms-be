@@ -1290,4 +1290,27 @@ export class HelperService {
   //     );
   //   }
   // }
+
+  async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post(
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
+        {
+          embeddedURL: oldUrl,
+        },
+        {
+          headers: {
+            "x-api-version": "2",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error generating new media URL:", error);
+      throw error;
+    }
+  }
 }
