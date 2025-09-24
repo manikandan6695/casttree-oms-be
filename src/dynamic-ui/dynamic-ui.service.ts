@@ -1735,7 +1735,7 @@ export class DynamicUiService {
           [
             {
               processMetaData: {},
-              parentProcessId: "null",
+              parentProcessId: null,
             },
           ],
           { session }
