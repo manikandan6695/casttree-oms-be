@@ -7,6 +7,7 @@ import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SharedModule } from "src/shared/shared.module";
 import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import MandatesModule
+import { RedisModule } from "src/redis/redis.module";
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
@@ -27,6 +28,7 @@ import { webhookSchema } from "./schema/webhook.schema";
     forwardRef(() => PaymentRequestModule),
     forwardRef(() => ItemModule),
     MandatesModule,
+    RedisModule,
   ],
   controllers: [SubscriptionController],
   providers: [

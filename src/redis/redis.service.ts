@@ -153,6 +153,54 @@ export class RedisService implements OnModuleDestroy {
     );
   }
 
+  async acquireLock(key: string, value: string, ttl: number = 30): Promise<boolean> {
+    try {
+      if (!this.isConnected) {
+        await this.initRedisClients();
+      }
+      
+      const lockKey = `lock:${key}`;
+      const result = await this.client.setNX(lockKey, value);
+      
+      if (result) {
+        // Set expiration for the lock
+        await this.client.expire(lockKey, ttl);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[Lock Acquisition Error]', error.message || error);
+      return false;
+    }
+  }
+  async releaseLock(key: string, value: string): Promise<boolean> {
+    try {
+      if (!this.isConnected) {
+        await this.initRedisClients();
+      }
+      
+      const lockKey = `lock:${key}`;
+      const script = `
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        else
+          return 0
+        end
+      `;
+      
+      const result = await this.client.eval(script, {
+        keys: [lockKey],
+        arguments: [value]
+      });
+      
+      return result === 1;
+    } catch (error) {
+      console.error('[Lock Release Error]', error.message || error);
+      return false;
+    }
+  }
+
   async onModuleDestroy() {
     this.isPolling = false;
     if (this.isConnected) {
