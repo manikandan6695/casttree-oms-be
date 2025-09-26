@@ -4,6 +4,7 @@ import * as bodyParser from "body-parser";
 import "dotenv/config";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
+import { AllExceptionsFilter } from "./shared/all-exception.filter";
 
 const port = process.env.SERVER_PORT || 3001;
 const extractor = (request: Request): string | string[] => {
@@ -36,6 +37,7 @@ async function bootstrap() {
   app.use(bodyParser.json({ limit: "50mb" }));
   app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
   app.setGlobalPrefix(process.env.API_PREFIX);
+  app.useGlobalFilters(app.get(AllExceptionsFilter));
   app.enableVersioning({
     type: VersioningType.CUSTOM,
     extractor,
