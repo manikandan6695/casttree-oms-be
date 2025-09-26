@@ -9,6 +9,10 @@ DB_URL = "mongodb+srv://dbAdmin:umP6QgRUxgPkK7kd@tecxprt.qbxr7.mongodb.net/tecxp
 LOGGER_LEVEL = "debug"
 LOGGER_CONSOLE = false
 LOGGER_FILE = true
+LOGGER_ENABLE_LOKI = true
+LOKI_LOGGER_APP = "nestjs"
+LOKI_LOGGER_SERVICE = "casttree-be"
+LOGGER_LOKI_URL = "http://localhost:3101"
 LOGGER_APP_LOG_PATH = "logs/app.log"
 LOGGER_ERR_LOG_PATH = "logs/error.log"
 
