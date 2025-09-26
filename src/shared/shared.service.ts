@@ -201,6 +201,10 @@ export class SharedService {
         sender_name: "Casttree (Processed Error)",
         sender_email: "alerts@casttree.in",
         sender_contact: "+91-8015584624",
+        // external_api_reason: err["response"]?.data?.error,
+        // external_api_url: err["response"]?.config?.url,
+        // external_api_body: err["response"]?.config?.data,
+        // external_api_code: err["response"]?.status,
       };
 
       await this.mailService.sendErrorLog(
