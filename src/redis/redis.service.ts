@@ -8,7 +8,6 @@ import { EventOutBoxService } from '../event-outbox/event-outbox.service';
 import { IEventOutBox } from 'src/event-outbox/schema/event-outbox.schema';
 import { EConfigType } from './enum/type.enum';
 import { HelperService } from 'src/helper/helper.service';
-import { randomBytes } from 'crypto';
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private client: RedisClientType;
@@ -26,8 +25,9 @@ export class RedisService implements OnModuleDestroy {
     private helperService: HelperService
   ) { }
   async generateLockValue(): Promise<string> {
-    return randomBytes(16).toString('hex');
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
+  
   async initRedisClients() {
     this.client = createClient({
       url: process.env.REDIS_URL,
