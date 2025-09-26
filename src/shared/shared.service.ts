@@ -12,6 +12,7 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
+import { Request } from "express";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
 import { REQUEST } from "@nestjs/core";
