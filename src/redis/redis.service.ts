@@ -8,7 +8,7 @@ import { EventOutBoxService } from '../event-outbox/event-outbox.service';
 import { IEventOutBox } from 'src/event-outbox/schema/event-outbox.schema';
 import { EConfigType } from './enum/type.enum';
 import { HelperService } from 'src/helper/helper.service';
-
+import { randomBytes } from 'crypto';
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private client: RedisClientType;
@@ -25,7 +25,9 @@ export class RedisService implements OnModuleDestroy {
     private eventOutBoxService: EventOutBoxService,
     private helperService: HelperService
   ) { }
-
+  async generateLockValue(): Promise<string> {
+    return randomBytes(16).toString('hex');
+  }
   async initRedisClients() {
     this.client = createClient({
       url: process.env.REDIS_URL,
@@ -152,26 +154,37 @@ export class RedisService implements OnModuleDestroy {
       sourceId
     );
   }
-
-  async acquireLock(key: string, value: string, ttl: number = 30): Promise<boolean> {
+  async acquireLock(
+    key: string,
+    value?: string,
+    ttl: number = 30,
+    retry: number = 5,
+    backoffMs: number = 200
+  ): Promise<{ acquired: boolean; value: string }> {
     try {
       if (!this.isConnected) {
         await this.initRedisClients();
       }
-      
+
+      const lockValue = value || await this.generateLockValue();
       const lockKey = `lock:${key}`;
-      const result = await this.client.setNX(lockKey, value);
-      
-      if (result) {
-        // Set expiration for the lock
-        await this.client.expire(lockKey, ttl);
-        return true;
+      for (let i = 0; i < retry; i++) {
+        const result = await this.client.set(lockKey, lockValue, {
+          NX: true,
+          EX: ttl,
+        });
+        if (result === 'OK') {
+          return { acquired: true, value: lockValue };
+        }
+
+        const wait = backoffMs * Math.pow(2, i) + Math.floor(Math.random() * 50);
+        await new Promise(res => setTimeout(res, wait));
       }
-      
-      return false;
-    } catch (error) {
+
+      return { acquired: false, value: lockValue   };
+    } catch (error: any) {
       console.error('[Lock Acquisition Error]', error.message || error);
-      return false;
+      return { acquired: false, value };
     }
   }
   async releaseLock(key: string, value: string): Promise<boolean> {
@@ -179,7 +192,6 @@ export class RedisService implements OnModuleDestroy {
       if (!this.isConnected) {
         await this.initRedisClients();
       }
-      
       const lockKey = `lock:${key}`;
       const script = `
         if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -188,14 +200,14 @@ export class RedisService implements OnModuleDestroy {
           return 0
         end
       `;
-      
+
       const result = await this.client.eval(script, {
         keys: [lockKey],
-        arguments: [value]
+        arguments: [value],
       });
-      
+
       return result === 1;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Lock Release Error]', error.message || error);
       return false;
     }

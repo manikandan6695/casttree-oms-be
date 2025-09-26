@@ -1268,228 +1268,109 @@ export class SubscriptionFactory {
   }
   async handleIapCoinPurchase(body, token) {
     try {
-      // console.log("body",body)
-      if (body.providerName === EProvider.apple) {
-        let transactionId =
-          body.transactionDetails.originalTransactionId ||
-          body.transactionDetails.transactionId;
+      let transactionId =
+        body.providerName === EProvider.apple
+          ? body.transactionDetails.originalTransactionId || body.transactionDetails.transactionId
+          : body.transactionDetails.transactionId;
+  
+      const lockKey = `${body.providerName}_transaction_${transactionId}`;
+      const { acquired, value: lockValue } = await this.redisService.acquireLock(lockKey, undefined, 30);
 
-        const lockValue = `${token.id}-${Date.now()}-${Math.random()}`;
-        const lockKey = `apple_transaction_${transactionId}`;
-
-        const lockAcquired = await this.redisService.acquireLock(lockKey, lockValue, 30);
-        
-        if (!lockAcquired) {
-
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          let existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple);
+      if (!acquired) {
+        const providerId = body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google;
+      
+        const maxWaitMs = 3000;   
+        const intervalMs = 500;   
+      
+        for (let waited = 0; waited < maxWaitMs; waited += intervalMs) {
+          await new Promise(res => setTimeout(res, intervalMs));
+      
+          const existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, providerId);
           if (existingPayment) {
             return { paymentResponse: existingPayment };
           }
-
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple);
-          if (existingPayment) {
-            return { paymentResponse: existingPayment };
-          }
-
-          console.warn(`Transaction ${transactionId} is being processed by another request. Returning null response.`);
-          return { paymentResponse: null, message: "Transaction is being processed by another request" };
         }
-        
-        try {
-          let transaction = await this.getTransactionHistoryById(transactionId);
-          // console.log("transaction",transaction)
-          
-          let getPaymentDetail = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.apple);
-          
-          if (getPaymentDetail) {
-            return { paymentResponse: getPaymentDetail };
-          }
-          
-          //  console.timeEnd("apple")
-          const price = transaction?.price / 1000;
-          const currencyCode = transaction?.currency;
-          const currencyIdRes =
-            await this.helperService.getCurrencyId(currencyCode);
-          const currencyResponse = currencyIdRes?.data?.[0];
-          let provider = EProviderId.apple;
-          const item = await this.itemService.getItemByPlanConfig(
-            body?.transactionDetails?.planId,
-            provider
-          );
-          const invoiceData = {
-            itemId: item._id,
-            source_type: EPaymentSourceType.coinTransaction,
-            sub_total: price,
-            document_status: EDocumentStatus.completed,
-            grand_total: price,
-            user_id: token.id,
-            created_by: token.id,
-            updated_by: token.id,
-            currencyCode: currencyResponse.currency_code,
-            currency: currencyResponse._id,
-          };
-          const invoice = await this.invoiceService.createInvoice(
-            invoiceData,
-            token.id
-          );
-          const conversionRateAmt = await this.helperService.getConversionRate(
-            currencyCode,
-            price
-          );
-          const baseAmount = Math.round(price * conversionRateAmt);
-          const paymentData = {
-            amount: price,
-            document_status: EDocumentStatus.completed,
-            providerId: EProviderId.apple,
-            providerName: EProvider.apple,
-            transactionDate: new Date(),
-            metaData: {
-              externalId: transaction?.originalTransactionId,
-              transaction: transaction,
-              // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
-            },
-            currencyCode: currencyResponse.currency_code,
-            currencyId: currencyResponse._id,
-            baseAmount: baseAmount,
-            baseCurrency: currencyCode,
-            conversionRate: conversionRateAmt,
-          };
-          let paymentResponse = await this.paymentService.createPaymentRecord(
-            paymentData,
-            token,
-            invoice
-          );
-          let payload = {
-            userId: token.id,
-            coinValue: item?.additionalDetail?.coinValue,
-            sourceId: invoice?._id,
-            sourceType: EDocumentTypeName.invoice,
-          };
-          let createCoinValue =
-            await this.paymentService.createCoinValue(payload);
-          let updatedBody = {
-            _id: new ObjectId(invoice?._id),
-            sourceId: new ObjectId(createCoinValue),
-          };
-          let updatedInvoice =
-            await this.invoiceService.updateSalseDocumentById(updatedBody);
-          return { paymentResponse, updatedInvoice };
-        } finally {
-          // Always release the lock
-          await this.redisService.releaseLock(lockKey, lockValue);
-        }
+      
+        return { paymentResponse: null, message: `Transaction is being processed by another request` };
       }
-      else if(body.providerName===EProvider.google){
-        let transactionId = body.transactionDetails.transactionId;
-        
-        const lockValue = `${token.id}-${Date.now()}-${Math.random()}`;
-        const lockKey = `google_transaction_${transactionId}`;
-
-        const lockAcquired = await this.redisService.acquireLock(lockKey, lockValue, 30);
-        
-        if (!lockAcquired) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          let existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.google);
-          if (existingPayment) {
-            return { paymentResponse: existingPayment };
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.google);
-          if (existingPayment) {
-            return { paymentResponse: existingPayment };
-          }
-
-          console.warn(`Google transaction ${transactionId} is being processed by another request. Returning null response.`);
-          return { paymentResponse: null, message: "Google transaction is being processed by another request" };
-        }
-        
-        try {
-          let googlePackage = packageName
-          let transaction = await this.validatePurchaseState(googlePackage, body.transactionDetails.transactionId, body.transactionDetails.planId)
-          // console.log("transaction",transaction)
-          
-          let getPaymentDetail = await this.paymentService.getPaymentByExternalId(transactionId, EProviderId.google);
-          
-          if (getPaymentDetail) {
-            return { paymentResponse: getPaymentDetail };
-          }
-          
-          const price = transaction?.amount;
-          const currencyCode = transaction?.currency;
-          const currencyIdRes = await this.helperService.getCurrencyId(currencyCode);
-          const currencyResponse = currencyIdRes?.data?.[0];
-          let provider = EProviderId.google;
-          const item = await this.itemService.getItemByPlanConfig(
-           body?.transactionDetails?.planId,
-            provider
+      
+      try {
+        let transaction;
+        if (body.providerName === EProvider.apple) {
+          transaction = await this.getTransactionHistoryById(transactionId);
+        } else {
+          const googlePackage = packageName;
+          transaction = await this.validatePurchaseState(
+            googlePackage,
+            transactionId,
+            body.transactionDetails.planId
           );
-          const invoiceData = {
-           itemId: item._id,
-           source_type: EPaymentSourceType.coinTransaction,
-           sub_total: price,
-           document_status: EDocumentStatus.completed,
-           grand_total: price,
-           user_id: token.id,
-           created_by: token.id,
-           updated_by: token.id,
-           currencyCode: currencyResponse.currency_code,
-           currency: currencyResponse._id,
-         };
-         const invoice = await this.invoiceService.createInvoice(
-           invoiceData,
-           token.id
-         );
-         const conversionRateAmt = await this.helperService.getConversionRate(
-           currencyCode,
-           price
-         );
-         const baseAmount = Math.round(price * conversionRateAmt);
-         const paymentData = {
-           amount: price,
-           document_status: EDocumentStatus.completed,
-           providerId: EProviderId.google,
-           providerName: EProvider.google,
-           transactionDate: new Date(),
-           metaData: {
-             externalId: body.transactionDetails.transactionId,
-             transaction: transaction
-             // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
-           },
-           currencyCode: currencyResponse.currency_code,
-           currencyId: currencyResponse._id,
-           baseAmount: baseAmount,
-           baseCurrency: currencyCode,
-           conversionRate: conversionRateAmt,
-         };
-        let paymentResponse = await this.paymentService.createPaymentRecord(
-           paymentData,
-           token,
-           invoice
-         );
-         let payload = {
-           userId: token.id,
-           coinValue: item?.additionalDetail?.coinValue,
-           sourceId: invoice?._id,
-           sourceType: EDocumentTypeName.invoice
-         }
-        //  console.log("payload", payload);
-        let createCoinValue = await this.paymentService.createCoinValue(payload)
-        // console.log("createCoinValue", createCoinValue);
-         let updatedBody = {
-           _id: new ObjectId(invoice?._id),
-           sourceId: new ObjectId(createCoinValue)
-         }
-        let updatedInvoice = await this.invoiceService.updateSalseDocumentById(updatedBody)
-         return { paymentResponse, updatedInvoice };
-        } finally {
-          // Always release the lock
-          await this.redisService.releaseLock(lockKey, lockValue);
         }
+  
+        let existingPayment = await this.paymentService.getPaymentByExternalId(
+          transactionId,
+          body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google
+        );
+        if (existingPayment) return { paymentResponse: existingPayment };
+  
+        const price = transaction?.amount ?? transaction?.price / 1000;
+        const currencyCode = transaction?.currency;
+        const currencyIdRes = await this.helperService.getCurrencyId(currencyCode);
+        const currencyResponse = currencyIdRes?.data?.[0];
+        const provider = body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google;
+        const item = await this.itemService.getItemByPlanConfig(body?.transactionDetails?.planId, provider);
+  
+        const invoiceData = {
+          itemId: item._id,
+          source_type: EPaymentSourceType.coinTransaction,
+          sub_total: price,
+          document_status: EDocumentStatus.completed,
+          grand_total: price,
+          user_id: token.id,
+          created_by: token.id,
+          updated_by: token.id,
+          currencyCode: currencyResponse.currency_code,
+          currency: currencyResponse._id,
+        };
+        const invoice = await this.invoiceService.createInvoice(invoiceData, token.id);
+        const conversionRateAmt = await this.helperService.getConversionRate(currencyCode, price);
+        const baseAmount = Math.round(price * conversionRateAmt);
+  
+        const paymentData = {
+          amount: price,
+          document_status: EDocumentStatus.completed,
+          providerId: provider,
+          providerName: body.providerName,
+          transactionDate: new Date(),
+          metaData: { externalId: transactionId, transaction },
+          currencyCode: currencyResponse.currency_code,
+          currencyId: currencyResponse._id,
+          baseAmount,
+          baseCurrency: currencyCode,
+          conversionRate: conversionRateAmt,
+        };
+  
+        const paymentResponse = await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+  
+        const payload = {
+          userId: token.id,
+          coinValue: item?.additionalDetail?.coinValue,
+          sourceId: invoice?._id,
+          sourceType: EDocumentTypeName.invoice,
+        };
+        const createCoinValue = await this.paymentService.createCoinValue(payload);
+  
+        const updatedInvoice = await this.invoiceService.updateSalseDocumentById({
+          _id: new ObjectId(invoice?._id),
+          sourceId: new ObjectId(createCoinValue),
+        });
+  
+        return { paymentResponse, updatedInvoice };
+      } finally {
+        await this.redisService.releaseLock(lockKey, lockValue);
       }
     } catch (error) {
+      console.error('[handleIapCoinPurchase Error]', error);
       throw error;
     }
   }
