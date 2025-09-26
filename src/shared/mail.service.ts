@@ -7,12 +7,11 @@ import axios from "axios";
 export class MailService {
   constructor(
     private readonly configService: ConfigService,
-    private readonly helperService: HelperService
   ) {}
 
   async getEmails() {
     const getEmails =
-      await this.helperService.getSystemConfigs("error-email-alert");
+      await this.getSystemConfig("error-email-alert");
     const emails = getEmails.value.map((email: any) => ({
       name: "Email Alert",
       email: email,
@@ -51,6 +50,17 @@ export class MailService {
         error.response?.data || error.message
       );
       throw error;
+    }
+  }
+  async getSystemConfig(key: string) {
+    try {
+      let response = await axios
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
+        )
+      return response.data;
+    } catch (err) {
+      throw err;
     }
   }
 }

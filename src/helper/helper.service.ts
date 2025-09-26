@@ -11,12 +11,14 @@ import axios from "axios";
 import { catchError, lastValueFrom, map } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
+import { SharedService } from "src/shared/shared.service";
 
 @Injectable()
 export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService,
+    private sharedService: SharedService
   ) {}
 
   getRequiredHeaders(@Req() req) {

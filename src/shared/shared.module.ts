@@ -15,7 +15,6 @@ import { StateSchema } from "./schema/state.schema";
 import { TimeZoneSchema } from "./schema/time-zone.schema";
 import { SharedService } from "./shared.service";
 import { MailService } from "./mail.service";
-import { HelperModule } from "src/helper/helper.module";
 @Module({
   imports: [
     LoggerModule,
@@ -30,7 +29,6 @@ import { HelperModule } from "src/helper/helper.module";
       { name: "date-format", schema: DateFormatSchema },
       { name: "commandSource", schema: CommandSourceSchema },
     ]),
-    HelperModule,
     LoggerModule,
   ],
   providers: [SharedService, CurrencyService, ConfigService, MailService],

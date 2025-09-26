@@ -5,11 +5,13 @@ import { HttpModule } from "@nestjs/axios";
 import { HelperController } from "./helper.controller";
 import { HelperService } from "./helper.service";
 import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware";
+import { SharedModule } from "src/shared/shared.module";
 
 @Module({
   imports: [
     MongooseModule.forFeature([]),
-    forwardRef(() => AuthModule),
+    SharedModule,
+    AuthModule,
     HttpModule,
   ],
   controllers: [HelperController],
