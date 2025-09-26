@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
@@ -12,6 +12,8 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
+import { MailService } from "./mail.service";
+import { REQUEST } from "@nestjs/core";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
 @Injectable()
@@ -27,7 +29,9 @@ export class SharedService {
     private readonly commandSourceModel: Model<ICommandSourceModel>,
     private config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
-    private currency_service: CurrencyService
+    private currency_service: CurrencyService,
+    private mailService: MailService,
+    @Inject(REQUEST) private request: Request
   ) {}
 
   fetchName(nameArr, lang) {
@@ -89,7 +93,7 @@ export class SharedService {
     userDetails: any
   ) {
     try {
-    //  console.log("inside track and emit event");
+      //  console.log("inside track and emit event");
 
       const commandSource = {
         userId: userDetails?.userId,
@@ -107,7 +111,7 @@ export class SharedService {
 
       const commandSourceCreate =
         await this.commandSourceModel.create(commandSource);
-   //   console.log("commandSourceCreate", commandSourceCreate);
+      //   console.log("commandSourceCreate", commandSourceCreate);
 
       event["commandSource"] = commandSourceCreate;
       if (isAsync) {
@@ -123,33 +127,134 @@ export class SharedService {
   }
 
   processError(err: Error, context: string) {
-    let code: HttpStatus, response;
-    if (err instanceof AppException) {
-      code = err.getCode();
-      response = { code, message: err.getMessage() };
-    } else {
-      if (err.name == "MongoError") {
-        if (err["code"] == 11000) {
-          let prop = "Value";
-          try {
-            prop = err.message.split(":")[2].replace(" dup key", "").trim();
-          } catch (properr) {
-         //   console.log("cant get prop");
+    try {
+      let code: HttpStatus, response;
+      if (err instanceof AppException) {
+        code = err.getCode();
+        response = { code, message: err.getMessage() };
+      } else {
+        if (err.name == "MongoError") {
+          if (err["code"] == 11000) {
+            let prop = "Value";
+            try {
+              prop = err.message.split(":")[2].replace(" dup key", "").trim();
+            } catch (properr) {
+              //   console.log("cant get prop");
+            }
+            code = HttpStatus.NOT_ACCEPTABLE;
+            response = { code, message: `${prop} provided already exist` };
+          } else {
+            code = HttpStatus.INTERNAL_SERVER_ERROR;
+            response = { code, message: err.message };
           }
-          code = HttpStatus.NOT_ACCEPTABLE;
-          response = { code, message: `${prop} provided already exist` };
         } else {
           code = HttpStatus.INTERNAL_SERVER_ERROR;
           response = { code, message: err.message };
         }
-      } else {
-        code = HttpStatus.INTERNAL_SERVER_ERROR;
-        response = { code, message: err.message };
+      }
+
+      // Use injected request if no req parameter provided
+      const requestObject = this.request;
+
+      // Add mail service trigger here
+      if (code >= 500) {
+        this.sendErrorEmail(err, context, code, requestObject).catch(
+          (emailErr) => {
+            console.log("Error sending email from processError:", emailErr);
+          }
+        );
+      }
+      this.logger.error(err, { label: context || "Shared Module" });
+      return { code, response };
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
+  private async sendErrorEmail(
+    err: Error,
+    context: string,
+    status: number,
+    req?: any
+  ) {
+    try {
+      // Use the same error details extraction logic as AllExceptionsFilter
+      const errorDetails = this.extractErrorDetails(err);
+
+      // Template variables for MSG91 email template (same format as AllExceptionsFilter)
+      const templateVariables = {
+        service: `Casttree-oms Backend (${context})`,
+        path: req?.url || "N/A",
+        method: req?.method || "N/A",
+        user_agent: req?.headers?.["user-agent"] || "N/A",
+        ip: req?.headers?.["x-forwarded-for"] || req?.ip || "N/A",
+        status: status.toString(),
+        error_type: errorDetails?.type,
+        error_message: errorDetails?.message,
+        headers: req?.headers ? JSON.stringify(req.headers, null, 2) : "N/A",
+        params: req?.params ? JSON.stringify(req.params) : "N/A",
+        query: req?.query ? JSON.stringify(req.query) : "N/A",
+        body: req?.body ? JSON.stringify(req.body) : "N/A",
+        stack_trace: errorDetails?.stack,
+        timestamp: new Date().toISOString(),
+        sender_name: "Casttree (Processed Error)",
+        sender_email: "alerts@casttree.in",
+        sender_contact: "+91-8015584624",
+        // external_api_reason: err["response"]?.data?.error,
+        // external_api_url: err["response"]?.config?.url,
+        // external_api_body: err["response"]?.config?.data,
+        // external_api_code: err["response"]?.status,
+      };
+
+      await this.mailService.sendErrorLog(
+        "🚨 Processed Error Alert! CASTTREE-OMS",
+        templateVariables
+      );
+    } catch (error) {
+      // Fail silently to avoid affecting the main flow
+      console.log("Failed to send error email:", error);
+    }
+  }
+
+  private extractErrorDetails(exception: any) {
+    const errorType = exception?.constructor?.name || "Unknown";
+    let message = exception?.message || "No message";
+    let axiosInfo = null;
+    let stack = exception?.stack || "No stack trace available";
+
+    // Handle Axios errors specifically
+    if (exception?.isAxiosError) {
+      const config = exception?.config;
+      const response = exception?.response;
+
+      axiosInfo = `${config?.method?.toUpperCase()} ${config?.url} → ${response?.status} ${response?.statusText}`;
+      message = `Axios Error: ${response?.data?.message || exception?.message}`;
+
+      // Clean up stack to show more relevant frames
+      if (stack) {
+        const lines = stack.split("\n");
+        const relevantLines = lines
+          .filter(
+            (line) =>
+              !line.includes("node_modules/axios") &&
+              !line.includes("node_modules/@nestjs") &&
+              (line.includes("src/") || line.includes("at "))
+          )
+          .slice(0, 10); // Limit to 10 most relevant lines
+
+        if (relevantLines.length > 0) {
+          stack = relevantLines.join("\n");
+        }
       }
     }
-    console.log("going to process err", err.stack);
-    this.logger.error(err, { label: context || "Shared Module" });
-    return { code, response };
+
+    return {
+      type: errorType,
+      message,
+      axiosInfo,
+      stack,
+    };
   }
 
   mediaMapping(data, media, media_details, delete_key: string = null) {
@@ -305,7 +410,7 @@ export class SharedService {
       }
       return input;
     } catch (err) {
-    //  console.log("error in converting ", input);
+      //  console.log("error in converting ", input);
       throw err;
     }
   }
