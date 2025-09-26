@@ -164,7 +164,6 @@ export class SharedService {
           }
         );
       }
-      console.log("going to process err", err.stack);
       this.logger.error(err, { label: context || "Shared Module" });
       return { code, response };
     } catch (err) {

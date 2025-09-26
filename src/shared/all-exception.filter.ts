@@ -54,18 +54,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
       sender_contact: "+91-8015584624", // Add your contact number
     };
 
-      try {
-          if (status >= 500) {
-              await this.mailService.sendErrorLog(
-                  "🚨 Error Alert! CASTTREE-OMS",
-                  templateVariables
-              );
-          }
+    try {
+        if (status >= 500) {
+            await this.mailService.sendErrorLog(
+                "🚨 Error Alert! CASTTREE-OMS",
+                templateVariables
+            );
+        }
     } catch (error) {
       console.log("Error sending email", error);
     }
 
-    console.log("going to process err", exception["stack"]);
     this.logger.error(exception, { label: exception["context"] || "Exception Filter" });
 
     response.status(status).json({
