@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { catchError, lastValueFrom, map } from "rxjs";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { SharedService } from "src/shared/shared.service";
 import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto";
 
 @Injectable()
@@ -17,6 +18,7 @@ export class HelperService {
   constructor(
     private http_service: HttpService,
     private configService: ConfigService,
+    private sharedService: SharedService
   ) {}
 
   getRequiredHeaders(@Req() req) {
@@ -1047,18 +1049,6 @@ export class HelperService {
     } catch (error) {
       console.error("Error generating new media URL:", error);
       throw error;
-    }
-  }
-
-  async getSystemConfigs(key: string) {
-    try {
-      let response = await axios
-        .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
-        )
-      return response.data;
-    } catch (err) {
-      throw err;
     }
   }
 }
