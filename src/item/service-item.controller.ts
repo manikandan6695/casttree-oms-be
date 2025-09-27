@@ -39,7 +39,9 @@ export class ServiceItemController {
   @Get("promotion-details")
   async getPromotionDetailsV2(@Req() req) {
     try {
-      let data = await this.serviceItemService.getPromotionDetailsV2(req.headers["x-process-id"]);
+      let data = await this.serviceItemService.getPromotionDetailsV2(
+        req.headers["x-process-id"]
+      );
       return data;
     } catch (err) {
       throw err;
@@ -83,9 +85,11 @@ export class ServiceItemController {
     }
   }
   @Get("skills")
-  async getContestDetailBySkillId( @Req() req) {
+  async getContestDetailBySkillId(@Req() req) {
     try {
-      const data = await this.serviceItemService.getContestDetailBySkillId(req.headers["x-userid"]);
+      const data = await this.serviceItemService.getContestDetailBySkillId(
+        req.headers["x-userid"]
+      );
       return data;
     } catch (error) {
       throw error;
@@ -106,11 +110,10 @@ export class ServiceItemController {
         limit,
         token.id,
         req.headers["x-country-code"]
-        
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -132,7 +135,7 @@ export class ServiceItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -154,7 +157,7 @@ export class ServiceItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
   @Get("service-items")
@@ -176,7 +179,7 @@ export class ServiceItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -190,7 +193,7 @@ export class ServiceItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 

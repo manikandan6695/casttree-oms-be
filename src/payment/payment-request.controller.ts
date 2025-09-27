@@ -18,7 +18,11 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { SharedService } from "src/shared/shared.service";
-import { filterTypeDTO, paymentDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
+import {
+  filterTypeDTO,
+  paymentDTO,
+  paymentIsSentToMetaDTO,
+} from "./dto/payment.dto";
 import { PaymentRequestService } from "./payment-request.service";
 import { EFilterType } from "./enum/payment.enum";
 
@@ -27,7 +31,7 @@ export class PaymentRequestController {
   constructor(
     private readonly paymentRequestService: PaymentRequestService,
     private sservice: SharedService
-  ) { }
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -38,7 +42,7 @@ export class PaymentRequestController {
     @Res() res: Response
   ) {
     try {
-   //   console.log("inside initiate payment is ==>");
+      //   console.log("inside initiate payment is ==>");
 
       let data = await this.paymentRequestService.initiatePayment(
         body,
@@ -47,11 +51,7 @@ export class PaymentRequestController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -66,11 +66,11 @@ export class PaymentRequestController {
   ) {
     try {
       let filterType: EFilterType;
-  
+
       if (type && Object.values(EFilterType).includes(type as EFilterType)) {
         filterType = type as EFilterType;
       }
-  
+
       const data = await this.paymentRequestService.handleTransactionHistory(
         token,
         skip,
@@ -79,28 +79,27 @@ export class PaymentRequestController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
-  
+
   @UseGuards(JwtAuthGuard)
   @Get(":id")
-  async getPaymentDetail(@Param("id") id: string, @Res() res: Response, @GetToken() token: UserToken) {
+  async getPaymentDetail(
+    @Param("id") id: string,
+    @Res() res: Response,
+    @GetToken() token: UserToken
+  ) {
     try {
-   //   console.log("test");
-      let data: any = await this.paymentRequestService.getPaymentDetail(id,token);
+      //   console.log("test");
+      let data: any = await this.paymentRequestService.getPaymentDetail(
+        id,
+        token
+      );
 
       return res.json(data.payment);
-    } catch (err) { 
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -112,19 +111,13 @@ export class PaymentRequestController {
   ) {
     try {
       let data: any = await this.paymentRequestService.getPaymentDetailBySource(
-
         userId,
         sourceId
-
       );
 
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -138,21 +131,15 @@ export class PaymentRequestController {
       let data = await this.paymentRequestService.paymentWebhook(req);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
   @Get("user/:userId")
-  async getLatestPayments(
-    @Param("userId") userId: string
-  ) {
+  async getLatestPayments(@Param("userId") userId: string) {
     try {
-     let data = await this.paymentRequestService.getLatestPayments(userId);
-     return data;
+      let data = await this.paymentRequestService.getLatestPayments(userId);
+      return data;
     } catch (err) {
       console.error("Error:", err);
       throw err;
@@ -160,16 +147,19 @@ export class PaymentRequestController {
   }
   @UseGuards(JwtAuthGuard)
   @Get("verify-payment/:paymentId")
-  async getCoinValueUpdate(@Param("paymentId") paymentId: string, @Res() res: Response, @GetToken() token: UserToken) {
+  async getCoinValueUpdate(
+    @Param("paymentId") paymentId: string,
+    @Res() res: Response,
+    @GetToken() token: UserToken
+  ) {
     try {
-      const data = await this.paymentRequestService.updateCoinValue(paymentId,token);
+      const data = await this.paymentRequestService.updateCoinValue(
+        paymentId,
+        token
+      );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -177,11 +167,16 @@ export class PaymentRequestController {
   async updatePaymentMeta(
     @Param("paymentId") paymentId: string,
     @GetToken() token: UserToken,
-    @Body(new ValidationPipe({ whitelist: true })) payload: paymentIsSentToMetaDTO,
+    @Body(new ValidationPipe({ whitelist: true }))
+    payload: paymentIsSentToMetaDTO,
     @Res() res: Response
-  ){
+  ) {
     try {
-      let data = await this.paymentRequestService.updatePaymentMeta(paymentId, payload,token);
+      let data = await this.paymentRequestService.updatePaymentMeta(
+        paymentId,
+        payload,
+        token
+      );
       return res.json(data);
     } catch (error) {
       throw error;

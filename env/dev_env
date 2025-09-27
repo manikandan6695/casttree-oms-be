@@ -16,8 +16,6 @@ LOGGER_ERR_LOG_PATH = "logs/error.log"
 JWT_SECRET = "SXUN#*DKJFDGF&#EF"
 JWT_EXPIRATION = "1d"
  
-MSG91_AUTHKEY = "422288Afyz42hC67262be5P1"
- 
 #FILE UPLOADER
 UPLOADER_KEY = "S5B3NH43QPQLH7FXAA7C"
 UPLOADER_SECRET = "lD9+PakjOVMvelPF+LMADBtvbVn7/S8WWO9tFHwHGaE"
@@ -34,10 +32,13 @@ OTP_DESCRIPTION = ""
  
 #ENCRYPT AND DECRYPT KEY
 ENCRYPT_KEY = "Tecxprt-Enterprises"
- 
+
 #MSG91
 #OLD_MSG91_END_POINT = "https://api.msg91.com/api/v5/flow/"
 MSG91_END_POINT = "https://control.msg91.com/api/v5/flow/"
+MSG91_EMAIL_END_POINT = "https://control.msg91.com/api/v5/email/send"
+MSG91_WHATSAPP_END_POINT = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+MSG91_AUTHKEY = "422288Afyz42hC67262be5P1"
  
 # Razorpay
 RAZORPAY_API_KEY = "rzp_test_n3mWjwFQzH7YDM"
