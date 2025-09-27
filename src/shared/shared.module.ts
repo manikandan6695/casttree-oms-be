@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-import { LoggerModule } from "src/logger/logger.module";
 import { CurrencyController } from "./currency/currency.controller";
 import { CurrencyService } from "./currency/currency.service";
 import { CitySchema } from "./schema/city.schema";
@@ -15,11 +14,8 @@ import { StateSchema } from "./schema/state.schema";
 import { TimeZoneSchema } from "./schema/time-zone.schema";
 import { SharedService } from "./shared.service";
 import { SystemConfigurationSchema } from "./schema/system-configuration.schema";
-import { MailService } from "src/alert/mail.service";
-import { AlertModule } from "src/alert/alert.module";
 @Module({
   imports: [
-    LoggerModule,
     MongooseModule.forFeature([
       { name: "sequence", schema: SequenceSchema },
       { name: "currency", schema: CurrencySchema },
@@ -32,7 +28,6 @@ import { AlertModule } from "src/alert/alert.module";
       { name: "commandSource", schema: CommandSourceSchema },
       { name: "system-configuration", schema: SystemConfigurationSchema },
     ]),
-    AlertModule
   ],
   providers: [SharedService, CurrencyService, ConfigService],
   exports: [SharedService, CurrencyService],

@@ -3,7 +3,6 @@ import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { CustomLogger } from "src/logger/customlogger.service";
 import { AppException } from "./app-exception";
 import { CurrencyService } from "./currency/currency.service";
 import {
@@ -12,11 +11,11 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
-import { MailService } from "src/alert/mail.service";
-import { AlertService } from "src/alert/alert.service";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
-import { REQUEST } from "@nestjs/core";
+import axios from "axios";
+import { ISystemConfigurationModel } from "./schema/system-configuration.schema";
+
 @Injectable()
 export class SharedService {
   defaultLanguage = "en";
@@ -24,15 +23,14 @@ export class SharedService {
   // options can be passed, e.g. {allErrors: true}
   schemas = {};
   constructor(
-    private logger: CustomLogger,
     @InjectModel("sequence") private Sequence: Model<ISequence>,
     @InjectModel("commandSource")
     private readonly commandSourceModel: Model<ICommandSourceModel>,
     private config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
     private currency_service: CurrencyService,
-    private readonly alertService: AlertService,
-    @Inject(REQUEST) private request: Request,
+    @InjectModel("system-configuration")
+    private system_configuration_model: Model<ISystemConfigurationModel>,
   ) {}
 
   fetchName(nameArr, lang) {
@@ -94,7 +92,7 @@ export class SharedService {
     userDetails: any
   ) {
     try {
-    //  console.log("inside track and emit event");
+      //  console.log("inside track and emit event");
 
       const commandSource = {
         userId: userDetails?.userId,
@@ -112,7 +110,7 @@ export class SharedService {
 
       const commandSourceCreate =
         await this.commandSourceModel.create(commandSource);
-   //   console.log("commandSourceCreate", commandSourceCreate);
+      //   console.log("commandSourceCreate", commandSourceCreate);
 
       event["commandSource"] = commandSourceCreate;
       if (isAsync) {
@@ -127,7 +125,6 @@ export class SharedService {
     }
   }
 
- 
   processError(err: Error, context: string) {
     let code: HttpStatus, response;
     if (err instanceof AppException) {
@@ -140,7 +137,7 @@ export class SharedService {
           try {
             prop = err.message.split(":")[2].replace(" dup key", "").trim();
           } catch (properr) {
-         //   console.log("cant get prop");
+            //   console.log("cant get prop");
           }
           code = HttpStatus.NOT_ACCEPTABLE;
           response = { code, message: `${prop} provided already exist` };
@@ -154,16 +151,97 @@ export class SharedService {
       }
     }
     console.log("going to process err", err.stack);
-    const requestObject = this.request;
-    if (code >= 500) {
-      this.alertService.sendManualAlert(err.message, context, code.toString(), requestObject).catch(
-        (emailErr) => {
-          console.log("Error sending email from processError:", emailErr);
+
+    this.sendManualAlert(err.message, err.stack, context);
+
+    return { code, response };
+  }
+
+  async sendManualAlert(
+    subject: string,
+    message: string,
+    context?: string,
+  ) {
+    try {
+      const templateVariables = {
+        service: "Casttree-oms Backend (Manual Alert)",
+        path: "Manual Alert",
+        method: "MANUAL",
+        user_agent: "System Generated",
+        ip: "N/A",
+        status: "200",
+        error_type: "Manual Alert",
+        error_message: message,
+        headers: "N/A",
+        params: "N/A",
+        query: "N/A",
+        body: "N/A",
+        stack_trace: context || "Manual alert triggered",
+        timestamp: new Date().toISOString(),
+        sender_name: "Casttree (Manual Alert)",
+        sender_email: "alerts@casttree.in",
+        sender_contact: "+91-8015584624",
+      };
+
+      const result = await this.sendErrorLog(subject, templateVariables);
+
+      return {
+        success: true,
+        message: "Alert sent successfully",
+        data: result,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async sendErrorLog(subject: string, templateVariables: any) {
+    try {
+      const emails = await this.getEmails();
+      console.log("emails", emails);
+      const emailData = {
+        to: emails,
+        from: {
+          name: "Casttree Backend",
+          email: "alerts@casttree.in",
+        },
+        domain: "mail.casttree.in", // Make sure this domain is verified in MSG91
+        mail_type_id: "1", // 1 for Transactional
+        template_id: "error_alert_2025",
+        variables: templateVariables,
+      };
+      console.log("emailData", process.env.MSG91_EMAIL_END_POINT);
+      const response = await axios.post(
+        process.env.MSG91_EMAIL_END_POINT,
+        emailData,
+        {
+          headers: {
+            Authkey: process.env.MSG91_AUTHKEY,
+            "Content-Type": "application/json",
+          },
         }
       );
+
+      // console.log("Email sent successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Error sending email via MSG91:",
+        error.response?.data || error.message
+      );
+      throw error;
     }
-    this.logger.error(err, { label: context || "Shared Module" });
-    return { code, response };
+  }
+
+  async getEmails() {
+    const getEmails = await this.system_configuration_model.findOne({
+      key: "error-email-alert",
+    });
+    const emails = getEmails.value.map((email: any) => ({
+      name: "Email Alert",
+      email: email,
+    }));
+    return emails;
   }
 
   mediaMapping(data, media, media_details, delete_key: string = null) {
@@ -319,7 +397,7 @@ export class SharedService {
       }
       return input;
     } catch (err) {
-    //  console.log("error in converting ", input);
+      //  console.log("error in converting ", input);
       throw err;
     }
   }
