@@ -871,6 +871,7 @@ export class ProcessService {
       let taskData = await this.tasksModel.findOne({ _id: id }).lean();
       return taskData;
     } catch (error) {
+      console.log("error in getTaskDetailByTaskId", error);
       throw error;
     }
   }

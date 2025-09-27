@@ -2,7 +2,8 @@ import { Injectable } from "@nestjs/common";
 import axios from "axios";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { ISystemConfigurationModel } from "./schema/system-configuration.schema";
+import { ISystemConfigurationModel } from "../shared/schema/system-configuration.schema";
+
 @Injectable()
 export class MailService {
   constructor(
@@ -58,6 +59,7 @@ export class MailService {
       throw error;
     }
   }
+
   async getSystemConfig(key: string) {
     try {
       let data = await this.system_configuration_model.findOne({ key: key });

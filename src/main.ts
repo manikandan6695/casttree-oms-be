@@ -4,7 +4,7 @@ import * as bodyParser from "body-parser";
 import "dotenv/config";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
-import { AllExceptionsFilter } from "./shared/all-exception.filter";
+import { AllExceptionsFilter } from "./alert/all-exception.filter";
 
 const port = process.env.SERVER_PORT || 3001;
 const extractor = (request: Request): string | string[] => {

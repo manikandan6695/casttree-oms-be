@@ -6,11 +6,11 @@ import {
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { MailService } from "./mail.service";
-import { CustomLogger } from "src/logger/customlogger.service";
+// import { CustomLogger } from "src/logger/customlogger.service";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  constructor(private readonly mailService: MailService, private readonly logger: CustomLogger) {}
+  constructor(private readonly mailService: MailService) {}
 
   async catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -69,7 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       console.log("Error sending email", error);
     }
 
-    this.logger.error(exception, { label: exception["context"] || "Exception Filter" });
+    // this.logger.error(exception, { label: exception["context"] || "Exception Filter" });
 
     response.status(status).json({
       statusCode: status,
