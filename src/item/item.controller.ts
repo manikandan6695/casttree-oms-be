@@ -25,7 +25,7 @@ export class ItemController {
       let data = await this.itemService.getParentItemId(parentId);
       return data;
     } catch (error) {
-      return error;
+      throw error;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -41,7 +41,7 @@ export class ItemController {
       let data = await this.itemService.getPlatformItem(query, skip, limit);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -51,7 +51,7 @@ export class ItemController {
       let data = await this.itemService.getItemDetail(id);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -72,7 +72,7 @@ export class ItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -95,7 +95,7 @@ export class ItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -117,7 +117,7 @@ export class ItemController {
       );
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 }
