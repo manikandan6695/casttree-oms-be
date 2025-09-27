@@ -108,6 +108,6 @@ METABASE_PASSWORD = "tc7pM+vfqywCe4I1s2XwaHf2wLwciDKv"
 #MIXPANEL
 MIXPANEL_API_SECRET = "7d8ce9abef940aace41f2e285f25d82a"
 
-#MSG91
-MSG91_EMAIL_END_POINT = "https://control.msg91.com/api/v5/email/send"
-MSG91_WHATSAPP_END_POINT = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+; #MSG91
+; MSG91_EMAIL_END_POINT = "https://control.msg91.com/api/v5/email/send"
+; MSG91_WHATSAPP_END_POINT = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
