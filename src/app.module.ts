@@ -26,7 +26,7 @@ import { DynamicUiModule } from "./dynamic-ui/dynamic-ui.module";
 import { RedisInitializer } from "./redis/redis.initializer";
 import { PaymentRequestService } from "./payment/payment-request.service";
 import { EventOutBoxModule } from "./event-outbox/event-outbox.module";
-import { AllExceptionsFilter } from "./shared/all-exception.filter";
+// import { AllExceptionsFilter } from "./shared/all-exception.filter";
 
 @Module({
   imports: [
@@ -81,7 +81,7 @@ import { AllExceptionsFilter } from "./shared/all-exception.filter";
       useClass: ThrottlerBehindProxyGuard,
     },
     RedisInitializer,
-    AllExceptionsFilter
+    // AllExceptionsFilter
   ],
 })
 export class AppModule {
