@@ -7,7 +7,7 @@ import {
   Inject,
   forwardRef,
   Query,
-  Res
+  Res,
 } from "@nestjs/common";
 import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { Response } from "express";
@@ -29,7 +29,7 @@ export class HelperController {
       let data = await this.helperService.sendMail(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -39,7 +39,7 @@ export class HelperController {
       let data = await this.helperService.sendWhastappMessage(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -51,7 +51,7 @@ export class HelperController {
     } catch (err) {
       throw err;
     }
-}
+  }
   @Get("mixpanel/export")
   async exportMixpanelData(@Query() query: any, @Res() res?: Response) {
     try {
@@ -84,14 +84,7 @@ export class HelperController {
         return { csv };
       }
     } catch (err) {
-      console.error("Error exporting Mixpanel data:", err);
-      if (res) {
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Failed to export Mixpanel data" });
-        }
-      } else {
-        return { error: "Failed to export Mixpanel data" };
-      }
+      throw err;
     }
   }
 
@@ -106,8 +99,7 @@ export class HelperController {
       );
       return { data: jsonlData };
     } catch (err) {
-      console.error("Error fetching Mixpanel data:", err);
-      return { error: "Failed to fetch Mixpanel data" };
+      throw err;
     }
   }
 
@@ -115,14 +107,19 @@ export class HelperController {
   async streamMixpanelExport(@Query() query: any, @Res() res: Response) {
     try {
       const mixpanelApiSecret = this.configService.get("MIXPANEL_API_SECRET");
-      
+
       if (!mixpanelApiSecret) {
-        return res.status(500).json({ error: "MIXPANEL_API_SECRET not configured" });
+        return res
+          .status(500)
+          .json({ error: "MIXPANEL_API_SECRET not configured" });
       }
 
       // Set response headers for streaming CSV
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", 'attachment; filename="mixpanel_export.csv"');
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="mixpanel_export.csv"'
+      );
       res.setHeader("Transfer-Encoding", "chunked");
 
       // Use the streaming method directly
@@ -134,10 +131,7 @@ export class HelperController {
         res
       );
     } catch (err) {
-      console.error("Error streaming Mixpanel data:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to stream Mixpanel data" });
-      }
+      throw err;
     }
   }
 }

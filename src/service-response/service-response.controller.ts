@@ -5,7 +5,7 @@ import {
   Req,
   Res,
   UseGuards,
-  ValidationPipe
+  ValidationPipe,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { UserToken } from "src/auth/dto/usertoken.dto";
@@ -38,11 +38,7 @@ export class ServiceResponseController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 }
