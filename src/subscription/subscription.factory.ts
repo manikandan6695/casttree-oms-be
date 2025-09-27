@@ -1074,11 +1074,13 @@ export class SubscriptionFactory {
     try {
       console.log("payload", payload);
       const pubSubMessage = payload?.message;
+      if (pubSubMessage) {        
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
       console.log("notification", notification);
 
       const { subscriptionNotification } = notification;
+      if (notification.subscriptionNotification) { 
       const { notificationType, purchaseToken } = subscriptionNotification;
       // console.log("notificationType", purchaseToken, notification.packageName);
 
@@ -1093,7 +1095,9 @@ export class SubscriptionFactory {
         purchaseToken: purchaseToken,
         notificationType: notificationType,
       };
-      return verificationData;
+      return verificationData;        
+    }
+  }
     } catch (err) {
       throw err;
     }
