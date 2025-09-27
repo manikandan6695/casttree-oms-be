@@ -125,7 +125,7 @@ export class SharedService {
     }
   }
 
-  processError(err: Error, context: string) {
+  processError(err: Error, context: string, requestData?: any) {
     let code: HttpStatus, response;
     if (err instanceof AppException) {
       code = err.getCode();
@@ -137,7 +137,7 @@ export class SharedService {
           try {
             prop = err.message.split(":")[2].replace(" dup key", "").trim();
           } catch (properr) {
-            //   console.log("cant get prop");
+         //   console.log("cant get prop");
           }
           code = HttpStatus.NOT_ACCEPTABLE;
           response = { code, message: `${prop} provided already exist` };
@@ -152,7 +152,14 @@ export class SharedService {
     }
     console.log("going to process err", err.stack);
 
-    this.sendManualAlert(err.message, err.stack, context);
+    // Only send alert for server errors (500+)
+    if (code >= 500) {
+      this.sendErrorAlert(err.message, context, code.toString(), requestData).catch(
+        (emailErr) => {
+          console.log("Error sending email from processError:", emailErr);
+        }
+      );
+    }
 
     return { code, response };
   }
@@ -195,54 +202,6 @@ export class SharedService {
     }
   }
 
-  async sendErrorLog(subject: string, templateVariables: any) {
-    try {
-      const emails = await this.getEmails();
-      console.log("emails", emails);
-      const emailData = {
-        to: emails,
-        from: {
-          name: "Casttree Backend",
-          email: "alerts@casttree.in",
-        },
-        domain: "mail.casttree.in", // Make sure this domain is verified in MSG91
-        mail_type_id: "1", // 1 for Transactional
-        template_id: "error_alert_2025",
-        variables: templateVariables,
-      };
-      console.log("emailData", process.env.MSG91_EMAIL_END_POINT);
-      const response = await axios.post(
-        process.env.MSG91_EMAIL_END_POINT,
-        emailData,
-        {
-          headers: {
-            Authkey: process.env.MSG91_AUTHKEY,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      // console.log("Email sent successfully:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error(
-        "Error sending email via MSG91:",
-        error.response?.data || error.message
-      );
-      throw error;
-    }
-  }
-
-  async getEmails() {
-    const getEmails = await this.system_configuration_model.findOne({
-      key: "error-email-alert",
-    });
-    const emails = getEmails.value.map((email: any) => ({
-      name: "Email Alert",
-      email: email,
-    }));
-    return emails;
-  }
 
   mediaMapping(data, media, media_details, delete_key: string = null) {
     data.forEach((ele) => {
@@ -514,6 +473,110 @@ export class SharedService {
   }
   generateRandomNumber(start_digit: number, end_digit: number) {
     return Math.floor(start_digit + (end_digit - start_digit) * Math.random());
+  }
+
+  private async sendErrorAlert(message: string, context: string, statusCode: string, requestData?: any) {
+    try {
+      const templateVariables = {
+        service: "Casttree-oms Backend (Error Alert)",
+        path: requestData?.url || "N/A",
+        method: requestData?.method || "N/A",
+        user_agent: requestData?.headers?.["user-agent"] || "System Generated",
+        ip: requestData?.headers?.["x-forwarded-for"] || requestData?.ip || "N/A",
+        status: statusCode,
+        error_type: "Server Error",
+        error_message: message,
+        headers: JSON.stringify(requestData?.headers || {}, null, 2) || "N/A",
+        params: JSON.stringify(requestData?.params || {}) || "N/A",
+        query: JSON.stringify(requestData?.query || {}) || "N/A",
+        body: JSON.stringify(requestData?.body || {}) || "N/A",
+        stack_trace: context || "Error alert triggered",
+        timestamp: new Date().toISOString(),
+        sender_name: "Casttree (Error Alert)",
+        sender_email: "alerts@casttree.in",
+        sender_contact: "+91-8015584624",
+      };
+
+      await this.sendErrorLog("🚨 Error Alert! CASTTREE-OMS", templateVariables);
+    } catch (error) {
+      console.error("Failed to send error alert:", error);
+      // Don't throw the error to prevent breaking the main flow
+    }
+  }
+
+  private async sendErrorLog(subject: string, templateVariables: any) {
+    try {
+      // Check if required environment variables are present
+      if (!process.env.MSG91_EMAIL_END_POINT || !process.env.MSG91_AUTHKEY) {
+        console.warn("MSG91 email configuration missing. Skipping email alert.");
+        return { success: false, message: "Email configuration missing" };
+      }
+
+      const emails = await this.getEmails();
+      
+      // Check if emails are configured
+      if (!emails || emails.length === 0) {
+        console.warn("No email recipients configured. Skipping email alert.");
+        return { success: false, message: "No email recipients configured" };
+      }
+
+      console.log("Sending email alert to:", emails);
+      
+      const emailData = {
+        to: emails,
+        from: {
+          name: "Casttree Backend",
+          email: "alerts@casttree.in",
+        },
+        domain: "mail.casttree.in",
+        mail_type_id: "1",
+        template_id: "error_alert_2025",
+        variables: templateVariables,
+      };
+      
+      const response = await axios.post(
+        process.env.MSG91_EMAIL_END_POINT,
+        emailData,
+        {
+          headers: {
+            Authkey: process.env.MSG91_AUTHKEY,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+
+      console.log("Email sent successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error sending email via MSG91:", error.response?.data || error.message);
+      return { 
+        success: false, 
+        message: "Failed to send email alert",
+        error: error.message 
+      };
+    }
+  }
+
+  private async getEmails() {
+    try {
+      const getEmails = await this.system_configuration_model.findOne({
+        key: "error-email-alert",
+      });
+      
+      if (!getEmails || !getEmails.value) {
+        return [];
+      }
+      
+      const emails = getEmails.value.map((email: any) => ({
+        name: "Email Alert",
+        email: email,
+      }));
+      return emails;
+    } catch (error) {
+      console.error("Error getting email configuration:", error);
+      return [];
+    }
   }
 }
 export enum app_date_ranges {
