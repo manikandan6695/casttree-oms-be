@@ -1,17 +1,19 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { HelperService } from "src/helper/helper.service";
 import axios from "axios";
-
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { ISystemConfigurationModel } from "./schema/system-configuration.schema";
 @Injectable()
 export class MailService {
   constructor(
-    private readonly configService: ConfigService,
+    @InjectModel("system-configuration")
+    private system_configuration_model: Model<ISystemConfigurationModel>
   ) {}
 
   async getEmails() {
-    const getEmails =
-      await this.getSystemConfig("error-email-alert");
+    const getEmails = await this.system_configuration_model.findOne({
+      key: "error-email-alert",
+    });
     const emails = getEmails.value.map((email: any) => ({
       name: "Email Alert",
       email: email,
@@ -22,6 +24,7 @@ export class MailService {
   async sendErrorLog(subject: string, templateVariables: any) {
     try {
       const emails = await this.getEmails();
+      console.log("emails", emails);
       const emailData = {
         to: emails,
         from: {
@@ -33,14 +36,17 @@ export class MailService {
         template_id: "error_alert_2025",
         variables: templateVariables,
       };
-
-      const response = await axios
-        .post(this.configService.get("MSG91_EMAIL_END_POINT"), emailData, {
+      console.log("emailData",  process.env.MSG91_EMAIL_END_POINT);
+      const response = await axios.post(
+        process.env.MSG91_EMAIL_END_POINT,
+        emailData,
+        {
           headers: {
-            Authkey: this.configService.get("MSG91_AUTHKEY"),
+            Authkey: process.env.MSG91_AUTHKEY,
             "Content-Type": "application/json",
           },
-        })
+        }
+      );
 
       // console.log("Email sent successfully:", response.data);
       return response.data;
@@ -54,11 +60,8 @@ export class MailService {
   }
   async getSystemConfig(key: string) {
     try {
-      let response = await axios
-        .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
-        )
-      return response.data;
+      let data = await this.system_configuration_model.findOne({ key: key });
+      return data;
     } catch (err) {
       throw err;
     }
