@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
@@ -12,8 +12,11 @@ import {
 } from "./enum/command-source.enum";
 import { ICommandSourceModel } from "./schema/command-source.schema";
 import { ISequence } from "./schema/sequence.schema";
+import { MailService } from "src/alert/mail.service";
+import { AlertService } from "src/alert/alert.service";
 var TinyURL = require("tinyurl");
 var aes256 = require("aes256");
+import { REQUEST } from "@nestjs/core";
 @Injectable()
 export class SharedService {
   defaultLanguage = "en";
@@ -27,7 +30,9 @@ export class SharedService {
     private readonly commandSourceModel: Model<ICommandSourceModel>,
     private config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
-    private currency_service: CurrencyService
+    private currency_service: CurrencyService,
+    private readonly alertService: AlertService,
+    @Inject(REQUEST) private request: Request,
   ) {}
 
   fetchName(nameArr, lang) {
@@ -149,6 +154,14 @@ export class SharedService {
       }
     }
     console.log("going to process err", err.stack);
+    const requestObject = this.request;
+    if (code >= 500) {
+      this.alertService.sendManualAlert(err.message, context, code.toString(), requestObject).catch(
+        (emailErr) => {
+          console.log("Error sending email from processError:", emailErr);
+        }
+      );
+    }
     this.logger.error(err, { label: context || "Shared Module" });
     return { code, response };
   }

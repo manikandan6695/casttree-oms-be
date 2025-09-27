@@ -15,6 +15,8 @@ import { StateSchema } from "./schema/state.schema";
 import { TimeZoneSchema } from "./schema/time-zone.schema";
 import { SharedService } from "./shared.service";
 import { SystemConfigurationSchema } from "./schema/system-configuration.schema";
+import { MailService } from "src/alert/mail.service";
+import { AlertModule } from "src/alert/alert.module";
 @Module({
   imports: [
     LoggerModule,
@@ -30,6 +32,7 @@ import { SystemConfigurationSchema } from "./schema/system-configuration.schema"
       { name: "commandSource", schema: CommandSourceSchema },
       { name: "system-configuration", schema: SystemConfigurationSchema },
     ]),
+    AlertModule
   ],
   providers: [SharedService, CurrencyService, ConfigService],
   exports: [SharedService, CurrencyService],

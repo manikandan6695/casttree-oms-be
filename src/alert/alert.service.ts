@@ -9,7 +9,7 @@ export class AlertService {
     // private readonly logger: CustomLogger
   ) {}
 
-  async sendManualAlert(subject: string, message: string, context?: string) {
+  async sendManualAlert(subject: string, message: string, context?: string, requestObject?: any) {
     try {
       const templateVariables = {
         service: "Casttree-oms Backend (Manual Alert)",
