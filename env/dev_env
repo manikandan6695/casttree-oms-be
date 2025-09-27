@@ -15,7 +15,10 @@ LOGGER_ERR_LOG_PATH = "logs/error.log"
 #JWT
 JWT_SECRET = "SXUN#*DKJFDGF&#EF"
 JWT_EXPIRATION = "1d"
- 
+
+#MSG91
+MSG91_EMAIL_END_POINT = "https://control.msg91.com/api/v5/email/send"
+MSG91_WHATSAPP_END_POINT = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
 MSG91_AUTHKEY = "422288Afyz42hC67262be5P1"
  
 #FILE UPLOADER
