@@ -61,8 +61,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       external_api_code: exception["response"]?.status,
     };
 
+    const validStatus = [400, 404]
     try {
-      if (status >= 500) {
+      if (validStatus.includes(status) || status >= 500) {
         await this.mailService.sendErrorLog(
           "🚨 Error Alert! CASTTREE-OMS",
           templateVariables
