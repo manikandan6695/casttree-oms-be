@@ -27,7 +27,7 @@ export class MailService {
         },
         domain: "mail.casttree.in", // Make sure this domain is verified in MSG91
         mail_type_id: "1", // 1 for Transactional
-        template_id: "error_alert_2025",
+        template_id: "oms_service_alert",
         variables: templateVariables,
       };
 
@@ -42,7 +42,6 @@ export class MailService {
         }
       );
 
-      console.log("Email sent successfully:", response.data);
       return response.data;
     } catch (error) {
       console.error(

@@ -55,10 +55,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       sender_name: "Casttree (Exception Filter)",
       sender_email: "alerts@casttree.in",
       sender_contact: "+91-8015584624",
-      // external_api_reason: exception["response"]?.data?.error,
-      // external_api_url: exception["response"]?.config?.url,
-      // external_api_body: exception["response"]?.config?.data,
-      // external_api_code: exception["response"]?.status,
+      external_api_reason: exception["response"]?.data?.error?.description,
+      external_api_url: exception["response"]?.config?.url,
+      external_api_body: exception["response"]?.config?.data,
+      external_api_code: exception["response"]?.status,
     };
 
     try {
