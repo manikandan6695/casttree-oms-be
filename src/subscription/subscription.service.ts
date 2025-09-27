@@ -1484,19 +1484,17 @@ export class SubscriptionService {
                 },
               }
             );
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+            mixPanelBody.distinctId = coinTransaction?.userId;
+            mixPanelBody.properties = {
+              user_id: coinTransaction?.userId,
+              amount: paymentRequest?.amount,
+              currency: invoice?.currencyCode,
+              coin_value: coinTransaction?.coinValue,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
           }
-          
-          let mixPanelBody: any = {};
-          mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
-          mixPanelBody.distinctId = coinTransaction?.userId;
-          mixPanelBody.properties = {
-            user_id: coinTransaction?.userId,
-            amount: paymentRequest?.amount,
-            currency: invoice?.currencyCode,
-            coin_value: coinTransaction?.coinValue,
-          };
-          await this.helperService.mixPanel(mixPanelBody);
-          
         } catch (error) {
           console.warn(
             `Coin transaction update failed for user ${subscription?.userId}:`,
