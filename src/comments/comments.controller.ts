@@ -38,11 +38,7 @@ export class CommentsController {
       let data = await this.commentsService.saveComment(body, token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -64,11 +60,7 @@ export class CommentsController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -83,11 +75,7 @@ export class CommentsController {
       let data = await this.commentsService.removeComment(id, token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 }

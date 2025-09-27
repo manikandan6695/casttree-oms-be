@@ -1,8 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post
-} from "@nestjs/common";
+import { Body, Controller, Post } from "@nestjs/common";
 import { SharedService } from "src/shared/shared.service";
 import { HelperService } from "./helper.service";
 
@@ -18,7 +14,7 @@ export class HelperController {
       let data = await this.helperService.sendMail(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -28,7 +24,7 @@ export class HelperController {
       let data = await this.helperService.sendWhastappMessage(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 }
