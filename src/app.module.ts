@@ -85,6 +85,7 @@ import { AllExceptionsFilter } from "./shared/all-exception.filter";
       useClass: AllExceptionsFilter,
     },
     RedisInitializer,
+    // AllExceptionsFilter
   ],
 })
 export class AppModule {
