@@ -84,42 +84,51 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private extractErrorDetails(exception: any) {
-    const errorType = exception?.constructor?.name || "Unknown";
-    let message = exception?.message || "No message";
-    let axiosInfo = null;
-    let stack = exception?.stack || "No stack trace available";
-
-    // Handle Axios errors specifically
-    if (exception?.isAxiosError) {
-      const config = exception?.config;
-      const response = exception?.response;
-
-      axiosInfo = `${config?.method?.toUpperCase()} ${config?.url} → ${response?.status} ${response?.statusText}`;
-      message = `Axios Error: ${response?.data?.message || exception?.message}`;
-
-      // Clean up stack to show more relevant frames
-      if (stack) {
-        const lines = stack.split("\n");
-        const relevantLines = lines
-          .filter(
-            (line) =>
-              !line.includes("node_modules/axios") &&
-              !line.includes("node_modules/@nestjs") &&
-              (line.includes("src/") || line.includes("at "))
-          )
-          .slice(0, 10); // Limit to 10 most relevant lines
-
-        if (relevantLines.length > 0) {
-          stack = relevantLines.join("\n");
+    try {
+      const errorType = exception?.constructor?.name || "Unknown";
+      let message = exception?.message || "No message";
+      let axiosInfo = null;
+      let stack = exception?.stack || "No stack trace available";
+      
+      // Handle Axios errors specifically
+      if (exception?.isAxiosError) {
+        const config = exception?.config;
+        const response = exception?.response;
+      
+        axiosInfo = `${config?.method?.toUpperCase()} ${config?.url} → ${response?.status} ${response?.statusText}`;
+        message = `Axios Error: ${response?.data?.message || exception?.message}`;
+      
+        // Clean up stack to show more relevant frames
+        if (stack) {
+          const lines = stack.split("\n");
+          const relevantLines = lines
+            .filter(
+              (line) =>
+                !line.includes("node_modules/axios") &&
+                !line.includes("node_modules/@nestjs") &&
+                (line.includes("src/") || line.includes("at "))
+            )
+            .slice(0, 10); // Limit to 10 most relevant lines
+          
+          if (relevantLines.length > 0) {
+            stack = relevantLines.join("\n");
+          }
         }
       }
+    
+      return {
+        type: errorType,
+        message,
+        axiosInfo,
+        stack,
+      };
+    } catch (error) {
+      console.log("Error extracting error details", error);
+      return {
+        type: "Unknown",
+        message: "No message",
+        stack: "No stack trace available",
+      };
     }
-
-    return {
-      type: errorType,
-      message,
-      axiosInfo,
-      stack,
-    };
   }
 }

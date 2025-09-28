@@ -1,14 +1,20 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { HelperService } from "src/helper/helper.service";
 import axios from "axios";
+import { ISystemConfigurationModel } from "./schema/system-configuration.schema";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 
 @Injectable()
 export class MailService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectModel("systemConfiguration")
+    private readonly systemConfigurationModel: Model<ISystemConfigurationModel>
+  ) { }
 
   async getEmails() {
-    const getEmails = await this.getSystemConfig("error-email-alert");
+    const getEmails = await this.systemConfigurationModel.findOne({ key: "error-email-alert" });
     const emails = getEmails.value.map((email: any) => ({
       name: "Email Alert",
       email: email,
@@ -49,16 +55,6 @@ export class MailService {
         error.response?.data || error.message
       );
       throw error;
-    }
-  }
-  async getSystemConfig(key: string) {
-    try {
-      let response = await axios.get(
-        `${this.configService.get("CASTTREE_BASE_URL")}/configuration?key=${key}`
-      );
-      return response.data;
-    } catch (err) {
-      throw err;
     }
   }
 }
