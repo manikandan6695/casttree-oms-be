@@ -45,7 +45,7 @@ export class ProcessService {
         );
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
-        _id: taskId,
+        _id: new ObjectId(taskId),
       });
       let finalResponse = {};
       let totalTasks = (
@@ -214,7 +214,7 @@ export class ProcessService {
           await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
             processId: processId,
-            taskId: taskId,
+            taskId: new ObjectId(taskId),
           });
         if (checkTaskInstanceDetailHistory) {
           if (taskType == EtaskType.Break) {
@@ -259,7 +259,7 @@ export class ProcessService {
         if (taskType == EtaskType.Break) {
           CurrentInstanceData = await this.processInstanceDetailsModel.findOne({
             createdBy: userId,
-            taskId: taskId,
+            taskId: new ObjectId(taskId),
           });
           finalResponse = {
             breakEndsAt: CurrentInstanceData.endedAt,
