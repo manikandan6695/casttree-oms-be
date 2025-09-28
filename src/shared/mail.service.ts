@@ -14,12 +14,17 @@ export class MailService {
   ) { }
 
   async getEmails() {
-    const getEmails = await this.systemConfigurationModel.findOne({ key: "error-email-alert" });
-    const emails = getEmails.value.map((email: any) => ({
-      name: "Email Alert",
-      email: email,
-    }));
-    return emails;
+    try {
+      const getEmails = await this.systemConfigurationModel.findOne({ key: "error-email-alert" });
+      const emails = getEmails.value.map((email: any) => ({
+        name: "Email Alert",
+        email: email,
+      }));
+        return emails;
+    } catch (error) {
+      console.error("Error getting emails:", error);
+      throw error;
+    }
   }
 
   async sendErrorLog(subject: string, templateVariables: any) {
