@@ -157,6 +157,30 @@ export class RedisService implements OnModuleDestroy {
     return this.client;
   }
 
+  // Distributed locking methods
+  async setNX(key: string, value: string, ttlSeconds: number): Promise<string> {
+    try {
+      const result = await this.client.setNX(key, value);
+      if (result) {
+        await this.client.expire(key, ttlSeconds);
+        return 'OK';
+      }
+      return 'EXISTS';
+    } catch (error) {
+      console.error('[Redis setNX Error]', error.message || error);
+      throw error;
+    }
+  }
+
+  async del(key: string): Promise<number> {
+    try {
+      return await this.client.del(key);
+    } catch (error) {
+      console.error('[Redis del Error]', error.message || error);
+      throw error;
+    }
+  }
+
   async onModuleDestroy() {
     this.isPolling = false;
     if (this.isConnected) {

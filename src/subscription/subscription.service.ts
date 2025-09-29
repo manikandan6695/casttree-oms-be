@@ -58,6 +58,7 @@ import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
 import { CurrencyService } from "src/shared/currency/currency.service";
+import { RedisService } from "src/redis/redis.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -82,6 +83,7 @@ export class SubscriptionService {
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private currencyService: CurrencyService,
+    private readonly redisService: RedisService,
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -2033,13 +2035,27 @@ export class SubscriptionService {
 
   @Cron("0 1 * * *")
   async createCharge() {
+    const lockKey = 'createCharge:lock';
+    const lockTimeout = 30 * 60 * 1000; // 30 minutes
+    let lockAcquired = false;
+    
     try {
-      const planDetail = await this.itemService.getItemDetailByName("PRO");
+      // Acquire distributed lock to prevent concurrent executions
+      lockAcquired = await this.acquireDistributedLock(lockKey, lockTimeout);
+      if (!lockAcquired) {
+        console.log('createCharge: Another instance is already running, skipping execution');
+        return;
+      }
+
+      console.log('createCharge: Starting optimized charge creation process');
+      const startTime = Date.now();
+      
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
 
+      // Enhanced aggregation with duplicate prevention
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
         {
           $sort: {
@@ -2118,167 +2134,345 @@ export class SubscriptionService {
         },
       ]);
 
-      console.log(
-        "expiring list ==>",
-        expiringSubscriptionsList.length
-        // expiringSubscriptionsList
-      );
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        let mandate = expiringSubscriptionsList[i]?.latestMandate;
-        if (mandate?.providerId == EProviderId.cashfree) {
-          await this.createChargeData(expiringSubscriptionsList[i], planDetail);
-        }
-        if (mandate?.providerId == EProviderId.razorpay) {
-          await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
-        }
+      console.log(`createCharge: Found ${expiringSubscriptionsList.length} expiring subscriptions`);
+
+      if (expiringSubscriptionsList.length === 0) {
+        console.log('createCharge: No expiring subscriptions found, exiting');
+        return;
       }
+
+      // Deduplication: Check for existing pending charges
+      const userIds = expiringSubscriptionsList.map(sub => sub.latestDocument.userId);
+      const existingCharges = await this.subscriptionModel.find({
+        userId: { $in: userIds },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+      }).select('userId').lean();
+
+      const existingChargeUserIds = new Set(existingCharges.map(charge => charge.userId.toString()));
+      const filteredSubscriptions = expiringSubscriptionsList.filter(
+        sub => !existingChargeUserIds.has(sub.latestDocument.userId.toString())
+      );
+
+      console.log(`createCharge: After deduplication, processing ${filteredSubscriptions.length} subscriptions`);
+
+      if (filteredSubscriptions.length === 0) {
+        console.log('createCharge: All subscriptions already have pending charges, exiting');
+        return;
+      }
+
+      // Batch processing with error handling
+      const results = await this.processSubscriptionsBatch(filteredSubscriptions);
+      
+      const executionTime = Date.now() - startTime;
+      console.log(`createCharge: Completed in ${executionTime}ms. Success: ${results.success}, Failed: ${results.failed}`);
+      
+      // Log failed subscriptions for manual review
+      if (results.failedSubscriptions.length > 0) {
+        console.error('createCharge: Failed subscriptions:', results.failedSubscriptions);
+      }
+
     } catch (error) {
+      console.error('createCharge: Critical error occurred:', error);
       throw error;
+    } finally {
+      // Always release the lock
+      if (lockAcquired) {
+        await this.releaseDistributedLock(lockKey);
+      }
     }
   }
 
-  async createChargeData(subscriptionData, planDetail) {
-    // console.log(
-    //   "subscription data is ==>",
-    //   subscriptionData?.latestDocument?.metaData?.subscription_id
-    // );
+  private async acquireDistributedLock(key: string, timeout: number): Promise<boolean> {
+    try {
+      // Using Redis for distributed locking
+      const lockValue = `${Date.now()}-${Math.random()}`;
+      const result = await this.redisService.setNX(key, lockValue, timeout);
+      return result === 'OK';
+    } catch (error) {
+      console.error('Failed to acquire distributed lock:', error);
+      return false;
+    }
+  }
 
-    const paymentSequence = await this.sharedService.getNextNumber(
-      "cashfree-payment",
-      "CSH-PMT",
-      5,
-      null
-    );
-    const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
-    let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+  private async releaseDistributedLock(key: string): Promise<void> {
+    try {
+      await this.redisService.del(key);
+    } catch (error) {
+      console.error('Failed to release distributed lock:', error);
+    }
+  }
 
-    let now = new Date();
-    let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
-
-    let authBody = {
-      subscription_id:
-        subscriptionData?.latestDocument?.metaData?.subscription_id,
-      payment_id: paymentNumber,
-      payment_amount:
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.amount,
-      payment_type: "CHARGE",
-      payment_schedule_date: paymentSchedule.toISOString(),
+  private async processSubscriptionsBatch(subscriptions: any[]): Promise<{
+    success: number;
+    failed: number;
+    failedSubscriptions: any[];
+  }> {
+    const results = {
+      success: 0,
+      failed: 0,
+      failedSubscriptions: []
     };
-    // console.log("auth body is ==>", authBody);
 
-    const today = new Date();
-    const startAt = new Date();
-    startAt.setDate(today.getDate() + 1);
-    startAt.setHours(18, 30, 0, 0);
-    // console.log("startAt", startAt);
+    // Collect all unique itemIds and fetch them in batch for better performance
+    const itemIds = new Set();
+    const subscriptionsWithItemIds = [];
+    const subscriptionsWithoutItemIds = [];
+    
+    for (const subscription of subscriptions) {
+      const itemId = subscription?.latestDocument?.notes?.itemId;
+      if (itemId) {
+        itemIds.add(itemId);
+        subscriptionsWithItemIds.push({
+          subscription: subscription,
+          itemId: itemId
+        });
+      } else {
+        subscriptionsWithoutItemIds.push(subscription);
+      }
+    }
+    
+    // Batch fetch all item details at once
+    let itemDetailsMap = new Map();
+    if (itemIds.size > 0) {
+      try {
+        const itemDetails = await this.itemService.getItemsDetails(Array.from(itemIds));
+        itemDetails.forEach(item => {
+          itemDetailsMap.set(item._id.toString(), item);
+        });
+      } catch (error) {
+        console.error('Failed to fetch item details:', error);
+        // Continue with PRO plan fallback
+      }
+    }
+    
+    // Get PRO plan detail once for fallback
+    let proPlanDetail = null;
+    try {
+      proPlanDetail = await this.itemService.getItemDetailByName("PRO");
+    } catch (error) {
+      console.error('Failed to fetch PRO plan details:', error);
+    }
 
-    let endAt = new Date();
-    // console.log("endAt", endAt);
+    // Process subscriptions with itemIds
+    for (const { subscription, itemId } of subscriptionsWithItemIds) {
+      try {
+        const mandate = subscription?.latestMandate;
+        const planDetail = itemDetailsMap.get(itemId) || proPlanDetail;
+        
+        if (!planDetail) {
+          throw new Error('No plan detail available');
+        }
 
-    planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-      ?.validityType == EvalidityType.day
-      ? endAt.setDate(
-          endAt.getDate() +
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validity
-        )
-      : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.validityType == EvalidityType.month
-        ? endAt.setMonth(
-            endAt.getMonth() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
-        : endAt.setFullYear(
-            endAt.getFullYear() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          );
-    let chargeResponse = await this.helperService.createAuth(authBody);
+        if (mandate?.providerId == EProviderId.cashfree) {
+          await this.createChargeDataWithRetry(subscription, planDetail);
+        } else if (mandate?.providerId == EProviderId.razorpay) {
+          await this.raiseChargeWithRetry(subscription, planDetail);
+        }
+        
+        results.success++;
+      } catch (error) {
+        console.error(`Failed to process subscription for user ${subscription?.latestDocument?.userId}:`, error);
+        results.failed++;
+        results.failedSubscriptions.push({
+          subscription,
+          error: error.message
+        });
+      }
+    }
+    
+    // Process subscriptions without itemIds (use PRO plan)
+    for (const subscription of subscriptionsWithoutItemIds) {
+      try {
+        const mandate = subscription?.latestMandate;
+        
+        if (!proPlanDetail) {
+          throw new Error('PRO plan detail not available');
+        }
 
-    if (chargeResponse) {
-      endAt.setDate(endAt.getDate());
-      endAt.setHours(18, 29, 59, 999);
-      // console.log("start at ==>", startAt);
-      // console.log("end at ==>", endAt);
-      // console.log(
-      //   "check user id is ==>",
-      //   subscriptionData?.latestDocument?.userId
-      // );
+        if (mandate?.providerId == EProviderId.cashfree) {
+          await this.createChargeDataWithRetry(subscription, proPlanDetail);
+        } else if (mandate?.providerId == EProviderId.razorpay) {
+          await this.raiseChargeWithRetry(subscription, proPlanDetail);
+        }
+        
+        results.success++;
+      } catch (error) {
+        console.error(`Failed to process subscription for user ${subscription?.latestDocument?.userId}:`, error);
+        results.failed++;
+        results.failedSubscriptions.push({
+          subscription,
+          error: error.message
+        });
+      }
+    }
 
-      let fv = {
-        userId: subscriptionData?.latestDocument?.userId,
-        planId: subscriptionData?.latestDocument?.planId,
+    return results;
+  }
+
+  private async createChargeDataWithRetry(subscriptionData: any, planDetail: any, maxRetries: number = 3): Promise<void> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.createChargeData(subscriptionData, planDetail);
+        return; // Success
+      } catch (error) {
+        lastError = error;
+        console.warn(`createChargeData attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  private async raiseChargeWithRetry(subscriptionData: any, planDetail: any, maxRetries: number = 3): Promise<void> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.raiseCharge(subscriptionData, planDetail);
+        return; // Success
+      } catch (error) {
+        lastError = error;
+        console.warn(`raiseCharge attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff
+          const delay = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  async createChargeData(subscriptionData, planDetail) {
+    try {
+      // Validate input data before processing
+      const validationResult = this.validateChargeDataInput(subscriptionData, planDetail);
+      if (!validationResult.isValid) {
+        throw new Error(`Invalid charge data: ${validationResult.errors.join(', ')}`);
+      }
+
+      // Extract and cache commonly used values to avoid repeated property access
+      const subscriptionDoc = subscriptionData?.latestDocument;
+      const subscriptionDetail = planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail;
+      const userId = subscriptionDoc?.userId;
+      const itemId = subscriptionDoc?.notes?.itemId;
+
+      // Generate unique payment ID with idempotency key
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "cashfree-payment",
+        "CSH-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      const idempotencyKey = `${userId}-${itemId}-${Date.now()}`;
+      const paymentNumber = `${paymentNewNumber}-${idempotencyKey}`;
+
+      // Calculate dates once
+      const now = new Date();
+      const paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      const today = new Date();
+      const startAt = new Date();
+      startAt.setDate(today.getDate() + 1);
+      startAt.setHours(18, 30, 0, 0);
+
+      // Calculate end date based on validity type
+      const endAt = this.calculateSubscriptionEndDate(now, subscriptionDetail);
+
+      // Build auth body with validation
+      const authBody = {
+        subscription_id: subscriptionDoc?.metaData?.subscription_id,
+        payment_id: paymentNumber,
+        payment_amount: subscriptionDetail?.amount,
+        payment_type: "CHARGE",
+        payment_schedule_date: paymentSchedule.toISOString(),
+        idempotency_key: idempotencyKey, // Add idempotency key
+      };
+
+      // Validate auth body before API call
+      this.validateAuthBody(authBody);
+
+      // Make API call to create charge
+      const chargeResponse = await this.helperService.createAuth(authBody);
+
+      if (!chargeResponse) {
+        throw new Error('Failed to create charge with Cashfree');
+      }
+
+      // Create subscription record
+      const subscriptionRecord = {
+        userId: userId,
+        planId: subscriptionDoc?.planId,
         startAt: startAt,
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
+        amount: subscriptionDetail?.amount,
         providerId: 2,
         endAt: endAt,
         metaData: {
-          subscription_id:
-            subscriptionData?.latestDocument?.metaData?.subscription_id,
-          cf_subscription_id:
-            subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
-          customer_details:
-            subscriptionData?.latestDocument?.metaData?.customer_details,
+          subscription_id: subscriptionDoc?.metaData?.subscription_id,
+          cf_subscription_id: subscriptionDoc?.metaData?.cf_subscription_id,
+          customer_details: subscriptionDoc?.metaData?.customer_details,
+          idempotency_key: idempotencyKey,
         },
         notes: {
-          itemId: subscriptionData.latestDocument.notes.itemId,
-          amount:
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount,
+          itemId: itemId,
+          amount: subscriptionDetail?.amount,
           paymentScheduledAt: paymentSchedule,
           paymentId: paymentNumber,
+          idempotencyKey: idempotencyKey,
         },
         subscriptionStatus: EsubscriptionStatus.initiated,
         status: EStatus.Active,
-        createdBy: subscriptionData?.latestDocument?.userId,
-        updatedBy: subscriptionData?.latestDocument?.userId,
+        createdBy: userId,
+        updatedBy: userId,
       };
-      // console.log("creating subscription", fv);
 
-      let subscription = await this.subscriptionModel.create(fv);
+      const subscription = await this.subscriptionModel.create(subscriptionRecord);
 
+      // Create invoice
       const invoiceData = {
-        itemId: subscriptionData.latestDocument.notes.itemId,
+        itemId: itemId,
         source_id: subscription._id,
         source_type: "subscription",
-        sub_total:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
+        sub_total: subscriptionDetail?.amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
-        grand_total:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
-        user_id: subscriptionData.latestDocument.userId,
-        created_by: subscriptionData.latestDocument.userId,
-        updated_by: subscriptionData.latestDocument.userId,
+        grand_total: subscriptionDetail?.amount,
+        user_id: userId,
+        created_by: userId,
+        updated_by: userId,
       };
-      // console.log("creating invoice", invoiceData);
+
       const invoice = await this.invoiceService.createInvoice(
         invoiceData,
-        subscriptionData.latestDocument.userId
+        userId
       );
 
+      // Create payment record
       const paymentData = {
-        amount:
-          planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-            ?.amount,
+        amount: subscriptionDetail?.amount,
         currencyCode: "INR",
         source_id: invoice._id,
         source_type: EPaymentSourceType.invoice,
-        userId: subscriptionData?.latestDocument?.userId,
+        userId: userId,
         document_status: EDocumentStatus.pending,
         paymentType: EPaymentType.charge,
         providerId: 2,
         providerName: EProvider.cashfree,
         transactionDate: paymentSchedule,
+        idempotencyKey: idempotencyKey,
       };
 
-      // console.log("creating payment", paymentData);
       await this.paymentService.createPaymentRecord(
         paymentData,
         null,
@@ -2286,35 +2480,150 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
-      let item = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-      let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = subscriptionData?.userId;
-      mixPanelBody.properties = {
-        user_id: subscriptionData?.userId,
-        provider: subscriptionData?.provider,
-        subscription_id: subscription?._id,
-        subscription_status: EsubscriptionStatus.active,
-        subscription_date: subscription?.startAt,
-        item_name: item?.itemName,
-        subscription_expired: subscription?.endAt,
-        subscription_count: subscriptionCount,
-        subscription_mode: ESubscriptionMode.Charge,
-        subscription_amount: invoice.grand_total
+
+      // Send analytics event (non-blocking)
+      this.sendSubscriptionAnalytics(subscription, invoice, userId, itemId);
+
+      return {
+        success: true,
+        subscriptionId: subscription._id,
+        paymentId: paymentNumber,
+        idempotencyKey: idempotencyKey,
       };
-      await this.helperService.mixPanel(mixPanelBody);
+
+    } catch (error) {
+      console.error('createChargeData failed:', error);
+      throw error;
+    }
+  }
+
+  private validateChargeDataInput(subscriptionData: any, planDetail: any): {
+    isValid: boolean;
+    errors: string[];
+  } {
+    const errors: string[] = [];
+
+    if (!subscriptionData?.latestDocument) {
+      errors.push('Missing subscription document');
+    }
+
+    if (!planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail) {
+      errors.push('Missing subscription detail in plan');
+    }
+
+    if (!subscriptionData?.latestDocument?.userId) {
+      errors.push('Missing user ID');
+    }
+
+    if (!subscriptionData?.latestDocument?.metaData?.subscription_id) {
+      errors.push('Missing subscription ID in metadata');
+    }
+
+    const amount = planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount;
+    if (!amount || amount <= 0) {
+      errors.push('Invalid subscription amount');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  private validateAuthBody(authBody: any): void {
+    const requiredFields = ['subscription_id', 'payment_id', 'payment_amount', 'payment_type'];
+    
+    for (const field of requiredFields) {
+      if (!authBody[field]) {
+        throw new Error(`Missing required field in auth body: ${field}`);
+      }
+    }
+
+    if (authBody.payment_amount <= 0) {
+      throw new Error('Payment amount must be greater than 0');
+    }
+  }
+
+  private calculateSubscriptionEndDate(startDate: Date, subscriptionDetail: any): Date {
+    const endAt = new Date(startDate);
+    const validityType = subscriptionDetail?.validityType;
+    const validity = subscriptionDetail?.validity;
+
+    if (!validityType || !validity) {
+      throw new Error('Invalid subscription validity configuration');
+    }
+
+    switch (validityType) {
+      case EvalidityType.day:
+        endAt.setDate(endAt.getDate() + validity);
+        break;
+      case EvalidityType.month:
+        endAt.setMonth(endAt.getMonth() + validity);
+        break;
+      case EvalidityType.year:
+        endAt.setFullYear(endAt.getFullYear() + validity);
+        break;
+      default:
+        throw new Error(`Unsupported validity type: ${validityType}`);
+    }
+
+    endAt.setHours(18, 29, 59, 999);
+    return endAt;
+  }
+
+  private async sendSubscriptionAnalytics(subscription: any, invoice: any, userId: string, itemId: string): Promise<void> {
+    try {
+      // Run analytics in background to avoid blocking the main flow
+      setImmediate(async () => {
+        try {
+          const [item, subscriptionCount] = await Promise.all([
+            this.itemService.getItemDetail(itemId),
+            this.countUserSubscriptions(userId)
+          ]);
+
+          const mixPanelBody = {
+            eventName: EMixedPanelEvents.subscription_add,
+            distinctId: userId,
+            properties: {
+              user_id: userId,
+              provider: subscription?.provider,
+              subscription_id: subscription?._id,
+              subscription_status: EsubscriptionStatus.active,
+              subscription_date: subscription?.startAt,
+              item_name: item?.itemName,
+              subscription_expired: subscription?.endAt,
+              subscription_count: subscriptionCount,
+              subscription_mode: ESubscriptionMode.Charge,
+              subscription_amount: invoice.grand_total
+            }
+          };
+
+          await this.helperService.mixPanel(mixPanelBody);
+        } catch (error) {
+          console.error('Analytics sending failed (non-blocking):', error);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to schedule analytics:', error);
     }
   }
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
-      // console.log("inside raise charge");
+      // Validate input data before processing
+      const validationResult = this.validateRazorpayChargeInput(subscriptionData, planDetail);
+      if (!validationResult.isValid) {
+        throw new Error(`Invalid Razorpay charge data: ${validationResult.errors.join(', ')}`);
+      }
 
-      // console.log("subscription data is ==>", subscriptionData);
+      // Extract and cache commonly used values
+      const subscriptionDoc = subscriptionData?.latestDocument;
+      const subscriptionDetail = planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail;
+      const userId = subscriptionDoc?.userId;
+      const itemId = subscriptionDoc?.notes?.itemId;
+      const mandate = subscriptionData?.latestMandate;
 
+      // Generate unique payment ID with idempotency key
       const paymentSequence = await this.sharedService.getNextNumber(
         "razorpay-payment",
         "RZP-PMT",
@@ -2322,23 +2631,35 @@ export class SubscriptionService {
         null
       );
       const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
-      let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+      const idempotencyKey = `${userId}-${itemId}-${Date.now()}`;
+      const paymentNumber = `${paymentNewNumber}-${idempotencyKey}`;
 
-      let now = new Date();
-      let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
-      let userAdditionalData =
-        await this.helperService.getUserAdditionalDetails({
-          userId: subscriptionData?.latestDocument?.userId,
-        });
-      // console.log("userAdditionalData is", userAdditionalData);
+      // Calculate dates once
+      const now = new Date();
+      const paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      const today = new Date();
+      const startAt = new Date();
+      startAt.setDate(today.getDate() + 1);
+      startAt.setHours(18, 30, 0, 0);
 
-      let customerId = userAdditionalData?.userAdditional?.referenceId;
-      let subscriptionAmount =
-        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-          ?.amount * 100;
-      let paymentScheduleInMM = new Date(paymentSchedule).getTime();
-      let paymentScheduleInSeconds = Math.floor(paymentScheduleInMM / 1000);
-      let authBody = {
+      // Calculate end date using shared method
+      const endAt = this.calculateSubscriptionEndDate(now, subscriptionDetail);
+
+      // Fetch user data with timeout
+      const userAdditionalData = await this.helperService.getUserAdditionalDetails({
+        userId: userId,
+      });
+
+      if (!userAdditionalData?.userAdditional?.referenceId) {
+        throw new Error('User reference ID not found');
+      }
+
+      const customerId = userAdditionalData.userAdditional.referenceId;
+      const subscriptionAmount = subscriptionDetail.amount * 100; // Convert to paise
+      const paymentScheduleInSeconds = Math.floor(paymentSchedule.getTime() / 1000);
+
+      // Build auth body with idempotency
+      const authBody = {
         amount: subscriptionAmount,
         currency: "INR",
         customer_id: customerId,
@@ -2348,192 +2669,274 @@ export class SubscriptionService {
           expire_at: paymentScheduleInSeconds,
         },
         notification: {
-          token_id: subscriptionData?.latestMandate?.referenceId,
+          token_id: mandate?.referenceId,
           payment_after: paymentScheduleInSeconds,
         },
         notes: {
-          mandateId: subscriptionData?.latestMandate?.referenceId,
-          userId: subscriptionData?.latestDocument?.userId,
-          subscriptionId: subscriptionData?.latestDocument?.subscriptionId,
+          mandateId: mandate?.referenceId,
+          userId: userId,
+          subscriptionId: subscriptionDoc?.subscriptionId,
+          idempotencyKey: idempotencyKey,
         },
+        idempotency_key: idempotencyKey, // Add idempotency key
       };
-      // console.log("auth body is ==>", authBody);
 
-      const today = new Date();
-      const startAt = new Date();
-      startAt.setDate(today.getDate() + 1);
-      startAt.setHours(18, 30, 0, 0);
-      // console.log("startAt", startAt);
+      // Validate auth body
+      this.validateRazorpayAuthBody(authBody);
 
-      let endAt = new Date();
-      // console.log("endAt", endAt);
+      // Make API call to create subscription with retry
+      const chargeResponse = await this.retryApiCall(
+        () => this.helperService.addSubscription(authBody),
+        'Razorpay addSubscription'
+      );
 
-      planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-        ?.validityType == EvalidityType.day
-        ? endAt.setDate(
-            endAt.getDate() +
-              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-                ?.validity
-          )
-        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.validityType == EvalidityType.month
-          ? endAt.setMonth(
-              endAt.getMonth() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            )
-          : endAt.setFullYear(
-              endAt.getFullYear() +
-                planDetail?.additionalDetail?.promotionDetails
-                  ?.subscriptionDetail?.validity
-            );
-      // console.log("auth body for razorpay is ==>", authBody);
+      if (!chargeResponse?.id) {
+        throw new Error('Failed to create Razorpay subscription');
+      }
 
-      let chargeResponse = await this.helperService.addSubscription(authBody);
-      // console.log("charge response is", chargeResponse);
-
-      let recurring = {
-        email:
-          userAdditionalData?.userAdditional?.userId?.emailId ||
-          userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
+      // Build recurring payment data
+      const recurring = {
+        email: userAdditionalData?.userAdditional?.userId?.emailId ||
+               `${userAdditionalData?.userAdditional?.userId?.phoneNumber}@casttree.com`,
         contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
         amount: subscriptionAmount,
         currency: "INR",
-        order_id: chargeResponse?.id,
+        order_id: chargeResponse.id,
         customer_id: customerId,
-        token: subscriptionData?.latestMandate?.referenceId,
+        token: mandate?.referenceId,
         recurring: "1",
         notes: {
-          userId: subscriptionData?.latestDocument?.userId,
+          userId: userId,
           userReferenceId: customerId,
-          razorpayOrderId: chargeResponse?.id,
+          razorpayOrderId: chargeResponse.id,
+          idempotencyKey: idempotencyKey,
+        },
+        idempotency_key: idempotencyKey, // Add idempotency key
+      };
+
+      // Create recurring payment with retry
+      const recurringResponse = await this.retryApiCall(
+        () => this.helperService.createRecurringPayment(recurring),
+        'Razorpay createRecurringPayment'
+      );
+
+      if (!recurringResponse) {
+        throw new Error('Failed to create Razorpay recurring payment');
+      }
+
+      // Generate subscription ID
+      const razorpaySubscriptionSequence = await this.sharedService.getNextNumber(
+        "razorpay-subscription",
+        "RZP-SUB",
+        5,
+        null
+      );
+      const razorpaySubscriptionNumber = razorpaySubscriptionSequence.toString().padStart(5, "0");
+
+      // Create subscription record
+      const subscriptionRecord = {
+        userId: userId,
+        subscriptionId: razorpaySubscriptionNumber,
+        startAt: startAt,
+        amount: subscriptionDetail.amount,
+        providerId: 1,
+        provider: EProvider.razorpay,
+        endAt: endAt,
+        metaData: {
+          subscription_id: subscriptionDoc?.metaData?.subscriptionId,
+          idempotency_key: idempotencyKey,
+          ...chargeResponse,
+        },
+        currencyCode: "INR",
+        notes: {
+          itemId: itemId,
+          amount: subscriptionAmount,
+          paymentScheduledAt: paymentSchedule,
+          paymentId: paymentNumber,
+          idempotencyKey: idempotencyKey,
+        },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        status: EStatus.Active,
+        createdBy: userId,
+        updatedBy: userId,
+      };
+
+      const subscription = await this.subscriptionModel.create(subscriptionRecord);
+
+      // Create invoice
+      const invoiceData = {
+        itemId: itemId,
+        source_id: subscription._id,
+        source_type: "subscription",
+        sub_total: subscriptionDetail.amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: subscriptionDetail.amount,
+        user_id: userId,
+        created_by: userId,
+        updated_by: userId,
+      };
+
+      const invoice = await this.invoiceService.createInvoice(invoiceData, userId);
+
+      // Create payment record
+      const paymentData = {
+        amount: subscriptionDetail.amount,
+        currencyCode: "INR",
+        source_id: invoice._id,
+        source_type: EPaymentSourceType.invoice,
+        userId: userId,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: 1,
+        providerName: EProvider.razorpay,
+        transactionDate: paymentSchedule,
+        idempotencyKey: idempotencyKey,
+        metaData: {
+          response: {
+            chargeResponse,
+            recurringResponse,
+          },
         },
       };
-      // console.log("recurring body is", recurring);
 
-      let recurringResponse =
-        await this.helperService.createRecurringPayment(recurring);
-      // console.log("recurring response is", recurringResponse);
-      // return true;
-      if (recurringResponse) {
-        endAt.setDate(endAt.getDate());
-        endAt.setHours(18, 29, 59, 999);
-        const razorpaySubscriptionSequence =
-          await this.sharedService.getNextNumber(
-            "razorpay-subscription",
-            "RZP-SUB",
-            5,
-            null
-          );
-        const razorpaySubscriptionNumber = razorpaySubscriptionSequence
-          .toString()
-          .padStart(5, "0");
-        let fv = {
-          userId: subscriptionData?.latestDocument?.userId,
-          subscriptionId: razorpaySubscriptionNumber,
-          startAt: startAt,
-          amount:
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount,
-          providerId: 1,
-          provider: EProvider.razorpay,
-          endAt: endAt,
-          metaData: {
-            subscription_id:
-              subscriptionData?.latestDocument?.metaData?.subscriptionId,
-            ...chargeResponse,
-          },
-          currencyCode: "INR",
-          notes: {
-            itemId: subscriptionData?.latestDocument?.notes?.itemId,
-            amount: subscriptionAmount,
-            paymentScheduledAt: paymentSchedule,
-            paymentId: paymentNumber,
-          },
-          subscriptionStatus: EsubscriptionStatus.initiated,
-          status: EStatus.Active,
-          createdBy: subscriptionData?.latestDocument?.userId,
-          updatedBy: subscriptionData?.latestDocument?.userId,
-        };
-        // console.log("creating subscription", fv);
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: chargeResponse.id }
+      );
 
-        let subscription = await this.subscriptionModel.create(fv);
+      // Send analytics event (non-blocking)
+      this.sendRazorpaySubscriptionAnalytics(subscription, invoice, userId, itemId);
 
-        const invoiceData = {
-          itemId: subscriptionData.latestDocument.notes.itemId,
-          source_id: subscription._id,
-          source_type: "subscription",
-          sub_total:
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount,
-          currencyCode: "INR",
-          document_status: EDocumentStatus.pending,
-          grand_total:
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount,
-          user_id: subscriptionData?.latestDocument?.userId,
-          created_by: subscriptionData?.latestDocument?.userId,
-          updated_by: subscriptionData?.latestDocument?.userId,
-        };
-        // console.log("creating invoice", invoiceData);
-        const invoice = await this.invoiceService.createInvoice(
-          invoiceData,
-          subscriptionData?.latestDocument?.userId
-        );
+      return {
+        success: true,
+        subscriptionId: subscription._id,
+        paymentId: paymentNumber,
+        idempotencyKey: idempotencyKey,
+        razorpayOrderId: chargeResponse.id,
+      };
 
-        const paymentData = {
-          amount:
-            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount,
-          currencyCode: "INR",
-          source_id: invoice._id,
-          source_type: EPaymentSourceType.invoice,
-          userId: subscriptionData?.latestDocument?.userId,
-          document_status: EDocumentStatus.pending,
-          paymentType: EPaymentType.charge,
-          providerId: 1,
-          providerName: EProvider.razorpay,
-          transactionDate: paymentSchedule,
-          metaData: {
-            response: {
-              chargeResponse,
-              recurringResponse,
-            },
-          },
-        };
+    } catch (error) {
+      console.error('raiseCharge failed:', error);
+      throw error;
+    }
+  }
 
-        // console.log("creating payment", paymentData);
-        await this.paymentService.createPaymentRecord(
-          paymentData,
-          null,
-          invoice,
-          "INR",
-          { order_id: chargeResponse?.id }
-        );
-        let item = await this.itemService.getItemDetail(
-          subscriptionData?.notes?.itemId
-        );
-        let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscriptionData?.userId;
-        mixPanelBody.properties = {
-          user_id: subscriptionData?.userId,
-          provider: subscriptionData?.provider,
-          subscription_id: subscription?._id,
-          subscription_status: EsubscriptionStatus.active,
-          subscription_date: subscription?.startAt,
-          item_name: item?.itemName,
-          subscription_expired: subscription?.endAt,
-          subscription_count: subscriptionCount,
-          subscription_mode: ESubscriptionMode.Charge,
-          subscription_amount: invoice.grand_total
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+  private validateRazorpayChargeInput(subscriptionData: any, planDetail: any): {
+    isValid: boolean;
+    errors: string[];
+  } {
+    const errors: string[] = [];
+
+    if (!subscriptionData?.latestDocument) {
+      errors.push('Missing subscription document');
+    }
+
+    if (!subscriptionData?.latestMandate?.referenceId) {
+      errors.push('Missing mandate reference ID');
+    }
+
+    if (!planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail) {
+      errors.push('Missing subscription detail in plan');
+    }
+
+    if (!subscriptionData?.latestDocument?.userId) {
+      errors.push('Missing user ID');
+    }
+
+    const amount = planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount;
+    if (!amount || amount <= 0) {
+      errors.push('Invalid subscription amount');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  private validateRazorpayAuthBody(authBody: any): void {
+    const requiredFields = ['amount', 'currency', 'customer_id', 'token', 'notification'];
+    
+    for (const field of requiredFields) {
+      if (!authBody[field]) {
+        throw new Error(`Missing required field in Razorpay auth body: ${field}`);
       }
-    } catch (err) {
-      throw err;
+    }
+
+    if (authBody.amount <= 0) {
+      throw new Error('Amount must be greater than 0');
+    }
+
+    if (!authBody.token.max_amount || authBody.token.max_amount <= 0) {
+      throw new Error('Token max amount must be greater than 0');
+    }
+  }
+
+  private async retryApiCall<T>(
+    apiCall: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await apiCall();
+      } catch (error) {
+        lastError = error;
+        console.warn(`${operationName} attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff with jitter
+          const baseDelay = Math.pow(2, attempt) * 1000;
+          const jitter = Math.random() * 1000;
+          const delay = baseDelay + jitter;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw new Error(`${operationName} failed after ${maxRetries} attempts: ${lastError.message}`);
+  }
+
+  private async sendRazorpaySubscriptionAnalytics(subscription: any, invoice: any, userId: string, itemId: string): Promise<void> {
+    try {
+      // Run analytics in background to avoid blocking the main flow
+      setImmediate(async () => {
+        try {
+          const [item, subscriptionCount] = await Promise.all([
+            this.itemService.getItemDetail(itemId),
+            this.countUserSubscriptions(userId)
+          ]);
+
+          const mixPanelBody = {
+            eventName: EMixedPanelEvents.subscription_add,
+            distinctId: userId,
+            properties: {
+              user_id: userId,
+              provider: subscription?.provider,
+              subscription_id: subscription?._id,
+              subscription_status: EsubscriptionStatus.active,
+              subscription_date: subscription?.startAt,
+              item_name: item?.itemName,
+              subscription_expired: subscription?.endAt,
+              subscription_count: subscriptionCount,
+              subscription_mode: ESubscriptionMode.Charge,
+              subscription_amount: invoice.grand_total
+            }
+          };
+
+          await this.helperService.mixPanel(mixPanelBody);
+        } catch (error) {
+          console.error('Razorpay analytics sending failed (non-blocking):', error);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to schedule Razorpay analytics:', error);
     }
   }
 

@@ -16,20 +16,33 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     response: Response,
     next: NextFunction
   ): Promise<any> {
-    const { headers } = request;
-    console.log("headers", headers);
+    try {
+      const { headers } = request;
+      console.log("headers", headers);
 
     let userId = headers["x-userid"];
     console.log("header userId", userId);
     if (!userId) {
       console.log("inside not of user id");
 
-      let authorization = headers?.authorization.split(" ")[1];
-      const decoded = jwt.verify(
-        authorization,
-        this.configService.get("JWT_SECRET")
-      ) as any;
-      userId = decoded?.id;
+      let authorization = headers?.authorization?.split(" ")[1];
+      
+      // Validate authorization token before JWT verification
+      if (!authorization || authorization === 'null' || authorization === 'undefined' || authorization.trim() === '') {
+        console.log("Invalid or missing authorization token:", authorization);
+        // Continue without userId - will use IP-based country detection
+      } else {
+        try {
+          const decoded = jwt.verify(
+            authorization,
+            this.configService.get("JWT_SECRET")
+          ) as any;
+          userId = decoded?.id;
+        } catch (error) {
+          console.error("JWT verification failed:", error.message);
+          // Continue without userId - will use IP-based country detection
+        }
+      }
     }
     console.log("userId", userId);
     let userData;
@@ -55,5 +68,11 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     }
     request.headers["x-country-code"] = countryCode;
     next();
+    } catch (error) {
+      console.error("GetUserOriginMiddleware error:", error);
+      // Set default country code and continue
+      request.headers["x-country-code"] = "IN"; // Default to India
+      next();
+    }
   }
 }
