@@ -73,6 +73,17 @@ export const serviceItemAdditionalDetailSchema = new mongoose.Schema<any>({
   ctaName: { type: String },
   navigationURL: { type: String },
 });
+export interface planItemIdModel {
+  itemId: string;
+  itemName: string;
+}
+export const planItemIdSchema = new mongoose.Schema<any>({
+  itemId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "item",
+  },
+  itemName: { type: String },
+}, { _id: false });
 
 export interface tagModel {
   category_id: string;
@@ -107,6 +118,7 @@ export interface serviceitems {
   priorityOrder: number;
   category: categoryModel[]; // Add category field
   proficiency: proficiencyModel[]; // Add proficiency field
+  planItemId: planItemIdModel[];
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>(
@@ -144,6 +156,9 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     // Add the new fields
     category: [categorySchema], // Array of category objects
     proficiency: [proficiencySchema], // Array of proficiency objects
+    planItemId: [{
+      type: planItemIdSchema
+    }], // Array of planItemId objects
   },
   {
     collection: "serviceitems",
