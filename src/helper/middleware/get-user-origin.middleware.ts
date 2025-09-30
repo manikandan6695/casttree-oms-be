@@ -24,12 +24,33 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     if (!userId) {
       console.log("inside not of user id");
 
-      let authorization = headers?.authorization.split(" ")[1];
-      const decoded = jwt.verify(
-        authorization,
-        this.configService.get("JWT_SECRET")
-      ) as any;
-      userId = decoded?.id;
+      try {
+        // Check if authorization header exists and is not null/undefined
+        if (headers?.authorization) {
+          const authParts = headers.authorization.split(" ");
+          if (authParts.length === 2 && authParts[0] === "Bearer") {
+            const token = authParts[1];
+            
+            // Check if token is not null, undefined, or the string "null"
+            if (token && token !== "null" && token !== "undefined") {
+              const decoded = jwt.verify(
+                token,
+                this.configService.get("JWT_SECRET")
+              ) as any;
+              userId = decoded?.id;
+            } else {
+              console.log("Invalid or null token provided:", token);
+            }
+          } else {
+            console.log("Invalid authorization header format");
+          }
+        } else {
+          console.log("No authorization header provided");
+        }
+      } catch (error) {
+        console.error("JWT verification failed:", error.message);
+        // Continue without userId - will fall back to IP-based country detection
+      }
     }
     console.log("userId", userId);
     let userData;

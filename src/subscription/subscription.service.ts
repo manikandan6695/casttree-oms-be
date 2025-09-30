@@ -2157,7 +2157,7 @@ export class SubscriptionService {
       console.log(
         "expiring list ==>",
         expiringSubscriptionsList.length,
-        JSON.stringify(expiringSubscriptionsList)
+        // expiringSubscriptionsList
       );
 
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
@@ -2212,7 +2212,7 @@ export class SubscriptionService {
     //   "subscription data is ==>",
     //   subscriptionData?.latestDocument?.metaData?.subscription_id
     // );
-    console.log("planDetail", planDetail);
+
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
       "CSH-PMT",
@@ -2383,8 +2383,6 @@ export class SubscriptionService {
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
-      console.log("planDetail", planDetail);
-
       // console.log("inside raise charge");
 
       // console.log("subscription data is ==>", subscriptionData);
