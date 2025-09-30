@@ -2176,21 +2176,21 @@ export class SubscriptionService {
 
             // If item doesn't exist by ID, fall back to getItemDetailByName
             if (!planDetail) {
-              console.log(
-                `Item with ID ${itemId} not found, falling back to getItemDetailByName`
-              );
+              // console.log(
+              //   `Item with ID ${itemId} not found, falling back to getItemDetailByName`
+              // );
               planDetail = await this.itemService.getItemDetailByName("PRO");
             }
           } else {
             // If no itemId, use default fallback
-            console.log(`No itemId found for subscription, using default plan`);
+            // console.log(`No itemId found for subscription, using default plan`);
             planDetail = await this.itemService.getItemDetailByName("PRO");
           }
         } catch (error) {
-          console.error(
-            `Error fetching plan detail for subscription ${i}:`,
-            error
-          );
+          // console.error(
+          //   `Error fetching plan detail for subscription ${i}:`,
+          //   error
+          // );
           // Fallback to default plan on error
           planDetail = await this.itemService.getItemDetailByName("PRO");
         }
