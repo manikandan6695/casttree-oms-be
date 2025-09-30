@@ -42,7 +42,13 @@ import {
   UserUpdateData,
 } from "./dto/subscription.dto";
 import { EEventId, EEventType, EReferralStatus } from "./enums/eventType.enum";
-import { EErrorHandler, EProvider, EProviderId, ESProviderId, ESubscriptionMode } from "./enums/provider.enum";
+import {
+  EErrorHandler,
+  EProvider,
+  EProviderId,
+  ESProviderId,
+  ESubscriptionMode,
+} from "./enums/provider.enum";
 import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
@@ -52,7 +58,7 @@ import {
   ELIGIBLE_SUBSCRIPTION,
   NOT_ELIGIBLE_SUBSCRIPTION,
   SUBSCRIPTION_NOT_FOUND,
-  EVENT_UPDATE_REFERRAL_STATUS
+  EVENT_UPDATE_REFERRAL_STATUS,
 } from "src/shared/app.constants";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
@@ -81,7 +87,7 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private currencyService: CurrencyService,
+    private currencyService: CurrencyService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -578,7 +584,9 @@ export class SubscriptionService {
           null,
           invoice
         );
-        const subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+        const subscriptionCount = await this.countUserSubscriptions(
+          subscription?.userId
+        );
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = subscription?.userId;
@@ -592,7 +600,7 @@ export class SubscriptionService {
           subscription_expired: subscription?.endAt,
           subscription_count: subscriptionCount,
           subscription_mode: ESubscriptionMode.Charge,
-          subscription_amount: price
+          subscription_amount: price,
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
@@ -885,7 +893,9 @@ export class SubscriptionService {
             null,
             invoice
           );
-          let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+          let subscriptionCount = await this.countUserSubscriptions(
+            subscription?.userId
+          );
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
@@ -899,7 +909,7 @@ export class SubscriptionService {
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
             subscription_mode: ESubscriptionMode.Charge,
-            subscription_amount: price
+            subscription_amount: price,
           };
           await this.helperService.mixPanel(mixPanelBody);
         }
@@ -1273,7 +1283,9 @@ export class SubscriptionService {
             badge: item?.additionalDetail?.badge,
           };
           await this.helperService.updateUser(userBody);
-          let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+          let subscriptionCount = await this.countUserSubscriptions(
+            subscription?.userId
+          );
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
@@ -1287,14 +1299,19 @@ export class SubscriptionService {
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
             subscription_mode: paymentRequest?.paymentType,
-            subscription_amount: invoice.grand_total
+            subscription_amount: invoice.grand_total,
           };
           await this.helperService.mixPanel(mixPanelBody);
-          let firstSubscription = await this.userFirstSubscription(subscription?.userId);
+          let firstSubscription = await this.userFirstSubscription(
+            subscription?.userId
+          );
           let propertie = {
-            first_subscription_date: firstSubscription?.startAt
-          }
-          await this.helperService.setUserProfile({ distinctId: subscription?.userId,properties: propertie});
+            first_subscription_date: firstSubscription?.startAt,
+          };
+          await this.helperService.setUserProfile({
+            distinctId: subscription?.userId,
+            properties: propertie,
+          });
           let userData = await this.helperService.getUserById(
             subscription?.userId
           );
@@ -1303,19 +1320,29 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
-          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+          if (
+            item?.additionalDetail?.subscriptionDetail?.amount ===
+            subscription?.amount
+          ) {
             try {
-              let userAdditional = await this.helperService.getUserAdditional(subscription?.userId)
-              
+              let userAdditional = await this.helperService.getUserAdditional(
+                subscription?.userId
+              );
+
               if (userAdditional?.referredBy) {
                 try {
-                  let referelData = await this.helperService.getReferralData(subscription?.userId, userAdditional?.referredBy)
-                  
-                  if (referelData?.referralStatus === EReferralStatus.Onboarded) {
+                  let referelData = await this.helperService.getReferralData(
+                    subscription?.userId,
+                    userAdditional?.referredBy
+                  );
+
+                  if (
+                    referelData?.referralStatus === EReferralStatus.Onboarded
+                  ) {
                     let eventBody = {
                       subscriptionId: subscription?._id,
                       userId: subscription?.userId,
-                    }
+                    };
                     await this.sharedService.trackAndEmitEvent(
                       EVENT_UPDATE_REFERRAL_STATUS,
                       eventBody,
@@ -1324,26 +1351,32 @@ export class SubscriptionService {
                     );
                   }
                 } catch (referralError) {
-                  console.warn(`Referral data fetch failed for user ${payload?.userId}:`, referralError?.message || referralError)
+                  console.warn(
+                    `Referral data fetch failed for user ${payload?.userId}:`,
+                    referralError?.message || referralError
+                  );
                 }
               }
             } catch (userAdditionalError) {
-              console.warn(`User additional data fetch failed for user ${subscription?.userId}:`, userAdditionalError?.message || userAdditionalError)
+              console.warn(
+                `User additional data fetch failed for user ${subscription?.userId}:`,
+                userAdditionalError?.message || userAdditionalError
+              );
             }
           }
         }
       }
-      if(invoice?.source_type === ECoinTransactionTypes.coinTransaction){
+      if (invoice?.source_type === ECoinTransactionTypes.coinTransaction) {
         try {
           // console.log("paymentRequest", paymentRequest);
-          
+
           // Get coin data
           let coinData = await this.currencyService.getCurrencyByCurrencyName(
             ECurrencyName.currencyId,
             ECurrencyName.casttreeCoin
           );
           // console.log("coinData", coinData);
-          
+
           // Find coin transaction
           let coinTransaction = await this.coinTransactionModel.findOne({
             sourceId: new ObjectId(invoice?._id),
@@ -1351,7 +1384,7 @@ export class SubscriptionService {
             type: ETransactionType.purchased,
           });
           // console.log("coinTransaction", coinTransaction);
-          
+
           // Update user coin balance if transaction is pending
           if (
             coinTransaction?.documentStatus === ECoinStatus.pending &&
@@ -1363,11 +1396,11 @@ export class SubscriptionService {
                 coinValue: coinTransaction?.coinValue,
               });
             // console.log("updateUserAdditional", updateUserAdditional);
-            
+
             let totalBalance =
               (updateUserAdditional?.purchasedBalance || 0) +
               (updateUserAdditional?.earnedBalance || 0);
-              
+
             // Update coin transaction status
             await this.coinTransactionModel.updateOne(
               {
@@ -1384,7 +1417,7 @@ export class SubscriptionService {
               }
             );
           }
-          
+
           // Handle coin transaction out (withdrawal)
           let coinTransactionOut = await this.coinTransactionModel.findOne({
             sourceId: new ObjectId(invoice?._id),
@@ -1392,7 +1425,7 @@ export class SubscriptionService {
             type: ETransactionType.withdrawn,
           });
           // console.log("coinTransactionOut", coinTransactionOut);
-          
+
           if (
             coinTransactionOut?.documentStatus === ECoinStatus.pending &&
             coinTransactionOut?.transactionType === ETransactionType.Out
@@ -1403,7 +1436,7 @@ export class SubscriptionService {
                 coinValue: coinTransactionOut?.coinValue,
               });
             // console.log("updateUserAdditionalData", updateUserAdditionalData);
-            
+
             await this.coinTransactionModel.updateOne(
               {
                 sourceId: new ObjectId(invoice?._id),
@@ -1419,7 +1452,7 @@ export class SubscriptionService {
               }
             );
           }
-          
+
           // Send MixPanel event
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
@@ -1431,7 +1464,6 @@ export class SubscriptionService {
             coin_value: coinTransaction?.coinValue,
           };
           await this.helperService.mixPanel(mixPanelBody);
-          
         } catch (error) {
           console.warn(
             `Coin transaction update failed for user ${subscription?.userId}:`,
@@ -1511,7 +1543,8 @@ export class SubscriptionService {
       const paymentId = payload?.payment?.entity?.order_id;
       const refundReason = payload?.refund?.entity?.notes?.reason;
 
-      const paymentRecord = await this.paymentService.fetchPaymentByOrderId(paymentId);
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(paymentId);
 
       if (paymentRecord.document_status === EPaymentStatus.completed) {
         const paymentUpdateBody = {
@@ -1519,13 +1552,12 @@ export class SubscriptionService {
           reason: {
             failureReason: refundReason,
           },
-          isPaymentRefunded: true
+          isPaymentRefunded: true,
         };
 
         await this.paymentService.updateStatus(
           paymentRecord._id,
-          paymentUpdateBody,
-          
+          paymentUpdateBody
         );
         await this.paymentService.updateMetaData(paymentRecord._id, payload);
 
@@ -1539,7 +1571,7 @@ export class SubscriptionService {
             await this.subscriptionModel.updateOne(
               {
                 _id: updatedInvoice.invoice.source_id,
-                subscriptionStatus: EsubscriptionStatus.active
+                subscriptionStatus: EsubscriptionStatus.active,
               },
               {
                 $set: {
@@ -1549,12 +1581,10 @@ export class SubscriptionService {
               }
             );
 
-          const subscription = await this.subscriptionModel.findOne(
-            {
-              _id: new ObjectId(updatedInvoice.invoice.source_id),
-              subscriptionStatus: EsubscriptionStatus.failed
-            }
-          );
+          const subscription = await this.subscriptionModel.findOne({
+            _id: new ObjectId(updatedInvoice.invoice.source_id),
+            subscriptionStatus: EsubscriptionStatus.failed,
+          });
 
           if (subscription) {
             const userUpdateBody = {
@@ -1674,7 +1704,9 @@ export class SubscriptionService {
             serviceItemType: "subscription",
           };
           await this.helperService.mixPanel(mixPanelBodyData);
-          let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+          let subscriptionCount = await this.countUserSubscriptions(
+            subscription?.userId
+          );
           let mixPanelBody: any = {};
           mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
           mixPanelBody.distinctId = subscription?.userId;
@@ -1688,14 +1720,19 @@ export class SubscriptionService {
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
             subscription_mode: ESubscriptionMode.Auth,
-            subscription_amount: invoice.grand_total
+            subscription_amount: invoice.grand_total,
           };
           await this.helperService.mixPanel(mixPanelBody);
-          let firstSubscription = await this.userFirstSubscription(subscription?.userId);
+          let firstSubscription = await this.userFirstSubscription(
+            subscription?.userId
+          );
           let propertie = {
-            first_subscription_date: firstSubscription?.startAt
-          }
-          await this.helperService.setUserProfile({ distinctId: subscription?.userId,properties: propertie});
+            first_subscription_date: firstSubscription?.startAt,
+          };
+          await this.helperService.setUserProfile({
+            distinctId: subscription?.userId,
+            properties: propertie,
+          });
           let userBody = {
             userId: subscription?.userId,
             membership: item?.itemName,
@@ -2034,7 +2071,6 @@ export class SubscriptionService {
   @Cron("0 1 * * *")
   async createCharge() {
     try {
-      const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
@@ -2120,11 +2156,45 @@ export class SubscriptionService {
 
       console.log(
         "expiring list ==>",
-        expiringSubscriptionsList.length
-        // expiringSubscriptionsList
+        expiringSubscriptionsList.length,
+        JSON.stringify(expiringSubscriptionsList)
       );
+
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         let mandate = expiringSubscriptionsList[i]?.latestMandate;
+        let planDetail = null;
+
+        // Fetch plan detail for each subscription
+        try {
+          const itemId = new ObjectId(
+            expiringSubscriptionsList[i]?.latestDocument?.notes?.itemId
+          );
+
+          if (itemId) {
+            // Try to fetch by ID first
+            planDetail = await this.itemService.getItemDetail(itemId);
+
+            // If item doesn't exist by ID, fall back to getItemDetailByName
+            if (!planDetail) {
+              console.log(
+                `Item with ID ${itemId} not found, falling back to getItemDetailByName`
+              );
+              planDetail = await this.itemService.getItemDetailByName("PRO");
+            }
+          } else {
+            // If no itemId, use default fallback
+            console.log(`No itemId found for subscription, using default plan`);
+            planDetail = await this.itemService.getItemDetailByName("PRO");
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching plan detail for subscription ${i}:`,
+            error
+          );
+          // Fallback to default plan on error
+          planDetail = await this.itemService.getItemDetailByName("PRO");
+        }
+
         if (mandate?.providerId == EProviderId.cashfree) {
           await this.createChargeData(expiringSubscriptionsList[i], planDetail);
         }
@@ -2142,7 +2212,7 @@ export class SubscriptionService {
     //   "subscription data is ==>",
     //   subscriptionData?.latestDocument?.metaData?.subscription_id
     // );
-
+    console.log("planDetail", planDetail);
     const paymentSequence = await this.sharedService.getNextNumber(
       "cashfree-payment",
       "CSH-PMT",
@@ -2289,7 +2359,9 @@ export class SubscriptionService {
       let item = await this.itemService.getItemDetail(
         subscriptionData?.notes?.itemId
       );
-      let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
+      let subscriptionCount = await this.countUserSubscriptions(
+        subscriptionData?.userId
+      );
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
       mixPanelBody.distinctId = subscriptionData?.userId;
@@ -2303,7 +2375,7 @@ export class SubscriptionService {
         subscription_expired: subscription?.endAt,
         subscription_count: subscriptionCount,
         subscription_mode: ESubscriptionMode.Charge,
-        subscription_amount: invoice.grand_total
+        subscription_amount: invoice.grand_total,
       };
       await this.helperService.mixPanel(mixPanelBody);
     }
@@ -2311,6 +2383,8 @@ export class SubscriptionService {
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
+      console.log("planDetail", planDetail);
+
       // console.log("inside raise charge");
 
       // console.log("subscription data is ==>", subscriptionData);
@@ -2514,7 +2588,9 @@ export class SubscriptionService {
         let item = await this.itemService.getItemDetail(
           subscriptionData?.notes?.itemId
         );
-        let subscriptionCount = await this.countUserSubscriptions(subscriptionData?.userId);
+        let subscriptionCount = await this.countUserSubscriptions(
+          subscriptionData?.userId
+        );
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = subscriptionData?.userId;
@@ -2528,7 +2604,7 @@ export class SubscriptionService {
           subscription_expired: subscription?.endAt,
           subscription_count: subscriptionCount,
           subscription_mode: ESubscriptionMode.Charge,
-          subscription_amount: invoice.grand_total
+          subscription_amount: invoice.grand_total,
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
@@ -2775,31 +2851,39 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async handleIapCoinTransactions(body,token){
+  async handleIapCoinTransactions(body, token) {
     try {
-      let transaction = await this.subscriptionFactory.handleIapCoinPurchase(body,token)
-      return transaction
+      let transaction = await this.subscriptionFactory.handleIapCoinPurchase(
+        body,
+        token
+      );
+      return transaction;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   async getLatestSubscription(token: UserToken) {
     try {
-      let subscription = await this.subscriptionModel.findOne({
-        userId: new ObjectId(token.id),
-        status: EStatus.Active,
-        subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
-      }).sort({_id: -1}).lean()
+      let subscription = await this.subscriptionModel
+        .findOne({
+          userId: new ObjectId(token.id),
+          status: EStatus.Active,
+          subscriptionStatus: {
+            $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed],
+          },
+        })
+        .sort({ _id: -1 })
+        .lean();
 
-      if(!subscription){
+      if (!subscription) {
         throw new HttpException(
-         {message: EErrorHandler.notFound},
+          { message: EErrorHandler.notFound },
           HttpStatus.NOT_FOUND
         );
       }
-      return { data: subscription }
+      return { data: subscription };
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
@@ -2816,39 +2900,51 @@ export class SubscriptionService {
         payload?.commandSource,
         ECommandProcessingStatus.Failed
       );
-      throw error
+      throw error;
     }
   }
   async updateReferralStatus(payload: any) {
     try {
-      let userAdditional = await this.helperService.getUserAdditional(payload?.userId)
-      let referelData = await this.helperService.getReferralData(payload?.userId,userAdditional?.referredBy)
+      let userAdditional = await this.helperService.getUserAdditional(
+        payload?.userId
+      );
+      let referelData = await this.helperService.getReferralData(
+        payload?.userId,
+        userAdditional?.referredBy
+      );
 
-      const subscription = await this.subscriptionModel.findOne({
-        _id:  new ObjectId(payload?.subscriptionId),
-        userId: new ObjectId(payload?.userId),
-        status: EStatus.Active, 
-        subscriptionStatus: EsubscriptionStatus.active
-      }).lean()
-      if(referelData?.referralStatus === EReferralStatus.Onboarded && subscription?.subscriptionStatus === EsubscriptionStatus.active){
+      const subscription = await this.subscriptionModel
+        .findOne({
+          _id: new ObjectId(payload?.subscriptionId),
+          userId: new ObjectId(payload?.userId),
+          status: EStatus.Active,
+          subscriptionStatus: EsubscriptionStatus.active,
+        })
+        .lean();
+      if (
+        referelData?.referralStatus === EReferralStatus.Onboarded &&
+        subscription?.subscriptionStatus === EsubscriptionStatus.active
+      ) {
         let body = {
           refereeUserId: referelData?.refereeUserId,
-          referralId : referelData?._id,
+          referralId: referelData?._id,
           referrerId: referelData?.referrerUserId,
-        }
-        await this.helperService.updateReferral(body)
+        };
+        await this.helperService.updateReferral(body);
       }
     } catch (error) {
-      throw error
+      throw error;
     }
   }
-  
+
   async countUserSubscriptions(userId: string): Promise<number> {
     try {
       const count = await this.subscriptionModel.countDocuments({
         userId: new ObjectId(userId),
-        subscriptionStatus: { $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired] },
-        status: EStatus.Active
+        subscriptionStatus: {
+          $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired],
+        },
+        status: EStatus.Active,
       });
       return count;
     } catch (error) {
@@ -2860,10 +2956,15 @@ export class SubscriptionService {
       let filter = {
         userId: new ObjectId(userId),
         status: EStatus.Active,
-        subscriptionStatus: { $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired] }
+        subscriptionStatus: {
+          $in: [EsubscriptionStatus.active, EsubscriptionStatus.expired],
+        },
       };
-      let data = await this.subscriptionModel.findOne(filter).sort({createdAt: 1}).lean();
-      return data
+      let data = await this.subscriptionModel
+        .findOne(filter)
+        .sort({ createdAt: 1 })
+        .lean();
+      return data;
     } catch (error) {
       throw error;
     }
