@@ -1367,11 +1367,27 @@ export class ServiceItemService {
           processPricingData.itemId.currency.currency_code;
         const promoDetails =
           processPricingData.itemId.additionalDetail.promotionDetails;
-        promoDetails.payWallVideo =
-          isNewSubscription === true
-            ? promoDetails["payWallVideo"]
-            : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"];
+        
+        // Handle payWallVideo based on subscription status
+        if (isNewSubscription === true) {
+          // For new subscribers, use payWallVideo if it exists
+          if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        } else {
+          // For existing subscribers, use payWallVideo1 if it exists, otherwise fallback to payWallVideo
+          if (promoDetails["payWallVideo1"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo1"];
+          } else if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        }
+        
+        // Clean up payWallVideo1 after processing
+        if (promoDetails["payWallVideo1"]) {
+          delete promoDetails["payWallVideo1"];
+        }
+        
         processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
           processPricingData.itemId.bottomSheet;
         finalResponse.push(
@@ -1938,11 +1954,36 @@ export class ServiceItemService {
 
         const promoDetails =
           processPricingData.itemId.additionalDetail.promotionDetails;
-        promoDetails.payWallVideo =
-          isNewSubscription === true
-            ? promoDetails["payWallVideo"]
-            : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"];
+        
+        // Debug: Log the promotionDetails structure
+        console.log("getPromotionDetailByItemId - promotionDetails structure:", JSON.stringify(promoDetails, null, 2));
+        console.log("getPromotionDetailByItemId - isNewSubscription:", isNewSubscription);
+        console.log("getPromotionDetailByItemId - payWallVideo exists:", !!promoDetails["payWallVideo"]);
+        console.log("getPromotionDetailByItemId - payWallVideo1 exists:", !!promoDetails["payWallVideo1"]);
+        
+        // Handle payWallVideo based on subscription status
+        if (isNewSubscription === true) {
+          // For new subscribers, use payWallVideo if it exists
+          if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        } else {
+          // For existing subscribers, use payWallVideo1 if it exists, otherwise fallback to payWallVideo
+          if (promoDetails["payWallVideo1"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo1"];
+          } else if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        }
+        
+        // Clean up payWallVideo1 after processing
+        if (promoDetails["payWallVideo1"]) {
+          delete promoDetails["payWallVideo1"];
+        }
+        
+        // Debug: Log the final payWallVideo value
+        console.log("getPromotionDetailByItemId - final payWallVideo:", promoDetails.payWallVideo);
+        
         if (processPricingData?.planItemId?.[0]?.itemId) {
           processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
             processPricingData?.planItemId[0]?.itemId.bottomSheet;
