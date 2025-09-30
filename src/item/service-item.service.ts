@@ -1310,6 +1310,7 @@ export class ServiceItemService {
           country_code,
           ids
         );
+        console.log("itemListObjectWithUpdatedPrice",itemListObjectWithUpdatedPrice);
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
             data["price"] =
@@ -1793,7 +1794,8 @@ export class ServiceItemService {
       let finalResponse: any[] = [];
   
       let processPricingData: any = await this.serviceItemModel
-        .findOne({ itemId: new ObjectId(itemId) })
+        .findOne({ itemId: new ObjectId(itemId), status: Estatus.Active })
+        .populate("itemId")
         .populate({
           path: "planItemId",
           populate: {
@@ -1822,18 +1824,20 @@ export class ServiceItemService {
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data?.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-  
+      // ids.push(new ObjectId(processPricingData?.planItemId?.[0]?.itemId?._id));
       let planItem = processPricingData?.planItemId?.[0]?.itemId;
+      // console.log("planItem",planItem);
       if (planItem) {
         ids.push(new ObjectId(planItem?._id));
       }
-  
+      console.log("ids",ids);
       if (country_code) {
+        console.log("country_code",country_code);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
           country_code,
           ids
         );
-  
+        console.log("itemListObjectWithUpdatedPrice",itemListObjectWithUpdatedPrice);
         plandata.map((data) => {
           if (itemListObjectWithUpdatedPrice[data?._id?.toString()]) {
             data["price"] =
@@ -1846,59 +1850,59 @@ export class ServiceItemService {
               itemListObjectWithUpdatedPrice[data?._id?.toString()]["currency"];
           }
         });
-  
-        planItem = processPricingData?.planItemId?.[0]?.itemId;
+
+        // Update planItem pricing based on country code
         if (planItem) {
-          let processPrice = itemListObjectWithUpdatedPrice[planItem._id];
+          let processPrice = itemListObjectWithUpdatedPrice[planItem._id.toString()];
           if (processPrice) {
+            console.log("inside if",processPrice["price"],processPrice["comparePrice"],processPrice["currency"]);
             planItem["price"] = processPrice["price"];
             planItem["comparePrice"] = processPrice["comparePrice"];
             planItem["currency"] = processPrice["currency"];
           }
         }
       }
-  
-      if (planItem) {
-        const promoDetails: any = {
-          title: planItem?.additionalDetail?.premiumPage?.title,
-          ctaName: planItem?.additionalDetail?.premiumPage?.ctaName,
-          planUserSave: planItem?.additionalDetail?.premiumPage?.planUserSave,
-          subtitle: planItem?.additionalDetail?.premiumPage?.subtitle,
-          payWallVideo:
-            planItem?.additionalDetail?.promotionDetails?.payWallVideo,
-          paywallVisibility: planItem?.additionalDetail?.promotionDetails?.paywallVisibility,
-          price: planItem?.price,
-          itemName: planItem?.itemName,
-          mentorName: processPricingData?.profileData?.displayName,
-          thumbnail: processPricingData?.additionalDetails?.thumbnail,
-          itemId: planItem?._id,
-          comparePrice: planItem?.comparePrice,
-          currency_code: planItem?.currency?.currency_code,
-        };
-        finalResponse.push(promoDetails);
+      console.log("planItem",processPricingData?.planItemId[0]?.itemId);
+
+      if (processPricingData?.itemId) {
+        processPricingData.itemId.additionalDetail.promotionDetails.price = processPricingData?.planItemId[0]?.itemId.price;
+        processPricingData.itemId.additionalDetail.promotionDetails.itemName = processPricingData?.planItemId[0]?.itemId.itemName;
+        processPricingData.itemId.additionalDetail.promotionDetails.mentorName = processPricingData?.profileData?.displayName;
+        processPricingData.itemId.additionalDetail.promotionDetails.thumbnail = processPricingData?.additionalDetails?.thumbnail;
+        processPricingData.itemId.additionalDetail.promotionDetails.itemId = processPricingData?.planItemId[0]?.itemId._id;
+        processPricingData.itemId.additionalDetail.promotionDetails.comparePrice = processPricingData?.planItemId[0]?.itemId.comparePrice;
+        processPricingData.itemId.additionalDetail.promotionDetails.currency_code = processPricingData?.planItemId[0]?.itemId.currency?.currency_code;
+        
+        const promoDetails = processPricingData.itemId.additionalDetail.promotionDetails;
+        promoDetails.payWallVideo = isNewSubscription === true 
+          ? promoDetails["payWallVideo"] 
+          : promoDetails["payWallVideo1"];
+        delete promoDetails["payWallVideo1"];
+        processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet = processPricingData?.planItemId[0]?.itemId.bottomSheet;
+        
+        finalResponse.push(processPricingData.itemId.additionalDetail.promotionDetails);
       }
 
-      if (planItem && planItem?.additionalDetail?.promotionDetails) {
-        const promoDetails = {
-          ...planItem?.additionalDetail?.promotionDetails,
-          comparePrice: planItem?.comparePrice,
-          itemId: planItem?._id,
-          itemName: planItem?.itemName,
-          price: planItem?.price,
-          currency_code: planItem.currency?.currency_code,
-          planId: planItem.additionalDetail?.planId,
-          isNewSubscriber: subscriptionData ? false : true,
-          mandates: mandateData?.mandate?.mandates?.length
-            ? mandateData?.mandate?.mandates
-            : [],
-          bottomSheet: planItem.additionalDetail?.bottomSheet,
-          skipText: planItem.additionalDetail?.skipText,
-        };
-        finalResponse.push(promoDetails);
-      }
+      plandata.map((data) => {
+        data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
+        data.additionalDetail.promotionDetails.itemId = data._id;
+        data.additionalDetail.promotionDetails.itemName = data.itemName;
+        data.additionalDetail.promotionDetails.price = data.price;
+        data.additionalDetail.promotionDetails.currency_code = data.currency?.currency_code;
+        data.additionalDetail.promotionDetails.planId = data.additionalDetail?.planId;
+        data.additionalDetail.promotionDetails.isNewSubscriber = subscriptionData ? false : true;
+        data.additionalDetail.promotionDetails.planConfig = data.additionalDetail?.planConfig;
+        data.additionalDetail.promotionDetails.mandates = mandateData?.mandate?.mandates.length
+          ? mandateData?.mandate?.mandates
+          : [];
+        data.additionalDetail.promotionDetails.bottomSheet = data.additionalDetail?.bottomSheet;
+
+        finalResponse.push(data.additionalDetail.promotionDetails);
+      });
   
       return finalResponse;
     } catch (err) {
+      console.log("err",err);
       throw err;
     }
   }
