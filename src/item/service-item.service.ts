@@ -1771,12 +1771,16 @@ export class ServiceItemService {
     
     return { matchingSkills, nonMatchingSkills };
   }
-  async getPromotionDetailByItemId(itemId: string, token: UserToken, country_code: string = "", userId?) {
+  async getPromotionDetailByItemId(
+    itemId: string,
+    token: UserToken,
+    country_code: string = "",
+    userId?: string
+  ) {
     try {
       let subscriptionData;
       let mandateData;
-      let userCountryCode;
-      let userData;
+  
       if (userId) {
         subscriptionData = await this.subscriptionService.validateSubscription(
           userId,
@@ -1784,22 +1788,22 @@ export class ServiceItemService {
         );
         mandateData = await this.mandateService.getMandateByProvider(userId);
       }
+  
       const isNewSubscription = subscriptionData ? true : false;
-      let finalResponse = [];
-   
+      let finalResponse: any[] = [];
+  
       let processPricingData: any = await this.serviceItemModel
         .findOne({ itemId: new ObjectId(itemId) })
-        .populate("itemId")
         .populate({
           path: "planItemId",
           populate: {
             path: "itemId",
-            model: "item"
-          }
+            model: "item",
+          },
         })
         .lean();
       let userIds = [];
-      userIds.push(processPricingData.userId);
+      userIds.push(processPricingData?.userId);
       const profileInfo = await this.helperService.getProfileByIdTl(
         userIds,
         EprofileType.Expert
@@ -1809,39 +1813,43 @@ export class ServiceItemService {
         return a;
       }, {});
       processPricingData["profileData"] =
-        profileInfoObj[processPricingData.userId.toString()];
+        profileInfoObj[processPricingData?.userId?.toString()];
+
       let subscriptionItemIds = await this.serviceItemModel
         .find({ type: EserviceItemType.subscription })
         .sort({ _id: 1 });
       let ids = [];
-      subscriptionItemIds.map((data) => ids.push(new ObjectId(data.itemId)));
+      subscriptionItemIds.map((data) => ids.push(new ObjectId(data?.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
       plandata.reverse();
-       let planItem = processPricingData?.planItemId?.[0]?.itemId;
-       if (planItem) {
-         ids.push(new ObjectId(planItem._id));
-       }
+  
+      let planItem = processPricingData?.planItemId?.[0]?.itemId;
+      if (planItem) {
+        ids.push(new ObjectId(planItem?._id));
+      }
+  
       if (country_code) {
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
           country_code,
           ids
         );
+  
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
+          if (itemListObjectWithUpdatedPrice[data?._id?.toString()]) {
             data["price"] =
-              itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
+              itemListObjectWithUpdatedPrice[data?._id?.toString()]["price"];
             data["comparePrice"] =
-              itemListObjectWithUpdatedPrice[data._id.toString()][
+              itemListObjectWithUpdatedPrice[data?._id?.toString()][
                 "comparePrice"
               ];
             data["currency"] =
-              itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
+              itemListObjectWithUpdatedPrice[data?._id?.toString()]["currency"];
           }
         });
+  
         planItem = processPricingData?.planItemId?.[0]?.itemId;
         if (planItem) {
-          let processPrice =
-            itemListObjectWithUpdatedPrice[planItem._id];
+          let processPrice = itemListObjectWithUpdatedPrice[planItem._id];
           if (processPrice) {
             planItem["price"] = processPrice["price"];
             planItem["comparePrice"] = processPrice["comparePrice"];
@@ -1849,58 +1857,61 @@ export class ServiceItemService {
           }
         }
       }
-
-      
-      if (processPricingData.itemId && processPricingData.itemId.additionalDetail?.promotionDetails) {
-        const mainItem = processPricingData.itemId;
-        const promoDetails = mainItem.additionalDetail.promotionDetails;
-        
-        promoDetails.price = mainItem.price;
-        promoDetails.itemName = mainItem.itemName;
-        promoDetails.mentorName = processPricingData.profileData?.displayName;
-        promoDetails.thumbnail = processPricingData.additionalDetails.thumbnail;
-        promoDetails.itemId = mainItem._id;
-        promoDetails.comparePrice = mainItem.comparePrice;
-        promoDetails.currency_code = mainItem.currency?.currency_code;
-        promoDetails.skipText = mainItem.additionalDetail.skipText;
-        
-        promoDetails.payWallVideo = isNewSubscription === true
-          ? promoDetails["payWallVideo"]
-          : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"];
-        
-        promoDetails.bottomSheet = mainItem.bottomSheet;
-        
+  
+      if (planItem) {
+        const promoDetails: any = {
+          title: planItem?.additionalDetail?.premiumPage?.title,
+          ctaName: planItem?.additionalDetail?.premiumPage?.ctaName,
+          planUserSave: planItem?.additionalDetail?.premiumPage?.planUserSave,
+          subtitle: planItem?.additionalDetail?.premiumPage?.subtitle,
+          payWallVideo:
+            planItem?.additionalDetail?.promotionDetails?.payWallVideo,
+          paywallVisibility: planItem?.additionalDetail?.promotionDetails?.paywallVisibility,
+          price: planItem?.price,
+          itemName: planItem?.itemName,
+          mentorName: processPricingData?.profileData?.displayName,
+          thumbnail: processPricingData?.additionalDetails?.thumbnail,
+          itemId: planItem?._id,
+          comparePrice: planItem?.comparePrice,
+          currency_code: planItem?.currency?.currency_code,
+        };
         finalResponse.push(promoDetails);
       }
-      
-      if (processPricingData.planItemId && processPricingData.planItemId.length > 0) {
-        processPricingData.planItemId.forEach((planItem) => {
-          if (planItem.itemId && planItem.itemId.additionalDetail?.promotionDetails) {
-            const itemData = planItem.itemId;
-            const promoDetails = itemData.additionalDetail.promotionDetails;
-            
-            promoDetails.comparePrice = itemData.comparePrice;
-            promoDetails.itemId = itemData._id;
-            promoDetails.itemName = itemData.itemName;
-            promoDetails.price = itemData.price;
-            promoDetails.currency_code = itemData.currency?.currency_code;
-            promoDetails.planId = itemData.additionalDetail?.planId;
-            promoDetails.isNewSubscriber = subscriptionData ? false : true;
-            promoDetails.planConfig = itemData.additionalDetail?.planConfig;
-            promoDetails.mandates = mandateData?.mandate?.mandates?.length
-              ? mandateData?.mandate?.mandates
-              : [];
-            promoDetails.bottomSheet = itemData.additionalDetail?.bottomSheet;
-            promoDetails.skipText = itemData.additionalDetail?.skipText;
-            
-            finalResponse.push(promoDetails);
-          }
-        });
+
+      if (planItem && planItem?.additionalDetail?.promotionDetails) {
+        const promoDetails = {
+          ...planItem?.additionalDetail?.promotionDetails,
+          comparePrice: planItem?.comparePrice,
+          itemId: planItem?._id,
+          itemName: planItem?.itemName,
+          price: planItem?.price,
+          currency_code: planItem.currency?.currency_code,
+          planId: planItem.additionalDetail?.planId,
+          isNewSubscriber: subscriptionData ? false : true,
+          mandates: mandateData?.mandate?.mandates?.length
+            ? mandateData?.mandate?.mandates
+            : [],
+          bottomSheet: planItem.additionalDetail?.bottomSheet,
+          skipText: planItem.additionalDetail?.skipText,
+        };
+        finalResponse.push(promoDetails);
       }
+  
       return finalResponse;
     } catch (err) {
       throw err;
+    }
+  }
+  
+  async getServiceItemDetailByProcessId(processId: string){
+    try {
+      let data = await this.serviceItemModel.findOne({
+        "additionalDetails.processId": new ObjectId(processId),
+        status: Estatus.Active
+      });
+      return data;
+    } catch (error) {
+      throw error;
     }
   }
 }

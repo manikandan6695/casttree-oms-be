@@ -882,7 +882,8 @@ export class ProcessService {
         processId: processId,
         taskNumber: 1,
       });
-      return { data };
+      let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
+      return { data, itemId: serviceItemData?.itemId };
     } catch (error) {
       throw error;
     }
