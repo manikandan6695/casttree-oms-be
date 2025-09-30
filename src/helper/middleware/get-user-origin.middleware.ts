@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, NestMiddleware } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NestMiddleware, HttpException, HttpStatus } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import { HelperService } from "../helper.service";
 import { ConfigService } from "@nestjs/config";
@@ -24,32 +24,45 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     if (!userId) {
       console.log("inside not of user id");
 
-      try {
-        // Check if authorization header exists and is not null/undefined
-        if (headers?.authorization) {
-          const authParts = headers.authorization.split(" ");
-          if (authParts.length === 2 && authParts[0] === "Bearer") {
-            const token = authParts[1];
+      // Check if authorization header exists and is not null/undefined
+      if (headers?.authorization) {
+        const authParts = headers.authorization.split(" ");
+        if (authParts.length === 2 && authParts[0] === "Bearer") {
+          const token = authParts[1];
+          
+          // Handle "Bearer null" case before JWT verification
+          if (!token || token === "null" || token === "undefined") {
+            console.log("Invalid or null token provided:", token);
+            throw new HttpException("Invalid token", HttpStatus.UNAUTHORIZED);
+          }
+
+          try {
+            const decoded = jwt.verify(
+              token,
+              this.configService.get("JWT_SECRET")
+            ) as any;
+            userId = decoded?.id;
+          } catch (error) {
+            console.error("JWT verification failed:", error.message);
             
-            // Check if token is not null, undefined, or the string "null"
-            if (token && token !== "null" && token !== "undefined") {
-              const decoded = jwt.verify(
-                token,
-                this.configService.get("JWT_SECRET")
-              ) as any;
-              userId = decoded?.id;
+            // Map JWT errors to appropriate HTTP status codes
+            if (error.name === 'TokenExpiredError') {
+              throw new HttpException("Token expired", HttpStatus.UNAUTHORIZED);
+            } else if (error.name === 'JsonWebTokenError') {
+              throw new HttpException("Invalid token", HttpStatus.UNAUTHORIZED);
+            } else if (error.name === 'NotBeforeError') {
+              throw new HttpException("Token not active", HttpStatus.UNAUTHORIZED);
             } else {
-              console.log("Invalid or null token provided:", token);
+              throw new HttpException("Token verification failed", HttpStatus.UNAUTHORIZED);
             }
-          } else {
-            console.log("Invalid authorization header format");
           }
         } else {
-          console.log("No authorization header provided");
+          console.log("Invalid authorization header format");
+          throw new HttpException("Invalid authorization header format", HttpStatus.UNAUTHORIZED);
         }
-      } catch (error) {
-        console.error("JWT verification failed:", error.message);
-        // Continue without userId - will fall back to IP-based country detection
+      } else {
+        console.log("No authorization header provided");
+        // No authorization header - continue without userId (fallback to IP-based detection)
       }
     }
     console.log("userId", userId);
