@@ -82,6 +82,7 @@ export class ServiceItemController {
       );
       return data;
     } catch (err) {
+      console.error("Controller: getPromotionDetailByItemId failed for itemId:", itemId, "Error:", err);
       throw err;
     }
   }
