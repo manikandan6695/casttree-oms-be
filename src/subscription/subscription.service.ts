@@ -2655,7 +2655,7 @@ export class SubscriptionService {
       if (!subscription) {
         throw new HttpException(
           { message: EErrorHandler.notFound },
-          HttpStatus.NOT_FOUND
+          HttpStatus.FORBIDDEN
         );
       }
       return { data: subscription };

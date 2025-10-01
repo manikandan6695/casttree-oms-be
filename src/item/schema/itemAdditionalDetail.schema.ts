@@ -132,6 +132,7 @@ export interface itemAdditionalDetailModel {
   planDetails: any[];
   badgeColour: string;
   validity: string;
+  skipText: string;
 }
 
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
@@ -175,5 +176,6 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   maxCustomQuestions: { type: Number },
   planDetails: [{ type: mongoose.Schema.Types.Mixed }],
   badgeColour: { type: String },
-  validity: { type: String }
+  validity: { type: String },
+  skipText: { type: String },
 });

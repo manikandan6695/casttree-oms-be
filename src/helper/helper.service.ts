@@ -365,10 +365,15 @@ export class HelperService {
 
   async createCustomer(body, token: any) {
     try {
-      // console.log("token", token);
+      let name = body.userName?.trim();
 
+      if (!name || name.length < 3) {
+        name = "Creedom User";
+      }
+      // console.log("name is",name);
+      
       let fv = {
-        name: body.userName,
+        name: name,
         email: body.email,
         contact: body.phoneNumber,
         fail_existing: "0",

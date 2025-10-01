@@ -431,7 +431,7 @@ export class SubscriptionFactory {
 
   private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      // console.log("body data", data, bodyData);
+      console.log("body data", data, bodyData);
 
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
@@ -1121,7 +1121,7 @@ export class SubscriptionFactory {
       });
       // console.log("res", res);
       const transactionInfo = res.data;
-      // console.log("transactionInfo", transactionInfo);
+      console.log("transactionInfo", transactionInfo);
 
       return {
         success: res.data.expiryTime > new Date(),

@@ -16,7 +16,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
 import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { DynamicUiService } from "./dynamic-ui.service";
-import { EFilterOption } from "./dto/filter-option.dto";
+import { ComponentFilterQueryDto, EFilterOption } from "./dto/filter-option.dto";
 import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 import { AddNewSeriesDto } from "./dto/add-new-series.dto";
@@ -273,6 +273,28 @@ export class DynamicUiController {
       const res = await this.dynamicUIService.getAwardList();
       return res;
     } catch (err) {
+      throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("series-filter/:componentId")
+  async getFilterComponent(
+    @Req() req,
+    @Param("componentId") componentId: string,
+    @GetToken() token: UserToken,
+    @Query(new ValidationPipe({ whitelist: true }))
+    query: ComponentFilterQueryDto,
+    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
+  ) {
+    try {
+      let data = await this.dynamicUIService.getFilterComponent(
+        token,
+        componentId,
+        query,
+        filterOption
+      );
+      return data;
+  } catch (err) {
       throw err;
     }
   }
