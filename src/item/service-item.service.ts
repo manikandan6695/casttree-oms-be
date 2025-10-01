@@ -1913,18 +1913,19 @@ export class ServiceItemService {
       if (planItem) {
         ids.push(new ObjectId(planItem?._id));
       }
-      console.log("ids", ids);
+      // console.log("ids", ids);
       if (country_code) {
-        console.log("country_code", country_code);
+        // console.log("country_code", country_code);
         let itemListObjectWithUpdatedPrice = await this.getUpdatePrice(
           country_code,
           ids
         );
-        console.log(
-          "itemListObjectWithUpdatedPrice",
-          itemListObjectWithUpdatedPrice
-        );
 
+        // console.log(
+        //   "itemListObjectWithUpdatedPrice",
+        //   itemListObjectWithUpdatedPrice
+        // );
+        
         // Check if price lookup was successful
         if (
           !itemListObjectWithUpdatedPrice ||
@@ -1960,12 +1961,12 @@ export class ServiceItemService {
             itemListObjectWithUpdatedPrice &&
             itemListObjectWithUpdatedPrice[planItem._id.toString()];
           if (processPrice) {
-            console.log(
-              "inside if",
-              processPrice["price"],
-              processPrice["comparePrice"],
-              processPrice["currency"]
-            );
+            // console.log(
+            //   "inside if",
+            //   processPrice["price"],
+            //   processPrice["comparePrice"],
+            //   processPrice["currency"]
+            // );
             planItem["price"] = processPrice["price"];
             planItem["comparePrice"] = processPrice["comparePrice"];
             planItem["currency"] = processPrice["currency"];
@@ -1978,15 +1979,23 @@ export class ServiceItemService {
           }
         }
       }
-      console.log("planItem", processPricingData?.planItemId?.[0]?.itemId);
+      // console.log("planItem", processPricingData?.planItemId?.[0]?.itemId);
 
-      if (processPricingData?.itemId?.additionalDetail?.promotionDetails) {
-        console.log(
-          "inside processing",
-          processPricingData?.planItemId?.[0]?.itemId
-        );
-
+      if (processPricingData?.planItemId?.[0]?.itemId?.additionalDetail?.promotionDetails) {
+        if (!processPricingData.itemId.additionalDetail.promotionDetails) {
+          processPricingData.itemId.additionalDetail.promotionDetails = {} as any;
+        }
         if (processPricingData?.planItemId?.[0]?.itemId) {
+          processPricingData.itemId.additionalDetail.promotionDetails.title =
+            processPricingData?.planItemId[0]?.itemId?.additionalDetail?.promotionDetails?.title;
+          processPricingData.itemId.additionalDetail.promotionDetails.ctaName =
+            processPricingData?.planItemId[0]?.itemId?.additionalDetail?.promotionDetails?.ctaName;
+          processPricingData.itemId.additionalDetail.promotionDetails.planUserSave =
+            processPricingData?.planItemId[0]?.itemId?.additionalDetail?.promotionDetails?.planUserSave;
+          processPricingData.itemId.additionalDetail.promotionDetails.subtitle =
+            processPricingData?.planItemId[0]?.itemId?.additionalDetail?.promotionDetails?.subtitle;
+          processPricingData.itemId.additionalDetail.promotionDetails.paywallVisibility =
+            processPricingData?.planItemId[0]?.itemId?.additionalDetail?.promotionDetails?.paywallVisibility;
           processPricingData.itemId.additionalDetail.promotionDetails.price =
             processPricingData?.planItemId[0]?.itemId?.price;
           processPricingData.itemId.additionalDetail.promotionDetails.itemName =
@@ -2006,52 +2015,16 @@ export class ServiceItemService {
         }
 
         const promoDetails =
-          processPricingData.itemId.additionalDetail.promotionDetails;
-
-        // Debug: Log the promotionDetails structure
-        console.log(
-          "getPromotionDetailByItemId - promotionDetails structure:",
-          JSON.stringify(promoDetails, null, 2)
-        );
-        console.log(
-          "getPromotionDetailByItemId - isNewSubscription:",
-          isNewSubscription
-        );
-        console.log(
-          "getPromotionDetailByItemId - payWallVideo exists:",
-          !!promoDetails["payWallVideo"]
-        );
-        console.log(
-          "getPromotionDetailByItemId - payWallVideo1 exists:",
-          !!promoDetails["payWallVideo1"]
-        );
-
-        // Handle payWallVideo based on subscription status
-        if (isNewSubscription === true) {
-          // For new subscribers, use payWallVideo if it exists
-          if (promoDetails["payWallVideo"]) {
-            promoDetails.payWallVideo = promoDetails["payWallVideo"];
-          }
-        } else {
-          // For existing subscribers, use payWallVideo1 if it exists, otherwise fallback to payWallVideo
-          if (promoDetails["payWallVideo1"]) {
-            promoDetails.payWallVideo = promoDetails["payWallVideo1"];
-          } else if (promoDetails["payWallVideo"]) {
-            promoDetails.payWallVideo = promoDetails["payWallVideo"];
-          }
+          processPricingData.planItemId[0].itemId.additionalDetail.promotionDetails;
+        
+        // Pass both payWallVideo and payWallVideo1 if they exist
+        if (promoDetails["payWallVideo"]) {
+          processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo = promoDetails["payWallVideo"];
         }
-
-        // Clean up payWallVideo1 after processing
-        if (promoDetails["payWallVideo1"]) {
-          delete promoDetails["payWallVideo1"];
-        }
-
-        // Debug: Log the final payWallVideo value
-        console.log(
-          "getPromotionDetailByItemId - final payWallVideo:",
-          promoDetails.payWallVideo
-        );
-
+        // if (promoDetails["payWallVideo1"]) {
+        //   processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 = promoDetails["payWallVideo1"];
+        // }
+        
         if (processPricingData?.planItemId?.[0]?.itemId) {
           processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
             processPricingData?.planItemId[0]?.itemId.bottomSheet;
@@ -2062,8 +2035,11 @@ export class ServiceItemService {
         );
       }
 
-      plandata.map((data) => {
-        console.log("data is", data);
+      const planItemIdStr = processPricingData?.planItemId?.[0]?.itemId?._id?.toString();
+      const matchedItems: any[] = [];
+      const nonMatchedItems: any[] = [];
+
+      plandata.forEach((data) => {
 
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.itemId = data._id;
@@ -2084,8 +2060,17 @@ export class ServiceItemService {
         data.additionalDetail.promotionDetails.bottomSheet =
           data.additionalDetail?.bottomSheet;
 
-        finalResponse.push(data.additionalDetail.promotionDetails);
+        // Check if this item matches the planItemId
+        if (planItemIdStr && data._id?.toString() === planItemIdStr) {
+          // Add skillName to matched items only
+          data.additionalDetail.promotionDetails.skillName = processPricingData?.skill?.skill_name;
+          matchedItems.push(data.additionalDetail.promotionDetails);
+        } else {
+          nonMatchedItems.push(data.additionalDetail.promotionDetails);
+        }
       });
+      finalResponse.push(...matchedItems);
+      finalResponse.push(...nonMatchedItems);
 
       return finalResponse;
     } catch (err) {
