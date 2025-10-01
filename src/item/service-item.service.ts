@@ -1211,6 +1211,8 @@ export class ServiceItemService {
           [EsubscriptionStatus.initiated, EsubscriptionStatus.failed]
         );
       }
+      // console.log("mandateData", mandateData);
+      const isNewSubscription = subscriptionData ? true : false;
       let finalResponse = [];
       let processPricingData: any = await this.serviceItemModel
         .findOne({ "additionalDetails.processId": processId })
@@ -1241,8 +1243,28 @@ export class ServiceItemService {
           country_code,
           ids
         );
+        // console.log(
+        //   "itemListObjectWithUpdatedPrice",
+        //   itemListObjectWithUpdatedPrice
+        // );
+
+        // Check if price lookup was successful
+        if (
+          !itemListObjectWithUpdatedPrice ||
+          Object.keys(itemListObjectWithUpdatedPrice).length === 0
+        ) {
+          console.warn(
+            "Price lookup failed for country_code:",
+            country_code,
+            "- using default prices"
+          );
+        }
+
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice[data._id.toString()]) {
+          if (
+            itemListObjectWithUpdatedPrice &&
+            itemListObjectWithUpdatedPrice[data._id.toString()]
+          ) {
             data["price"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
@@ -1252,33 +1274,52 @@ export class ServiceItemService {
             data["currency"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["currency"];
           }
+          // If price lookup failed, data retains its original prices from database
         });
+
         let processPrice =
+          itemListObjectWithUpdatedPrice &&
           itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
         if (processPrice) {
           processPricingData.itemId["price"] = processPrice["price"];
           processPricingData.itemId["comparePrice"] =
             processPrice["comparePrice"];
           processPricingData.itemId["currency"] = processPrice["currency"];
+        } else {
+          console.warn(
+            "No price data found for processPricingData.itemId:",
+            processPricingData.itemId._id,
+            "- using default prices"
+          );
         }
       }
-      processPricingData.itemId.additionalDetail.promotionDetails.price =
-        processPricingData.itemId.price;
-      processPricingData.itemId.additionalDetail.promotionDetails.itemName =
-        processPricingData.itemId.itemName;
-      processPricingData.itemId.additionalDetail.promotionDetails.mentorName =
-        processPricingData.profileData.displayName;
-      processPricingData.itemId.additionalDetail.promotionDetails.thumbnail =
-        processPricingData.additionalDetails.thumbnail;
-      processPricingData.itemId.additionalDetail.promotionDetails.itemId =
-        processPricingData.itemId._id;
-      processPricingData.itemId.additionalDetail.promotionDetails.comparePrice =
-        processPricingData.itemId.comparePrice;
-      processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
-        processPricingData.itemId.currency.currency_code;
-      finalResponse.push(
-        processPricingData.itemId.additionalDetail.promotionDetails
-      );
+      // console.log("processPricingData",processPricingData?.itemId);
+
+      if (processPricingData?.itemId?.additionalDetail?.promotionDetails) {
+        processPricingData.itemId.additionalDetail.promotionDetails.price =
+          processPricingData.itemId.price;
+        processPricingData.itemId.additionalDetail.promotionDetails.itemName =
+          processPricingData.itemId.itemName;
+        processPricingData.itemId.additionalDetail.promotionDetails.mentorName =
+          processPricingData.profileData?.displayName;
+        processPricingData.itemId.additionalDetail.promotionDetails.thumbnail =
+          processPricingData.additionalDetails.thumbnail;
+        processPricingData.itemId.additionalDetail.promotionDetails.itemId =
+          processPricingData.itemId._id;
+        processPricingData.itemId.additionalDetail.promotionDetails.comparePrice =
+          processPricingData.itemId.comparePrice;
+        processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
+          processPricingData.itemId.currency.currency_code;
+        const promoDetails =
+          processPricingData.itemId.additionalDetail.promotionDetails;
+          promoDetails.payWallVideo = promoDetails["payWallVideo"];
+       
+        processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
+          processPricingData.itemId.bottomSheet;
+        finalResponse.push(
+          processPricingData.itemId.additionalDetail.promotionDetails
+        );
+      }
       plandata.map((data) => {
         data.additionalDetail.promotionDetails.comparePrice = data.comparePrice;
         data.additionalDetail.promotionDetails.itemId = data._id;
@@ -1294,8 +1335,26 @@ export class ServiceItemService {
           data.additionalDetail?.planConfig;
         data.additionalDetail.promotionDetails.bottomSheet =
           data.additionalDetail?.bottomSheet;
+        // console.log("bottom sheet is",data.additionalDetail?.bottomSheet );
+
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
+      finalResponse.sort((a, b) => {
+        // Detect "this series" dynamically (any plan that is NOT PRO or SUPER PRO)
+        const isThisSeries = (plan) =>
+          plan.itemName !== "PRO" && plan.itemName !== "SUPER PRO";
+
+        if (isThisSeries(a)) return -1;
+        if (isThisSeries(b)) return 1;
+
+        // Second, PRO 99 plan
+        if (a.itemName === "PRO" && a.price === 99) return -1;
+        if (b.itemName === "PRO" && b.price === 99) return 1;
+
+        // Keep other plans in the existing order
+        return 0;
+      });
+
       return finalResponse;
     } catch (err) {
       throw err;
