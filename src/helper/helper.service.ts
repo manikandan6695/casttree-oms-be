@@ -414,10 +414,15 @@ export class HelperService {
 
   async createCustomer(body, token: any) {
     try {
-      // console.log("token", token);
+      let name = body.userName?.trim();
 
+      if (!name || name.length < 3) {
+        name = "Creedom User";
+      }
+      // console.log("name is",name);
+      
       let fv = {
-        name: body.userName,
+        name: name,
         email: body.email,
         contact: body.phoneNumber,
         fail_existing: "0",
@@ -1423,14 +1428,14 @@ export class HelperService {
             value: userId,
           },
           {
-            "type": "text",
-            "target": ["variable", ["template-tag", "skill_id"]],
-            "value": skillId
-          }
+            type: "text",
+            target: ["variable", ["template-tag", "skill_id"]],
+            value: skillId,
+          },
         ],
       };
 
-      const headers = { 
+      const headers = {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
@@ -1458,7 +1463,7 @@ export class HelperService {
       }
 
       const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
-      
+
       try {
         const response = await this.http_service
           .post(fullUrl, requestBody, {
@@ -1468,7 +1473,6 @@ export class HelperService {
             httpsAgent: this.httpsAgent,
           })
           .toPromise();
-       
 
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
@@ -1477,8 +1481,8 @@ export class HelperService {
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
           const matchingBanner = defaultBannerId.value.find(
-            (banner) => 
-              banner.sourceId.toString() === skillId.toString() && 
+            (banner) =>
+              banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
           if (matchingBanner) {
@@ -1512,22 +1516,21 @@ export class HelperService {
             })
             .toPromise();
 
+          let defaultBanner;
 
-            let defaultBanner;
-            
-            // Find matching banner based on skillId and skillType
-            if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
-              const matchingBanner = defaultBannerId.value.find(
-                (banner) => 
-                  banner.sourceId.toString() === skillId.toString() && 
-                  banner.sourceType === skillType
-              );
-              if (matchingBanner) {
-                defaultBanner = matchingBanner.bannerId.toString();
-              }
+          // Find matching banner based on skillId and skillType
+          if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
+            const matchingBanner = defaultBannerId.value.find(
+              (banner) =>
+                banner.sourceId.toString() === skillId.toString() &&
+                banner.sourceType === skillType
+            );
+            if (matchingBanner) {
+              defaultBanner = matchingBanner.bannerId.toString();
             }
-            const flattenedRows =  retryResponse.data?.data?.rows?.flat() || [];
-            const bannerToShow = flattenedRows || defaultBanner;
+          }
+          const flattenedRows = retryResponse.data?.data?.rows?.flat() || [];
+          const bannerToShow = flattenedRows || defaultBanner;
           return {
             bannerToShow: bannerToShow,
           };
@@ -1543,8 +1546,8 @@ export class HelperService {
       // Find matching banner based on skillId and skillType
       if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
         const matchingBanner = defaultBannerId.value.find(
-          (banner) => 
-            banner.sourceId.toString() === skillId && 
+          (banner) =>
+            banner.sourceId.toString() === skillId &&
             banner.sourceType === skillType
         );
         if (matchingBanner) {

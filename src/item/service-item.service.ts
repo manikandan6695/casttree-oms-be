@@ -1317,14 +1317,24 @@ export class ServiceItemService {
           "itemListObjectWithUpdatedPrice",
           itemListObjectWithUpdatedPrice
         );
-        
+
         // Check if price lookup was successful
-        if (!itemListObjectWithUpdatedPrice || Object.keys(itemListObjectWithUpdatedPrice).length === 0) {
-          console.warn('Price lookup failed for country_code:', country_code, '- using default prices');
+        if (
+          !itemListObjectWithUpdatedPrice ||
+          Object.keys(itemListObjectWithUpdatedPrice).length === 0
+        ) {
+          console.warn(
+            "Price lookup failed for country_code:",
+            country_code,
+            "- using default prices"
+          );
         }
-        
+
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice && itemListObjectWithUpdatedPrice[data._id.toString()]) {
+          if (
+            itemListObjectWithUpdatedPrice &&
+            itemListObjectWithUpdatedPrice[data._id.toString()]
+          ) {
             data["price"] =
               itemListObjectWithUpdatedPrice[data._id.toString()]["price"];
             data["comparePrice"] =
@@ -1336,16 +1346,21 @@ export class ServiceItemService {
           }
           // If price lookup failed, data retains its original prices from database
         });
-        
+
         let processPrice =
-          itemListObjectWithUpdatedPrice && itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
+          itemListObjectWithUpdatedPrice &&
+          itemListObjectWithUpdatedPrice[processPricingData.itemId._id];
         if (processPrice) {
           processPricingData.itemId["price"] = processPrice["price"];
           processPricingData.itemId["comparePrice"] =
             processPrice["comparePrice"];
           processPricingData.itemId["currency"] = processPrice["currency"];
         } else {
-          console.warn('No price data found for processPricingData.itemId:', processPricingData.itemId._id, '- using default prices');
+          console.warn(
+            "No price data found for processPricingData.itemId:",
+            processPricingData.itemId._id,
+            "- using default prices"
+          );
         }
       }
       // console.log("processPricingData",processPricingData?.itemId);
@@ -1367,11 +1382,27 @@ export class ServiceItemService {
           processPricingData.itemId.currency.currency_code;
         const promoDetails =
           processPricingData.itemId.additionalDetail.promotionDetails;
-        promoDetails.payWallVideo =
-          isNewSubscription === true
-            ? promoDetails["payWallVideo"]
-            : promoDetails["payWallVideo1"];
-        delete promoDetails["payWallVideo1"];
+
+        // Handle payWallVideo based on subscription status
+        if (isNewSubscription === true) {
+          // For new subscribers, use payWallVideo if it exists
+          if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        } else {
+          // For existing subscribers, use payWallVideo1 if it exists, otherwise fallback to payWallVideo
+          if (promoDetails["payWallVideo1"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo1"];
+          } else if (promoDetails["payWallVideo"]) {
+            promoDetails.payWallVideo = promoDetails["payWallVideo"];
+          }
+        }
+
+        // Clean up payWallVideo1 after processing
+        if (promoDetails["payWallVideo1"]) {
+          delete promoDetails["payWallVideo1"];
+        }
+
         processPricingData.itemId.additionalDetail.promotionDetails.bottomSheet =
           processPricingData.itemId.bottomSheet;
         finalResponse.push(
@@ -1401,6 +1432,22 @@ export class ServiceItemService {
 
         finalResponse.push(data.additionalDetail.promotionDetails);
       });
+      finalResponse.sort((a, b) => {
+        // Detect "this series" dynamically (any plan that is NOT PRO or SUPER PRO)
+        const isThisSeries = (plan) =>
+          plan.itemName !== "PRO" && plan.itemName !== "SUPER PRO";
+
+        if (isThisSeries(a)) return -1;
+        if (isThisSeries(b)) return 1;
+
+        // Second, PRO 99 plan
+        if (a.itemName === "PRO" && a.price === 99) return -1;
+        if (b.itemName === "PRO" && b.price === 99) return 1;
+
+        // Keep other plans in the existing order
+        return 0;
+      });
+
       return finalResponse;
     } catch (err) {
       throw err;
@@ -1460,7 +1507,14 @@ export class ServiceItemService {
       );
       return priceListData;
     } catch (err) {
-      console.error('Price lookup failed for country_code:', country_code, 'itemIds:', itemIds, 'Error:', err);
+      console.error(
+        "Price lookup failed for country_code:",
+        country_code,
+        "itemIds:",
+        itemIds,
+        "Error:",
+        err
+      );
       return {}; // Return empty object instead of undefined
     }
   }
@@ -1866,18 +1920,29 @@ export class ServiceItemService {
           country_code,
           ids
         );
+
         // console.log(
         //   "itemListObjectWithUpdatedPrice",
         //   itemListObjectWithUpdatedPrice
         // );
         
         // Check if price lookup was successful
-        if (!itemListObjectWithUpdatedPrice || Object.keys(itemListObjectWithUpdatedPrice).length === 0) {
-          console.warn('Price lookup failed for country_code:', country_code, '- using default prices');
+        if (
+          !itemListObjectWithUpdatedPrice ||
+          Object.keys(itemListObjectWithUpdatedPrice).length === 0
+        ) {
+          console.warn(
+            "Price lookup failed for country_code:",
+            country_code,
+            "- using default prices"
+          );
         }
-        
+
         plandata.map((data) => {
-          if (itemListObjectWithUpdatedPrice && itemListObjectWithUpdatedPrice[data?._id?.toString()]) {
+          if (
+            itemListObjectWithUpdatedPrice &&
+            itemListObjectWithUpdatedPrice[data?._id?.toString()]
+          ) {
             data["price"] =
               itemListObjectWithUpdatedPrice[data?._id?.toString()]["price"];
             data["comparePrice"] =
@@ -1893,7 +1958,8 @@ export class ServiceItemService {
         // Update planItem pricing based on country code
         if (planItem && planItem._id) {
           let processPrice =
-            itemListObjectWithUpdatedPrice && itemListObjectWithUpdatedPrice[planItem._id.toString()];
+            itemListObjectWithUpdatedPrice &&
+            itemListObjectWithUpdatedPrice[planItem._id.toString()];
           if (processPrice) {
             // console.log(
             //   "inside if",
@@ -1905,7 +1971,11 @@ export class ServiceItemService {
             planItem["comparePrice"] = processPrice["comparePrice"];
             planItem["currency"] = processPrice["currency"];
           } else {
-            console.warn('No price data found for planItem:', planItem._id, '- using default prices');
+            console.warn(
+              "No price data found for planItem:",
+              planItem._id,
+              "- using default prices"
+            );
           }
         }
       }
@@ -2004,7 +2074,12 @@ export class ServiceItemService {
 
       return finalResponse;
     } catch (err) {
-      console.error("getPromotionDetailByItemId failed for itemId:", itemId, "Error:", err);
+      console.error(
+        "getPromotionDetailByItemId failed for itemId:",
+        itemId,
+        "Error:",
+        err
+      );
       throw err;
     }
   }
