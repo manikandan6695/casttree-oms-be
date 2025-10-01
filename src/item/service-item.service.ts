@@ -2064,6 +2064,8 @@ export class ServiceItemService {
         if (planItemIdStr && data._id?.toString() === planItemIdStr) {
           // Add skillName to matched items only
           data.additionalDetail.promotionDetails.skillName = processPricingData?.skill?.skill_name;
+          data.additionalDetail.promotionDetails.skipText =
+            data.additionalDetail?.skipText;
           matchedItems.push(data.additionalDetail.promotionDetails);
         } else {
           nonMatchedItems.push(data.additionalDetail.promotionDetails);
