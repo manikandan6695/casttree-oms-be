@@ -59,6 +59,7 @@ export class ProcessService {
       finalResponse["totalTasks"] = totalTasks;
       finalResponse["isEnableExpertQueries"] = serviceItemDetail?.itemId?.additionalDetail?.isEnableExpertQueries;
       finalResponse["expertId"] = serviceItemDetail?.userId;
+      finalResponse["itemId"] = serviceItemDetail?.itemId?._id;
       let nextTaskData = await this.tasksModel.findOne({
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
@@ -870,7 +871,8 @@ export class ProcessService {
         processId: processId,
         taskNumber: 1,
       });
-      return { data };
+      let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
+      return { data, itemId: serviceItemData?.itemId };
     } catch (error) {
       throw error;
     }

@@ -265,4 +265,24 @@ export class ServiceItemController {
       throw error;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("getPromotionDetail/item/:itemId")
+  async getPromotionDetailByItemId(
+    @Req() req,
+    @Param("itemId") itemId: string,
+    @GetToken() token: UserToken,
+  ) {
+    try {
+      let data = await this.serviceItemService.getPromotionDetailByItemId(
+        itemId,
+        token,
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"]
+      );
+      return data;
+    } catch (err) {
+      // console.error("Controller: getPromotionDetailByItemId failed for itemId:", itemId, "Error:", err);
+      throw err;
+    }
+  }
 }
