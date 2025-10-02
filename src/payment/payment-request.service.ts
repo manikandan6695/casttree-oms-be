@@ -1088,4 +1088,17 @@ export class PaymentRequestService {
       throw error;
     }
   }
+  async getSalseDocumentFromOrderId(orderId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        payment_order_id : orderId
+      })
+      let salseDocument = await this.salesDocumentModel.findOne({
+        _id : payment?.source_id
+      })
+      return salseDocument
+    } catch (error) {
+      throw error
+    }
+  }
 }
