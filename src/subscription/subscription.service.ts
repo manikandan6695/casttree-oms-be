@@ -1236,6 +1236,7 @@ export class SubscriptionService {
       let subscription = await this.subscriptionModel.findOne({
         _id: invoice?.source_id,
       });
+      console.log("subscription",subscription)
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
           // console.log("subscription", subscription);
@@ -2769,7 +2770,7 @@ export class SubscriptionService {
     try {
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      if (paymentRequest?.document_status !== EDocumentStatus.completed) {
+      if (paymentRequest?.document_status === EDocumentStatus.pending) {
         await this.paymentService.completePayment({
           invoiceId: paymentRequest?.source_id,
           paymentId: paymentRequest?._id,
