@@ -297,6 +297,7 @@ export class SubscriptionService {
         console.log("event name", event);
         if (event === EEventType.paymentAuthorized) {
           const payload = req?.body?.payload;
+          console.log("payload",payload)
           let coinTransaction = await this.paymentService.getSalseDocumentFromOrderId(payload?.payment?.entity?.order_id)
          if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
           await this.HandleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
