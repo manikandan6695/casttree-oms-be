@@ -388,6 +388,9 @@ export class SubscriptionService {
         }
       } else if (provider == EProvider.google) {
         const eventType = await this.subscriptionFactory.googleRtdn(req?.body);
+        if(!eventType){
+          return { "message": "no event type found" }
+        }
         console.log("eventType", eventType);
         console.log("body", req?.body);
         let webhookExist = await this.webhookModel.findOne({
@@ -2661,7 +2664,7 @@ export class SubscriptionService {
       if (!subscription) {
         throw new HttpException(
           { message: EErrorHandler.notFound },
-          HttpStatus.NOT_FOUND
+          HttpStatus.FORBIDDEN
         );
       }
       return { data: subscription };

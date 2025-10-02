@@ -22,7 +22,7 @@ export class ServiceRequestController {
   constructor(
     private readonly serviceRequestService: ServiceRequestService,
     private sservice: SharedService
-  ) { }
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get()
@@ -45,11 +45,7 @@ export class ServiceRequestController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -67,11 +63,7 @@ export class ServiceRequestController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -86,11 +78,7 @@ export class ServiceRequestController {
       let data = await this.serviceRequestService.getServiceResponse(id, token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -102,13 +90,12 @@ export class ServiceRequestController {
     @GetToken() token: UserToken
   ) {
     try {
-      let data = await this.serviceRequestService.validateWorkshop(itemId,userId);
-      return {data:data};
-    } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
+      let data = await this.serviceRequestService.validateWorkshop(
+        itemId,
+        userId
       );
+      return { data: data };
+    } catch (err) {
       throw err;
     }
   }

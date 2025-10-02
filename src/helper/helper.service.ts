@@ -365,10 +365,15 @@ export class HelperService {
 
   async createCustomer(body, token: any) {
     try {
-      // console.log("token", token);
+      let name = body.userName?.trim();
 
+      if (!name || name.length < 3) {
+        name = "Creedom User";
+      }
+      // console.log("name is",name);
+      
       let fv = {
-        name: body.userName,
+        name: name,
         email: body.email,
         contact: body.phoneNumber,
         fail_existing: "0",
@@ -536,7 +541,7 @@ export class HelperService {
         .get(requestURL, body)
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
@@ -938,8 +943,7 @@ export class HelperService {
   }
   async updateReferral(body: any) {
     try {
-      const requestURL = 
-      `${this.configService.get("CASTTREE_BASE_URL")}/referral/${body.referralId}`;
+      const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/referral/${body.referralId}`;
       // `http://localhost:3000/casttree/referral/${body.referralId}`;
       const request = this.http_service
         .patch(requestURL, body)
@@ -958,34 +962,31 @@ export class HelperService {
 
       const response = await lastValueFrom(request);
       return response;
-
     } catch (error) {
-      throw error 
+      throw error;
     }
   }
   async createReferralTransaction(body: any) {
     try {
       const requestURL = `${this.configService.get("CASTTREE_BASE_URL")}/referral/transaction`;
       // const requestURL = `http://localhost:3000/casttree/referral/transaction`;
-      const request = this.http_service
-        .post(requestURL, body)
-        .pipe(
-          map((res) => {
-            // console.log(res?.data);
-            return res?.data;
-          })
-        );
+      const request = this.http_service.post(requestURL, body).pipe(
+        map((res) => {
+          // console.log(res?.data);
+          return res?.data;
+        })
+      );
       const response = await lastValueFrom(request);
       return response;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   async getUserAdditional(userId: string) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/user/user-additional-detail/${userId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/user/user-additional-detail/${userId}`
           // `http://localhost:3000/casttree/user/user-additional-detail/${userId}`,
         )
         .toPromise();
@@ -995,17 +996,17 @@ export class HelperService {
       throw err;
     }
   }
-  async getReferralData(refereeUserId: string,referrerId: string) {
+  async getReferralData(refereeUserId: string, referrerId: string) {
     try {
       let data = await this.http_service
         .get(
-          `${this.configService.get("CASTTREE_BASE_URL")}/referral/${refereeUserId}/${referrerId}`,
+          `${this.configService.get("CASTTREE_BASE_URL")}/referral/${refereeUserId}/${referrerId}`
           // `http://localhost:3000/casttree/referral/${refereeUserId}/${referrerId}`,
         )
         .toPromise();
       return data.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   // @OnEvent(EVENT_UPDATE_USER)
@@ -1032,4 +1033,27 @@ export class HelperService {
   //     );
   //   }
   // }
+
+  async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post(
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
+        {
+          embeddedURL: oldUrl,
+        },
+        {
+          headers: {
+            "x-api-version": "2",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error generating new media URL:", error);
+      throw error;
+    }
+  }
 }
