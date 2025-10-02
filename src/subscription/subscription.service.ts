@@ -304,7 +304,7 @@ export class SubscriptionService {
           const payload = req?.body?.payload;
           let coinTransaction = await this.paymentService.getSalseDocumentFromOrderId(payload?.payment?.entity?.order_id)
          if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
-          await this.HandleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
+          await this.handleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
          }
           await this.handleRazorpaySubscriptionPayment(payload);
         }
@@ -2764,7 +2764,7 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async HandleCoinPurchaseInWebHook(rzpPaymentId) {
+  async handleCoinPurchaseInWebHook(rzpPaymentId) {
     try {
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
