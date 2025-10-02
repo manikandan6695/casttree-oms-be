@@ -7,6 +7,7 @@ import { IPlatformItemModel } from "./schema/platform-item.schema";
 import { HelperService } from "src/helper/helper.service";
 import { EStatus } from "src/service-request/enum/service-request.enum";
 import { IFilterOption } from "src/dynamic-ui/schema/filter-option.schema";
+import { ObjectId } from "mongodb";
 
 @Injectable()
 export class ItemService {
@@ -52,7 +53,7 @@ export class ItemService {
 
   async getItemDetail(id: string, version?: string) {
     try {
-      const data = await this.itemModel.findOne({ _id: id }).lean();
+      const data = await this.itemModel.findOne({ _id: new ObjectId(id) }).lean();
       return data;
     } catch (err) {
       throw err;

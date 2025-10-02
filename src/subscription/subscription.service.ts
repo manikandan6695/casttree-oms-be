@@ -1914,7 +1914,6 @@ export class SubscriptionService {
   @Cron("0 1 * * *")
   async createCharge() {
     try {
-      const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
@@ -2011,6 +2010,36 @@ export class SubscriptionService {
       );
       for (let i = 0; i < expiringSubscriptionsList.length; i++) {
         let mandate = expiringSubscriptionsList[i]?.latestMandate;
+        let planDetail = null;
+        try {
+          const itemId = new ObjectId(
+            expiringSubscriptionsList[i]?.latestDocument?.notes?.itemId
+          );
+
+          if (itemId) {
+            // Try to fetch by ID first
+            planDetail = await this.itemService.getItemDetail(itemId);
+
+            // If item doesn't exist by ID, fall back to getItemDetailByName
+            if (!planDetail) {
+              // console.log(
+              //   `Item with ID ${itemId} not found, falling back to getItemDetailByName`
+              // );
+              planDetail = await this.itemService.getItemDetailByName("PRO");
+            }
+          } else {
+            // If no itemId, use default fallback
+            // console.log(`No itemId found for subscription, using default plan`);
+            planDetail = await this.itemService.getItemDetailByName("PRO");
+          }
+        } catch (error) {
+          // console.error(
+          //   `Error fetching plan detail for subscription ${i}:`,
+          //   error
+          // );
+          // Fallback to default plan on error
+          planDetail = await this.itemService.getItemDetailByName("PRO");
+        }
         if (mandate?.providerId == EProviderId.cashfree) {
           await this.createChargeData(expiringSubscriptionsList[i], planDetail);
         }
@@ -2085,7 +2114,7 @@ export class SubscriptionService {
 
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
-      endAt.setHours(0, 0, 0, 0);
+      endAt.setHours(18, 29, 59, 999);
       // console.log("start at ==>", startAt);
       // console.log("end at ==>", endAt);
       // console.log(
@@ -2316,7 +2345,7 @@ export class SubscriptionService {
       // return true;
       if (recurringResponse) {
         endAt.setDate(endAt.getDate());
-        endAt.setHours(23, 59, 59, 999);
+        endAt.setHours(18, 29, 59, 999);
         const razorpaySubscriptionSequence =
           await this.sharedService.getNextNumber(
             "razorpay-subscription",
