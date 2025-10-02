@@ -156,4 +156,5 @@ export enum ECoinTransactionTypes {
   withdrawal = "Withdrawal",
   purchased = "purchased",
   withdrawn = "withdrawn",
+  coinTransaction = "coinTransaction"
 }
