@@ -2770,7 +2770,7 @@ export class SubscriptionService {
     try {
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      if (paymentRequest?.document_status === EDocumentStatus.pending) {
+      if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {
         await this.paymentService.completePayment({
           invoiceId: paymentRequest?.source_id,
           paymentId: paymentRequest?._id,
