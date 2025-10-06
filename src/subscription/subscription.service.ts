@@ -301,8 +301,9 @@ export class SubscriptionService {
           let coinTransaction = await this.paymentService.getSalseDocumentFromOrderId(payload?.payment?.entity?.order_id)
          if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
           await this.HandleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
-         }
-          await this.handleRazorpaySubscriptionPayment(payload);
+         } else{
+            await this.handleRazorpaySubscriptionPayment(payload);
+          }
         }
         // if (event === EEventType.tokenConfirmed) {
         //   const payload = req?.body?.payload;

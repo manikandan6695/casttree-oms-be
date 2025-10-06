@@ -475,6 +475,10 @@ export class ProcessService {
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
+        let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
+          pendingTasks[i].processId.toString()
+        );
+        pendingTasks[i].currentTask.itemId = itemDetail?.data?.itemId || null;
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
