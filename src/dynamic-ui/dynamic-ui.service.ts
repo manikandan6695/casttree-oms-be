@@ -1819,6 +1819,21 @@ export class DynamicUiService {
           { session }
         );
 
+        const role = await this.roleModel.aggregate([
+          {
+            $match: {
+              _id: { $in: data.roles.map((id) => new ObjectId(id)) },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              role_name: 1,
+            },
+          },
+        ]);
+        // console.log("role", role);
+
         const componentId = await this.componentModel
           .findOne({
             title: "All Series",
@@ -1906,6 +1921,10 @@ export class DynamicUiService {
               language: language,
               status: EStatus.Active,
               itemSold: 0,
+              role: role.map((item) => ({
+                roleId: new ObjectId(item._id),
+                roleName: item.role_name,
+              })),
               skill: {
                 skillId: new ObjectId(skillIds[0]),
                 skill_name: skill[0].skill_name,
