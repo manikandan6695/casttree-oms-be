@@ -2097,4 +2097,15 @@ export class ServiceItemService {
       throw error;
     }
   }
+  async getItemDetailFromProcessId(processId: string) {
+    try {
+      let data = await this.serviceItemModel.findOne({
+        "additionalDetails.processId": new ObjectId(processId),
+        status: Estatus.Active,
+      }).lean();
+      return data?.itemId;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
