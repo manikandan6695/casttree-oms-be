@@ -2102,8 +2102,8 @@ export class ServiceItemService {
       let data = await this.serviceItemModel.findOne({
         "additionalDetails.processId": new ObjectId(processId),
         status: Estatus.Active,
-      }).lean();
-      return data?.itemId;
+      }).select("itemId").lean();
+      return { data };
     } catch (error) {
       throw error;
     }

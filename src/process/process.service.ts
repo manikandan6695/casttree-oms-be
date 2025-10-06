@@ -478,7 +478,7 @@ export class ProcessService {
         let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
           pendingTasks[i].processId.toString()
         );
-        pendingTasks[i].currentTask.itemId = itemDetail;
+        pendingTasks[i].currentTask.itemId = itemDetail?.data?.itemId;
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
