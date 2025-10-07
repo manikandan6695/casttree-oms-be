@@ -1938,7 +1938,7 @@ export class DynamicUiService {
                 parentProcessId: new ObjectId(processId),
               },
               tag: allTags,
-              priorityOrder: 2,
+              priorityOrder: 100,
               proficiency: proficiency,
               category: category,
             },
