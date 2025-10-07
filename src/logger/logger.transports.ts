@@ -37,7 +37,7 @@ export class LoggerTransport {
       });
       this.errorLog = new File({
         level: "error",
-        format: combine(timestamp(), errors({ stack: true }), prettyPrint()),
+        format: combine(timestamp(), errors({ stack: true }), json()),
         filename: configService.get("LOGGER_ERR_LOG_PATH"),
       });
     }

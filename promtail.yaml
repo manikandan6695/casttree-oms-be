@@ -1,0 +1,20 @@
+server:
+  http_listen_port: 9080        # Promtail's web UI (status/debug)
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml # Tracks last read log line, so Promtail doesn't resend old logs
+
+clients:
+  - url: http://host.docker.internal:3101/loki/api/v1/push
+
+scrape_configs:
+  - job_name: casttree-oms-error-logs        # A name for this log scraping job
+    static_configs:
+      - targets:
+          - host.docker.internal           # Just a label, does not affect scraping
+        labels:
+          job: casttree-oms-error-logs
+          service: casttree-oms
+          env: dev
+          __path__: /logs/error.log
