@@ -1418,7 +1418,7 @@ export class SubscriptionService {
           reason: {
             failureReason: refundReason,
           },
-          isPaymentRefunded: true
+          isRefunded: true
         };
 
         await this.paymentService.updateStatus(
@@ -1457,12 +1457,12 @@ export class SubscriptionService {
 
           if (subscription) {
             const userUpdateBody = {
-              userId: subscription.userId,
+              userId: [subscription.userId],
               membership: "",
               badge: "",
             };
 
-            await this.helperService.updateUser(userUpdateBody);
+            await this.helperService.updateUsers(userUpdateBody);
             // const item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
             // const mixPanelBody: any = {
             //   eventName: EMixedPanelEvents.subscription_refund,
