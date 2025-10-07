@@ -290,7 +290,7 @@ export class SubscriptionService {
       if (provider === EProvider.razorpay) {
         let event = req?.body?.event;
         // console.log("event name", event);
-        if (event === EEventType.paymentAuthorized) {
+        if (event === EEventType.paymentCaptured) {
           const payload = req?.body?.payload;
           await this.handleRazorpaySubscriptionPayment(payload);
           // await this.handleRazorpaySubscription(payload);
