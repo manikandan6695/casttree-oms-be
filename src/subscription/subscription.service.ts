@@ -200,9 +200,7 @@ export class SubscriptionService {
               authorization_amount_refund: body.authAmount == 0 ? true : false,
               payment_methods: ["upi"],
             },
-            subscription_meta: {
-              return_url: body.redirectionUrl,
-            },
+            subscription_meta: { return_url: body.redirectionUrl },
             subscription_expiry_time: expiryTime,
             subscription_first_charge_time: firstCharge,
           };
@@ -241,9 +239,7 @@ export class SubscriptionService {
             status: EStatus.Active,
             createdBy: token?.id,
             updatedBy: token?.id,
-            metaData: {
-              externalId: body?.transactionDetails?.transactionId,
-            },
+            metaData: { externalId: body?.transactionDetails?.transactionId },
           };
           break;
         default:
@@ -643,10 +639,7 @@ export class SubscriptionService {
         // console.log("existingCancellation", existingCancellation);
         return;
       }
-      let body = {
-        status: EMandateStatus.cancelled,
-        updatedAt: new Date(),
-      };
+      let body = { status: EMandateStatus.cancelled, updatedAt: new Date() };
       let mandates = await this.mandateService.updateIapStatusCancel(
         existingSubscription?._id,
         body
@@ -784,18 +777,12 @@ export class SubscriptionService {
             latestOrderId: rtdn?.transactionInfo?.latestOrderId,
           },
         };
-        let statusData = {
-          status: EDocumentStatus.completed,
-          conversionBody,
-        };
+        let statusData = { status: EDocumentStatus.completed, conversionBody };
         let payment = await this.paymentService.updateStatus(
           updatedInvoice.invoice._id,
           statusData
         );
-        let body = {
-          status: EDocumentStatus.active,
-          updatedAt: new Date(),
-        };
+        let body = { status: EDocumentStatus.active, updatedAt: new Date() };
         let transactionId = rtdn.purchaseToken;
         await this.mandateService.updateIapStatus(transactionId, body);
         await this.mandateHistoryService.updateIapMandateStatus(
@@ -974,10 +961,7 @@ export class SubscriptionService {
           transactionId,
           body
         );
-        let metaData = {
-          ...rtdn.transactionInfo,
-          payload: payload,
-        };
+        let metaData = { ...rtdn.transactionInfo, payload: payload };
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id,
           mandateStatus: EMandateStatus.cancelled,
@@ -1043,11 +1027,7 @@ export class SubscriptionService {
           _id: updatedInvoice?.invoice?.source_id,
           subscriptionStatus: EsubscriptionStatus.initiated,
         },
-        {
-          $set: {
-            subscriptionStatus: EsubscriptionStatus.failed,
-          },
-        }
+        { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
       );
       return { message: "Updated Successfully" };
     } catch (err) {
@@ -1059,21 +1039,19 @@ export class SubscriptionService {
       const paymentId = payload?.payment?.entity?.order_id;
       const refundReason = payload?.refund?.entity?.notes?.reason;
 
-      const paymentRecord = await this.paymentService.fetchPaymentByOrderId(paymentId);
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(paymentId);
 
       if (paymentRecord.document_status === EPaymentStatus.completed) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
-          reason: {
-            failureReason: refundReason,
-          },
-          isPaymentRefunded: true
+          reason: { failureReason: refundReason },
+          isRefunded: true,
         };
 
         await this.paymentService.updateStatus(
           paymentRecord._id,
-          paymentUpdateBody,
-          
+          paymentUpdateBody
         );
         await this.paymentService.updateMetaData(paymentRecord._id, payload);
 
@@ -1102,12 +1080,10 @@ export class SubscriptionService {
               }
             );
 
-          const subscription = await this.subscriptionModel.findOne(
-            {
-              _id: new ObjectId(updatedInvoice.invoice.source_id),
-              subscriptionStatus: EsubscriptionStatus.failed
-            }
-          );
+          const subscription = await this.subscriptionModel.findOne({
+            _id: new ObjectId(updatedInvoice.invoice.source_id),
+            subscriptionStatus: EsubscriptionStatus.failed,
+          });
 
           if (subscription) {
             const userUpdateBody = {
@@ -1153,9 +1129,7 @@ export class SubscriptionService {
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
-          {
-            mandateStatus: EMandateStatus.cancel_initiated,
-          }
+          { mandateStatus: EMandateStatus.cancel_initiated }
         );
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id.toString(),
@@ -1199,9 +1173,7 @@ export class SubscriptionService {
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
-          {
-            mandateStatus: EMandateStatus.cancelled,
-          }
+          { mandateStatus: EMandateStatus.cancelled }
         );
         await this.mandateHistoryService.createMandateHistory({
           mandateId: mandate?._id.toString(),
@@ -1246,9 +1218,7 @@ export class SubscriptionService {
       let mandate = await this.mandateService.getMandateById(tokenId);
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
-        {
-          mandateStatus: EMandateStatus.rejected,
-        }
+        { mandateStatus: EMandateStatus.rejected }
       );
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate?._id.toString(),
@@ -1272,9 +1242,7 @@ export class SubscriptionService {
       let mandate = await this.mandateService.getMandateById(tokenId);
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
-        {
-          mandateStatus: EMandateStatus.paused,
-        }
+        { mandateStatus: EMandateStatus.paused }
       );
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate?._id.toString(),
@@ -1322,11 +1290,7 @@ export class SubscriptionService {
           _id: updatedInvoice?.invoice?.source_id,
           subscriptionStatus: EsubscriptionStatus.initiated,
         },
-        {
-          $set: {
-            subscriptionStatus: EsubscriptionStatus.failed,
-          },
-        }
+        { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
       );
       return { message: "Updated Successfully" };
     } catch (err) {
@@ -1344,9 +1308,7 @@ export class SubscriptionService {
 
       let updatedMandate = await this.mandateService.updateMandateDetail(
         { _id: mandate._id },
-        {
-          mandateStatus: EMandateStatus.active,
-        }
+        { mandateStatus: EMandateStatus.active }
       );
       await this.mandateHistoryService.createMandateHistory({
         mandateId: mandate?._id.toString(),
@@ -1373,9 +1335,7 @@ export class SubscriptionService {
         paymentRequest?.source_id
       );
       let subscription = await this.subscriptionModel
-        .findOne({
-          _id: invoice?.source_id,
-        })
+        .findOne({ _id: invoice?.source_id })
         .sort({ _id: -1 });
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
@@ -1385,17 +1345,13 @@ export class SubscriptionService {
           let tokenId = payload?.payment?.entity?.token_id;
           let updatedMandate = await this.mandateService.updateMandateDetail(
             { "metaData.subscriptionId": subscription?.subscriptionId },
-            {
-              referenceId: tokenId,
-            }
+            { referenceId: tokenId }
           );
           let mandate = await this.mandateService.getMandateById(tokenId);
           if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
             let updatedMandate = await this.mandateService.updateMandateDetail(
               { _id: mandate._id },
-              {
-                mandateStatus: EMandateStatus.active,
-              }
+              { mandateStatus: EMandateStatus.active }
             );
             await this.mandateHistoryService.createMandateHistory({
               mandateId: mandate?._id,
@@ -1417,9 +1373,11 @@ export class SubscriptionService {
           };
           await this.helperService.updateUser(userBody);
           if (subscription.subscriptionStatus === EDocumentStatus.active) {
-            let subscriptionCount = await this.countUserSubscriptions(subscription?.userId);
+            let subscriptionCount = await this.countUserSubscriptions(
+              subscription?.userId
+            );
             let paymentRequest =
-            await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+              await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
             let mixPanelBody: any = {};
             mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
             mixPanelBody.distinctId = subscription?.userId;
@@ -1433,7 +1391,7 @@ export class SubscriptionService {
               subscription_expired: subscription?.endAt,
               subscription_count: subscriptionCount,
               subscription_mode: paymentRequest?.paymentType,
-              subscription_amount: invoice.grand_total
+              subscription_amount: invoice.grand_total,
             };
             await this.helperService.mixPanel(mixPanelBody);
             let firstSubscription = await this.userFirstSubscription(
@@ -1628,9 +1586,7 @@ export class SubscriptionService {
         paymentRequest?.source_id
       );
       let subscription = await this.subscriptionModel
-        .findOne({
-          _id: invoice?.source_id,
-        })
+        .findOne({ _id: invoice?.source_id })
         .sort({ _id: -1 });
       if (subscription) {
         if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
@@ -1790,11 +1746,7 @@ export class SubscriptionService {
         currentEnd: duedate,
         endAt: duedate,
         expireBy: duedate,
-        notes: {
-          itemId: body.itemId,
-          userId: token.id,
-          amount: body.amount,
-        },
+        notes: { itemId: body.itemId, userId: token.id, amount: body.amount },
         subscriptionStatus: Estatus.Active,
         status: EStatus.Active,
         createdBy: token.id,
@@ -1959,13 +1911,7 @@ export class SubscriptionService {
           err?.message ||
           "Subscription cancellation failed";
 
-        throw new HttpException(
-          {
-            code: statusCode,
-            message,
-          },
-          statusCode
-        );
+        throw new HttpException({ code: statusCode, message }, statusCode);
       }
 
       await this.mandateService.updateMandate(mandate._id, {
@@ -1997,13 +1943,7 @@ export class SubscriptionService {
         error instanceof HttpException
           ? (error.getResponse() as any)?.message
           : error?.message || "Internal Server Error";
-      throw new HttpException(
-        {
-          code: statusCode,
-          message,
-        },
-        statusCode
-      );
+      throw new HttpException({ code: statusCode, message }, statusCode);
     }
   }
   // @Cron("*/20 * * * * *")
@@ -2018,27 +1958,10 @@ export class SubscriptionService {
       tomorrow.setHours(23, 59, 59, 999);
 
       let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
-        {
-          $sort: {
-            _id: -1,
-          },
-        },
-        {
-          $match: { status: EStatus.Active },
-        },
-        {
-          $match: {
-            subscriptionStatus: {
-              $ne: EsubscriptionStatus.failed,
-            },
-          },
-        },
-        {
-          $group: {
-            _id: "$userId",
-            latestDocument: { $first: "$$ROOT" },
-          },
-        },
+        { $sort: { _id: -1 } },
+        { $match: { status: EStatus.Active } },
+        { $match: { subscriptionStatus: { $ne: EsubscriptionStatus.failed } } },
+        { $group: { _id: "$userId", latestDocument: { $first: "$$ROOT" } } },
         {
           $match: {
             "latestDocument.subscriptionStatus": {
@@ -2074,17 +1997,8 @@ export class SubscriptionService {
             as: "mandates",
           },
         },
-        {
-          $unwind: {
-            path: "$mandates",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $sort: {
-            "mandates._id": -1,
-          },
-        },
+        { $unwind: { path: "$mandates", preserveNullAndEmptyArrays: true } },
+        { $sort: { "mandates._id": -1 } },
         {
           $match: {
             "mandates.mandateStatus": {
@@ -2388,7 +2302,9 @@ export class SubscriptionService {
       const safeContact = fallbackPhone ? String(fallbackPhone) : "9999999999";
       const safeEmail =
         userAdditionalData?.userAdditional?.userId?.emailId ||
-        (safeContact ? `${safeContact}@casttree.com` : "creedom-user@casttree.com");
+        (safeContact
+          ? `${safeContact}@casttree.com`
+          : "creedom-user@casttree.com");
 
       let recurring = {
         email: safeEmail,
@@ -2490,12 +2406,7 @@ export class SubscriptionService {
           providerId: 1,
           providerName: EProvider.razorpay,
           transactionDate: paymentSchedule,
-          metaData: {
-            response: {
-              chargeResponse,
-              recurringResponse,
-            },
-          },
+          metaData: { response: { chargeResponse, recurringResponse } },
         };
 
         // console.log("creating payment", paymentData);
@@ -2610,12 +2521,7 @@ export class SubscriptionService {
           as: "salesDoc",
         },
       },
-      {
-        $unwind: {
-          path: "$salesDoc",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$salesDoc", preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "itemDocument",
@@ -2624,19 +2530,9 @@ export class SubscriptionService {
           as: "itemDoc",
         },
       },
+      { $unwind: { path: "$itemDoc", preserveNullAndEmptyArrays: true } },
       {
-        $unwind: {
-          path: "$itemDoc",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          userId: 1,
-          endAt: 1,
-          item_id: "$itemDoc.item_id",
-        },
+        $project: { _id: 1, userId: 1, endAt: 1, item_id: "$itemDoc.item_id" },
       },
     ]);
     let expiredUserId = [];
@@ -2661,12 +2557,7 @@ export class SubscriptionService {
           as: "salesDoc",
         },
       },
-      {
-        $unwind: {
-          path: "$salesDoc",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: { path: "$salesDoc", preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "itemDocument",
@@ -2675,19 +2566,9 @@ export class SubscriptionService {
           as: "itemDoc",
         },
       },
+      { $unwind: { path: "$itemDoc", preserveNullAndEmptyArrays: true } },
       {
-        $unwind: {
-          path: "$itemDoc",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          userId: 1,
-          endAt: 1,
-          item_id: "$itemDoc.item_id",
-        },
+        $project: { _id: 1, userId: 1, endAt: 1, item_id: "$itemDoc.item_id" },
       },
     ]);
     for (const expired of ExpiredData) {
@@ -2710,10 +2591,7 @@ export class SubscriptionService {
         subscriptionStatus: "Active",
       });
       if (!activeSubscription) {
-        return {
-          isEligible: false,
-          reason: SUBSCRIPTION_NOT_FOUND,
-        };
+        return { isEligible: false, reason: SUBSCRIPTION_NOT_FOUND };
       }
       let userItemId = activeSubscription?.notes?.itemId;
       const serviceItemTypeList =
