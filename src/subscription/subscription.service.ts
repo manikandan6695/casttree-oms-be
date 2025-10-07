@@ -1390,7 +1390,7 @@ export class SubscriptionService {
               item_name: item?.itemName,
               subscription_expired: subscription?.endAt,
               subscription_count: subscriptionCount,
-              subscription_mode: paymentRequest?.paymentType,
+              subscription_mode: ESubscriptionMode.Auth,
               subscription_amount: invoice.grand_total,
             };
             await this.helperService.mixPanel(mixPanelBody);
