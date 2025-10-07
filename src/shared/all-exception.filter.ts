@@ -73,7 +73,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       console.log("Error sending email", error);
     }
 
-    this.logger.error(exception, {
+    this.logger.error(templateVariables, {
       label: exception["context"] || "Exception Filter",
     });
 
