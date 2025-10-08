@@ -95,21 +95,26 @@ export class SubscriptionService {
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
+      let existingSubscription = await this.validateSubscription(token.id, [
+        EsubscriptionStatus.initiated,
+        EsubscriptionStatus.failed,
+      ]);
+      let item = await this.itemService.getItemDetail(body.itemId);
+
+      let authAmount =
+        body?.refId ||
+        existingSubscription ||
+        item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
+          ? item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+          : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
+      let expiryDate = this.sharedService.getFutureYearISO(10);
+      let detail =
+        body?.refId || existingSubscription
+          ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+          : item?.additionalDetail?.promotionDetails?.authDetail;
+      let chargeDate = await this.getFutureDate(detail);
       switch (body.provider) {
         case "razorpay":
-          let item = await this.itemService.getItemDetail(body.itemId);
-          let existingSubscription = await this.validateSubscription(token.id, [
-            EsubscriptionStatus.initiated,
-            EsubscriptionStatus.failed,
-          ]);
-
-          let authAmount =
-            body?.refId ||
-            existingSubscription ||
-            item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
-              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
-              : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           // console.log("auth amount is", authAmount);
 
           let expiry = Math.floor(
@@ -126,12 +131,7 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
-          let expiryDate = this.sharedService.getFutureYearISO(10);
-          let detail =
-            body?.refId || existingSubscription
-              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-              : item?.additionalDetail?.promotionDetails?.authDetail;
-          let chargeDate = await this.getFutureDate(detail);
+
           // console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
           subscriptionData = {
@@ -172,18 +172,9 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
-          let expiryTime = this.sharedService.getFutureYearISO(5);
-          let firstCharge =
-            body.validityType === "day"
-              ? this.sharedService.getFutureDateISO(body.validity)
-              : body.validityType === "month"
-                ? this.sharedService.getFutureMonthISO(body.validity)
-                : body.validityType === "year"
-                  ? this.sharedService.getFutureYearISO(body.validity)
-                  : null;
           let subscriptionNewNumber = `${subscriptionNumber}-${Date.now()}`;
-          body["expiryTime"] = expiryTime;
-          body["firstCharge"] = firstCharge;
+          body["expiryTime"] = expiryDate;
+          body["firstCharge"] = chargeDate;
           subscriptionData = {
             subscription_id: subscriptionNewNumber.toString(),
             customer_details: {
@@ -203,13 +194,13 @@ export class SubscriptionService {
               plan_currency: planData?.plan_currency,
             },
             authorization_details: {
-              authorization_amount: body.authAmount == 0 ? 1 : body.authAmount,
-              authorization_amount_refund: body.authAmount == 0 ? true : false,
+              authorization_amount: authAmount,
+              authorization_amount_refund: authAmount == 0 ? true : false,
               payment_methods: ["upi"],
             },
             subscription_meta: { return_url: body.redirectionUrl },
-            subscription_expiry_time: expiryTime,
-            subscription_first_charge_time: firstCharge,
+            subscription_expiry_time: expiryDate,
+            subscription_first_charge_time: chargeDate,
           };
           break;
         case EProvider.apple:
