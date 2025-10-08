@@ -141,7 +141,7 @@ export class SubscriptionFactory {
         sourceId: subscriptionCreated._id,
         userId: token.id,
         paymentMethod: "UPI",
-        amount: bodyData?.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         providerId: 2,
         provider: EProvider.cashfree,
         currency: "INR",
@@ -175,10 +175,10 @@ export class SubscriptionFactory {
         itemId: bodyData.itemId,
         source_id: subscriptionCreated._id,
         source_type: "subscription",
-        sub_total: bodyData.authAmount,
+        sub_total: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
-        grand_total: bodyData.authAmount,
+        grand_total: subscription?.authorization_details?.authorization_amount,
         user_id: token.id,
         created_by: token.id,
         updated_by: token.id,
@@ -189,7 +189,7 @@ export class SubscriptionFactory {
       );
 
       const paymentData = {
-        amount: bodyData.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
         paymentType: EPaymentType.auth,
