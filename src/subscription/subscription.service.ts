@@ -172,15 +172,6 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
-          let expiryTime = this.sharedService.getFutureYearISO(5);
-          let firstCharge =
-            body.validityType === "day"
-              ? this.sharedService.getFutureDateISO(body.validity)
-              : body.validityType === "month"
-                ? this.sharedService.getFutureMonthISO(body.validity)
-                : body.validityType === "year"
-                  ? this.sharedService.getFutureYearISO(body.validity)
-                  : null;
           let subscriptionNewNumber = `${subscriptionNumber}-${Date.now()}`;
           body["expiryTime"] = expiryDate;
           body["firstCharge"] = chargeDate;
