@@ -196,7 +196,7 @@ export class SubscriptionFactory {
         providerId: 2,
         providerName: EProvider.cashfree,
       };
-      await this.paymentService.createPaymentRecord(
+      let payment = await this.paymentService.createPaymentRecord(
         paymentData,
         token,
         invoice,
@@ -206,7 +206,10 @@ export class SubscriptionFactory {
       // console.log("returning data");
 
       return {
-        subscriptionDetails: subscription,
+        subscriptionDetails: {
+        ...subscription,
+        paymentId: payment?.id,
+        },
         authorizationDetails: auth,
       };
     } catch (err) {
