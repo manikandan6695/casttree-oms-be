@@ -27,6 +27,7 @@ import { RedisInitializer } from "./redis/redis.initializer";
 import { PaymentRequestService } from "./payment/payment-request.service";
 import { EventOutBoxModule } from "./event-outbox/event-outbox.module";
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
+import { ProviderModule } from './provider/provider.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { AllExceptionsFilter } from "./shared/all-exception.filter";
     DynamicUiModule,
     EventOutBoxModule,
     RedisModule,
+    ProviderModule,
   ],
   controllers: [],
   providers: [
