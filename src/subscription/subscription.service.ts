@@ -243,7 +243,7 @@ export class SubscriptionService {
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
-      // console.log("formed subscription data", subscriptionData, body);
+      console.log("formed subscription data", subscriptionData, body);
 
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(
