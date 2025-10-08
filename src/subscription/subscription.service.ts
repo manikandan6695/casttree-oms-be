@@ -1086,13 +1086,20 @@ export class SubscriptionService {
           });
 
           if (subscription) {
-            const userUpdateBody = {
-              userId: [subscription.userId],
-              membership: "",
-              badge: "",
-            };
+            const activeSubscription = await this.subscriptionModel.findOne({
+              userId: subscription.userId,
+              subscriptionStatus: EsubscriptionStatus.active,
+              _id: { $ne: new ObjectId(updatedInvoice.invoice.source_id) },
+            });
+            if (!activeSubscription) {
+              const userUpdateBody = {
+                userId: [subscription.userId],
+                membership: "",
+                badge: "",
+              };
 
-            await this.helperService.updateUsers(userUpdateBody);
+              await this.helperService.updateUsers(userUpdateBody);
+            }
             // const item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
             // const mixPanelBody: any = {
             //   eventName: EMixedPanelEvents.subscription_refund,
