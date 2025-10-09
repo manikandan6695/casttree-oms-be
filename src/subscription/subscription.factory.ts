@@ -1329,7 +1329,7 @@ export class SubscriptionFactory {
             finalResponse = {
               ...paymentResponse.toObject(),
               isFirstPayment: true,
-              // paymentId: isFirstPayment?._id
+              paymentId: isFirstPayment?._id
             }
           }
         return { paymentResponse: finalResponse, updatedInvoice };
@@ -1414,7 +1414,7 @@ export class SubscriptionFactory {
           finalResponse = {
             ...paymentResponse.toObject(),
             isFirstPayment: true,
-            // paymentId: isFirstPayment?._id
+            paymentId: isFirstPayment?._id
           }
         }
         return { paymentResponse: finalResponse, updatedInvoice };
