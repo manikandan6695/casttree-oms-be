@@ -1554,6 +1554,16 @@ export class DynamicUiService {
     }
   }
 
+  async getProItem() {
+    try {
+      const proItem = await this.itemModel.find({ itemName: "PRO" })
+        .select("_id itemName price").lean();
+      return proItem;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async getSeriesData() {
     try {
       const getSeriesData = {
@@ -1563,6 +1573,7 @@ export class DynamicUiService {
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
         tags: await this.getTagList(),
+        proItem: await this.getProItem()
       };
 
       return getSeriesData;
@@ -1888,6 +1899,12 @@ export class DynamicUiService {
               priorityOrder: 100,
               proficiency: proficiency,
               category: category,
+              planItemId: [
+                {
+                  itemName: data.proItem.itemName,
+                  itemId: data.proItem._id,
+                },
+              ],
             },
           ],
           { session }
