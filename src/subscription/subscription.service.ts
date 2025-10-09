@@ -1007,36 +1007,38 @@ export class SubscriptionService {
     try {
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        { mandateStatus: EMandateStatus.cancel_initiated }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
-        mandateStatus: EMandateStatus.cancel_initiated,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
-      let subscriptionData = await this.subscriptionModel.findOne({
-        _id: new ObjectId(mandate?.sourceId),
-      });
-      let itemName = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-      mixPanelBody.distinctId = mandate?.userId;
-      mixPanelBody.properties = {
-        mandate_id: mandate?._id,
-        user_id: mandate?.userId,
-        mandate_status: EMandateStatus.cancelled,
-        date: new Date().toISOString(),
-        item_name: itemName?.itemName,
-        provider: mandate?.provider,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      if(mandate){
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.cancel_initiated }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id,
+          mandateStatus: EMandateStatus.cancel_initiated,
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
     } catch (err) {
       throw err;
     }
@@ -1050,38 +1052,40 @@ export class SubscriptionService {
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
 
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        { mandateStatus: EMandateStatus.cancelled }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
-        mandateStatus: EMandateStatus.cancelled,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
-
-      let subscriptionData = await this.subscriptionModel.findOne({
-        _id: new ObjectId(mandate?.sourceId),
-      });
-      let itemName = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-      mixPanelBody.distinctId = mandate?.userId;
-      mixPanelBody.properties = {
-        mandate_id: mandate?._id,
-        user_id: mandate?.userId,
-        mandate_status: EMandateStatus.cancelled,
-        date: new Date().toISOString(),
-        item_name: itemName?.itemName,
-        provider: mandate?.provider,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
+      if(mandate){
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.cancelled }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+  
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+  
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
     } catch (err) {
       throw err;
     }
@@ -1094,18 +1098,20 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        { mandateStatus: EMandateStatus.rejected }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id,
-        mandateStatus: EMandateStatus.rejected,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
+      if(mandate){
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.rejected }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id,
+          mandateStatus: EMandateStatus.rejected,
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+      }
     } catch (err) {
       throw err;
     }
