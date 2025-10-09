@@ -26,6 +26,7 @@ import { EventOutBoxModule } from './event-outbox/event-outbox.module';
 import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
+import { ProviderModule } from "./provider/provider.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -69,7 +70,8 @@ import { AllExceptionsFilter } from "./shared/all-exception.filter";
     TaxModule,
     EventOutBoxModule,
     RedisModule,
-    DynamicUiModule
+    DynamicUiModule,
+    ProviderModule
   ],
   controllers: [],
   providers: [
