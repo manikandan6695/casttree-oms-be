@@ -364,7 +364,7 @@ export class SubscriptionFactory {
           conversionRate: conversionRateAmt,
           paymentType: "Auth",
         };
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -425,14 +425,15 @@ export class SubscriptionFactory {
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});     
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
-        } 
-        return subscriptionData;
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -565,7 +566,7 @@ export class SubscriptionFactory {
         };
         // console.log("paymentData",paymentData);
 
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -616,14 +617,15 @@ export class SubscriptionFactory {
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
         }
-        return createdSubscription;
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -1388,14 +1390,15 @@ export class SubscriptionFactory {
           sourceId: new ObjectId(createCoinValue),
         });
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
+        let finalResponse:any = paymentResponse.toObject()
+        if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...paymentResponse.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
         }
-        return { paymentResponse, updatedInvoice };
+        return { paymentResponse: finalResponse, updatedInvoice };
       } finally {
         await this.redisService.releaseLock(lockKey, lockValue);
       }
