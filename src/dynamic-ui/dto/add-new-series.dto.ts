@@ -4,8 +4,23 @@ import {
   IsOptional, 
   IsNotEmpty,
   IsBoolean,
-  ArrayMinSize
-} from 'class-validator';
+  ArrayMinSize,
+  IsMongoId
+} from "class-validator";
+
+// Move ProItemDto before AddNewSeriesDto
+export class ProItemDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  _id: string;
+
+  @IsNotEmpty()
+  @IsString()
+  itemName: string;
+
+  @IsNotEmpty()
+  price: number;
+}
 
 export class AddNewSeriesDto {
   @IsOptional()
@@ -66,4 +81,7 @@ export class AddNewSeriesDto {
   @IsOptional()
   @IsBoolean()
   expertQueriesEnabled?: boolean;
+
+  @IsNotEmpty()
+  proItem: ProItemDto;
 }
