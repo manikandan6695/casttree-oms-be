@@ -26,8 +26,10 @@ import { EventOutBoxModule } from './event-outbox/event-outbox.module';
 import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
+import { SentryModule } from "@sentry/nestjs/setup";
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],

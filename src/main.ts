@@ -1,3 +1,4 @@
+import "./instruments";
 import { NestFactory } from "@nestjs/core";
 import * as bodyParser from "body-parser";
 import "dotenv/config";

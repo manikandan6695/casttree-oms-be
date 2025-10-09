@@ -7,6 +7,7 @@ import {
 import { Request, Response } from "express";
 import { MailService } from "./mail.service";
 import { CustomLogger } from "src/logger/customlogger.service";
+import * as Sentry from "@sentry/nestjs";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -36,6 +37,55 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Enhanced error details
     const errorDetails = this.extractErrorDetails(exception);
 
+    console.log("Inside exception filter");
+    // Capture exception with Sentry INCLUDING request context
+    Sentry.withScope((scope) => {
+      // Set HTTP context
+      scope.setContext("http", {
+        method: request.method,
+        url: request.url,
+        status_code: status,
+        headers: request.headers,
+        query: request.query,
+        params: request.params,
+      });
+
+      // Set user context if available
+      if (request.user) {
+        scope.setUser({
+          id: (request.user as any).id || (request.user as any)._id,
+          email: (request.user as any).email,
+          username: (request.user as any).username,
+        });
+      }
+
+      // Set tags for better filtering in Sentry
+      scope.setTag("http.method", request.method);
+      scope.setTag("http.status_code", status);
+      scope.setTag("http.url", request.url);
+
+      // Add extra context
+      scope.setExtra("request_body", request.body);
+      scope.setExtra("ip", request.headers["x-forwarded-for"] || request.ip);
+      scope.setExtra("user_agent", request.headers["user-agent"]);
+
+      // Set the transaction name for better grouping
+      scope.setTransactionName(
+        `${request.method} ${request.route?.path || request.url}`
+      );
+
+      // Set level based on status code
+      if (status >= 500) {
+        scope.setLevel("error");
+      } else if (status >= 400) {
+        scope.setLevel("warning");
+      }
+
+      // Now capture the exception with all the context
+      const sentryException = Sentry.captureException(exception);
+      console.log("Sentry exception", sentryException);
+    });
+
     // Template variables for MSG91 email template
     const templateVariables = {
       service: "Casttree-oms Backend",
@@ -61,21 +111,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       external_api_code: exception["response"]?.status,
     };
 
-    const validStatus = [400, 404];
-    try {
-      if (validStatus.includes(status) || status >= 500) {
-        await this.mailService.sendErrorLog(
-          "🚨 Error Alert! CASTTREE-OMS",
-          templateVariables
-        );
-      }
-    } catch (error) {
-      console.log("Error sending email", error);
-    }
+    // const validStatus = [400, 404];
+    // try {
+    //   if (validStatus.includes(status) || status >= 500) {
+    //     await this.mailService.sendErrorLog(
+    //       "🚨 Error Alert! CASTTREE-OMS",
+    //       templateVariables
+    //     );
+    //   }
+    // } catch (error) {
+    //   console.log("Error sending email", error);
+    // }
 
-    this.logger.error(exception, {
-      label: exception["context"] || "Exception Filter",
-    });
+    // this.logger.error(exception, {
+    //   label: exception["context"] || "Exception Filter",
+    // });
 
     response.status(status).json({
       statusCode: status,
@@ -89,15 +139,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       let message = exception?.message || "No message";
       let axiosInfo = null;
       let stack = exception?.stack || "No stack trace available";
-      
+
       // Handle Axios errors specifically
       if (exception?.isAxiosError) {
         const config = exception?.config;
         const response = exception?.response;
-      
+
         axiosInfo = `${config?.method?.toUpperCase()} ${config?.url} → ${response?.status} ${response?.statusText}`;
         message = `Axios Error: ${response?.data?.message || exception?.message}`;
-      
+
         // Clean up stack to show more relevant frames
         if (stack) {
           const lines = stack.split("\n");
@@ -109,13 +159,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
                 (line.includes("src/") || line.includes("at "))
             )
             .slice(0, 10); // Limit to 10 most relevant lines
-          
+
           if (relevantLines.length > 0) {
             stack = relevantLines.join("\n");
           }
         }
       }
-    
+
       return {
         type: errorType,
         message,
