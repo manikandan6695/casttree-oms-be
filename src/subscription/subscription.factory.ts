@@ -412,6 +412,14 @@ export class SubscriptionFactory {
           distinctId: token?.id,
           properties: propertie,
         });
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        }
         return subscriptionData;
       }
       return existingSubscription;
@@ -589,6 +597,14 @@ export class SubscriptionFactory {
           distinctId: token?.id,
           properties: propertie,
         });
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        }
         return createdSubscription;
       }
       return existingSubscription;
@@ -1305,7 +1321,14 @@ export class SubscriptionFactory {
         };
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
-
+          let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+          if (isFirstPayment) {
+            await this.paymentService.updatePaymentMeta(
+              isFirstPayment._id.toString(),
+              { isSentToMeta: true },
+              token
+            );
+          }
         return { paymentResponse, updatedInvoice };
       } else if (body.providerName === EProvider.google) {
         let googlePackage = packageName;
@@ -1382,6 +1405,14 @@ export class SubscriptionFactory {
         };
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        }
         return { paymentResponse, updatedInvoice };
       }
     } catch (error) {
