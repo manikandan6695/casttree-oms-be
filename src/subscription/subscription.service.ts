@@ -1033,7 +1033,7 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(paymentId);
 
-      if (paymentRecord.document_status === EPaymentStatus.completed) {
+      if ( paymentRecord.document_status === EPaymentStatus.pending ) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
           reason: { failureReason: refundReason },
@@ -1077,13 +1077,20 @@ export class SubscriptionService {
           });
 
           if (subscription) {
-            const userUpdateBody = {
-              userId: [subscription.userId],
-              membership: "",
-              badge: "",
-            };
+            const activeSubscription = await this.subscriptionModel.findOne({
+              userId: subscription.userId,
+              subscriptionStatus: EsubscriptionStatus.active,
+              _id: { $ne: new ObjectId(updatedInvoice.invoice.source_id) },
+            });
+            if (!activeSubscription) {
+              const userUpdateBody = {
+                userId: [subscription.userId],
+                membership: "",
+                badge: "",
+              };
 
-            await this.helperService.updateUsers(userUpdateBody);
+              await this.helperService.updateUsers(userUpdateBody);
+            }
             // const item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
             // const mixPanelBody: any = {
             //   eventName: EMixedPanelEvents.subscription_refund,
@@ -1410,49 +1417,43 @@ export class SubscriptionService {
               ?.amount === subscription?.amount
           ) {
             try {
-              let userAdditional = await this.helperService.getUserAdditional(
-                subscription?.userId
-              );
-
-              if (userAdditional?.referredBy) {
-                try {
-                  let referelData = await this.helperService.getReferralData(
-                    subscription?.userId,
-                    userAdditional?.referredBy
-                  );
-
-                  if (
-                    referelData?.referralStatus === EReferralStatus.Onboarded
-                  ) {
-                    let eventBody = {
-                      subscriptionId: subscription?._id,
-                      userId: subscription?.userId,
-                    };
-                    await this.sharedService.trackAndEmitEvent(
-                      EVENT_UPDATE_REFERRAL_STATUS,
-                      eventBody,
-                      true,
-                      {}
-                    );
-                  }
-                } catch (referralError) {
-                  console.warn(
-                    `Referral data fetch failed for user ${payload?.userId}:`,
-                    referralError?.message || referralError
-                  );
-                }
-              }
-            } catch (userAdditionalError) {
-              console.warn(
-                `User additional data fetch failed for user ${subscription?.userId}:`,
-                userAdditionalError?.message || userAdditionalError
-              );
+              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+            } catch (error) {
+              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
             }
           }
         }
       }
     } catch (err) {
       throw err;
+    }
+  }
+  async handleReferralStatus(userid: string, id: string){
+    try {
+      let subscriptionId = new ObjectId(id)
+      let userId = new ObjectId(userid)
+      let userAdditional = await this.helperService.getUserAdditional(userId)
+      if (userAdditional?.referredBy) {
+        try {
+          let referelData = await this.helperService.getReferralData(userId, userAdditional?.referredBy)
+          if (referelData?.referralStatus === EReferralStatus.Onboarded) {
+            let eventBody = {
+              subscriptionId: subscriptionId,
+              userId: userId,
+            }
+            await this.sharedService.trackAndEmitEvent(
+              EVENT_UPDATE_REFERRAL_STATUS,
+              eventBody,
+              true,
+              {}
+            );
+          }
+        } catch (referralError) {
+          console.warn(`Referral data fetch failed for user ${userId}:`, referralError?.message || referralError)
+        }
+      }
+    } catch (userAdditionalError) {
+      console.warn(`User additional data fetch failed for user ${userid}:`, userAdditionalError?.message || userAdditionalError)
     }
   }
   // Handles Razorpay subscription logic
@@ -1642,6 +1643,16 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
+          if (
+            item?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount === subscription?.amount
+          ) {
+            try {
+              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+            } catch (error) {
+              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+            }
+          }
         }
       }
       //await this.paymentService.updateMetaData(paymentRequest?.id, payload);
