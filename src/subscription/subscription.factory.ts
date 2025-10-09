@@ -402,7 +402,7 @@ export class SubscriptionFactory {
         });
 
         const subscriptionCount = await this.subscriptionService.countUserSubscriptions(token?.id);
-        
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = token.id;
@@ -424,6 +424,14 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});     
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        } 
         return subscriptionData;
       }
       return existingSubscription;
@@ -607,6 +615,14 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        }
         return createdSubscription;
       }
       return existingSubscription;
@@ -1371,7 +1387,14 @@ export class SubscriptionFactory {
           _id: new ObjectId(invoice?._id),
           sourceId: new ObjectId(createCoinValue),
         });
-  
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        if (isFirstPayment) {
+          await this.paymentService.updatePaymentMeta(
+            isFirstPayment._id.toString(),
+            { isSentToMeta: true },
+            token
+          );
+        }
         return { paymentResponse, updatedInvoice };
       } finally {
         await this.redisService.releaseLock(lockKey, lockValue);
