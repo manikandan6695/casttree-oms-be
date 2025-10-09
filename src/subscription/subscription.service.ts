@@ -1042,7 +1042,7 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(paymentId);
 
-      if (paymentRecord.document_status === EPaymentStatus.completed || paymentRecord.document_status === EPaymentStatus.pending) {
+      if ( paymentRecord.document_status === EPaymentStatus.pending ) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
           reason: { failureReason: refundReason },
