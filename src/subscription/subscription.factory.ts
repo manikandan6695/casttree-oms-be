@@ -355,7 +355,7 @@ export class SubscriptionFactory {
           baseCurrency: currencyCode,
           conversionRate: conversionRateAmt,
         };
-        await this.paymentService.createPaymentRecord(
+       let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -413,14 +413,15 @@ export class SubscriptionFactory {
           properties: propertie,
         });
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
         }
-        return subscriptionData;
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -544,7 +545,7 @@ export class SubscriptionFactory {
         };
         // console.log("paymentData",paymentData);
 
-        await this.paymentService.createPaymentRecord(
+       let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -598,14 +599,15 @@ export class SubscriptionFactory {
           properties: propertie,
         });
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
         }
-        return createdSubscription;
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -1322,14 +1324,15 @@ export class SubscriptionFactory {
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
           let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-          if (isFirstPayment) {
-            await this.paymentService.updatePaymentMeta(
-              isFirstPayment._id.toString(),
-              { isSentToMeta: true },
-              token
-            );
+          let finalResponse:any = paymentResponse.toObject()
+          if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+            finalResponse = {
+              ...paymentResponse.toObject(),
+              isFirstPayment: true,
+              // paymentId: isFirstPayment?._id
+            }
           }
-        return { paymentResponse, updatedInvoice };
+        return { paymentResponse: finalResponse, updatedInvoice };
       } else if (body.providerName === EProvider.google) {
         let googlePackage = packageName;
         let transaction = await this.validatePurchaseState(
@@ -1406,16 +1409,18 @@ export class SubscriptionFactory {
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
         let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        if (isFirstPayment) {
-          await this.paymentService.updatePaymentMeta(
-            isFirstPayment._id.toString(),
-            { isSentToMeta: true },
-            token
-          );
+        let finalResponse:any = paymentResponse.toObject()
+        if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...paymentResponse.toObject(),
+            isFirstPayment: true,
+            // paymentId: isFirstPayment?._id
+          }
         }
-        return { paymentResponse, updatedInvoice };
+        return { paymentResponse: finalResponse, updatedInvoice };
       }
     } catch (error) {
+      console.log("error", error);
       throw error;
     }
   }
