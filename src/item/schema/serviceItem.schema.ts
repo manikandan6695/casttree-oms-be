@@ -158,6 +158,15 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     planItemId: [{
       type: planItemIdSchema
     }],
+    role: [{
+      roleId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "role",
+      },
+      roleName: {
+        type: String,
+      },
+    }],
   },
   {
     collection: "serviceitems",

@@ -1617,6 +1617,7 @@ export class DynamicUiService {
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
         tags: await this.getTagList(),
+        proItem: await this.getProItem(),
       };
 
       return getSeriesData;
@@ -1633,6 +1634,18 @@ export class DynamicUiService {
         .select("_id currency_name currency_code")
         .lean();
       return currencies;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getProItem() {
+    try {
+      const proItem = await this.itemModel
+        .find({ itemName: "PRO" })
+        .select("_id itemName price")
+        .lean();
+      return proItem;
     } catch (error) {
       throw error;
     }
@@ -1688,8 +1701,8 @@ export class DynamicUiService {
                   planUserSave: "Switch to Pro and save INR 1000+",
                   subtitle:
                     "This will only unlock the series that you are currently watching",
-                  payWallVideo:
-                    "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+                  payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
                   paywallVisibility: true,
                 },
                 allowMulti: false,
@@ -1819,6 +1832,21 @@ export class DynamicUiService {
           { session }
         );
 
+        const role = await this.roleModel.aggregate([
+          {
+            $match: {
+              _id: { $in: data.roles.map((id) => new ObjectId(id)) },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              role_name: 1,
+            },
+          },
+        ]);
+        // console.log("role", role);
+
         const componentId = await this.componentModel
           .findOne({
             title: "All Series",
@@ -1906,6 +1934,10 @@ export class DynamicUiService {
               language: language,
               status: EStatus.Active,
               itemSold: 0,
+              role: role.map((item) => ({
+                roleId: new ObjectId(item._id),
+                roleName: item.role_name,
+              })),
               skill: {
                 skillId: new ObjectId(skillIds[0]),
                 skill_name: skill[0].skill_name,
@@ -1919,9 +1951,15 @@ export class DynamicUiService {
                 parentProcessId: new ObjectId(processId),
               },
               tag: allTags,
-              priorityOrder: 2,
+              priorityOrder: 100,
               proficiency: proficiency,
               category: category,
+              planItemId: [
+                {
+                  itemName: data.proItem.itemName,
+                  itemId: data.proItem._id,
+                },
+              ],
             },
           ],
           { session }
