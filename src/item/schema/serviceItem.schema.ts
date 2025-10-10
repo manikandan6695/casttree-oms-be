@@ -156,9 +156,22 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
     // Add the new fields
     category: [categorySchema], // Array of category objects
     proficiency: [proficiencySchema], // Array of proficiency objects
-    planItemId: [{
-      type: planItemIdSchema
-    }], // Array of planItemId objects
+    planItemId: [
+      {
+        type: planItemIdSchema,
+      },
+    ], // Array of planItemId objects
+    role: [
+      {
+        roleId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "role",
+        },
+        roleName: {
+          type: String,
+        },
+      },
+    ],
   },
   {
     collection: "serviceitems",
