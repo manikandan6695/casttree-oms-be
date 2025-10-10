@@ -18,6 +18,11 @@ export class PaymentService {
 
   async getPGInstance() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getPGInstance",
+        level: "info",
+        data: {},
+      });
       let pg_instance;
       let pg_type = this.configService.get("PAYMENT_TYPE");
       let RAZORPAY_API_KEY = this.configService.get("RAZORPAY_API_KEY");
