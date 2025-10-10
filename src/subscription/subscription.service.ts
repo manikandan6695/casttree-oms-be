@@ -994,12 +994,14 @@ export class SubscriptionService {
       // console.log("failure details is", payload?.data?.failure_details);
       let body = {
         document_status: EPaymentStatus.failed,
-        reason: failedReason,
+        reason: {
+          failureReason: failedReason,
+        },
       };
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
       // console.log("paymentRecord", paymentRecord);
-
+      if (paymentRecord) {
       await this.paymentService.updateMetaData(
         paymentRecord._id as string,
         payload
@@ -1021,6 +1023,7 @@ export class SubscriptionService {
         { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
       );
       return { message: "Updated Successfully" };
+      }
     } catch (err) {
       throw err;
     }
@@ -1124,6 +1127,7 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if (mandate) {
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
@@ -1156,6 +1160,7 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
+    }
     } catch (err) {
       throw err;
     }
@@ -1168,6 +1173,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if (mandate) {
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
@@ -1202,6 +1208,7 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
+    }
     } catch (err) {
       throw err;
     }
@@ -1214,6 +1221,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+     if (mandate) {
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
         { mandateStatus: EMandateStatus.rejected }
@@ -1226,6 +1234,7 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+     }
     } catch (err) {
       throw err;
     }
