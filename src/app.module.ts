@@ -28,9 +28,11 @@ import { PaymentRequestService } from "./payment/payment-request.service";
 import { EventOutBoxModule } from "./event-outbox/event-outbox.module";
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
 import { ProviderModule } from './provider/provider.module';
+import { SentryModule } from "@sentry/nestjs/setup";
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
