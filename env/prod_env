@@ -107,3 +107,5 @@ REDIS_CONNECTION_TIMEOUT = 6000
 METABASE_BASE_URL = "https://metabase.casttree.in"
 METABASE_USERNAME = "manikandan@casttree.com"
 
+# Sentry
+SENTRY_DSN = "https://4b55b2c9416e579d80aafeb47e12450e@sentry-dev.casttree.in/6"

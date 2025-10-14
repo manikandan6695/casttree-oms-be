@@ -64,6 +64,7 @@ import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
 import { CurrencyService } from "src/shared/currency/currency.service";
+import * as Sentry from "@sentry/nestjs";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -92,6 +93,14 @@ export class SubscriptionService {
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
     try {
+      Sentry.addBreadcrumb({
+        message: "createSubscription",
+        level: "info",
+        data: {
+          body,
+          token,
+        },
+      });
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
@@ -259,6 +268,13 @@ export class SubscriptionService {
   }
 
   async getFutureDate(detail: any) {
+    Sentry.addBreadcrumb({
+      message: "getFutureDate",
+      level: "info",
+      data: {
+        detail,
+      },
+    });
     switch (detail?.validityType) {
       case "day":
         return this.sharedService.getFutureDateISO(detail?.validity);
@@ -272,6 +288,14 @@ export class SubscriptionService {
   }
   async subscriptionWebhook(@Req() req, providerId: number) {
     try {
+      Sentry.addBreadcrumb({
+        message: "subscriptionWebhook",
+        level: "info",
+        data: {
+          req,
+          providerId,
+        },
+      });
       // console.log(providerId);
       const getProviderName = (id: number) => {
         const map = {
@@ -405,6 +429,13 @@ export class SubscriptionService {
   }
   async handleAppleIAPPurchase(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleAppleIAPPurchase",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       // console.log("transactionHistory", transactionHistory);
@@ -480,6 +511,13 @@ export class SubscriptionService {
 
   async handleAppleIAPRenew(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleAppleIAPRenew",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       const matchedSubscription = await this.subscriptionModel.findOne({
@@ -610,6 +648,13 @@ export class SubscriptionService {
 
   async handleAppleIAPCancel(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleAppleIAPCancel",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       const existingMandate = await this.mandateService.getMandateBySourceId(
@@ -662,6 +707,13 @@ export class SubscriptionService {
   }
   async handleIapExpired(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleIapExpired",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const transactionHistory =
         await this.subscriptionFactory.getTransactionHistory(payload);
       const metaData = {
@@ -694,6 +746,13 @@ export class SubscriptionService {
   // google iap
   async handleGoogleIAPPurchase(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleGoogleIAPPurchase",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("payload", payload);
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       let subscription;
@@ -772,6 +831,13 @@ export class SubscriptionService {
   }
   async handleGoogleIAPRenew(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleGoogleIAPRenew",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("payload is", payload);
 
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
@@ -911,6 +977,13 @@ export class SubscriptionService {
 
   async handleGoogleIAPCancel(payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleGoogleIAPCancel",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const rtdn = await this.subscriptionFactory.googleRtdn(payload.message);
       let existingMandate = await this.mandateService.getMandateBySourceId(
         rtdn?.purchaseToken,
@@ -964,6 +1037,13 @@ export class SubscriptionService {
 
   async handleCashfreeFailedPayment(payload: CashfreeFailedPaymentPayload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleCashfreeFailedPayment",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const cfPaymentId = payload?.data?.cf_payment_id;
       // console.log("cfPaymentId", cfPaymentId);
 
@@ -1005,6 +1085,13 @@ export class SubscriptionService {
 
   async handleRazorpayCancelledMandate(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayCancelledMandate",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
       if(mandate){
@@ -1046,6 +1133,13 @@ export class SubscriptionService {
 
   async handleRazorpayCancelMandate(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayCancelMandate",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("inside razorpay cancelled mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
@@ -1093,6 +1187,13 @@ export class SubscriptionService {
 
   async handleRazorpayRejectedMandate(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayRejectedMandate",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("inside razorpay rejected mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
@@ -1119,6 +1220,13 @@ export class SubscriptionService {
 
   async handleRazorpayPausedMandate(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayPausedMandate",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("inside razorpay paused mandate", payload);
 
       let tokenId = payload?.token?.entity?.id;
@@ -1143,6 +1251,13 @@ export class SubscriptionService {
 
   async handleRazorpayFailedPayment(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayFailedPayment",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const razpPaymentOrderId = payload?.payment?.entity?.order_id;
       // console.log("cfPaymentId", cfPaymentId);
 
@@ -1183,6 +1298,13 @@ export class SubscriptionService {
   }
   private async handleRazorpayMandate(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayMandate",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       let tokenId = payload?.token?.entity?.id;
       // console.log("tokenId", tokenId);
       // console.log("token confirmed payload", payload);
@@ -1208,6 +1330,13 @@ export class SubscriptionService {
   }
   private async handleRazorpaySubscriptionPayment(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpaySubscriptionPayment",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const rzpPaymentId = payload?.payment?.entity?.order_id;
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
@@ -1313,6 +1442,13 @@ export class SubscriptionService {
   }
   // Handles Razorpay subscription logic
   private async handleRazorpaySubscription(payload: any) {
+    Sentry.addBreadcrumb({
+      message: "handleRazorpaySubscription",
+      level: "info",
+      data: {
+        payload,
+      },
+    });
     let existingSubscription = await this.subscriptionModel.findOne({
       userId: payload.subscription?.entity?.notes?.userId,
     });
@@ -1376,6 +1512,13 @@ export class SubscriptionService {
   }
   async handleRazorpayRefund(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleRazorpayRefund",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const paymentId = payload?.payment?.entity?.order_id;
       const refundReason = payload?.refund?.entity?.notes?.reason;
 
@@ -1464,6 +1607,13 @@ export class SubscriptionService {
 
   // Handles Cashfree status change event
   private async handleCashfreeStatusChange(payload: any) {
+    Sentry.addBreadcrumb({
+      message: "handleCashfreeStatusChange",
+      level: "info",
+      data: {
+        payload,
+      },
+    });
     // console.log("inside handleCashfreeStatusChange is ===>", payload);
     const cfSubId = payload?.data?.subscription_details?.subscription_id;
 
@@ -1504,6 +1654,13 @@ export class SubscriptionService {
   // Handles Cashfree new payment event
   private async handleCashfreeNewPayment(payload: CashfreeNewPaymentPayload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleCashfreeNewPayment",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const cfPaymentId = payload?.data?.cf_payment_id;
 
       let paymentRequest =
@@ -1604,6 +1761,14 @@ export class SubscriptionService {
 
   async handleReferralStatus(userid: string, id: string){
     try {
+      Sentry.addBreadcrumb({
+        message: "handleReferralStatus",
+        level: "info",
+        data: {
+          userid,
+          id,
+        },
+      });
       let subscriptionId = new ObjectId(id)
       let userId = new ObjectId(userid)
       let userAdditional = await this.helperService.getUserAdditional(userId)
@@ -1632,6 +1797,14 @@ export class SubscriptionService {
   }
   async validateSubscription(userId: string, status: String[]) {
     try {
+      Sentry.addBreadcrumb({
+        message: "validateSubscription",
+        level: "info",
+        data: {
+          userId,
+          status,
+        },
+      });
       let subscription = await this.subscriptionModel.findOne({
         userId: userId,
         subscriptionStatus: { $nin: status },
@@ -1645,6 +1818,14 @@ export class SubscriptionService {
 
   async subscription(body, token) {
     try {
+      Sentry.addBreadcrumb({
+        message: "subscription",
+        level: "info",
+        data: {
+          body,
+          token,
+        },
+      });
       // console.log("subscription data", body);
 
       let subscriptionData = {
@@ -1676,6 +1857,13 @@ export class SubscriptionService {
 
   async subscriptionComparision(token: UserToken) {
     try {
+      Sentry.addBreadcrumb({
+        message: "subscriptionComparision",
+        level: "info",
+        data: {
+          token,
+        },
+      });
       let subscription = await this.subscriptionModel.findOne({
         userId: token.id,
       });
@@ -1692,6 +1880,14 @@ export class SubscriptionService {
 
   async addSubscription(body, token) {
     try {
+      Sentry.addBreadcrumb({
+        message: "addSubscription",
+        level: "info",
+        data: {
+          body,
+          token,
+        },
+      });
       let subscriptionData = await this.validateSubscription(token.id, [
         EsubscriptionStatus.initiated,
         EsubscriptionStatus.failed,
@@ -1743,6 +1939,11 @@ export class SubscriptionService {
   @Cron("0 * * * *")
   async handleCron() {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleCron",
+        level: "info",
+        data: {},
+      });
       const now = new Date();
       let currentDate = now.toISOString();
       // console.log("updating subscription entries : " + currentDate);
@@ -1799,6 +2000,13 @@ export class SubscriptionService {
   }
   async fetchSubscriptions(token: UserToken) {
     try {
+      Sentry.addBreadcrumb({
+        message: "fetchSubscriptions",
+        level: "info",
+        data: {
+          token,
+        },
+      });
       let filter = { userId: token.id, status: "Active" };
       let subscriptionData = await this.subscriptionModel
         .find(filter)
@@ -1827,6 +2035,14 @@ export class SubscriptionService {
     body: CancelSubscriptionBody
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "cancelSubscriptionStatus",
+        level: "info",
+        data: {
+          token,
+          body,
+        },
+      });
       const mandates = await this.mandateService.getUserMandates(token.id);
       console.log("mandates is", mandates);
 
@@ -1931,6 +2147,11 @@ export class SubscriptionService {
   @Cron("0 1 * * *")
   async createCharge() {
     try {
+      Sentry.addBreadcrumb({
+        message: "createCharge",
+        level: "info",
+        data: {},
+      });
       const planDetail = await this.itemService.getItemDetailByName("PRO");
       const today = new Date();
       const tomorrow = new Date();
@@ -2017,6 +2238,14 @@ export class SubscriptionService {
   }
 
   async createChargeData(subscriptionData, planDetail) {
+    Sentry.addBreadcrumb({
+      message: "createChargeData",
+      level: "info",
+      data: {
+        subscriptionData,
+        planDetail,
+      },
+    });
     // console.log(
     //   "subscription data is ==>",
     //   subscriptionData?.latestDocument?.metaData?.subscription_id
@@ -2192,6 +2421,14 @@ export class SubscriptionService {
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
+      Sentry.addBreadcrumb({
+        message: "raiseCharge",
+        level: "info",
+        data: {
+          subscriptionData,
+          planDetail,
+        },
+      });
       // console.log("inside raise charge");
 
       // console.log("subscription data is ==>", subscriptionData);
@@ -2417,6 +2654,14 @@ export class SubscriptionService {
 
   async updatePaymentRecords(paymentId: string, body: UpdatePaymentBody) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updatePaymentRecords",
+        level: "info",
+        data: {
+          paymentId,
+          body,
+        },
+      });
       //  console.log("update payment records ==>", body);
 
       let payment = await this.paymentService.fetchPaymentByOrderId(paymentId);
@@ -2432,6 +2677,15 @@ export class SubscriptionService {
   }
   async findAppleExternalId(originalTransactionId, transactionId, userId) {
     try {
+      Sentry.addBreadcrumb({
+        message: "findAppleExternalId",
+        level: "info",
+        data: {
+          originalTransactionId,
+          transactionId,
+          userId,
+        },
+      });
       let data = await this.subscriptionModel.findOne({
         "transactionDetails.transactionId": transactionId,
         "transactionDetails.originalTransactionId": originalTransactionId,
@@ -2449,6 +2703,13 @@ export class SubscriptionService {
   }
   async findGoogleExternalId(transactionId) {
     try {
+      Sentry.addBreadcrumb({
+        message: "findGoogleExternalId",
+        level: "info",
+        data: {
+          transactionId,
+        },
+      });
       let externalIdData = await this.subscriptionModel.findOne({
         externalId: transactionId,
         providerId: EProviderId.google,
@@ -2473,6 +2734,11 @@ export class SubscriptionService {
   //   }
   // }
   async getExpiredSUbscriptionUserIds() {
+    Sentry.addBreadcrumb({
+      message: "getExpiredSUbscriptionUserIds",
+      level: "info",
+      data: {},
+    });
     const currentDate = new Date();
     let ExpiredData = await this.subscriptionModel.aggregate([
       {
@@ -2555,6 +2821,14 @@ export class SubscriptionService {
 
   async checkEligibility(token: UserToken, itemId: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "checkEligibility",
+        level: "info",
+        data: {
+          token,
+          itemId,
+        },
+      });
       const activeSubscription = await this.subscriptionModel.findOne({
         userId: token.id,
         subscriptionStatus: "Active",
@@ -2585,6 +2859,13 @@ export class SubscriptionService {
   }
   async findOriginalTransactionId(originalTransactionId: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "findOriginalTransactionId",
+        level: "info",
+        data: {
+          originalTransactionId,
+        },
+      });
       let filter = {
         "transactionDetails.originalTransactionId": originalTransactionId,
       };
@@ -2600,6 +2881,13 @@ export class SubscriptionService {
 
   async updateSubscription(body) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updateSubscription",
+        level: "info",
+        data: {
+          body,
+        },
+      });
       let data = await this.subscriptionModel.findOneAndUpdate(
         {
           _id: body._id,
@@ -2622,6 +2910,14 @@ export class SubscriptionService {
   }
   async handleIapCoinTransactions(body, token) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleIapCoinTransactions",
+        level: "info",
+        data: {
+          body,
+          token,
+        },
+      });
       let transaction = await this.subscriptionFactory.handleIapCoinPurchase(
         body,
         token
@@ -2633,6 +2929,13 @@ export class SubscriptionService {
   }
   async getLatestSubscription(token: UserToken) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getLatestSubscription",
+        level: "info",
+        data: {
+          token,
+        },
+      });
       let subscription = await this.subscriptionModel
         .findOne({
           userId: new ObjectId(token.id),
@@ -2658,6 +2961,13 @@ export class SubscriptionService {
   @OnEvent(EVENT_UPDATE_REFERRAL_STATUS)
   async handleUpdateReferralStatus(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "handleUpdateReferralStatus",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       await this.updateReferralStatus(payload);
 
       await this.sharedService.updateEventProcessingStatus(
@@ -2674,6 +2984,13 @@ export class SubscriptionService {
   }
   async updateReferralStatus(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updateReferralStatus",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       let userAdditional = await this.helperService.getUserAdditional(
         payload?.userId
       );
@@ -2708,6 +3025,13 @@ export class SubscriptionService {
 
   async countUserSubscriptions(userId: string): Promise<number> {
     try {
+      Sentry.addBreadcrumb({
+        message: "countUserSubscriptions",
+        level: "info",
+        data: {
+          userId,
+        },
+      });
       const count = await this.subscriptionModel.countDocuments({
         userId: new ObjectId(userId),
         subscriptionStatus: {
@@ -2722,6 +3046,13 @@ export class SubscriptionService {
   }
   async userFirstSubscription(userId: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "userFirstSubscription",
+        level: "info",
+        data: {
+          userId,
+        },
+      });
       let filter = {
         userId: new ObjectId(userId),
         status: EStatus.Active,
@@ -2740,6 +3071,13 @@ export class SubscriptionService {
   }
   async HandleCoinPurchaseInWebHook(rzpPaymentId) {
     try {
+      Sentry.addBreadcrumb({
+        message: "HandleCoinPurchaseInWebHook",
+        level: "info",
+        data: {
+          rzpPaymentId,
+        },
+      });
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {

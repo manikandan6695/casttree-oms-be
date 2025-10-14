@@ -4,6 +4,7 @@ import { HelperService } from "src/helper/helper.service";
 import { AppException } from "src/shared/app-exception";
 import { ValidateRPPaymentId } from "./dto/validate-rp-payment.dto";
 import { EPaymentProvider } from "./enum/payment-providers.enum";
+import * as Sentry from "@sentry/nestjs";
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
 
@@ -17,6 +18,11 @@ export class PaymentService {
 
   async getPGInstance() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getPGInstance",
+        level: "info",
+        data: {},
+      });
       let pg_instance;
       let pg_type = this.configService.get("PAYMENT_TYPE");
       let RAZORPAY_API_KEY = this.configService.get("RAZORPAY_API_KEY");
@@ -53,6 +59,19 @@ export class PaymentService {
     notes?: any
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "createPGOrder",
+        level: "info",
+        data: {
+          user_id,
+          currency,
+          currencyCode,
+          amount,
+          reference_no,
+          accessToken,
+          notes,
+        },
+      });
       let order_id: string;
       let pg_detail = await this.getPGInstance();
       let pg_instance = pg_detail.pg_instance;
@@ -96,6 +115,13 @@ export class PaymentService {
   }
 
   async validatePayment(body: ValidateRPPaymentId) {
+    Sentry.addBreadcrumb({
+      message: "validatePayment",
+      level: "info",
+      data: {
+        body,
+      },
+    });
     let pg_type = this.configService.get("PAYMENT_TYPE");
     let RAZORPAY_API_KEY = this.configService.get("RAZORPAY_API_KEY");
     let is_valid: boolean = false;
