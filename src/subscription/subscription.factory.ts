@@ -125,7 +125,7 @@ export class SubscriptionFactory {
         payment_method: { upi: { channel: "link" } },
       };
       const auth = await this.helperService.createAuth(authData);
-      let existingSubscription = await this.subscriptionService.getLatestSubscriptionByUserId( token.id)
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
       let startAt: Date;
       let endAt: Date;
 
@@ -1171,7 +1171,7 @@ export class SubscriptionFactory {
       // console.log("fv is", fv);
 
       const subscription = await this.helperService.addSubscription(fv);
-      let existingSubscription = await this.subscriptionService.getLatestSubscriptionByUserId( token.id)
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
       let startAt: Date;
       let endAt: Date;
 

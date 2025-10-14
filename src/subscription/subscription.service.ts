@@ -2898,11 +2898,12 @@ export class SubscriptionService {
           this.helperService.getUserRatings(rawToken),
           this.helperService.getUserNominations(rawToken),
         ]);
-        let item = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId);
+
         let userSubscription = await this.subscriptionModel.find({
           userId: new ObjectId(token.id),
           status: EStatus.Active,
-          amount: item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+          amount: { $gt: 20 },
+          subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
         })
         const isEligible = userRatingInfo.length > 3 || userNominationsInfo.length > 2 || userSubscription.length > 2;
         if(isEligible){
@@ -2930,21 +2931,6 @@ export class SubscriptionService {
         return { data: {} };
       }
       return { data: {} };
-    } catch (error) {
-      throw error;
-    }
-  }
-  async getLatestSubscriptionByUserId(userId: string) {
-    try {
-      let subscription = await this.subscriptionModel
-        .findOne({
-          userId: new ObjectId(userId),
-          status: EStatus.Active,
-          subscriptionStatus: EsubscriptionStatus.active,
-        })
-        .sort({ _id: -1 })
-        .lean();
-      return subscription;
     } catch (error) {
       throw error;
     }
