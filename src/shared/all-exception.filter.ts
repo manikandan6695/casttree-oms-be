@@ -37,7 +37,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Enhanced error details
     const errorDetails = this.extractErrorDetails(exception);
 
-    console.log("Inside exception filter");
     // Capture exception with Sentry INCLUDING request context
     Sentry.withScope((scope) => {
       // Set HTTP context
@@ -82,8 +81,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
 
       // Now capture the exception with all the context
-      const sentryException = Sentry.captureException(exception);
-      console.log("Sentry exception", sentryException);
+      Sentry.captureException(exception);
     });
 
     // Template variables for MSG91 email template
@@ -111,21 +109,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       external_api_code: exception["response"]?.status,
     };
 
-    // const validStatus = [400, 404];
-    // try {
-    //   if (validStatus.includes(status) || status >= 500) {
-    //     await this.mailService.sendErrorLog(
-    //       "🚨 Error Alert! CASTTREE-OMS",
-    //       templateVariables
-    //     );
-    //   }
-    // } catch (error) {
-    //   console.log("Error sending email", error);
-    // }
+    const validStatus = [400, 404];
+    try {
+      if (validStatus.includes(status) || status >= 500) {
+        await this.mailService.sendErrorLog(
+          "🚨 Error Alert! CASTTREE-OMS",
+          templateVariables
+        );
+      }
+    } catch (error) {
+      console.log("Error sending email", error);
+    }
 
-    // this.logger.error(exception, {
-    //   label: exception["context"] || "Exception Filter",
-    // });
+    this.logger.error(exception, {
+      label: exception["context"] || "Exception Filter",
+    });
 
     response.status(status).json({
       statusCode: status,
