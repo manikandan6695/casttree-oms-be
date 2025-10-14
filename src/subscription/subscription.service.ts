@@ -88,21 +88,26 @@ export class SubscriptionService {
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
+      let existingSubscription = await this.validateSubscription(token.id, [
+        EsubscriptionStatus.initiated,
+        EsubscriptionStatus.failed,
+      ]);
+      let item = await this.itemService.getItemDetail(body.itemId);
+
+      let authAmount =
+        body?.refId ||
+        existingSubscription ||
+        item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
+          ? item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+          : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
+      let expiryDate = this.sharedService.getFutureYearISO(10);
+      let detail =
+        body?.refId || existingSubscription
+          ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
+          : item?.additionalDetail?.promotionDetails?.authDetail;
+      let chargeDate = await this.getFutureDate(detail);
       switch (body.provider) {
         case "razorpay":
-          let item = await this.itemService.getItemDetail(body.itemId);
-          let existingSubscription = await this.validateSubscription(token.id, [
-            EsubscriptionStatus.initiated,
-            EsubscriptionStatus.failed,
-          ]);
-
-          let authAmount =
-            body?.refId ||
-            existingSubscription ||
-            item?.additionalDetail?.promotionDetails?.authDetail?.amount == 0
-              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-                  ?.amount
-              : item?.additionalDetail?.promotionDetails?.authDetail?.amount;
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
           );
@@ -117,14 +122,6 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
-          let expiryDate = this.sharedService.getFutureYearISO(10);
-          let detail =
-            body?.refId ||
-            existingSubscription ||
-            item?.additionalDetail?.promotionDetails?.authDetail?.validity == 0
-              ? item?.additionalDetail?.promotionDetails?.subscriptionDetail
-              : item?.additionalDetail?.promotionDetails?.authDetail;
-          let chargeDate = await this.getFutureDate(detail);
           // console.log("chargeDate", chargeDate);
           let razorpaySubscriptionNewNumber = `${razorpaySubscriptionNumber}-${Date.now()}`;
           subscriptionData = {
@@ -165,18 +162,9 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           // console.log("inside subscription service", subscriptionNumber);
-          let expiryTime = this.sharedService.getFutureYearISO(5);
-          let firstCharge =
-            body.validityType === "day"
-              ? this.sharedService.getFutureDateISO(body.validity)
-              : body.validityType === "month"
-                ? this.sharedService.getFutureMonthISO(body.validity)
-                : body.validityType === "year"
-                  ? this.sharedService.getFutureYearISO(body.validity)
-                  : null;
           let subscriptionNewNumber = `${subscriptionNumber}-${Date.now()}`;
-          body["expiryTime"] = expiryTime;
-          body["firstCharge"] = firstCharge;
+          body["expiryTime"] = expiryDate;
+          body["firstCharge"] = chargeDate;
           subscriptionData = {
             subscription_id: subscriptionNewNumber.toString(),
             customer_details: {
@@ -196,13 +184,13 @@ export class SubscriptionService {
               plan_currency: planData?.plan_currency,
             },
             authorization_details: {
-              authorization_amount: body.authAmount == 0 ? 1 : body.authAmount,
-              authorization_amount_refund: body.authAmount == 0 ? true : false,
+              authorization_amount: authAmount,
+              authorization_amount_refund: authAmount == 0 ? true : false,
               payment_methods: ["upi"],
             },
             subscription_meta: { return_url: body.redirectionUrl },
-            subscription_expiry_time: expiryTime,
-            subscription_first_charge_time: firstCharge,
+            subscription_expiry_time: expiryDate,
+            subscription_first_charge_time: chargeDate,
           };
           break;
         case EProvider.apple:
@@ -1045,7 +1033,7 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(paymentId);
 
-      if (paymentRecord.document_status === EPaymentStatus.completed) {
+      if ( paymentRecord.document_status === EPaymentStatus.pending ) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
           reason: { failureReason: refundReason },
@@ -1089,13 +1077,20 @@ export class SubscriptionService {
           });
 
           if (subscription) {
-            const userUpdateBody = {
-              userId: [subscription.userId],
-              membership: "",
-              badge: "",
-            };
+            const activeSubscription = await this.subscriptionModel.findOne({
+              userId: subscription.userId,
+              subscriptionStatus: EsubscriptionStatus.active,
+              _id: { $ne: new ObjectId(updatedInvoice.invoice.source_id) },
+            });
+            if (!activeSubscription) {
+              const userUpdateBody = {
+                userId: [subscription.userId],
+                membership: "",
+                badge: "",
+              };
 
-            await this.helperService.updateUsers(userUpdateBody);
+              await this.helperService.updateUsers(userUpdateBody);
+            }
             // const item = await this.itemService.getItemDetail(subscription?.notes?.itemId);
             // const mixPanelBody: any = {
             //   eventName: EMixedPanelEvents.subscription_refund,
@@ -1422,49 +1417,43 @@ export class SubscriptionService {
               ?.amount === subscription?.amount
           ) {
             try {
-              let userAdditional = await this.helperService.getUserAdditional(
-                subscription?.userId
-              );
-
-              if (userAdditional?.referredBy) {
-                try {
-                  let referelData = await this.helperService.getReferralData(
-                    subscription?.userId,
-                    userAdditional?.referredBy
-                  );
-
-                  if (
-                    referelData?.referralStatus === EReferralStatus.Onboarded
-                  ) {
-                    let eventBody = {
-                      subscriptionId: subscription?._id,
-                      userId: subscription?.userId,
-                    };
-                    await this.sharedService.trackAndEmitEvent(
-                      EVENT_UPDATE_REFERRAL_STATUS,
-                      eventBody,
-                      true,
-                      {}
-                    );
-                  }
-                } catch (referralError) {
-                  console.warn(
-                    `Referral data fetch failed for user ${payload?.userId}:`,
-                    referralError?.message || referralError
-                  );
-                }
-              }
-            } catch (userAdditionalError) {
-              console.warn(
-                `User additional data fetch failed for user ${subscription?.userId}:`,
-                userAdditionalError?.message || userAdditionalError
-              );
+              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+            } catch (error) {
+              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
             }
           }
         }
       }
     } catch (err) {
       throw err;
+    }
+  }
+  async handleReferralStatus(userid: string, id: string){
+    try {
+      let subscriptionId = new ObjectId(id)
+      let userId = new ObjectId(userid)
+      let userAdditional = await this.helperService.getUserAdditional(userId)
+      if (userAdditional?.referredBy) {
+        try {
+          let referelData = await this.helperService.getReferralData(userId, userAdditional?.referredBy)
+          if (referelData?.referralStatus === EReferralStatus.Onboarded) {
+            let eventBody = {
+              subscriptionId: subscriptionId,
+              userId: userId,
+            }
+            await this.sharedService.trackAndEmitEvent(
+              EVENT_UPDATE_REFERRAL_STATUS,
+              eventBody,
+              true,
+              {}
+            );
+          }
+        } catch (referralError) {
+          console.warn(`Referral data fetch failed for user ${userId}:`, referralError?.message || referralError)
+        }
+      }
+    } catch (userAdditionalError) {
+      console.warn(`User additional data fetch failed for user ${userid}:`, userAdditionalError?.message || userAdditionalError)
     }
   }
   // Handles Razorpay subscription logic
@@ -1654,6 +1643,16 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
+          if (
+            item?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount === subscription?.amount
+          ) {
+            try {
+              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+            } catch (error) {
+              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+            }
+          }
         }
       }
       //await this.paymentService.updateMetaData(paymentRequest?.id, payload);

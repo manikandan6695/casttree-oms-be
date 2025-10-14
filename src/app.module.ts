@@ -27,6 +27,7 @@ import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
 import { SentryModule } from "@sentry/nestjs/setup";
+import { ProviderModule } from "./provider/provider.module";
 @Module({
   imports: [
     SentryModule.forRoot(),
@@ -71,7 +72,8 @@ import { SentryModule } from "@sentry/nestjs/setup";
     TaxModule,
     EventOutBoxModule,
     RedisModule,
-    DynamicUiModule
+    DynamicUiModule,
+    ProviderModule
   ],
   controllers: [],
   providers: [

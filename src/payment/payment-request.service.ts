@@ -1085,6 +1085,14 @@ export class PaymentRequestService {
       throw error;
     }
   }
+  async getFirstPaymentByUserId(userId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({user_id: new ObjectId(userId), document_status: EDocumentStatus.completed}).sort({ _id: 1 })
+      return payment
+    } catch (error) {
+      throw error;
+    }
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

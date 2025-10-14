@@ -141,7 +141,7 @@ export class SubscriptionFactory {
         sourceId: subscriptionCreated._id,
         userId: token.id,
         paymentMethod: "UPI",
-        amount: bodyData?.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         providerId: 2,
         provider: EProvider.cashfree,
         currency: "INR",
@@ -175,10 +175,10 @@ export class SubscriptionFactory {
         itemId: bodyData.itemId,
         source_id: subscriptionCreated._id,
         source_type: "subscription",
-        sub_total: bodyData.authAmount,
+        sub_total: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
-        grand_total: bodyData.authAmount,
+        grand_total: subscription?.authorization_details?.authorization_amount,
         user_id: token.id,
         created_by: token.id,
         updated_by: token.id,
@@ -189,14 +189,14 @@ export class SubscriptionFactory {
       );
 
       const paymentData = {
-        amount: bodyData.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
         paymentType: EPaymentType.auth,
         providerId: 2,
         providerName: EProvider.cashfree,
       };
-      await this.paymentService.createPaymentRecord(
+      let payment = await this.paymentService.createPaymentRecord(
         paymentData,
         token,
         invoice,
@@ -206,7 +206,10 @@ export class SubscriptionFactory {
       // console.log("returning data");
 
       return {
-        subscriptionDetails: subscription,
+        subscriptionDetails: {
+        ...subscription,
+        paymentId: payment?.id,
+        },
         authorizationDetails: auth,
       };
     } catch (err) {
@@ -361,7 +364,7 @@ export class SubscriptionFactory {
           conversionRate: conversionRateAmt,
           paymentType: "Auth",
         };
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -399,7 +402,7 @@ export class SubscriptionFactory {
         });
 
         const subscriptionCount = await this.subscriptionService.countUserSubscriptions(token?.id);
-        
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = token.id;
@@ -421,7 +424,16 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});     
-        return subscriptionData;
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -554,7 +566,7 @@ export class SubscriptionFactory {
         };
         // console.log("paymentData",paymentData);
 
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -604,7 +616,16 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});
-        return createdSubscription;
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -1368,8 +1389,16 @@ export class SubscriptionFactory {
           _id: new ObjectId(invoice?._id),
           sourceId: new ObjectId(createCoinValue),
         });
-  
-        return { paymentResponse, updatedInvoice };
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = paymentResponse.toObject()
+        if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...paymentResponse.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return { paymentResponse: finalResponse, updatedInvoice };
       } finally {
         await this.redisService.releaseLock(lockKey, lockValue);
       }

@@ -466,6 +466,10 @@ export class ProcessService {
         pendingTasks[i].completed = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
+        let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
+          pendingTasks[i].processId.toString()
+        );
+        pendingTasks[i].currentTask.itemId = itemDetail?.data?.itemId || null;
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
@@ -519,13 +523,17 @@ export class ProcessService {
         mySeries[i].progressPercentage = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
-
+        let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
+          mySeries[i].processId.toString()
+        );
+        mySeries[i].currentTask.itemId = itemDetail?.data?.itemId || null;
         if (status == EprocessStatus.Completed) {
           mySeries[i].completed = 100;
-          let currentTask = await this.tasksModel.findOne({
+          let currentTask:any = await this.tasksModel.findOne({
             processId: mySeries[i].processId,
             taskNumber: 1,
-          });
+          }).lean();
+          currentTask.itemId = itemDetail?.data?.itemId || null;
           mySeries[i].currentTask = currentTask;
         }
       }
