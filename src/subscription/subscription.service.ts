@@ -2883,7 +2883,7 @@ export class SubscriptionService {
         userId: new ObjectId(userId),
         status: EStatus.Active,
         subscriptionStatus: EsubscriptionStatus.active,
-      });
+      }).sort({ _id: -1 });
       return subscription;
     } catch (error) {
       throw error;
