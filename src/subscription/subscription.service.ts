@@ -2877,4 +2877,76 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async getSubscriptionByUserId(userId: string) {
+    try {
+      let subscription = await this.subscriptionModel.findOne({
+        userId: new ObjectId(userId),
+        status: EStatus.Active,
+        subscriptionStatus: EsubscriptionStatus.active,
+      });
+      return subscription;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
+    try {
+      let existingSubscription = await this.getSubscriptionByUserId(token.id);
+      if (existingSubscription) {
+        const [userRatingInfo, userNominationsInfo] = await Promise.all([
+          this.helperService.getUserRatings(rawToken),
+          this.helperService.getUserNominations(rawToken),
+        ]);
+        let item = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId);
+        let userSubscription = await this.subscriptionModel.find({
+          userId: new ObjectId(token.id),
+          status: EStatus.Active,
+          amount: item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+        })
+        const isEligible = userRatingInfo.length > 3 || userNominationsInfo.length > 2 || userSubscription.length > 2;
+        if(isEligible){
+        let itemId = existingSubscription?.notes?.itemId;
+        let itemData = await this.itemService.getGroupedItemDetail(
+          itemId
+        );
+        let subscriptionData = await this.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+        let isEnableCart = subscriptionData ? true : false;
+        let data = {
+          itemId: itemData?.itemId,
+          title: itemData?.learnBottomSheet?.title,
+          type: itemData?.learnBottomSheet?.type,
+          subTitle: itemData?.learnBottomSheet?.subTitle,
+          description:
+            itemData?.learnBottomSheet?.description,
+          button: itemData?.learnBottomSheet?.button,
+          isEnableCart,
+        };
+        return { data };
+        }
+        return { data: {} };
+      }
+      return { data: {} };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getLatestSubscriptionByUserId(userId: string) {
+    try {
+      let subscription = await this.subscriptionModel
+        .findOne({
+          userId: new ObjectId(userId),
+          status: EStatus.Active,
+          subscriptionStatus: EsubscriptionStatus.active,
+        })
+        .sort({ _id: -1 })
+        .lean();
+      return subscription;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
