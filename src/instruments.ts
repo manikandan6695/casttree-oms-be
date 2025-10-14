@@ -3,6 +3,9 @@ import "dotenv/config";
 import * as Sentry from "@sentry/nestjs";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
+// console.log("Sentry DSN", process.env.SENTRY_DSN);
+// console.log("Sentry Environment", process.env.NODE_ENV);
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [nodeProfilingIntegration()],
@@ -20,6 +23,15 @@ Sentry.init({
   // Setting this option to true will send default PII data to Sentry.
   // For example, automatic IP address collection on events
   sendDefaultPii: true,
+
+  // // Add debug mode to see what's happening
+  // debug: true,
+
+  // // Ensure events are sent before shutdown
+  // beforeSend(event) {
+  //   console.log("Sentry beforeSend - Event being sent:", event.event_id);
+  //   return event;
+  // },
 });
 
 // Profiling happens automatically after setting it up with `Sentry.init()`.
