@@ -2004,7 +2004,7 @@ export class ServiceItemService {
         processPricingData.itemId.additionalDetail.promotionDetails.mentorName =
           processPricingData?.profileData?.displayName;
         processPricingData.itemId.additionalDetail.promotionDetails.thumbnail =
-          processPricingData?.additionalDetails?.thumbnail;
+          processPricingData?.itemId?.additionalDetail?.promotionDetails?.payWallThumbnail;
         if (processPricingData?.planItemId?.[0]?.itemId) {
           processPricingData.itemId.additionalDetail.promotionDetails.itemId =
             processPricingData?.planItemId[0]?.itemId._id;
@@ -2012,6 +2012,8 @@ export class ServiceItemService {
             processPricingData?.planItemId[0]?.itemId.comparePrice;
           processPricingData.itemId.additionalDetail.promotionDetails.currency_code =
             processPricingData?.planItemId[0]?.itemId.currency?.currency_code;
+            processPricingData.itemId.additionalDetail.promotionDetails.skipText =
+          processPricingData?.itemId?.additionalDetail?.skipText;
         }
 
         const promoDetails =
@@ -2019,7 +2021,7 @@ export class ServiceItemService {
         
         // Pass both payWallVideo and payWallVideo1 if they exist
         if (promoDetails["payWallVideo"]) {
-          processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo = promoDetails["payWallVideo"];
+          processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo = processPricingData?.itemId?.additionalDetail?.promotionDetails?.payWallVideo;
         }
         // if (promoDetails["payWallVideo1"]) {
         //   processPricingData.itemId.additionalDetail.promotionDetails.payWallVideo1 = promoDetails["payWallVideo1"];
@@ -2065,7 +2067,13 @@ export class ServiceItemService {
           // Add skillName to matched items only
           data.additionalDetail.promotionDetails.skillName = processPricingData?.skill?.skill_name;
           data.additionalDetail.promotionDetails.skipText =
-            data.additionalDetail?.skipText;
+          processPricingData?.itemId?.additionalDetail?.skipText;
+          data.additionalDetail.promotionDetails.premiumThumbnails =
+          processPricingData?.itemId?.additionalDetail?.promotionDetails?.premiumThumbnails;
+          data.additionalDetail.promotionDetails.payWallVideo =
+          processPricingData?.itemId?.additionalDetail?.promotionDetails?.payWallVideo;
+          data.additionalDetail.promotionDetails.thumbnail =
+          processPricingData?.itemId?.additionalDetail?.promotionDetails?.payWallThumbnail;
           matchedItems.push(data.additionalDetail.promotionDetails);
         } else {
           nonMatchedItems.push(data.additionalDetail.promotionDetails);
