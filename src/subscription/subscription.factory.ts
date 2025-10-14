@@ -125,12 +125,38 @@ export class SubscriptionFactory {
         payment_method: { upi: { channel: "link" } },
       };
       const auth = await this.helperService.createAuth(authData);
-      let endDate = new Date(bodyData?.firstCharge);
-      let endAt = endDate.setHours(18, 29, 59, 999);
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription && existingSubscription.endAt) {
+        let itemdetail = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+
+        let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
+        let endAtValidityType = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType
+        
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        console.log("inside else",data?.firstCharge);
+        startAt = new Date();
+        let endDate = new Date(data?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }
       const subscriptionData = {
         userId: token.id,
         planId: subscription?.plan_details?.plan_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 2,
         provider: EProvider.cashfree,
@@ -1145,15 +1171,40 @@ export class SubscriptionFactory {
       // console.log("fv is", fv);
 
       const subscription = await this.helperService.addSubscription(fv);
-      let endDate = new Date(data?.firstCharge);
-      endDate.setHours(18, 29, 59, 999); // modifies in-place
-      let endAt = endDate;
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription && existingSubscription.endAt) {
+        let itemdetail = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+
+        let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
+        let endAtValidityType = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType
+        
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        console.log("inside else",data?.firstCharge);
+        startAt = new Date();
+        let endDate = new Date(data?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }     
       // console.log("endAt is", endAt);
 
       const subscriptionData = {
         userId: token.id,
         subscriptionId: data?.subscription_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 1,
         provider: EProvider.razorpay,

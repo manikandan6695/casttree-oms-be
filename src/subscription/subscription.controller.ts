@@ -178,4 +178,15 @@ export class SubscriptionController {
       throw error;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("getPlanDetails")
+  async getAnnualSubscriptionDetails( @GetToken() token: UserToken, @Req() req ) {
+    try {
+      let data = await this.subscriptionService.getAnnualSubscriptionDetails(token, req.headers["authorization"]);
+      return data;
+    } catch (error) {
+      console.error("getAnnualSubscriptionDetails failed for userId:", "Error:", error);
+      throw error;
+    }
+  }
 }
