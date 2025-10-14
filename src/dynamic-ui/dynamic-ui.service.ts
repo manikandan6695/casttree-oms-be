@@ -3330,16 +3330,6 @@ export class DynamicUiService {
     userId: string,
     filterOption: EFilterOption
   ): Promise<number> {
-    Sentry.addBreadcrumb({
-      message: "getTagNameTotalCount",
-      level: "info",
-      data: {
-        serviceItemData,
-        tagName,
-        userId,
-        filterOption,
-      },
-    });
     const tagData = serviceItemData?.finalData?.[tagName];
     if (tagData) {
       return tagData.length;
