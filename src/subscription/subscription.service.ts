@@ -3268,9 +3268,9 @@ export class SubscriptionService {
         };
         return { data };
         }
-        return { data: {} };
+        return { data: {isEnableCart: false} };
       }
-      return { data: {} };
+      return { data: {isEnableCart: false} };
     } catch (error) {
       throw error;
     }

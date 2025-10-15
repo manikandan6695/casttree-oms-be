@@ -152,9 +152,8 @@ export class SubscriptionFactory {
         endAt.setUTCHours(18, 29, 59, 999);
         
       } else {
-        console.log("inside else",data?.firstCharge);
         startAt = new Date();
-        let endDate = new Date(data?.firstCharge);
+        let endDate = new Date(bodyData?.firstCharge);
         endDate.setUTCHours(18, 29, 59, 999);
         endAt = endDate;
       }
