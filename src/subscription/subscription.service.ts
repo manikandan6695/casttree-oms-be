@@ -3249,11 +3249,13 @@ export class SubscriptionService {
         let itemData = await this.itemService.getGroupedItemDetail(
           itemId
         );
-        let subscriptionData = await this.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]);
-        let isEnableCart = subscriptionData ? true : false;
+       let subscriptionData = await this.subscriptionModel.findOne({
+        status: EStatus.Active,
+        subscriptionStatus: EsubscriptionStatus.active,
+        userId: new ObjectId(token.id),
+        notes: { itemId: itemData?.itemId.toString() },
+       });
+        let isEnableCart = subscriptionData ? false : true;
         let data = {
           itemId: itemData?.itemId,
           title: itemData?.learnBottomSheet?.title,
