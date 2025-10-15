@@ -130,7 +130,7 @@ export class SubscriptionFactory {
       let endAt: Date;
 
       if (existingSubscription && existingSubscription.endAt) {
-        let itemdetail = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId)
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
 
         let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
@@ -1176,7 +1176,7 @@ export class SubscriptionFactory {
       let endAt: Date;
 
       if (existingSubscription && existingSubscription.endAt) {
-        let itemdetail = await this.itemService.getItemDetail(existingSubscription?.notes?.itemId)
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
 
         let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
