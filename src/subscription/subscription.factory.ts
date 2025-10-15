@@ -120,7 +120,7 @@ export class SubscriptionFactory {
       let startAt: Date;
       let endAt: Date;
 
-      if (existingSubscription && existingSubscription.endAt) {
+      if (existingSubscription) {
         let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
         let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
@@ -128,7 +128,7 @@ export class SubscriptionFactory {
           EsubscriptionStatus.failed,
         ]);
 
-        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
 
         let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
         let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
@@ -1224,7 +1224,7 @@ export class SubscriptionFactory {
       let startAt: Date;
       let endAt: Date;
 
-      if (existingSubscription && existingSubscription.endAt) {
+      if (existingSubscription) {
         let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
         let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
@@ -1232,7 +1232,7 @@ export class SubscriptionFactory {
           EsubscriptionStatus.failed,
         ]);
 
-        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
 
         let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
         let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
