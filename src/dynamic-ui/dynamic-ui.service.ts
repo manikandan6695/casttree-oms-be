@@ -1504,12 +1504,20 @@ export class DynamicUiService {
 
   async getRoleList() {
     try {
-      const roles = await this.roleModel
-        .find({
-          status: EStatus.Active,
-        })
-        .select("_id role_name")
-        .lean();
+      const roles = await this.categoryModel.aggregate([
+        {
+          $match: {
+            category_type: "role",
+            status: EStatus.Active,
+          },
+        },
+        {
+          $project: { 
+            _id: 1,
+            role_name: "$category_name"
+          },
+        },
+      ]);
 
       // console.log("roles", roles);
       return roles;
@@ -1777,7 +1785,10 @@ export class DynamicUiService {
           { session }
         );
 
-        const role = await this.roleModel.aggregate([
+        data.roles.map((id) => {
+          console.log(id);
+        })
+        const role = await this.categoryModel.aggregate([
           {
             $match: {
               _id: { $in: data.roles.map((id) => new ObjectId(id)) },
@@ -1786,7 +1797,7 @@ export class DynamicUiService {
           {
             $project: {
               _id: 1,
-              role_name: 1,
+              role_name: "$category_name",
             },
           },
         ]);
