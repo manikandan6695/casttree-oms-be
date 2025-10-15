@@ -70,7 +70,7 @@ import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { ConfigService } from "@nestjs/config";
 import { EAchievementType } from "src/item/enum/achievement.enum";
 import { ICurrencyModel } from "src/shared/schema/currency.schema";
-import { ESeriesTag } from "./enum/series-tag.enum";
+import { ESeriesTag, ERoleTag } from "./enum/series-tag.enum";
 import { RedisService } from "src/redis/redis.service";
 
 const { ObjectId } = require("mongodb");
@@ -1650,7 +1650,7 @@ export class DynamicUiService {
       const roles = await this.categoryModel.aggregate([
         {
           $match: {
-            category_type: "role",
+            category_type: ERoleTag.role,
             status: EStatus.Active,
           },
         },
@@ -1882,7 +1882,7 @@ export class DynamicUiService {
           { session }
         ); // Pass session to create operation
         const processId = newProcess[0]._id; // Note: create with session returns array
-        console.log("processId", processId);
+        // console.log("processId", processId);
 
         // Fetch language data
         const languageIds = data.languages.map((id) => new ObjectId(id));
@@ -1960,9 +1960,6 @@ export class DynamicUiService {
           { session }
         );
 
-        data.roles.map((id) => {
-          console.log(id);
-        })
         const role = await this.categoryModel.aggregate([
           {
             $match: {
@@ -2097,7 +2094,7 @@ export class DynamicUiService {
         ); // Pass session to create operation
 
         const serviceItemId = newServiceItem[0]._id;
-        console.log("newServiceItem id", serviceItemId);
+        // console.log("newServiceItem id", serviceItemId);
 
         // console.log("tags at last", tags)
       });
