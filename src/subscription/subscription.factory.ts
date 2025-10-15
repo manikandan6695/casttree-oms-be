@@ -116,12 +116,42 @@ export class SubscriptionFactory {
         payment_method: { upi: { channel: "link" } },
       };
       const auth = await this.helperService.createAuth(authData);
-      let endDate = new Date(bodyData?.firstCharge);
-      let endAt = endDate.setHours(23, 59, 59, 999);
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
+
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        startAt = new Date();
+        let endDate = new Date(bodyData?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }
       const subscriptionData = {
         userId: token.id,
         planId: subscription?.plan_details?.plan_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 2,
         provider: EProvider.cashfree,
@@ -1190,15 +1220,43 @@ export class SubscriptionFactory {
       // console.log("fv is", fv);
 
       const subscription = await this.helperService.addSubscription(fv);
-      let endDate = new Date(data?.firstCharge);
-      endDate.setHours(23, 59, 59, 999); // modifies in-place
-      let endAt = endDate;
-      // console.log("endAt is", endAt);
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
+
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        startAt = new Date();
+        let endDate = new Date(data?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }
 
       const subscriptionData = {
         userId: token.id,
         subscriptionId: data?.subscription_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 1,
         provider: EProvider.razorpay,

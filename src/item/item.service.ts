@@ -213,4 +213,56 @@ export class ItemService {
       throw err;
     }
   }
+  async getGroupedItemDetail(itemId: string) {
+    try {
+      const result = await this.itemModel.aggregate([
+        {
+          $match: {
+            _id: new Types.ObjectId(itemId)
+          }
+        },
+        {
+          $lookup: {
+            from: 'item',
+            let: { groupId: '$itemGroupId' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$itemGroupId', '$$groupId'] },
+                      { $eq: ['$additionalDetail.subscriptiontype', 'yearly'] }
+                    ]
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  learnBottomSheet: '$additionalDetail.learnBottomSheet'
+                }
+              },
+              {
+                $limit: 1
+              }
+            ],
+            as: 'groupedItems'
+          }
+        },
+        {
+          $project: {
+            itemId: { $arrayElemAt: ['$groupedItems._id', 0] },
+            learnBottomSheet: { $arrayElemAt: ['$groupedItems.learnBottomSheet', 0] }
+          }
+        }
+      ]);
+      return {
+        itemId: result[0].itemId,
+        learnBottomSheet: result[0].learnBottomSheet
+      };
+    }
+    catch(error){
+      throw error;
+    }
+  }
 }
