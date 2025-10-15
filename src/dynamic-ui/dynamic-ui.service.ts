@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Model, Connection, ClientSession } from "mongoose";
+import * as Sentry from "@sentry/nestjs";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
@@ -138,6 +139,14 @@ export class DynamicUiService {
 
   async getNavBarDetails(token: any, key: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getNavBarDetails",
+        level: "info",
+        data: {
+          token,
+          key,
+        },
+      });
       let data = await this.appNavBarModel
         .findOne({
           key: key,
@@ -161,6 +170,14 @@ export class DynamicUiService {
 
   async matchRoleByUser(token, tabs) {
     try {
+      Sentry.addBreadcrumb({
+        message: "matchRoleByUser",
+        level: "info",
+        data: {
+          token,
+          tabs,
+        },
+      });
       const profileArr = await this.helperService.getProfileByIdTl([token.id]);
       const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
       const userRoleIds = (profile?.roles || []).map(
@@ -194,6 +211,17 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getPageDetails",
+        level: "info",
+        data: {
+          token,
+          pageId,
+          skip,
+          limit,
+          filterOption,
+        },
+      });
       const normalizedFilters = filterOption
         ? Object.keys(filterOption)
             .sort()
@@ -395,6 +423,17 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getComponent",
+        level: "info",
+        data: {
+          token,
+          componentId,
+          skip,
+          limit,
+          filterOption,
+        },
+      });
       let component = await this.componentModel
         .findOne({ _id: componentId, status: EStatus.Active })
         .lean();
@@ -821,6 +860,18 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "fetchServiceItemDetails",
+        level: "info",
+        data: {
+          data,
+          userId,
+          isPagination,
+          skip,
+          limit,
+          filterOption,
+        },
+      });
       const skillId = data.metaData?.skillId;
       if (!skillId) return { finalData: {}, count: 0 };
 
@@ -979,6 +1030,14 @@ export class DynamicUiService {
 
   async fetchContinueWatching(userId: string, processIds: string[]) {
     try {
+      Sentry.addBreadcrumb({
+        message: "fetchContinueWatching",
+        level: "info",
+        data: {
+          userId,
+          processIds,
+        },
+      });
       let pendingProcessInstanceData =
         await this.processService.allPendingProcess(userId, processIds);
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
@@ -1030,6 +1089,18 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "fetchUserPreferenceBanner",
+        level: "info",
+        data: {
+          isNewSubscription,
+          userId,
+          userProcessedSeries,
+          components,
+          countryCode,
+          isSubscriber,
+        },
+      });
       const personalizedBannerComponent = components.find(
         (c) => c.type === EComponentType.userPreferenceBanner
       );
@@ -1111,6 +1182,14 @@ export class DynamicUiService {
 
   async evaluateCountryRule(ruleCountry, userCountry) {
     try {
+      Sentry.addBreadcrumb({
+        message: "evaluateCountryRule",
+        level: "info",
+        data: {
+          ruleCountry,
+          userCountry,
+        },
+      });
       if (!ruleCountry) return true;
 
       if (
@@ -1133,6 +1212,15 @@ export class DynamicUiService {
     isSubscriber: boolean
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "fetchSingleAdBanner",
+        level: "info",
+        data: {
+          isNewSubscription,
+          userId,
+          isSubscriber,
+        },
+      });
       const { data: { country_code: countryCode } = {} } =
         await this.helperService.getUserById(userId);
 
@@ -1191,6 +1279,13 @@ export class DynamicUiService {
 
   async getMentorUserIds(processId) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getMentorUserIds",
+        level: "info",
+        data: {
+          processId,
+        },
+      });
       let mentorUserIds: any = await this.serviceItemModel
         .find(
           {
@@ -1244,6 +1339,14 @@ export class DynamicUiService {
 
   async createOrUpdateUserPreference(userId: string, payload) {
     try {
+      Sentry.addBreadcrumb({
+        message: "createOrUpdateUserPreference",
+        level: "info",
+        data: {
+          userId,
+          payload,
+        },
+      });
       payload.userId = new ObjectId(userId);
       payload.isLatest = true;
       payload.status = EStatus.Active;
@@ -1295,6 +1398,11 @@ export class DynamicUiService {
 
   async componentFilterOptions() {
     try {
+      Sentry.addBreadcrumb({
+        message: "componentFilterOptions",
+        level: "info",
+        data: {},
+      });
       let filter = await this.filterTypeModel.find({
         isActive: true,
       });
@@ -1314,6 +1422,14 @@ export class DynamicUiService {
 
   async updatePageComponents(pageId: string, updateDto: EUpdateComponents) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updatePageComponents",
+        level: "info",
+        data: {
+          pageId,
+          updateDto,
+        },
+      });
       // console.log("Updating page components:", pageId);
       // console.log("componentIds:", updateDto.components);
 
@@ -1381,6 +1497,13 @@ export class DynamicUiService {
 
   async updateSeriesTag(data: EUpdateSeriesTag) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updateSeriesTag",
+        level: "info",
+        data: {
+          data,
+        },
+      });
       const { tag, selected: series, componentId, unselected } = data;
       const compId = new ObjectId(componentId);
 
@@ -1443,6 +1566,11 @@ export class DynamicUiService {
 
   async getFilterOptions() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getFilterOptions",
+        level: "info",
+        data: {},
+      });
       const proficiencyOptions = await this.filterOptionsModel
         .find({
           filterType: EItemType.proficiency,
@@ -1472,6 +1600,11 @@ export class DynamicUiService {
 
   async getExpertList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getExpertList",
+        level: "info",
+        data: {},
+      });
       const experts = await this.profileModel
         .find({
           type: "Expert",
@@ -1488,6 +1621,11 @@ export class DynamicUiService {
 
   async getSkillList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getSkillList",
+        level: "info",
+        data: {},
+      });
       const skills = await this.skillModel
         .find({
           status: EStatus.Active,
@@ -1504,6 +1642,11 @@ export class DynamicUiService {
 
   async getRoleList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getRoleList",
+        level: "info",
+        data: {},
+      });
       const roles = await this.categoryModel.aggregate([
         {
           $match: {
@@ -1528,6 +1671,11 @@ export class DynamicUiService {
 
   async getLanguageList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getLanguageList",
+        level: "info",
+        data: {},
+      });
       const languages = await this.languageModel
         .find({})
         .select("_id language_name")
@@ -1540,6 +1688,11 @@ export class DynamicUiService {
 
   async getTagList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getTagList",
+        level: "info",
+        data: {},
+      });
       const components = await this.componentModel.aggregate([
         {
           $match: {
@@ -1564,6 +1717,11 @@ export class DynamicUiService {
 
   async getProItem() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getProItem",
+        level: "info",
+        data: {},
+      });
       const proItem = await this.itemModel.find({ itemName: "PRO" })
         .select("_id itemName price").lean();
       return proItem;
@@ -1574,6 +1732,11 @@ export class DynamicUiService {
 
   async getSeriesData() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getSeriesData",
+        level: "info",
+        data: {},
+      });
       const getSeriesData = {
         filterOptions: await this.getFilterOptions(),
         experts: await this.getExpertList(),
@@ -1592,6 +1755,11 @@ export class DynamicUiService {
 
   async getCurrencyList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getCurrencyList",
+        level: "info",
+        data: {},
+      });
       const currencies = await this.currencyModel
         .find({})
         .sort({ _id: -1 })
@@ -1607,6 +1775,13 @@ export class DynamicUiService {
     // Start a session for the transaction
     const session = await this.connection.startSession();
     try {
+      Sentry.addBreadcrumb({
+        message: "addNewSeries",
+        level: "info",
+        data: {
+          data,
+        },
+      });
       // console.log("data", JSON.stringify(data, null, 2));
       // Start the transaction
       await session.withTransaction(async () => {
@@ -1945,6 +2120,13 @@ export class DynamicUiService {
    * Process advertisement episode metadata
    */
   private async processAdvertisementEpisode(episode: any, session: any) {
+    Sentry.addBreadcrumb({
+      message: "processAdvertisementEpisode",
+      level: "info",
+      data: {
+        episode,
+      },
+    });
     const processedMedia = await Promise.all(
       episode.taskMetaData.media.map(async (media) => {
         let mediaId = media.mediaId.toString();
@@ -1984,6 +2166,13 @@ export class DynamicUiService {
    * Process break episode metadata
    */
   private async processBreakEpisode(episode: any, session: any) {
+    Sentry.addBreadcrumb({
+      message: "processBreakEpisode",
+      level: "info",
+      data: {
+        episode,
+      },
+    });
     const processedMedia = await Promise.all(
       episode.taskMetaData.media.map(async (media) => {
         let mediaId = media.mediaId.toString();
@@ -2020,6 +2209,13 @@ export class DynamicUiService {
    * Process Q&A episode metadata
    */
   private async processQAEpisode(episode: any, session: any) {
+    Sentry.addBreadcrumb({
+      message: "processQAEpisode",
+      level: "info",
+      data: {
+        episode,
+      },
+    });
     const qaMetaData = episode.taskMetaData as any;
 
     // Handle media if present (some Q&A might not have media)
@@ -2071,6 +2267,13 @@ export class DynamicUiService {
    * Process default episode metadata (video/audio episodes)
    */
   private async processDefaultEpisode(episode: any, session: any) {
+    Sentry.addBreadcrumb({
+      message: "processDefaultEpisode",
+      level: "info",
+      data: {
+        episode,
+      },
+    });
     const processedMedia = await Promise.all(
       episode.taskMetaData.media.map(async (media) => {
         if (media.type === "story" && media.mediaId) {
@@ -2102,6 +2305,13 @@ export class DynamicUiService {
 
   async addNewEpisodes(data: AddNewEpisodesDto) {
     try {
+      Sentry.addBreadcrumb({
+        message: "addNewEpisodes",
+        level: "info",
+        data: {
+          data,
+        },
+      });
       // Start a session for the transaction
       const session = await this.taskModel.db.startSession();
 
@@ -2177,6 +2387,13 @@ export class DynamicUiService {
 
   async addNewAchievement(payload: AddAchievementDto) {
     try {
+      Sentry.addBreadcrumb({
+        message: "addNewAchievement",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const uploadData = {
         key: EAchievementType.course_complete,
         title: EAchievementType.title,
@@ -2208,6 +2425,13 @@ export class DynamicUiService {
 
   async updateEpisodeMedia(payload: { seriesId: string }) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updateEpisodeMedia",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const seriesId = payload.seriesId;
 
       // First, get all tasks with their media
@@ -2333,6 +2557,13 @@ export class DynamicUiService {
     type: string;
   }) {
     try {
+      Sentry.addBreadcrumb({
+        message: "addGiftGroup",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("payload", payload);
       const findGroup = await this.virtualItemGroupModel.findOne({
         _id: payload.giftGroupId,
@@ -2358,6 +2589,11 @@ export class DynamicUiService {
 
   async getVirtualItemGroup() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getVirtualItemGroup",
+        level: "info",
+        data: {},
+      });
       const res = await this.virtualItemGroupModel.aggregate().project({
         _id: 1,
         virtualItemGroupName: 1,
@@ -2370,6 +2606,13 @@ export class DynamicUiService {
 
   async getVirtualItemList(type: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getVirtualItemList",
+        level: "info",
+        data: {
+          type,
+        },
+      });
       const res = await this.virtualItemModel
         .aggregate([
           {
@@ -2391,6 +2634,13 @@ export class DynamicUiService {
 
   async createVirtualItem(payload: CreateVirtualItemDto) {
     try {
+      Sentry.addBreadcrumb({
+        message: "createVirtualItem",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const uploadData = {
         name: payload.name,
         type: payload.type, // Now handles both "queries" and "gift"
@@ -2447,6 +2697,13 @@ export class DynamicUiService {
     giftIds: string[];
   }) {
     try {
+      Sentry.addBreadcrumb({
+        message: "createVirtualItemGroup",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // console.log("payload", payload);
       const uploadData = {
         source: [],
@@ -2463,6 +2720,13 @@ export class DynamicUiService {
 
   async mapVirtualItemToSeries(payload: MapVirtualItemToSeriesDto) {
     try {
+      Sentry.addBreadcrumb({
+        message: "mapVirtualItemToSeries",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       const compId = payload.seriesId ? payload.seriesId : payload.awardId;
       const compType = payload.seriesId ? "process" : "award";
       const itemIds = payload.itemIds;
@@ -2497,6 +2761,11 @@ export class DynamicUiService {
 
   async getAwardList() {
     try {
+      Sentry.addBreadcrumb({
+        message: "getAwardList",
+        level: "info",
+        data: {},
+      });
       const res = await this.awardsModel.find({}).select("_id title");
       return res;
     } catch (error) {
@@ -2509,6 +2778,13 @@ export class DynamicUiService {
     session?: ClientSession
   ): Promise<string | null> {
     try {
+      Sentry.addBreadcrumb({
+        message: "lookupStoryMediaLocation",
+        level: "info",
+        data: {
+          mediaId,
+        },
+      });
       let query = this.mediaModel
         .findOne({ _id: new ObjectId(mediaId.toString()) })
         .select("location");
@@ -2528,6 +2804,16 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getFilterComponent",
+        level: "info",
+        data: {
+          token,
+          componentId,
+          query,
+          filterOption,
+        },
+      });
       const { skip, limit } = query;
       const [baseComponent, actualComponent, page] =
         await this.fetchBaseComponents(componentId);
@@ -2607,6 +2893,13 @@ export class DynamicUiService {
   }
 
   private async fetchBaseComponents(componentId: string) {
+    Sentry.addBreadcrumb({
+      message: "fetchBaseComponents",
+      level: "info",
+      data: {
+        componentId,
+      },
+    });
     const [baseComponent, actualComponent, page] = await Promise.all([
       this.componentModel
         .findOne({
@@ -2638,6 +2931,18 @@ export class DynamicUiService {
     limit: number,
     filterOption: EFilterOption
   ) {
+    Sentry.addBreadcrumb({
+      message: "fetchServiceItemData",
+      level: "info",
+      data: {
+        page,
+        userId,
+        tagName,
+        skip,
+        limit,
+        filterOption,
+      },
+    });
     let serviceItemData;
     let filteredData: any[] = [];
 
@@ -2645,14 +2950,15 @@ export class DynamicUiService {
       serviceItemData = await this.fetchServiceItemDetails(
         page,
         userId,
-        true,
-        skip,
-        limit,
+        false,
+        0,
+        0,
         filterOption
       );
 
       if (tagName && serviceItemData?.finalData?.[tagName]) {
-        filteredData = serviceItemData.finalData[tagName];
+        const allTagData = serviceItemData.finalData[tagName];
+        filteredData = allTagData.slice(skip, skip + limit);
       }
     }
 
@@ -2663,6 +2969,14 @@ export class DynamicUiService {
     finalInteractionData: any[],
     filterOption: EFilterOption
   ) {
+    Sentry.addBreadcrumb({
+      message: "processFilterOptions",
+      level: "info",
+      data: {
+        finalInteractionData,
+        filterOption,
+      },
+    });
     const componentFilterTypes = this.extractFilterTypes(finalInteractionData);
     const availableFilterOptions = await this.componentFilterOptions();
 
@@ -2680,6 +2994,13 @@ export class DynamicUiService {
   }
 
   private extractFilterTypes(finalInteractionData: any[]): string[] {
+    Sentry.addBreadcrumb({
+      message: "extractFilterTypes",
+      level: "info",
+      data: {
+        finalInteractionData,
+      },
+    });
     const componentFilterTypes: string[] = [];
 
     if (finalInteractionData.length > 0) {
@@ -2698,6 +3019,13 @@ export class DynamicUiService {
   }
 
   private groupFilterOptions(filteredOptions: any[]) {
+    Sentry.addBreadcrumb({
+      message: "groupFilterOptions",
+      level: "info",
+      data: {
+        filteredOptions,
+      },
+    });
     return filteredOptions.reduce((acc, opt) => {
       if (!acc[opt.filterType]) {
         acc[opt.filterType] = {
@@ -2718,6 +3046,14 @@ export class DynamicUiService {
   }
 
   private applyUserSelections(grouped: any, filterOption: EFilterOption) {
+    Sentry.addBreadcrumb({
+      message: "applyUserSelections",
+      level: "info",
+      data: {
+        grouped,
+        filterOption,
+      },
+    });
     if (!filterOption) return;
 
     Object.keys(filterOption).forEach((filterKey) => {
@@ -2744,6 +3080,16 @@ export class DynamicUiService {
     processedFilterOptions: any,
     filteredData: any[]
   ) {
+    Sentry.addBreadcrumb({
+      message: "updateBaseComponentWithFilterData",
+      level: "info",
+      data: {
+        baseComponent,
+        finalInteractionData,
+        processedFilterOptions,
+        filteredData,
+      },
+    });
     if (baseComponent?.interactionData) {
       const groupedOptionsMap = new Map();
       Object.values(processedFilterOptions).forEach(
@@ -2796,6 +3142,16 @@ export class DynamicUiService {
     userId: string,
     filterOption: EFilterOption
   ): Promise<number> {
+    Sentry.addBreadcrumb({
+      message: "calculateTotalCount",
+      level: "info",
+      data: {
+        serviceItemData,
+        tagName,
+        userId,
+        filterOption,
+      },
+    });
     if (tagName && serviceItemData?.finalData?.[tagName]) {
       return await this.getTagNameTotalCount(
         serviceItemData,
@@ -2888,6 +3244,15 @@ export class DynamicUiService {
     filterOption?: EFilterOption
   ): Promise<any> {
     try {
+      Sentry.addBreadcrumb({
+        message: "getComponentFilterOptions",
+        level: "info",
+        data: {
+          componentId,
+          token,
+          filterOption,
+        },
+      });
       const componentObjectId = new ObjectId(componentId);
 
       // Step 1: Fetch filterTypes and filterOptions in parallel
@@ -2977,6 +3342,16 @@ export class DynamicUiService {
     userId: string,
     filterOption: EFilterOption
   ): Promise<number> {
+    Sentry.addBreadcrumb({
+      message: "getTagNameTotalCount",
+      level: "info",
+      data: {
+        serviceItemData,
+        tagName,
+        userId,
+        filterOption,
+      },
+    });
     const tagData = serviceItemData?.finalData?.[tagName];
     if (tagData) {
       return tagData.length;
@@ -3015,6 +3390,6 @@ export class DynamicUiService {
       }
     }
 
-    return serviceItemData?.finalData?.[tagName]?.length || 0;
+    return 0;
   }
 }

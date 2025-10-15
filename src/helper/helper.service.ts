@@ -1841,4 +1841,40 @@ export class HelperService {
       throw error;
     }
   }
+  async getUserRatings(rawToken) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings`,
+          // `http://localhost:3200/casttree-ratings/ratings`,
+          {
+            headers: {
+              Authorization: `${rawToken}`,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserNominations(rawToken) {
+    try {
+      let data = await this.http_service
+      .get(
+         `${this.configService.get("CASTTREE_BASE_URL")}/nominations/user-nominations`,
+        // `http://localhost:3000/casttree/nominations/user-nominations`,
+        {
+          headers: {
+            Authorization: `${rawToken}`,
+          },
+        }
+      )
+      .toPromise();
+    return data.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

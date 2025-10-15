@@ -98,6 +98,13 @@ export const videoDescriptionSchema = new mongoose.Schema<any>({
     type: String,
   },
 });
+export interface learnBottomSheetModel {
+  title: string;
+  type: string;
+  subTitle: string;
+  description: string;
+  button: string;
+}
 export interface itemAdditionalDetailModel {
   meetingLink: string;
   registrationExpiry: Date;
@@ -133,6 +140,7 @@ export interface itemAdditionalDetailModel {
   badgeColour: string;
   validity: string;
   skipText: string;
+  learnBottomSheet: learnBottomSheetModel;
 }
 
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({

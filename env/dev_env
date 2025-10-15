@@ -72,13 +72,14 @@ IP_API_KEY = "70f8e58691f340c9acdbe269fa2524de"
 
 
 #CASHFREE 
-CASHFREE_BASE_URL = "https://api.cashfree.com"
-CASHFREE_CLIENT_ID = "911693c90631e069e7a08f1dd6396119"
-CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_8def56e7f5ae5bb5a082088b27a3b394_a90895ec"
 
-# CASHFREE_BASE_URL = "https://api.cashfree.com"
-# CASHFREE_CLIENT_ID = "911693c90631e069e7a08f1dd6396119"
-# CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_8def56e7f5ae5bb5a082088b27a3b394_a90895ec"
+CASHFREE_BASE_URL = "https://sandbox.cashfree.com"
+CASHFREE_CLIENT_ID = "TEST1047923441098b36b9bcdb3f532b43297401"
+CASHFREE_CLIENT_SECRET = "cfsk_ma_test_7fe060dcf4a1e50f609ddaa8b2933b09_79bd6d3d"
+
+;  CASHFREE_BASE_URL = "https://api.cashfree.com"
+;  CASHFREE_CLIENT_ID = "911693c90631e069e7a08f1dd6396119"
+;  CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_8def56e7f5ae5bb5a082088b27a3b394_a90895ec"
 
 # amount conversion key
 EXCHANGE_RATE_API_KEY=585a96653a72b35e93c3d052
@@ -112,3 +113,6 @@ MIXPANEL_API_SECRET = "7d8ce9abef940aace41f2e285f25d82a"
 ; #MSG91
 ; MSG91_EMAIL_END_POINT = "https://control.msg91.com/api/v5/email/send"
 ; MSG91_WHATSAPP_END_POINT = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+
+# Sentry
+SENTRY_DSN = "https://4b55b2c9416e579d80aafeb47e12450e@sentry-dev.casttree.in/6"
