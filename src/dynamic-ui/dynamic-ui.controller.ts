@@ -128,10 +128,11 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("series-filter/:componentId")
+  @Get("series-filter/:componentId/:skillId")
   async getFilterComponent(
     @Req() req,
     @Param("componentId") componentId: string,
+    @Param("skillId") skillId: string,
     @GetToken() token: UserToken,
     @Query(new ValidationPipe({ whitelist: true }))
     query: ComponentFilterQueryDto,
@@ -141,6 +142,7 @@ export class DynamicUiController {
       let data = await this.dynamicUIService.getFilterComponent(
         token,
         componentId,
+        skillId,
         query,
         filterOption
       );

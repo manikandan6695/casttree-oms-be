@@ -2513,13 +2513,14 @@ export class DynamicUiService {
   async getFilterComponent(
     token: UserToken,
     componentId: string,
+    skillId: string,
     query: ComponentFilterQueryDto,
     filterOption: EFilterOption
   ) {
     try {
       const { skip, limit } = query;
       const [baseComponent, actualComponent, page] =
-        await this.fetchBaseComponents(componentId);
+        await this.fetchBaseComponents(componentId,skillId);
       if (!baseComponent) {
         throw new NotFoundException("Filter component not found");
       }
@@ -2595,7 +2596,7 @@ export class DynamicUiService {
     }
   }
 
-  private async fetchBaseComponents(componentId: string) {
+  private async fetchBaseComponents(componentId: string,skillId: string) {
     const [baseComponent, actualComponent, page] = await Promise.all([
       this.componentModel
         .findOne({
@@ -2612,6 +2613,7 @@ export class DynamicUiService {
       this.contentPageModel
         .findOne({
           "components.componentId": componentId,
+          "metaData.skillId": new ObjectId(skillId),
         })
         .lean(),
     ]);
@@ -2787,12 +2789,7 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ): Promise<number> {
     if (tagName && serviceItemData?.finalData?.[tagName]) {
-      return await this.getTagNameTotalCount(
-        serviceItemData,
-        tagName,
-        userId,
-        filterOption
-      );
+      return serviceItemData.finalData[tagName].length;
     }
     return 0;
   }
