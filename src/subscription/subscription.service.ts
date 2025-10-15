@@ -1124,6 +1124,7 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if(mandate){
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
@@ -1156,6 +1157,7 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
+    }
     } catch (err) {
       throw err;
     }
@@ -1168,6 +1170,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+      if(mandate){
       if (mandate.mandateStatus === EDocumentStatus.active) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
@@ -1202,6 +1205,7 @@ export class SubscriptionService {
         };
         await this.helperService.mixPanel(mixPanelBody);
       }
+    }
     } catch (err) {
       throw err;
     }
@@ -1214,6 +1218,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
+     if (mandate) {
       let data = await this.mandateService.updateMandateDetail(
         { _id: mandate?._id },
         { mandateStatus: EMandateStatus.rejected }
@@ -1226,6 +1231,7 @@ export class SubscriptionService {
         createdBy: payload?.token?.entity?.notes?.userId,
         updatedBy: payload?.token?.entity?.notes?.userId,
       });
+     }
     } catch (err) {
       throw err;
     }
@@ -1809,14 +1815,23 @@ export class SubscriptionService {
         }
 
         // console.log(userIds);
-
-        let updateBody = {
-          userId: badgeRemovalUserIds,
-          membership: "",
-          badge: "",
-        };
+        for (const userId of badgeRemovalUserIds) {
+          let userActiveSubscription = await this.subscriptionModel.findOne({
+            userId: userId,
+            status: EStatus.Active,
+            subscriptionStatus: EsubscriptionStatus.active,
+          });
+                    
+          if (!userActiveSubscription) {
+            let updateBody = {
+              userId: userId,
+              membership: "",
+              badge: "",
+            };
         // console.log(updateBody);
-        await this.helperService.updateUsers(updateBody);
+            await this.helperService.updateUsers(updateBody);
+          }
+        }
       }
     } catch (err) {
       throw err;
@@ -2760,6 +2775,68 @@ export class SubscriptionService {
         .sort({ createdAt: 1 })
         .lean();
       return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getSubscriptionByUserId(userId: string) {
+    try {
+      let subscription = await this.subscriptionModel.findOne({
+        userId: new ObjectId(userId),
+        status: EStatus.Active,
+        subscriptionStatus: EsubscriptionStatus.active,
+      }).sort({ _id: -1 });
+      return subscription;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
+    try {
+      let existingSubscription = await this.getSubscriptionByUserId(token.id);
+      if (existingSubscription) {
+        const [userRatingInfo, userNominationsInfo] = await Promise.all([
+          this.helperService.getUserRatings(rawToken),
+          this.helperService.getUserNominations(rawToken),
+        ]);
+
+        let userSubscription = await this.subscriptionModel.find({
+          userId: new ObjectId(token.id),
+          status: EStatus.Active,
+          amount: { $gt: 20 },
+          subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
+        })
+
+        const isEligible = userRatingInfo.length > 3 || userNominationsInfo.length > 2 || userSubscription.length > 2;
+        if(isEligible){
+        let itemId = existingSubscription?.notes?.itemId;
+        let itemData = await this.itemService.getGroupedItemDetail(
+          itemId
+        );
+        let subscriptionData = await this.subscriptionModel.findOne({
+          status: EStatus.Active,
+          subscriptionStatus: EsubscriptionStatus.active,
+          userId: new ObjectId(token.id),
+          notes: { itemId: itemData?.itemId.toString() },
+         });
+
+        let isEnableCart = subscriptionData ? false : true;
+        let data = {
+          itemId: itemData?.itemId,
+          title: itemData?.learnBottomSheet?.title,
+          type: itemData?.learnBottomSheet?.type,
+          subTitle: itemData?.learnBottomSheet?.subTitle,
+          description:
+            itemData?.learnBottomSheet?.description,
+          button: itemData?.learnBottomSheet?.button,
+          isEnableCart,
+        };
+        return { data };
+        }
+        return { data: { isEnableCart: false } };
+      }
+      return { data: { isEnableCart: false } };
     } catch (error) {
       throw error;
     }

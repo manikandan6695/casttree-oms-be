@@ -2644,14 +2644,15 @@ export class DynamicUiService {
       serviceItemData = await this.fetchServiceItemDetails(
         page,
         userId,
-        true,
-        skip,
-        limit,
+        false,
+        0,
+        0,
         filterOption
       );
 
       if (tagName && serviceItemData?.finalData?.[tagName]) {
-        filteredData = serviceItemData.finalData[tagName];
+        const allTagData = serviceItemData.finalData[tagName];
+        filteredData = allTagData.slice(skip, skip + limit);
       }
     }
 
@@ -2898,11 +2899,6 @@ export class DynamicUiService {
     userId: string,
     filterOption: EFilterOption
   ): Promise<number> {
-    const tagData = serviceItemData?.finalData?.[tagName];
-    if (tagData) {
-      return tagData.length;
-    }
-
     let page = serviceItemData?.page ?? null;
 
     if (!page) {
@@ -2936,6 +2932,6 @@ export class DynamicUiService {
       }
     }
 
-    return serviceItemData?.finalData?.[tagName]?.length || 0;
+    return 0;
   }
 }
