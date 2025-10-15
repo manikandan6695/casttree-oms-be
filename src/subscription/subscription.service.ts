@@ -1051,12 +1051,14 @@ export class SubscriptionService {
       // console.log("failure details is", payload?.data?.failure_details);
       let body = {
         document_status: EPaymentStatus.failed,
-        reason: failedReason,
+        reason: {
+          failureReason: failedReason,
+        },
       };
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(cfPaymentId);
       // console.log("paymentRecord", paymentRecord);
-
+      if(paymentRecord){
       await this.paymentService.updateMetaData(
         paymentRecord._id as string,
         payload
@@ -1078,6 +1080,7 @@ export class SubscriptionService {
         { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
       );
       return { message: "Updated Successfully" };
+    }
     } catch (err) {
       throw err;
     }
