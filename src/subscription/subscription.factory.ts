@@ -131,10 +131,15 @@ export class SubscriptionFactory {
 
       if (existingSubscription && existingSubscription.endAt) {
         let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
 
-        let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
-        let endAtValidityType = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
         
         endAt = new Date(startAt);
         if (endAtValidityType === 'day') {
@@ -1178,10 +1183,15 @@ export class SubscriptionFactory {
       if (existingSubscription && existingSubscription.endAt) {
         let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
         startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
 
-        let endAtValidity = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity
-        let endAtValidityType = itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType
-        
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
         endAt = new Date(startAt);
         if (endAtValidityType === 'day') {
           endAt.setDate(endAt.getDate() + endAtValidity);
