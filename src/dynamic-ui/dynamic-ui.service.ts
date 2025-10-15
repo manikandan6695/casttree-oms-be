@@ -33,7 +33,7 @@ import { IItemModel } from "src/item/schema/item.schema";
 import { processModel } from "src/process/schema/process.schema";
 import { EprofileType } from "src/item/enum/profileType.enum";
 import { EItemType } from "src/item/enum/item-type.enum";
-import { ESeriesTag } from "src/dynamic-ui/enum/series-tag.enum";
+import { ESeriesTag, ERoleTag } from "src/dynamic-ui/enum/series-tag.enum";
 import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
@@ -1451,7 +1451,7 @@ export class DynamicUiService {
       }
 
       const categoryId = categoryDoc._id;
-      console.log("categoryId", categoryId);
+      // console.log("categoryId", categoryId);
 
       // Process selected series - use Promise.all for parallel execution
       series.map(async (item, index) => {
@@ -1558,12 +1558,20 @@ export class DynamicUiService {
 
   async getRoleList() {
     try {
-      const roles = await this.roleModel
-        .find({
-          status: EStatus.Active,
-        })
-        .select("_id role_name")
-        .lean();
+      const roles = await this.categoryModel.aggregate([
+        {
+          $match: {
+            category_type: ERoleTag.role,
+            status: EStatus.Active,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            role_name: "$category_name",
+          },
+        },
+      ]);
 
       // console.log("roles", roles);
       return roles;
@@ -1754,7 +1762,7 @@ export class DynamicUiService {
           { session }
         ); // Pass session to create operation
         const processId = newProcess[0]._id; // Note: create with session returns array
-        console.log("processId", processId);
+        // console.log("processId", processId);
 
         // Fetch language data
         const languageIds = data.languages.map((id) => new ObjectId(id));
@@ -1832,7 +1840,7 @@ export class DynamicUiService {
           { session }
         );
 
-        const role = await this.roleModel.aggregate([
+        const role = await this.categoryModel.aggregate([
           {
             $match: {
               _id: { $in: data.roles.map((id) => new ObjectId(id)) },
@@ -1841,7 +1849,7 @@ export class DynamicUiService {
           {
             $project: {
               _id: 1,
-              role_name: 1,
+              role_name: "$category_name",
             },
           },
         ]);
@@ -1966,7 +1974,7 @@ export class DynamicUiService {
         ); // Pass session to create operation
 
         const serviceItemId = newServiceItem[0]._id;
-        console.log("newServiceItem id", serviceItemId);
+        // console.log("newServiceItem id", serviceItemId);
 
         // console.log("tags at last", tags)
       });
