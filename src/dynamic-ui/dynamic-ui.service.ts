@@ -33,7 +33,7 @@ import { IItemModel } from "src/item/schema/item.schema";
 import { processModel } from "src/process/schema/process.schema";
 import { EprofileType } from "src/item/enum/profileType.enum";
 import { EItemType } from "src/item/enum/item-type.enum";
-import { ESeriesTag } from "src/dynamic-ui/enum/series-tag.enum";
+import { ESeriesTag, ERoleTag } from "src/dynamic-ui/enum/series-tag.enum";
 import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { taskModel } from "src/process/schema/task.schema";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
@@ -1451,7 +1451,7 @@ export class DynamicUiService {
       }
 
       const categoryId = categoryDoc._id;
-      console.log("categoryId", categoryId);
+      // console.log("categoryId", categoryId);
 
       // Process selected series - use Promise.all for parallel execution
       series.map(async (item, index) => {
@@ -1558,12 +1558,20 @@ export class DynamicUiService {
 
   async getRoleList() {
     try {
-      const roles = await this.roleModel
-        .find({
-          status: EStatus.Active,
-        })
-        .select("_id role_name")
-        .lean();
+      const roles = await this.categoryModel.aggregate([
+        {
+          $match: {
+            category_type: ERoleTag.role,
+            status: EStatus.Active,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            role_name: "$category_name",
+          },
+        },
+      ]);
 
       // console.log("roles", roles);
       return roles;
@@ -1617,6 +1625,7 @@ export class DynamicUiService {
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
         tags: await this.getTagList(),
+        proItem: await this.getProItem(),
       };
 
       return getSeriesData;
@@ -1633,6 +1642,18 @@ export class DynamicUiService {
         .select("_id currency_name currency_code")
         .lean();
       return currencies;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getProItem() {
+    try {
+      const proItem = await this.itemModel
+        .find({ itemName: "PRO" })
+        .select("_id itemName price")
+        .lean();
+      return proItem;
     } catch (error) {
       throw error;
     }
@@ -1688,8 +1709,8 @@ export class DynamicUiService {
                   planUserSave: "Switch to Pro and save INR 1000+",
                   subtitle:
                     "This will only unlock the series that you are currently watching",
-                  payWallVideo:
-                    "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+                  payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
                   paywallVisibility: true,
                 },
                 allowMulti: false,
@@ -1741,7 +1762,7 @@ export class DynamicUiService {
           { session }
         ); // Pass session to create operation
         const processId = newProcess[0]._id; // Note: create with session returns array
-        console.log("processId", processId);
+        // console.log("processId", processId);
 
         // Fetch language data
         const languageIds = data.languages.map((id) => new ObjectId(id));
@@ -1818,6 +1839,21 @@ export class DynamicUiService {
           ],
           { session }
         );
+
+        const role = await this.categoryModel.aggregate([
+          {
+            $match: {
+              _id: { $in: data.roles.map((id) => new ObjectId(id)) },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              role_name: "$category_name",
+            },
+          },
+        ]);
+        // console.log("role", role);
 
         const componentId = await this.componentModel
           .findOne({
@@ -1906,6 +1942,10 @@ export class DynamicUiService {
               language: language,
               status: EStatus.Active,
               itemSold: 0,
+              role: role.map((item) => ({
+                roleId: new ObjectId(item._id),
+                roleName: item.role_name,
+              })),
               skill: {
                 skillId: new ObjectId(skillIds[0]),
                 skill_name: skill[0].skill_name,
@@ -1919,16 +1959,22 @@ export class DynamicUiService {
                 parentProcessId: new ObjectId(processId),
               },
               tag: allTags,
-              priorityOrder: 2,
+              priorityOrder: 100,
               proficiency: proficiency,
               category: category,
+              planItemId: [
+                {
+                  itemName: data.proItem.itemName,
+                  itemId: data.proItem._id,
+                },
+              ],
             },
           ],
           { session }
         ); // Pass session to create operation
 
         const serviceItemId = newServiceItem[0]._id;
-        console.log("newServiceItem id", serviceItemId);
+        // console.log("newServiceItem id", serviceItemId);
 
         // console.log("tags at last", tags)
       });

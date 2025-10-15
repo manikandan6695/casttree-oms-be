@@ -23,7 +23,7 @@ export interface ILanguageModel {
 export interface IskillModel {
 
     skillId: string;
-    skillName:string;
+    skill_name:string;
    
   }
   export const skillSchema = new mongoose.Schema<any>({
@@ -33,7 +33,7 @@ export interface IskillModel {
       ref:"skills"
      
     },
-    skillName: {
+    skill_name: {
       type: String,
     },
 
