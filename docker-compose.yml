@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      # Mount your Promtail config
+      - ./promtail.yaml:/etc/promtail/config.yaml:ro
+
+      # Mount your log file
+      # 👉 REPLACE with the actual log path on your host
+      - C:/Users/sanja/Desktop/Sanjay/creedom/casttree-oms-be/logs/error.log:/logs/error.log:ro
+
+
+      # Needed for positions file
+      - /tmp:/tmp
+    command: -config.file=/etc/promtail/config.yaml
+    ports:
+      - "9080:9080"   # Optional: Promtail status page
+    restart: unless-stopped
