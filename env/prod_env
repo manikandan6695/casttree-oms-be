@@ -113,3 +113,6 @@ SCOPES="https://www.googleapis.com/auth/androidpublisher"
 #redis server 
 REDIS_URL = 'redis://:creedom_redis_prod@redis-prod.casttree.com:6379'
 REDIS_CONNECTION_TIMEOUT = 6000
+
+# Sentry
+SENTRY_DSN = "https://4b55b2c9416e579d80aafeb47e12450e@sentry-dev.casttree.in/6"

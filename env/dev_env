@@ -101,3 +101,6 @@ ENVIRONMENT=SANDBOX
 #redis server 
 REDIS_URL = 'redis://:creedom_redis_dev@2025@20.193.249.9:6379'
 REDIS_CONNECTION_TIMEOUT = 6000
+
+# Sentry
+SENTRY_DSN = "https://4b55b2c9416e579d80aafeb47e12450e@sentry-dev.casttree.in/6"
