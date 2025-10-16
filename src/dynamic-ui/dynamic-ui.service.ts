@@ -3389,4 +3389,67 @@ export class DynamicUiService {
 
     return 0;
   }
+
+  async getAllSeries(skillId?: string) {
+    try {
+      const filter = {
+        status: Estatus.Active,
+        type: EserviceItemType.courses,
+      };
+      if (skillId) {
+        filter["skill.skillId"] = new ObjectId(skillId);
+      }
+
+      const serviceitems = await this.serviceItemModel.aggregate([
+        {
+          $match: filter,
+        },
+        {
+          $lookup: {
+            from: "item",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "itemDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$itemDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            itemId: 1,
+            thumbnail: "$additionalDetails.thumbnail",
+            processId: "$additionalDetails.processId",
+            priorityOrder: 1,
+            itemName: "$itemDetails.itemName",
+          },
+        },
+      ]);
+      return serviceitems;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updatePriorityOrder(payload: any) {
+    try {
+      // Build bulk update operations
+      const bulkOps = payload.map((item) => ({
+        updateOne: {
+          filter: { itemId: item.itemId },
+          update: { $set: { priorityOrder: item.priorityOrder } },
+        },
+      }));
+
+      // Execute bulk update
+      const result = await this.serviceItemModel.bulkWrite(bulkOps);
+
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
