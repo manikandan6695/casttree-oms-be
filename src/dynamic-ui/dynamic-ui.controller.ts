@@ -316,4 +316,18 @@ export class DynamicUiController {
       throw err;
     }
   }
+  @UseGuards(JwtAuthGuard)
+  @Get("suggestions-tag")
+  async getSuggestionsTag(
+    @GetToken() token: UserToken,
+    @Query("skillId") skillId: string,
+    @Query("skillName") skillName: string
+  ) {
+    try {
+      const res = await this.dynamicUIService.getSuggestionsTag(token, skillId, skillName);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
 }

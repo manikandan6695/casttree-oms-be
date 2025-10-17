@@ -24,6 +24,7 @@ import { ISystemConfigurationModel } from "src/shared/schema/system-configuratio
 import {
   EComponentKey,
   EComponentType,
+  EConfigKeyName,
   EItemType,
 } from "./enum/component.enum";
 import {
@@ -316,6 +317,11 @@ export class DynamicUiService {
             serviceItemData.finalData[tagName].length > 10 ? true : false;
         }
       });
+      for (const comp of componentDocs) {
+        if (comp.componentKey === EComponentKey.headerActionBar) {
+          await this.updateHeaderActionBarComponent(comp, skillType, token.id);
+        }
+      }
       componentDocs.sort((a, b) => a.order - b.order);
       if (typeof limit === "number" && limit > 0) {
         const start = Math.max(
@@ -3388,5 +3394,89 @@ export class DynamicUiService {
     }
 
     return 0;
+  }
+
+  private async updateHeaderActionBarComponent(
+    component: any,
+    skillType: string,
+    userId: string
+  ) {
+    try {
+      let subscriptionData = await this.subscriptionService.validateSubscription(userId, [
+        EsubscriptionStatus.initiated,
+        EsubscriptionStatus.failed,
+      ]);
+      let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
+      
+      const isNewSubscriber = subscriptionData ? true : false;
+      let placeholder;
+      if (systemConfiguration) {
+        const skillConfig = systemConfiguration.value.find(config => 
+          config.skill === skillType
+        );
+        if (skillConfig) {
+          placeholder = `Type '${skillConfig.placeHolder}'`;
+        }
+      }
+
+        if (component.interactionData && component.interactionData.items) {
+          let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
+          const searchItem = component.interactionData.items.find(item => item.type === "search");
+          if (searchItem && searchItem.metaData) {
+            searchItem.metaData.placeholder = placeholder;
+          }
+          component.interactionData.items = component.interactionData.items.filter(item => {
+            if (item.type === "search" || item.type === "filter") {
+              return true;
+            }
+            if (isNewSubscriber && item.type === "referral-cta") {
+              return true;
+            }
+            if (!isNewSubscriber && item.type === "premium-cta") {
+              return true;
+            }
+            return false;
+          });
+
+          if (navigation && navigation.value && Array.isArray(navigation.value)) {
+            component.interactionData.items.forEach(item => {
+              if (item.type === "referral-cta" || item.type === "premium-cta") {
+                const navConfig = navigation.value.find(config => config.name === item.type);
+                if (navConfig && navConfig.navigation) {
+                  item.navigation = navConfig.navigation;
+                }
+              }
+            });
+          }
+        }
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getSuggestionsTag(token: UserToken, skillId: string, skillName: string){
+    try {
+      Sentry.addBreadcrumb({
+        message: "getSuggestionsTag",
+        level: "info",
+        data: {
+          token,
+          skillId,
+          skillName,
+        },
+      });
+      const suggestionsTag = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
+      
+      const matchedSkill = suggestionsTag.value.tags.find(tag => 
+        tag.skillId.toString() === skillId && tag.skillName === skillName
+      );
+      let data = {
+        header : suggestionsTag?.value?.header,
+        chips : matchedSkill?.chip,
+        media : suggestionsTag?.value?.media,
+      }
+      return { data };
+    } catch (error) {
+      throw error;
+    }
   }
 }
