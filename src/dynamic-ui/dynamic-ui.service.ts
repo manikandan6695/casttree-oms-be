@@ -203,6 +203,7 @@ export class DynamicUiService {
           _id: pageId,
           status: EStatus.Active,
         })
+        .sort({ order: 1 })
         .lean();
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
@@ -290,7 +291,7 @@ export class DynamicUiService {
             serviceItemData.finalData[tagName].length > 10 ? true : false;
         }
       });
-      componentDocs.sort((a, b) => a.order - b.order);
+      // componentDocs.sort((a, b) => a.order - b.order);
       data["components"] = componentDocs;
       const componentsWithInteractionData = componentDocs.filter(
         (comp) => comp.interactionData
