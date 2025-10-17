@@ -3410,6 +3410,13 @@ export class DynamicUiService {
             localField: "itemId",
             foreignField: "_id",
             as: "itemDetails",
+            pipeline: [
+              {
+                $project: {
+                  itemName: 1,
+                },
+              },
+            ],
           },
         },
         {
