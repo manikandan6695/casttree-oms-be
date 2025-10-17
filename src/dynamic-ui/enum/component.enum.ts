@@ -21,3 +21,7 @@ export enum EConfigKeyName {
   suggestionsTag = "suggestions-tag",
   dynamicHeaderNavigation = "dynamic-header-navigation"
 }
+export enum EComponentItemType {
+  search = "search",
+  badge = "badge"
+}

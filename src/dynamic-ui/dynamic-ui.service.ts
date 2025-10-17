@@ -22,6 +22,7 @@ import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import {
+  EComponentItemType,
   EComponentKey,
   EComponentType,
   EConfigKeyName,
@@ -3421,32 +3422,32 @@ export class DynamicUiService {
 
         if (component.interactionData && component.interactionData.items) {
           let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
-          const searchItem = component.interactionData.items.find(item => item.type === "search");
+          const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
           if (searchItem && searchItem.metaData) {
             searchItem.metaData.placeholder = placeholder;
           }
-          component.interactionData.items = component.interactionData.items.filter(item => {
-            if (item.type === "search" || item.type === "filter") {
-              return true;
-            }
-            if (isNewSubscriber && item.type === "referral-cta") {
-              return true;
-            }
-            if (!isNewSubscriber && item.type === "premium-cta") {
-              return true;
-            }
-            return false;
-          });
 
-          if (navigation && navigation.value && Array.isArray(navigation.value)) {
-            component.interactionData.items.forEach(item => {
-              if (item.type === "referral-cta" || item.type === "premium-cta") {
-                const navConfig = navigation.value.find(config => config.name === item.type);
-                if (navConfig && navConfig.navigation) {
-                  item.navigation = navConfig.navigation;
-                }
+          const badgeItem = component.interactionData.items.find(item => item.type === EComponentItemType.badge);
+          if (badgeItem) {
+            const navConfig = navigation?.value.find(config => config.name === isNewSubscriber);
+            if (navConfig) {
+              badgeItem.button.lable = navConfig?.lable;
+              badgeItem.button.value = navConfig?.type;
+              
+              if (isNewSubscriber && navConfig.mediaUrl) {
+                badgeItem.button.media = [{
+                  mediaId:navConfig?.mediaId,
+                  type: navConfig?.mediaType,
+                  mediaUrl: navConfig.mediaUrl
+                }];
+              } else {
+                badgeItem.button.media = [];
               }
-            });
+              
+              if (navConfig.navigation) {
+                badgeItem.navigation = navConfig.navigation;
+              }
+            }
           }
         }
     } catch (error) {
