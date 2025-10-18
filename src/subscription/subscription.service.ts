@@ -2892,6 +2892,8 @@ export class SubscriptionService {
 
   async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
     try {
+      let userData = await this.helperService.getUserByUserId(rawToken);
+      if(userData?.country_code === "IN"){
       let existingSubscription = await this.getSubscriptionByUserId(token.id);
       if (existingSubscription) {
         const [userRatingInfo, userNominationsInfo] = await Promise.all([
@@ -2933,6 +2935,8 @@ export class SubscriptionService {
         return { data: {isEnableCart: false} };
       }
       return { data: {isEnableCart: false} };
+    }
+    return { data: {isEnableCart: false} };
     } catch (error) {
       throw error;
     }
