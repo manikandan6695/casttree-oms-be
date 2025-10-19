@@ -1824,7 +1824,7 @@ export class SubscriptionService {
                     
           if (!userActiveSubscription) {
             let updateBody = {
-              userId: userId,
+              userId: [userId],
               membership: "",
               badge: "",
             };
