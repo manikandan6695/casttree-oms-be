@@ -418,7 +418,6 @@ export class DynamicUiService {
         ?.setEx(cacheKey, 30, JSON.stringify(response));
       return response;
     } catch (err) {
-      console.error("Error in getPageDetails:", err);
       throw err;
     }
   }
