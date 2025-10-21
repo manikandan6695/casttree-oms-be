@@ -3417,7 +3417,7 @@ export class DynamicUiService {
           config.skill === skillType
         );
         if (skillConfig) {
-          placeholder = `Type '${skillConfig.placeHolder}'`;
+          placeholder = `Type `;
         }
       }
 
