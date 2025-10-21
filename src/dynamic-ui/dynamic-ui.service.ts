@@ -115,8 +115,11 @@ export class DynamicUiService {
     limit: number | undefined,
     filterOption: EFilterOption
   ) {
+    const timingLabel = `getPageDetails:${pageId}`;
+    console.time(timingLabel);
     try {
       // Cache key composed of user, page, pagination, and filters
+      console.time(`${timingLabel}:buildCacheKey`);
       const normalizedFilters = filterOption
         ? Object.keys(filterOption)
             .sort()
@@ -128,45 +131,90 @@ export class DynamicUiService {
       const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
         normalizedFilters
       )}`;
+      console.timeEnd(`${timingLabel}:buildCacheKey`);
+      console.time(`${timingLabel}:cacheGet`);
       const cached = await this.redisService.getClient()?.get(cacheKey);
+      console.timeEnd(`${timingLabel}:cacheGet`);
       if (cached) {
+        console.timeEnd(timingLabel);
         return JSON.parse(cached as string);
       }
+      console.time(`${timingLabel}:findContentPage`);
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
           status: EStatus.Active,
         })
         .lean();
+      console.timeEnd(`${timingLabel}:findContentPage`);
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-      const componentDocsPromise = this.componentModel
-        .find({
-          _id: { $in: componentIds },
-          status: EStatus.Active,
-        })
-        .populate("interactionData.items.banner")
-        .lean();
+      console.time(`${timingLabel}:prepParallelPromises`);
+      const componentDocsPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:componentDocs`;
+        console.time(subLabel);
+        try {
+          const result = await this.componentModel
+            .find({
+              _id: { $in: componentIds },
+              status: EStatus.Active,
+            })
+            .populate("interactionData.items.banner")
+            .lean();
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
 
-      const serviceItemPromise = this.fetchServiceItemDetails(
-        data,
-        token.id,
-        false,
-        0,
-        0,
-        null
-      );
+      const serviceItemPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:fetchServiceItemDetails`;
+        console.time(subLabel);
+        try {
+          const result = await this.fetchServiceItemDetails(
+            data,
+            token.id,
+            false,
+            0,
+            0,
+            null
+          );
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
       let skillId = data.metaData?.skillId;
       let skillType = data.metaData?.skill;
-      const bannerIdPromise = this.helperService.getBannerToShow(
-        token.id,
-        skillId,
-        skillType,
-        EMetabaseUrlLimit.full_size_banner
-      );
+      const bannerIdPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:getBannerToShow`;
+        console.time(subLabel);
+        try {
+          const result = await this.helperService.getBannerToShow(
+            token.id,
+            skillId,
+            skillType,
+            EMetabaseUrlLimit.full_size_banner
+          );
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
 
-      const filterOptionsPromise = this.componentFilterOptions();
+      const filterOptionsPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:componentFilterOptions`;
+        console.time(subLabel);
+        try {
+          const result = await this.componentFilterOptions();
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
+      console.timeEnd(`${timingLabel}:prepParallelPromises`);
 
+      console.time(`${timingLabel}:awaitParallel`);
       const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
         await Promise.all([
           componentDocsPromise,
@@ -174,8 +222,10 @@ export class DynamicUiService {
           bannerIdPromise,
           filterOptionsPromise,
         ]);
+      console.timeEnd(`${timingLabel}:awaitParallel`);
       const processIds = [];
 
+      console.time(`${timingLabel}:collectProcessIds`);
       const serviceItem = serviceItemData.finalData;
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
@@ -186,14 +236,18 @@ export class DynamicUiService {
           });
         }
       }
+      console.timeEnd(`${timingLabel}:collectProcessIds`);
 
       let unquieProcessIds = [...new Set(processIds)];
 
+      console.time(`${timingLabel}:fetchContinueWatching`);
       let continueWatching = await this.fetchContinueWatching(
         token.id,
         unquieProcessIds
       );
+      console.timeEnd(`${timingLabel}:fetchContinueWatching`);
       // Resolve banner configuration document now
+      console.time(`${timingLabel}:resolveBanners`);
       let componentDocs = componentDocsRaw;
       let banners = await this.bannerConfigurationModel.find({
         _id: {
@@ -201,6 +255,8 @@ export class DynamicUiService {
         },
         status: EStatus.Active,
       });
+      console.timeEnd(`${timingLabel}:resolveBanners`);
+      console.time(`${timingLabel}:assignComponentData`);
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
@@ -215,6 +271,8 @@ export class DynamicUiService {
             serviceItemData.finalData[tagName].length > 10 ? true : false;
         }
       });
+      console.timeEnd(`${timingLabel}:assignComponentData`);
+      console.time(`${timingLabel}:sortSliceAssemble`);
       componentDocs.sort((a, b) => a.order - b.order);
       if (typeof limit === "number" && limit > 0) {
         const start = Math.max(
@@ -225,6 +283,8 @@ export class DynamicUiService {
         componentDocs = componentDocs.slice(start, end);
       }
       data["components"] = componentDocs;
+      console.timeEnd(`${timingLabel}:sortSliceAssemble`);
+      console.time(`${timingLabel}:prepareFilterComponents`);
       const componentsWithInteractionData = componentDocs.filter(
         (comp) => comp.interactionData
       );
@@ -303,13 +363,20 @@ export class DynamicUiService {
           }
         });
       }
+      console.timeEnd(`${timingLabel}:prepareFilterComponents`);
       const response = { data };
       // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
+      console.time(`${timingLabel}:cacheSet`);
       await this.redisService
         .getClient()
         ?.setEx(cacheKey, 30, JSON.stringify(response));
+      console.timeEnd(`${timingLabel}:cacheSet`);
+      console.timeEnd(timingLabel);
       return response;
     } catch (err) {
+      try {
+        console.timeEnd(timingLabel);
+      } catch {}
       throw err;
     }
   }
