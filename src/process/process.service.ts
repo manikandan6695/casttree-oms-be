@@ -419,59 +419,68 @@ export class ProcessService {
   }
 
   async allPendingProcess(userId: string, processIds: string[]) {
+    const timingLabel = `allPendingProcess:${userId}`;
+    console.time(timingLabel);
     try {
-      let subscription = await this.subscriptionService.validateSubscription(
-        userId,
-        [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.expired,
-          EsubscriptionStatus.failed,
-        ]
-      );
-      let paidInstances = [];
-      if (!subscription) {
-        let payment = await this.paymentService.getPaymentDetailBySource(
-          userId,
-          null,
-          EPaymentSourceType.processInstance
-        );
+      // Use cached subscription and payment data
+      console.time(`${timingLabel}:getCachedSubscriptionPayment`);
+      const { subscription, paidInstances } = await this.getCachedSubscriptionAndPayment(userId);
+      console.timeEnd(`${timingLabel}:getCachedSubscriptionPayment`);
 
-        payment.paymentData.map((data) => {
-          paidInstances.push(data.salesDocument.source_id.toString());
-        });
-      }
+      // Parallelize pending tasks fetch and task counts aggregation
+      console.time(`${timingLabel}:parallelTasksAndCounts`);
+      const [pendingTasks, taskCounts] = await Promise.all([
+        this.processInstancesModel
+          .find({
+            userId: userId,
+            processId: { $in: processIds },
+            processStatus: EprocessStatus.Started,
+          })
+          .populate("currentTask")
+          .sort({ updated_at: -1 })
+          .lean(),
+        // Fix N+1 query: Get all task counts in one aggregation
+        this.tasksModel.aggregate([
+          { $match: { processId: { $in: processIds.map(id => new ObjectId(id)) } } },
+          { $group: { _id: "$processId", totalTasks: { $sum: 1 } } }
+        ])
+      ]);
+      console.timeEnd(`${timingLabel}:parallelTasksAndCounts`);
 
-      const pendingTasks: any = await this.processInstancesModel
-        .find({
-          userId: userId,
-          processId: { $in: processIds },
-          processStatus: EprocessStatus.Started,
-        })
-        .populate("currentTask")
-        .sort({ updated_at: -1 })
-        .lean();
+      // Create task count lookup map
+      console.time(`${timingLabel}:buildTaskCountMap`);
+      const taskCountMap = new Map();
+      taskCounts.forEach(item => {
+        taskCountMap.set(item._id.toString(), item.totalTasks);
+      });
+      console.timeEnd(`${timingLabel}:buildTaskCountMap`);
+      
+      // Process tasks with cached counts
+      console.time(`${timingLabel}:processTasks`);
       let userProcessInstances = [];
       for (let i = 0; i < pendingTasks.length; i++) {
-        let totalTasks = await this.tasksModel.countDocuments({
-          processId: pendingTasks[i].processId,
-        });
+        const totalTasks = taskCountMap.get(pendingTasks[i].processId.toString()) || 0;
+        
         if (subscription) {
-          pendingTasks[i].currentTask.isLocked = false;
+          (pendingTasks[i].currentTask as any).isLocked = false;
         }
         if (paidInstances.length > 0) {
           if (paidInstances.includes(pendingTasks[i]._id.toString())) {
-            pendingTasks[i].currentTask.isLocked = false;
+            (pendingTasks[i].currentTask as any).isLocked = false;
           }
         }
-        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
-        pendingTasks[i].completed = Math.ceil(
+        let completedTaskNumber = (pendingTasks[i].currentTask as any).taskNumber - 1;
+        (pendingTasks[i] as any).completed = Math.ceil(
           (completedTaskNumber / totalTasks) * 100
         );
         userProcessInstances.push(pendingTasks[i]._id);
       }
+      console.timeEnd(`${timingLabel}:processTasks`);
 
+      console.timeEnd(timingLabel);
       return pendingTasks;
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
   }
@@ -648,33 +657,23 @@ export class ProcessService {
   }
 
   async getFirstTask(processIds, userId) {
+    const timingLabel = `getFirstTask:${userId}`;
+    console.time(timingLabel);
     try {
-      let subscription = await this.subscriptionService.validateSubscription(
-        userId,
-        [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.expired,
-          EsubscriptionStatus.failed,
-        ]
-      );
-      let paidInstances = [];
-      if (!subscription) {
-        let payment = await this.paymentService.getPaymentDetailBySource(
-          userId,
-          null,
-          EPaymentSourceType.processInstance
-        );
-        payment.paymentData.map((data) => {
-          paidInstances.push(data.salesDocument.source_id.toString());
-        });
-      }
-      let userProcessInstances = await this.processInstancesModel.find({
-        userId: userId,
-      });
-      let sourceIds = [];
-      userProcessInstances.map((data) => {
-        sourceIds.push(data._id);
-      });
+      // Use cached subscription and payment data, parallelize other calls
+      console.time(`${timingLabel}:parallelCalls`);
+      const [{ subscription, paidInstances }, userProcessInstances, processInstanceData] = await Promise.all([
+        this.getCachedSubscriptionAndPayment(userId),
+        this.processInstancesModel.find({ userId: userId }),
+        this.processInstancesModel
+          .find({ userId: userId, processStatus: EprocessStatus.Started })
+          .populate("currentTask")
+          .lean()
+      ]);
+      console.timeEnd(`${timingLabel}:parallelCalls`);
+      
+      // Build process object IDs and run tasks aggregation
+      console.time(`${timingLabel}:aggregateTasks`);
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
         { $match: { processId: { $in: processObjIds } } },
@@ -687,39 +686,96 @@ export class ProcessService {
         },
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
-      let processInstanceData: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: EprocessStatus.Started })
-        .populate("currentTask")
-        .lean();
+      console.timeEnd(`${timingLabel}:aggregateTasks`);
+      
+      // Build active process IDs and current task object
+      console.time(`${timingLabel}:buildTaskObjects`);
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
         processInstanceData.map((a) => {
           activeProcessIds.push(a.processId.toString());
         });
       }
+      
       const currentTaskObject = processInstanceData.reduce((a, c) => {
         if (subscription) {
-          c.currentTask.isLocked = false;
+          (c.currentTask as any).isLocked = false;
         }
         if (paidInstances.length > 0) {
           if (paidInstances.includes(c._id.toString())) {
-            c.currentTask.isLocked = false;
+            (c.currentTask as any).isLocked = false;
           }
         }
         a[c.processId] = c.currentTask;
         return a;
       }, {});
+      console.timeEnd(`${timingLabel}:buildTaskObjects`);
+      
+      // Merge task data
+      console.time(`${timingLabel}:mergeTaskData`);
       for (let i = 0; i < data.length; i++) {
         if (activeProcessIds.includes(data[i].processId.toString())) {
           let processId = data[i].processId.toString();
-
           data[i] = currentTaskObject[processId];
         }
       }
+      console.timeEnd(`${timingLabel}:mergeTaskData`);
+
+      console.timeEnd(timingLabel);
       return data;
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
+  }
+
+  // Shared caching for subscription and payment data to avoid duplicate calls
+  private subscriptionPaymentCache = new Map<string, { subscription: any; paidInstances: string[]; timestamp: number }>();
+  private readonly CACHE_TTL = 30000; // 30 seconds
+
+  private async getCachedSubscriptionAndPayment(userId: string): Promise<{ subscription: any; paidInstances: string[] }> {
+    const cacheKey = userId;
+    const cached = this.subscriptionPaymentCache.get(cacheKey);
+    const now = Date.now();
+
+    // Return cached data if it's still valid
+    if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+      return { subscription: cached.subscription, paidInstances: cached.paidInstances };
+    }
+
+    // Fetch fresh data
+    const [subscription, payment] = await Promise.all([
+      this.subscriptionService.validateSubscription(
+        userId,
+        [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.expired,
+          EsubscriptionStatus.failed,
+        ]
+      ),
+      this.paymentService.getPaymentDetailBySource(
+        userId,
+        null,
+        EPaymentSourceType.processInstance
+      ).catch(() => ({ paymentData: [] }))
+    ]);
+
+    // Build paid instances list
+    let paidInstances = [];
+    if (!subscription && payment.paymentData) {
+      payment.paymentData.map((data) => {
+        paidInstances.push(data.salesDocument.source_id.toString());
+      });
+    }
+
+    // Cache the result
+    this.subscriptionPaymentCache.set(cacheKey, {
+      subscription,
+      paidInstances,
+      timestamp: now
+    });
+
+    return { subscription, paidInstances };
   }
 
   async getThumbNail(media) {

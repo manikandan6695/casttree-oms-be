@@ -1100,14 +1100,22 @@ export class HelperService {
     skillType: string,
     componentKey: string
   ): Promise<BannerResponseDto> {
+    const timingLabel = `getBannerToShow:${userId}`;
+    console.time(timingLabel);
     try {
+      console.time(`${timingLabel}:getConfig`);
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       if (!metabaseBaseUrl) {
         throw new Error("METABASE_BASE_URL environment variable is not set");
       }
+      console.timeEnd(`${timingLabel}:getConfig`);
 
       // Get session (from cache or create new)
+      console.time(`${timingLabel}:getMetabaseSession`);
       let metabaseSession = await this.getMetabaseSession();
+      console.timeEnd(`${timingLabel}:getMetabaseSession`);
+      
+      console.time(`${timingLabel}:buildRequestBody`);
       const requestBody = {
         parameters: [
           {
@@ -1127,10 +1135,15 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
+      console.timeEnd(`${timingLabel}:buildRequestBody`);
      
+      console.time(`${timingLabel}:getSystemConfig`);
       let systemConfiguration = await this.getSystemConfigByKeyCached(
         EMetabaseUrlLimit.dynamic_banner
       );
+      console.timeEnd(`${timingLabel}:getSystemConfig`);
+      
+      console.time(`${timingLabel}:findMatchingConfig`);
       let metaCart;
 
       if (
@@ -1151,11 +1164,12 @@ export class HelperService {
           `No Metabase card configuration found for component key: ${componentKey}`
         );
       }
+      console.timeEnd(`${timingLabel}:findMatchingConfig`);
 
       const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
       
       try {
-        
+        console.time(`${timingLabel}:httpRequest`);
 
         const response = await this.http_service
           .post(fullUrl, requestBody, {
@@ -1165,8 +1179,9 @@ export class HelperService {
             httpsAgent: this.httpsAgent,
           })
           .toPromise();
+        console.timeEnd(`${timingLabel}:httpRequest`);
        
-       
+        console.time(`${timingLabel}:getDefaultBanner`);
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
@@ -1182,8 +1197,14 @@ export class HelperService {
             defaultBanner = matchingBanner.bannerId.toString();
           }
         }
+        console.timeEnd(`${timingLabel}:getDefaultBanner`);
+        
+        console.time(`${timingLabel}:processResponse`);
         const flattenedRows = response.data?.data?.rows?.flat() || [];
         const bannerToShow = flattenedRows || defaultBanner;
+        console.timeEnd(`${timingLabel}:processResponse`);
+        
+        console.timeEnd(timingLabel);
         return {
           bannerToShow: bannerToShow,
         };
@@ -1193,6 +1214,7 @@ export class HelperService {
           apiError.response?.status === 401 ||
           apiError.response?.status === 403
         ) {
+          console.time(`${timingLabel}:retryFlow`);
           metabaseSession = await this.refreshMetabaseSession();
           let defaultBannerId = await this.getSystemConfigByKeyCached(
             EMetabaseUrlLimit.default_banner
@@ -1209,7 +1231,6 @@ export class HelperService {
             })
             .toPromise();
 
-
             let defaultBanner;
             
             // Find matching banner based on skillId and skillType
@@ -1225,13 +1246,17 @@ export class HelperService {
             }
             const flattenedRows =  retryResponse.data?.data?.rows?.flat() || [];
             const bannerToShow = flattenedRows || defaultBanner;
+          console.timeEnd(`${timingLabel}:retryFlow`);
+          console.timeEnd(timingLabel);
           return {
             bannerToShow: bannerToShow,
           };
         }
+        console.timeEnd(timingLabel);
         throw apiError;
       }
     } catch (err) {
+      console.time(`${timingLabel}:fallbackFlow`);
       console.error("Error fetching banner from Metabase:", err);
       let defaultBannerId = await this.getSystemConfigByKeyCached(
         EMetabaseUrlLimit.default_banner
@@ -1248,6 +1273,8 @@ export class HelperService {
           defaultBanner = matchingBanner.bannerId.toString();
         }
       }
+      console.timeEnd(`${timingLabel}:fallbackFlow`);
+      console.timeEnd(timingLabel);
       // Return default banner in case of error
       return {
         bannerToShow: defaultBanner,

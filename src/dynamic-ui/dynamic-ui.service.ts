@@ -794,7 +794,10 @@ export class DynamicUiService {
     limit,
     filterOption: EFilterOption
   ) {
+    const timingLabel = `fetchServiceItemDetails:${userId}`;
+    console.time(timingLabel);
     try {
+      console.time(`${timingLabel}:buildFilter`);
       let filter = {
         type: EserviceItemType.courses,
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
@@ -828,6 +831,9 @@ export class DynamicUiService {
           }
         });
       }
+      console.timeEnd(`${timingLabel}:buildFilter`);
+      
+      console.time(`${timingLabel}:buildAggregationPipeline`);
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -928,14 +934,19 @@ export class DynamicUiService {
           },
         }
       );
+      console.timeEnd(`${timingLabel}:buildAggregationPipeline`);
 
       // console.log("aggregationPipeline", JSON.stringify(aggregationPipeline));
 
+      console.time(`${timingLabel}:aggregateMain`);
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
+      console.timeEnd(`${timingLabel}:aggregateMain`);
       // console.log("serviceItemData", JSON.stringify(serviceItemData));
 
+      console.time(`${timingLabel}:aggregateCount`);
       let totalCount = await this.serviceItemModel.aggregate(countPipe);
+      console.timeEnd(`${timingLabel}:aggregateCount`);
       // console.log("totalCount", totalCount);
       let count;
       if (totalCount.length) {
@@ -1056,18 +1067,27 @@ export class DynamicUiService {
       //   ]);
       //   console.log("service item data", JSON.stringify(serviceItemData));
 
+      console.time(`${timingLabel}:extractProcessIds`);
       const processIds = serviceItemData.flatMap((item) =>
         item.details.map((detail) => detail.processId)
       );
+      console.timeEnd(`${timingLabel}:extractProcessIds`);
+      
+      console.time(`${timingLabel}:getFirstTask`);
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
+      console.timeEnd(`${timingLabel}:getFirstTask`);
+      
+      console.time(`${timingLabel}:buildTaskMap`);
       const taskMap = new Map(
         firstTasks.map((task) => [task.processId.toString(), task])
       );
+      console.timeEnd(`${timingLabel}:buildTaskMap`);
       //   console.log("taskMap", taskMap);
 
+      console.time(`${timingLabel}:mergeTaskDetails`);
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
           const matchingTask = taskMap.get(detail.processId.toString());
@@ -1077,19 +1097,30 @@ export class DynamicUiService {
           };
         });
       });
+      console.timeEnd(`${timingLabel}:mergeTaskDetails`);
+      
+      console.time(`${timingLabel}:buildFinalData`);
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
       }, {});
+      console.timeEnd(`${timingLabel}:buildFinalData`);
+      
+      console.timeEnd(timingLabel);
       return { finalData, count };
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
   }
   async fetchContinueWatching(userId: string, processIds: string[]) {
+    const timingLabel = `fetchContinueWatching:${userId}`;
+    console.time(timingLabel);
     try {
+      console.time(`${timingLabel}:allPendingProcess`);
       let pendingProcessInstanceData =
         await this.processService.allPendingProcess(userId, processIds);
+      console.timeEnd(`${timingLabel}:allPendingProcess`);
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
@@ -1100,21 +1131,28 @@ export class DynamicUiService {
         pendingProcessInstanceData.map((data) =>
           continueProcessIds.push(data?.processId)
         );
+        console.time(`${timingLabel}:getMentorUserIds`);
         let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
+        console.timeEnd(`${timingLabel}:getMentorUserIds`);
 
+        console.time(`${timingLabel}:buildActionData`);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+          console.time(`${timingLabel}:getThumbNail:${i}`);
+          const thumbnail = await this.processService.getThumbNail(
+            (pendingProcessInstanceData[i].currentTask as any).taskMetaData?.media
+          );
+          console.timeEnd(`${timingLabel}:getThumbNail:${i}`);
+          
           continueWatching["actionData"].push({
-            thumbnail: await this.processService.getThumbNail(
-              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
-            ),
-            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            thumbnail,
+            title: (pendingProcessInstanceData[i].currentTask as any).taskTitle,
             ctaName: "Continue",
-            progressPercentage: pendingProcessInstanceData[i].completed,
+            progressPercentage: (pendingProcessInstanceData[i] as any).completed,
             navigationURL:
               "process/" +
               pendingProcessInstanceData[i].processId +
               "/task/" +
-              pendingProcessInstanceData[i].currentTask._id,
+              (pendingProcessInstanceData[i].currentTask as any)._id,
             taskDetail: pendingProcessInstanceData[i].currentTask,
             mentorImage: mentorUserIds[i].media,
             mentorName: mentorUserIds[i].displayName,
@@ -1122,10 +1160,13 @@ export class DynamicUiService {
             seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
         }
+        console.timeEnd(`${timingLabel}:buildActionData`);
       }
 
+      console.timeEnd(timingLabel);
       return continueWatching;
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
   }
