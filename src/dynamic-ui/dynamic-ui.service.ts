@@ -22,8 +22,10 @@ import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import {
+  EComponentItemType,
   EComponentKey,
   EComponentType,
+  EConfigKeyName,
   EItemType,
 } from "./enum/component.enum";
 import {
@@ -298,7 +300,7 @@ export class DynamicUiService {
       let componentDocs = componentDocsRaw;
       let banners = await this.bannerConfigurationModel.find({
         _id: {
-          $in: bannerResp?.bannerToShow
+          $in: bannerResp?.bannerToShow,
         },
         status: EStatus.Active,
       });
@@ -316,6 +318,16 @@ export class DynamicUiService {
             serviceItemData.finalData[tagName].length > 10 ? true : false;
         }
       });
+      for (const comp of componentDocs) {
+        if (comp.componentKey === EComponentKey.headerActionBar) {
+          await this.updateHeaderActionBarComponent(
+            comp,
+            skillType,
+            skillId,
+            token.id
+          );
+        }
+      }
       componentDocs.sort((a, b) => a.order - b.order);
       if (typeof limit === "number" && limit > 0) {
         const start = Math.max(
@@ -982,7 +994,6 @@ export class DynamicUiService {
         },
         { $project: { _id: 0, tagName: "$_id", details: 1 } },
       ];
-
 
       const result = await this.serviceItemModel.aggregate([
         {
@@ -1655,9 +1666,9 @@ export class DynamicUiService {
           },
         },
         {
-          $project: { 
+          $project: {
             _id: 1,
-            role_name: "$category_name"
+            role_name: "$category_name",
           },
         },
       ]);
@@ -1722,8 +1733,10 @@ export class DynamicUiService {
         level: "info",
         data: {},
       });
-      const proItem = await this.itemModel.find({ itemName: "PRO" })
-        .select("_id itemName price").lean();
+      const proItem = await this.itemModel
+        .find({ itemName: "PRO" })
+        .select("_id itemName price")
+        .lean();
       return proItem;
     } catch (error) {
       throw error;
@@ -1744,7 +1757,7 @@ export class DynamicUiService {
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
         tags: await this.getTagList(),
-        proItem: await this.getProItem()
+        proItem: await this.getProItem(),
       };
 
       return getSeriesData;
@@ -1808,6 +1821,11 @@ export class DynamicUiService {
           .select("_id organizationName phoneCountryCode phoneNumber")
           .lean();
 
+        const premiumThumbnails = data.premiumThumbnails;
+        const paywallThumbnail = data.paywallVideo[0].mediaUrl;
+        const paywallVideo = data.paywallVideo[1].mediaUrl;
+        const skipText = data.skipText;
+
         const newItem = await this.itemModel.create(
           [
             {
@@ -1828,11 +1846,12 @@ export class DynamicUiService {
                   planUserSave: "Switch to Pro and save INR 1000+",
                   subtitle:
                     "This will only unlock the series that you are currently watching",
-                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
-                  payWallVideo:
-                    "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
+                  payWallVideo: paywallVideo,
+                  payWallThumbnail: paywallThumbnail,
+                  premiumThumbnails: premiumThumbnails,
                   paywallVisibility: true,
                 },
+                skipText: skipText,
                 allowMulti: false,
               },
               itemCommissionMarkupType: "Percent",
@@ -2873,8 +2892,7 @@ export class DynamicUiService {
         const allSeriesData = allServiceItemData.finalData?.allSeries || [];
 
         const nonMatchedSeries = allSeriesData.filter(
-          (series: any) =>
-            !completedProcessIds.has(String(series.processId))
+          (series: any) => !completedProcessIds.has(String(series.processId))
         );
 
         if (nonMatchedSeries.length > 0) {
@@ -2882,7 +2900,7 @@ export class DynamicUiService {
           baseComponent["totalCount"] = nonMatchedSeries.length;
         }
       }
-      
+
       return { component: baseComponent };
     } catch (err) {
       throw err;
@@ -3392,6 +3410,13 @@ export class DynamicUiService {
 
   async getAllSeries(skillId?: string) {
     try {
+      Sentry.addBreadcrumb({
+        message: "getAllSeries",
+        level: "info",
+        data: {
+          skillId,
+        },
+      });
       const filter = {
         status: Estatus.Active,
         type: EserviceItemType.courses,
@@ -3436,13 +3461,20 @@ export class DynamicUiService {
         },
       ]);
       return serviceitems;
-    } catch (error) {
-      throw error;
+    } catch (err) {
+      throw err;
     }
   }
 
   async updatePriorityOrder(payload: any) {
     try {
+      Sentry.addBreadcrumb({
+        message: "updatePriorityOrder",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
       // Build bulk update operations
       const bulkOps = payload.map((item) => ({
         updateOne: {
@@ -3457,6 +3489,132 @@ export class DynamicUiService {
       return result;
     } catch (err) {
       throw err;
+    }
+  }
+
+  private async updateHeaderActionBarComponent(
+    component: any,
+    skillType: string,
+    skillId: string,
+    userId: string
+  ) {
+    try {
+      let subscriptionData =
+        await this.subscriptionService.validateSubscription(userId, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+      let systemConfiguration = await this.systemConfigurationModel.findOne({
+        key: EConfigKeyName.dynamicSearch,
+      });
+      let chipData = await this.systemConfigurationModel.findOne({
+        key: EConfigKeyName.suggestionsTag,
+      });
+      const isNewSubscriber = subscriptionData ? true : false;
+      let placeholder;
+      if (systemConfiguration) {
+        const skillConfig = systemConfiguration.value.find(
+          (config) => config.skill === skillType
+        );
+        if (skillConfig) {
+          placeholder = `Type `;
+        }
+      }
+
+      if (component.interactionData && component.interactionData.items) {
+        let navigation = await this.systemConfigurationModel.findOne({
+          key: EConfigKeyName.dynamicHeaderNavigation,
+        });
+        const searchItem = component.interactionData.items.find(
+          (item) => item.type === EComponentItemType.search
+        );
+        if (searchItem && searchItem.metaData) {
+          searchItem.metaData.placeholder = placeholder;
+
+          const matchedSkill = chipData.value.tags.find(
+            (tag) => tag.skillName === skillType
+          );
+          if (matchedSkill && matchedSkill.chip) {
+            searchItem.actionData = matchedSkill.chip;
+          }
+        }
+
+        const badgeItem = component.interactionData.items.find(
+          (item) => item.type === EComponentItemType.badge
+        );
+        if (badgeItem) {
+          const navConfig = navigation?.value.find(
+            (config) => config.name === isNewSubscriber
+          );
+          if (navConfig) {
+            badgeItem.button.lable = navConfig?.lable;
+            badgeItem.button.value = navConfig?.type;
+            badgeItem.button.media = [
+              {
+                mediaId: navConfig?.mediaId,
+                type: navConfig?.mediaType,
+                mediaUrl: navConfig?.mediaUrl,
+              },
+            ];
+
+            if (navConfig.navigation) {
+              badgeItem.navigation = navConfig.navigation;
+              if (!isNewSubscriber) {
+                let itemData = await this.serviceItemModel
+                  .findOne({
+                    status: EStatus.Active,
+                    "skill.skill_name": skillType,
+                    "skill.skillId": new ObjectId(skillId),
+                    type: EserviceItemType.courses,
+                  })
+                  .select("itemId planItemId")
+                  .lean();
+                if (itemData) {
+                  badgeItem.navigation.params.itemId = itemData?.itemId;
+                  badgeItem.navigation.params.planItemId =
+                    itemData?.planItemId[0]?.itemId;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getSuggestionsTag(
+    token: UserToken,
+    skillId: string,
+    skillName: string
+  ) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "getSuggestionsTag",
+        level: "info",
+        data: {
+          token,
+          skillId,
+          skillName,
+        },
+      });
+      const suggestionsTag = await this.systemConfigurationModel.findOne({
+        key: EConfigKeyName.suggestionsTag,
+      });
+
+      const matchedSkill = suggestionsTag.value.tags.find(
+        (tag) =>
+          tag.skillId.toString() === skillId && tag.skillName === skillName
+      );
+      let data = {
+        header: suggestionsTag?.value?.header,
+        chips: matchedSkill?.chip,
+        media: suggestionsTag?.value?.media,
+      };
+      return { data };
+    } catch (error) {
+      throw error;
     }
   }
 }

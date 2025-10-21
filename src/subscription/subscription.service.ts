@@ -3230,7 +3230,9 @@ export class SubscriptionService {
 
   async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
     try {
-      let existingSubscription = await this.getSubscriptionByUserId(token.id);
+      let userData = await this.helperService.getUserByUserId(rawToken);
+      if(userData?.country_code === "IN"){
+        let existingSubscription = await this.getSubscriptionByUserId(token.id);
       if (existingSubscription) {
         const [userRatingInfo, userNominationsInfo] = await Promise.all([
           this.helperService.getUserRatings(rawToken),
@@ -3269,6 +3271,8 @@ export class SubscriptionService {
         return { data };
         }
         return { data: {isEnableCart: false} };
+      }
+      return { data: {isEnableCart: false} };
       }
       return { data: {isEnableCart: false} };
     } catch (error) {
