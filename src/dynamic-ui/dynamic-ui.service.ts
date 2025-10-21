@@ -320,7 +320,7 @@ export class DynamicUiService {
       });
       for (const comp of componentDocs) {
         if (comp.componentKey === EComponentKey.headerActionBar) {
-          await this.updateHeaderActionBarComponent(comp, skillType, token.id);
+          await this.updateHeaderActionBarComponent(comp, skillType, skillId, token.id);
         }
       }
       componentDocs.sort((a, b) => a.order - b.order);
@@ -3406,6 +3406,7 @@ export class DynamicUiService {
   private async updateHeaderActionBarComponent(
     component: any,
     skillType: string,
+    skillId: string,
     userId: string
   ) {
     try {
@@ -3414,7 +3415,7 @@ export class DynamicUiService {
         EsubscriptionStatus.failed,
       ]);
       let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
-      
+      let chipData = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
       const isNewSubscriber = subscriptionData ? true : false;
       let placeholder;
       if (systemConfiguration) {
@@ -3422,7 +3423,7 @@ export class DynamicUiService {
           config.skill === skillType
         );
         if (skillConfig) {
-          placeholder = `Type '${skillConfig.placeHolder}'`;
+          placeholder = `Type `;
         }
       }
 
@@ -3431,6 +3432,13 @@ export class DynamicUiService {
           const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
           if (searchItem && searchItem.metaData) {
             searchItem.metaData.placeholder = placeholder;
+
+              const matchedSkill = chipData.value.tags.find(tag => 
+                tag.skillName === skillType
+              );
+              if (matchedSkill && matchedSkill.chip) {
+                searchItem.actionData = matchedSkill.chip;
+              }
           }
 
           const badgeItem = component.interactionData.items.find(item => item.type === EComponentItemType.badge);
@@ -3439,19 +3447,26 @@ export class DynamicUiService {
             if (navConfig) {
               badgeItem.button.lable = navConfig?.lable;
               badgeItem.button.value = navConfig?.type;
+              badgeItem.button.media = [{
+                mediaId:navConfig?.mediaId,
+                type: navConfig?.mediaType,
+                mediaUrl: navConfig?.mediaUrl
+              }];              
               
-              if (isNewSubscriber && navConfig.mediaUrl) {
-                badgeItem.button.media = [{
-                  mediaId:navConfig?.mediaId,
-                  type: navConfig?.mediaType,
-                  mediaUrl: navConfig.mediaUrl
-                }];
-              } else {
-                badgeItem.button.media = [];
-              }
-              
-              if (navConfig.navigation) {
+              if (navConfig.navigation ) {
                 badgeItem.navigation = navConfig.navigation;
+                if (!isNewSubscriber) {
+                let itemData = await this.serviceItemModel.findOne({
+                  status: EStatus.Active,
+                  "skill.skill_name": skillType,
+                  "skill.skillId": new ObjectId(skillId),
+                  type: EserviceItemType.courses,
+                }).select("itemId planItemId").lean();
+                if (itemData) {
+                  badgeItem.navigation.params.itemId = itemData?.itemId;
+                  badgeItem.navigation.params.planItemId = itemData?.planItemId[0]?.itemId;
+                }
+              }
               }
             }
           }
