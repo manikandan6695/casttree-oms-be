@@ -3413,6 +3413,7 @@ export class DynamicUiService {
       let subscriptionData = await this.subscriptionService.validateSubscription(userId, [
         EsubscriptionStatus.initiated,
         EsubscriptionStatus.failed,
+        EsubscriptionStatus.expired,
       ]);
       let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
       let chipData = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
