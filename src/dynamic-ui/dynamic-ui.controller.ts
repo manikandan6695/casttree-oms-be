@@ -136,13 +136,15 @@ export class DynamicUiController {
     @Query(new ValidationPipe({ whitelist: true }))
     query: ComponentFilterQueryDto,
     @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
+    @Query("skillId") skillId: string,
   ) {
     try {
       let data = await this.dynamicUIService.getFilterComponent(
         token,
         componentId,
         query,
-        filterOption
+        filterOption,
+        skillId
       );
       return data;
   } catch (err) {
