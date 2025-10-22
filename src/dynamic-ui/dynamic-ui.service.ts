@@ -890,7 +890,7 @@ export class DynamicUiService {
       };
       if (filterOption) {
         Object.entries(filterOption).forEach(([key, val]) => {
-          if (!val) return;
+          if (!val || key === 'skillId' || key === 'skip' || key === 'limit') return;
           if (Array.isArray(val)) {
             const validIds = val.filter((id) => id?.length === 24);
             if (validIds.length) {
@@ -2811,7 +2811,8 @@ export class DynamicUiService {
     token: UserToken,
     componentId: string,
     query: ComponentFilterQueryDto,
-    filterOption: EFilterOption
+    filterOption: EFilterOption,
+    skillId: string,
   ) {
     try {
       Sentry.addBreadcrumb({
@@ -2826,7 +2827,7 @@ export class DynamicUiService {
       });
       const { skip, limit } = query;
       const [baseComponent, actualComponent, page] =
-        await this.fetchBaseComponents(componentId);
+        await this.fetchBaseComponents(componentId, skillId);
       if (!baseComponent) {
         throw new NotFoundException("Filter component not found");
       }
@@ -2865,7 +2866,14 @@ export class DynamicUiService {
       );
       baseComponent["totalCount"] = totalCount;
 
-      if (!filteredData || filteredData.length === 0) {
+      if (filteredData && filteredData.length > 0) {
+        baseComponent.actionData = filteredData;
+        baseComponent["totalCount"] = totalCount;
+      } else if (serviceItemData && serviceItemData.finalData && serviceItemData.finalData[tagName]) {
+        const allTagData = serviceItemData.finalData[tagName] || [];
+        baseComponent.actionData = allTagData.slice(skip, skip + limit);
+        baseComponent["totalCount"] = allTagData.length;
+      } else {
         const completedSeries = await this.processService.getMySeries(
           token.id,
           EprocessStatus.Completed
@@ -2902,7 +2910,7 @@ export class DynamicUiService {
     }
   }
 
-  private async fetchBaseComponents(componentId: string) {
+  private async fetchBaseComponents(componentId: string, skillId: string) {
     Sentry.addBreadcrumb({
       message: "fetchBaseComponents",
       level: "info",
@@ -2926,6 +2934,7 @@ export class DynamicUiService {
       this.contentPageModel
         .findOne({
           "components.componentId": componentId,
+          "metaData.skillId": new ObjectId(skillId),
         })
         .lean(),
     ]);
