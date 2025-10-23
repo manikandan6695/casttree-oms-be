@@ -25,3 +25,8 @@ export const ESMixedPanelEvents = [
     EMixedPanelEvents.subscription_add,
     EMixedPanelEvents.mandate_cancelled,
   ];
+  export enum EMetabaseUrlLimit {
+    dynamic_banner = "dynamic-banner",
+    full_size_banner = "full-size-banner",
+    default_banner = "default-banner",
+}

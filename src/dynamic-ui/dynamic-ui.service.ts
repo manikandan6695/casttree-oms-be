@@ -14,7 +14,10 @@ import { ProcessService } from "src/process/process.service";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import {
+  EMixedPanelEvents,
+  EMetabaseUrlLimit,
+} from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { EComponentKey, EComponentType } from "./enum/component.enum";
@@ -25,6 +28,8 @@ import { EUpdateComponents } from "./dto/update-components.dto";
 import { EUpdateSeriesTag } from "./dto/update-series-tag.dto";
 const { ObjectId } = require("mongodb");
 import { ICategory } from "./schema/category.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { RedisService } from "src/redis/redis.service";
 import { AddNewSeriesDto } from "./dto/add-new-series.dto";
 import { IProfile } from "src/shared/schema/profile.schema";
 import { IUserOrganization } from "src/shared/schema/user-organization.schema";
@@ -77,6 +82,9 @@ export class DynamicUiService {
     private readonly filterOptionsModel: Model<IFilterOption>,
     @InjectModel("category")
     private readonly categoryModel: Model<ICategory>,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
+    private readonly redisService: RedisService,
     @InjectModel("profile")
     private readonly profileModel: Model<IProfile>,
     @InjectModel("userOrganization")
@@ -163,69 +171,121 @@ export class DynamicUiService {
   async getPageDetails(
     token: UserToken,
     pageId: string,
+    skip: number | undefined,
+    limit: number | undefined,
     filterOption: EFilterOption
   ) {
+    const timingLabel = `getPageDetails:${pageId}`;
+    console.time(timingLabel);
     try {
-      // const subscriptionData =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //     EsubscriptionStatus.expired,
-      //   ]);
-      // const existingUserSubscription =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //   ]);
-      // const isNewSubscription = subscriptionData ? true : false;
-      // const isSubscriber = existingUserSubscription ? true : false;
-      const [subscriptionData, existingUserSubscription] = await Promise.all([
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-          EsubscriptionStatus.expired,
-        ]),
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]),
-      ]);
-      const isNewSubscription = !!subscriptionData;
-      const isSubscriber = !!existingUserSubscription;
-      console.log("subscriber", isNewSubscription, isSubscriber);
-
-      const { data: { country_code: countryCode } = {} } =
-        await this.helperService.getUserById(token.id);
-      let country_code = countryCode;
-
+      // Cache key composed of user, page, pagination, and filters
+      console.time(`${timingLabel}:buildCacheKey`);
+      const normalizedFilters = filterOption
+        ? Object.keys(filterOption)
+            .sort()
+            .reduce((acc, k) => {
+              acc[k] = (filterOption as any)[k];
+              return acc;
+            }, {} as any)
+        : {};
+      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
+        normalizedFilters
+      )}`;
+      console.timeEnd(`${timingLabel}:buildCacheKey`);
+      console.time(`${timingLabel}:cacheGet`);
+      const cached = await this.redisService.getClient()?.get(cacheKey);
+      console.timeEnd(`${timingLabel}:cacheGet`);
+      if (cached) {
+        console.timeEnd(timingLabel);
+        return JSON.parse(cached as string);
+      }
+      console.time(`${timingLabel}:findContentPage`);
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
           status: EStatus.Active,
         })
         .lean();
+      console.timeEnd(`${timingLabel}:findContentPage`);
       //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-      let componentDocs = await this.componentModel
-        .find({
-          _id: { $in: componentIds },
-          status: EStatus.Active,
-        })
-        .populate("interactionData.items.banner")
-        .lean();
-      let serviceItemData = await this.fetchServiceItemDetails(
-        data,
-        token.id,
-        false,
-        0,
-        0,
-        null
-      );
+      console.time(`${timingLabel}:prepParallelPromises`);
+      const componentDocsPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:componentDocs`;
+        console.time(subLabel);
+        try {
+          const result = await this.componentModel
+            .find({
+              _id: { $in: componentIds },
+              status: EStatus.Active,
+            })
+            .populate("interactionData.items.banner")
+            .lean();
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
 
-      // console.log("serviceItemData", serviceItemData.finalData.trendingSeries);
+      const serviceItemPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:fetchServiceItemDetails`;
+        console.time(subLabel);
+        try {
+          const result = await this.fetchServiceItemDetails(
+            data,
+            token.id,
+            false,
+            0,
+            0,
+            null
+          );
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
+      const bannerIdPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:getBannerToShow`;
+        console.time(subLabel);
+        try {
+          const result = await this.helperService.getBannerToShow(
+            token.id,
+            skillId,
+            skillType,
+            EMetabaseUrlLimit.full_size_banner
+          );
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
 
+      const filterOptionsPromise = (async () => {
+        const subLabel = `${timingLabel}:parallel:componentFilterOptions`;
+        console.time(subLabel);
+        try {
+          const result = await this.componentFilterOptions();
+          return result;
+        } finally {
+          console.timeEnd(subLabel);
+        }
+      })();
+      console.timeEnd(`${timingLabel}:prepParallelPromises`);
+
+      console.time(`${timingLabel}:awaitParallel`);
+      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
+        await Promise.all([
+          componentDocsPromise,
+          serviceItemPromise,
+          bannerIdPromise,
+          filterOptionsPromise,
+        ]);
+      console.timeEnd(`${timingLabel}:awaitParallel`);
       const processIds = [];
 
+      console.time(`${timingLabel}:collectProcessIds`);
       const serviceItem = serviceItemData.finalData;
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
@@ -245,40 +305,30 @@ export class DynamicUiService {
           });
         }
       }
+      console.timeEnd(`${timingLabel}:collectProcessIds`);
 
       let unquieProcessIds = [...new Set(processIds)];
 
+      console.time(`${timingLabel}:fetchContinueWatching`);
       let continueWatching = await this.fetchContinueWatching(
         token.id,
         unquieProcessIds
       );
-      let singleAdBanner = await this.fetchSingleAdBanner(
-        isNewSubscription,
-        token.id,
-        isSubscriber
-      );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      console.timeEnd(`${timingLabel}:fetchContinueWatching`);
+      // Resolve banner configuration document now
+      console.time(`${timingLabel}:resolveBanners`);
+      let componentDocs = componentDocsRaw;
+      let banners = await this.bannerConfigurationModel.find({
+        _id: {
+          $in: bannerResp?.bannerToShow
+        },
+        status: EStatus.Active,
+      });
+      console.timeEnd(`${timingLabel}:resolveBanners`);
+      console.time(`${timingLabel}:assignComponentData`);
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
-        }
-        if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.media = singleAdBanner?.media;
-          comp.banner = {
-            ...comp.banner,
-            bannerImage: singleAdBanner?.media?.mediaUrl,
-          };
-          comp.navigation = {
-            ...singleAdBanner?.navigation,
-            type: comp?.navigation?.type,
-          };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
           comp.interactionData = { items: banners };
@@ -290,13 +340,25 @@ export class DynamicUiService {
             serviceItemData.finalData[tagName].length > 10 ? true : false;
         }
       });
+      console.timeEnd(`${timingLabel}:assignComponentData`);
+      console.time(`${timingLabel}:sortSliceAssemble`);
       componentDocs.sort((a, b) => a.order - b.order);
+      if (typeof limit === "number" && limit > 0) {
+        const start = Math.max(
+          0,
+          typeof skip === "number" && isFinite(skip) ? skip : 0
+        );
+        const end = start + limit;
+        componentDocs = componentDocs.slice(start, end);
+      }
       data["components"] = componentDocs;
+      console.timeEnd(`${timingLabel}:sortSliceAssemble`);
+      console.time(`${timingLabel}:prepareFilterComponents`);
       const componentsWithInteractionData = componentDocs.filter(
         (comp) => comp.interactionData
       );
       if (componentsWithInteractionData.length > 0) {
-        let availableFilterOptions = await this.componentFilterOptions();
+        let availableFilterOptions = filterOptions;
 
         const grouped = availableFilterOptions.reduce((acc, opt) => {
           if (!acc[opt.filterType]) {
@@ -370,8 +432,20 @@ export class DynamicUiService {
           }
         });
       }
-      return { data };
+      console.timeEnd(`${timingLabel}:prepareFilterComponents`);
+      const response = { data };
+      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
+      console.time(`${timingLabel}:cacheSet`);
+      await this.redisService
+        .getClient()
+        ?.setEx(cacheKey, 30, JSON.stringify(response));
+      console.timeEnd(`${timingLabel}:cacheSet`);
+      console.timeEnd(timingLabel);
+      return response;
     } catch (err) {
+      try {
+        console.timeEnd(timingLabel);
+      } catch {}
       throw err;
     }
   }
@@ -789,7 +863,10 @@ export class DynamicUiService {
     limit,
     filterOption: EFilterOption
   ) {
+    const timingLabel = `fetchServiceItemDetails:${userId}`;
+    console.time(timingLabel);
     try {
+      console.time(`${timingLabel}:buildFilter`);
       let filter = {
         type: EserviceItemType.courses,
         "skill.skillId": { $in: [new ObjectId(data.metaData?.skillId)] },
@@ -823,6 +900,9 @@ export class DynamicUiService {
           }
         });
       }
+      console.timeEnd(`${timingLabel}:buildFilter`);
+      
+      console.time(`${timingLabel}:buildAggregationPipeline`);
       let aggregationPipeline = [];
       aggregationPipeline.push({
         $match: filter,
@@ -923,14 +1003,19 @@ export class DynamicUiService {
           },
         }
       );
+      console.timeEnd(`${timingLabel}:buildAggregationPipeline`);
 
       // console.log("aggregationPipeline", JSON.stringify(aggregationPipeline));
 
+      console.time(`${timingLabel}:aggregateMain`);
       const serviceItemData =
         await this.serviceItemModel.aggregate(aggregationPipeline);
+      console.timeEnd(`${timingLabel}:aggregateMain`);
       // console.log("serviceItemData", JSON.stringify(serviceItemData));
 
+      console.time(`${timingLabel}:aggregateCount`);
       let totalCount = await this.serviceItemModel.aggregate(countPipe);
+      console.timeEnd(`${timingLabel}:aggregateCount`);
       // console.log("totalCount", totalCount);
       let count;
       if (totalCount.length) {
@@ -1051,18 +1136,27 @@ export class DynamicUiService {
       //   ]);
       //   console.log("service item data", JSON.stringify(serviceItemData));
 
+      console.time(`${timingLabel}:extractProcessIds`);
       const processIds = serviceItemData.flatMap((item) =>
         item.details.map((detail) => detail.processId)
       );
+      console.timeEnd(`${timingLabel}:extractProcessIds`);
+      
+      console.time(`${timingLabel}:getFirstTask`);
       let firstTasks = await this.processService.getFirstTask(
         processIds,
         userId
       );
+      console.timeEnd(`${timingLabel}:getFirstTask`);
+      
+      console.time(`${timingLabel}:buildTaskMap`);
       const taskMap = new Map(
         firstTasks.map((task) => [task.processId.toString(), task])
       );
+      console.timeEnd(`${timingLabel}:buildTaskMap`);
       //   console.log("taskMap", taskMap);
 
+      console.time(`${timingLabel}:mergeTaskDetails`);
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
           const matchingTask = taskMap.get(detail.processId.toString());
@@ -1072,20 +1166,31 @@ export class DynamicUiService {
           };
         });
       });
+      console.timeEnd(`${timingLabel}:mergeTaskDetails`);
+      
+      console.time(`${timingLabel}:buildFinalData`);
       const finalData = serviceItemData.reduce((a, c) => {
         a[c.tagName] = c.details;
         return a;
       }, {});
+      console.timeEnd(`${timingLabel}:buildFinalData`);
+      
+      console.timeEnd(timingLabel);
       return { finalData, count };
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
   }
 
   async fetchContinueWatching(userId: string, processIds: string[]) {
+    const timingLabel = `fetchContinueWatching:${userId}`;
+    console.time(timingLabel);
     try {
+      console.time(`${timingLabel}:allPendingProcess`);
       let pendingProcessInstanceData =
         await this.processService.allPendingProcess(userId, processIds);
+      console.timeEnd(`${timingLabel}:allPendingProcess`);
       //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
@@ -1096,21 +1201,28 @@ export class DynamicUiService {
         pendingProcessInstanceData.map((data) =>
           continueProcessIds.push(data?.processId)
         );
+        console.time(`${timingLabel}:getMentorUserIds`);
         let mentorUserIds = await this.getMentorUserIds(continueProcessIds);
+        console.timeEnd(`${timingLabel}:getMentorUserIds`);
 
+        console.time(`${timingLabel}:buildActionData`);
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
+          console.time(`${timingLabel}:getThumbNail:${i}`);
+          const thumbnail = await this.processService.getThumbNail(
+            (pendingProcessInstanceData[i].currentTask as any).taskMetaData?.media
+          );
+          console.timeEnd(`${timingLabel}:getThumbNail:${i}`);
+          
           continueWatching["actionData"].push({
-            thumbnail: await this.processService.getThumbNail(
-              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
-            ),
-            title: pendingProcessInstanceData[i].currentTask.taskTitle,
+            thumbnail,
+            title: (pendingProcessInstanceData[i].currentTask as any).taskTitle,
             ctaName: "Continue",
-            progressPercentage: pendingProcessInstanceData[i].completed,
+            progressPercentage: (pendingProcessInstanceData[i] as any).completed,
             navigationURL:
               "process/" +
               pendingProcessInstanceData[i].processId +
               "/task/" +
-              pendingProcessInstanceData[i].currentTask._id,
+              (pendingProcessInstanceData[i].currentTask as any)._id,
             taskDetail: pendingProcessInstanceData[i].currentTask,
             mentorImage: mentorUserIds[i].media,
             mentorName: mentorUserIds[i].displayName,
@@ -1118,10 +1230,13 @@ export class DynamicUiService {
             seriesThumbNail: mentorUserIds[i].seriesThumbNail,
           });
         }
+        console.timeEnd(`${timingLabel}:buildActionData`);
       }
 
+      console.timeEnd(timingLabel);
       return continueWatching;
     } catch (err) {
+      console.timeEnd(timingLabel);
       throw err;
     }
   }

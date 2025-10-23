@@ -23,7 +23,7 @@ import { webhookSchema } from "./schema/webhook.schema";
     ]),
     SharedModule,
     AuthModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
     InvoiceModule,
     forwardRef(() => PaymentRequestModule),
     forwardRef(() => ItemModule),

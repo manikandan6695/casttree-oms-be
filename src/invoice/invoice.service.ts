@@ -21,6 +21,7 @@ export class InvoiceService {
     private configService: ConfigService,
     private sharedService: SharedService,
     private itemDocumentService: ItemDocumentService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
     // @Inject(forwardRef(() => ItemService))
     // private itemService: ItemService

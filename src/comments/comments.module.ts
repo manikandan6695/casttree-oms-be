@@ -1,5 +1,5 @@
 import { HttpModule } from "@nestjs/axios";
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "src/auth/auth.module";
 import { SharedModule } from "src/shared/shared.module";
@@ -14,7 +14,7 @@ import { CommentSchema } from "./schema/comment.schema";
     SharedModule,
     AuthModule,
     HttpModule,
-    HelperModule,
+    forwardRef(() => HelperModule),
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

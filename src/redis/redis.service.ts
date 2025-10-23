@@ -15,13 +15,12 @@ export class RedisService implements OnModuleDestroy {
   private isConnected = false;
   private isPolling = false;
 
-  // @InjectModel('eventOutBox')
-  // private eventOutBoxModel: Model<IEventOutBox>;
 
   constructor(
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentRequestService: PaymentRequestService,
     private eventOutBoxService: EventOutBoxService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) { }
   async generateLockValue(): Promise<string> {
@@ -211,6 +210,10 @@ export class RedisService implements OnModuleDestroy {
       console.error('[Lock Release Error]', error.message || error);
       return false;
     }
+  }
+
+  getClient() {
+    return this.client;
   }
 
   async onModuleDestroy() {

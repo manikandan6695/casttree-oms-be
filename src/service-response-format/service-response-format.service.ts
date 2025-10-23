@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable,forwardRef, Inject } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
@@ -12,6 +12,7 @@ export class ServiceResponseFormatService {
     @InjectModel("serviceResponseFormat")
     private readonly serviceResponseFormatModel: Model<IServiceResponseFormatModel>,
     private shared_service: SharedService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService
   ) {}
 

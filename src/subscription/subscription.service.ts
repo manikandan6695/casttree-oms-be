@@ -73,6 +73,7 @@ export class SubscriptionService {
     private invoiceService: InvoiceService,
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
+    @Inject(forwardRef(() => HelperService))
     private helperService: HelperService,
     private sharedService: SharedService,
     private itemService: ItemService,
@@ -1236,6 +1237,7 @@ export class SubscriptionService {
       throw err;
     }
   }
+
 
   async handleRazorpayPausedMandate(payload: any) {
     try {
