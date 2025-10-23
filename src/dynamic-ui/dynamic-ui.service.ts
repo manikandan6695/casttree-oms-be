@@ -22,11 +22,13 @@ import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import {
+  EButtonToShow,
   EComponentItemType,
   EComponentKey,
   EComponentType,
   EConfigKeyName,
   EItemType,
+  ESysConfigKey,
 } from "./enum/component.enum";
 import {
   EMetabaseUrlLimit,
@@ -157,13 +159,6 @@ export class DynamicUiService {
         .lean();
       let tabs = await this.matchRoleByUser(token, data.tabs);
       data["tabs"] = tabs;
-      if (key == ENavBar.learnHomeHeader) {
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
-        mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = {};
-        await this.helperService.mixPanel(mixPanelBody);
-      }
       return { data };
     } catch (err) {
       throw err;
@@ -210,7 +205,6 @@ export class DynamicUiService {
     pageId: string,
     skip: number | undefined,
     limit: number | undefined,
-    filterOption: EFilterOption
   ) {
     try {
       Sentry.addBreadcrumb({
@@ -221,31 +215,14 @@ export class DynamicUiService {
           pageId,
           skip,
           limit,
-          filterOption,
         },
       });
-      const normalizedFilters = filterOption
-        ? Object.keys(filterOption)
-            .sort()
-            .reduce((acc, k) => {
-              acc[k] = (filterOption as any)[k];
-              return acc;
-            }, {} as any)
-        : {};
-      const cacheKey = `dynamicUI:getPageDetails:${token.id}:${pageId}:${skip ?? ""}:${limit ?? ""}:${JSON.stringify(
-        normalizedFilters
-      )}`;
-      const cached = await this.redisService.getClient()?.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached as string);
-      }
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
           status: EStatus.Active,
         })
         .lean();
-      //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
       const componentDocsPromise = this.componentModel
         .find({
@@ -270,13 +247,11 @@ export class DynamicUiService {
         skillType,
         EMetabaseUrlLimit.full_size_banner
       );
-      const filterOptionsPromise = this.componentFilterOptions();
-      const [componentDocsRaw, serviceItemData, bannerResp, filterOptions] =
+      const [componentDocsRaw, serviceItemData, bannerResp] =
         await Promise.all([
           componentDocsPromise,
           serviceItemPromise,
           bannerIdPromise,
-          filterOptionsPromise,
         ]);
       const processIds = [];
       const serviceItem = serviceItemData.finalData;
@@ -291,15 +266,11 @@ export class DynamicUiService {
       }
 
       let unquieProcessIds = [...new Set(processIds)];
-
+      let viewAllCount = await this.systemConfigurationModel.findOne({key: ESysConfigKey.view_all_count});
       let continueWatching = await this.fetchContinueWatching(
         token.id,
         unquieProcessIds
       );
-      // Resolve banner configuration document now
-      console.log("bannerResp",bannerResp);
-      console.log("bannerResp.bannerToShow",bannerResp.bannerToShow);
-      
       let componentDocs = componentDocsRaw;
       let banners = await this.bannerConfigurationModel.find({
         _id: {
@@ -318,7 +289,7 @@ export class DynamicUiService {
         if (tagName && serviceItemData?.finalData?.[tagName]) {
           comp.actionData = serviceItemData.finalData[tagName];
           comp["isViewAll"] =
-            serviceItemData.finalData[tagName].length > 10 ? true : false;
+            serviceItemData.finalData[tagName].length > viewAllCount?.value ? true : false;
         }
       });
       for (const comp of componentDocs) {
@@ -336,89 +307,18 @@ export class DynamicUiService {
         componentDocs = componentDocs.slice(start, end);
       }
       data["components"] = componentDocs;
-      const componentsWithInteractionData = componentDocs.filter(
-        (comp) => comp.interactionData
-      );
-      if (componentsWithInteractionData.length > 0) {
-        let availableFilterOptions = filterOptions;
-
-        const grouped = availableFilterOptions.reduce((acc, opt) => {
-          if (!acc[opt.filterType]) {
-            acc[opt.filterType] = {
-              type: opt.filterType,
-              filterTypeId: opt.filterTypeId.toString(),
-              options: [],
-            };
-          }
-          acc[opt.filterType].options.push({
-            filterOptionId: opt._id.toString(),
-            filterType: opt.filterType,
-            optionKey: opt.optionKey,
-            optionValue: opt.optionValue,
-          });
-          return acc;
-        }, {});
-
-        componentsWithInteractionData.forEach((component) => {
-          if (
-            component.componentKey === EComponentKey.learnFilterActionButton
-          ) {
-            const originalItems = component.interactionData?.items || [];
-
-            const groupedOptionsMap = new Map();
-            Object.values(grouped).forEach(
-              (group: {
-                type: string;
-                filterTypeId: string;
-                options: any[];
-              }) => {
-                groupedOptionsMap.set(group.type, group);
-              }
-            );
-
-            const transformedItems = originalItems.map((item: any) => {
-              let filterType = item.button?.type;
-
-              if (filterType === "proficency") {
-                filterType = "proficiency";
-              }
-
-              const groupedData = groupedOptionsMap.get(filterType);
-
-              if (groupedData) {
-                const existingOptions = item.options || [];
-                const newOptions = groupedData.options || [];
-
-                const existingOptionIds = new Set(
-                  existingOptions.map((opt) => opt.filterOptionId)
-                );
-
-                const uniqueNewOptions = newOptions.filter(
-                  (opt) => !existingOptionIds.has(opt.filterOptionId)
-                );
-
-                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
-
-                return {
-                  ...item,
-                  type: filterType,
-                  filterTypeId: groupedData.filterTypeId,
-                  options: mergedOptions,
-                };
-              }
-
-              return item;
-            });
-
-            component.interactionData = { items: transformedItems };
-          }
-        });
-      }
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = {
+        category : skillType,
+        banner1 : banners[0]?.banner?.name,
+        banner2 : banners[1]?.banner?.name,
+        banner3 : banners[2]?.banner?.name,
+        banner4 : banners[3]?.banner?.name,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
       const response = { data };
-      // Cache for short TTL to reduce repeated load (e.g., 30 seconds)
-      await this.redisService
-        .getClient()
-        ?.setEx(cacheKey, 30, JSON.stringify(response));
       return response;
     } catch (err) {
       throw err;
@@ -1050,7 +950,6 @@ export class DynamicUiService {
       });
       let pendingProcessInstanceData =
         await this.processService.allPendingProcess(userId, processIds);
-      //   console.log("pendingProcessInstanceData", pendingProcessInstanceData);
 
       let continueWatching = {
         actionData: [],
@@ -1064,17 +963,17 @@ export class DynamicUiService {
 
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWatching["actionData"].push({
-            thumbnail: await this.processService.getThumbNail(
-              pendingProcessInstanceData[i].currentTask?.taskMetaData?.media
-            ),
+            // thumbnail: await this.processService.getThumbNail(
+            //   pendingProcessInstanceData[i].currentTask?.taskMetaData?.media
+            // ),
             title: pendingProcessInstanceData[i].currentTask?.taskTitle,
             ctaName: "Continue",
             progressPercentage: pendingProcessInstanceData[i].completed,
-            navigationURL:
-              "process/" +
-              pendingProcessInstanceData[i].processId +
-              "/task/" +
-              pendingProcessInstanceData[i].currentTask?._id,
+            // navigationURL:
+            //   "process/" +
+            //   pendingProcessInstanceData[i].processId +
+            //   "/task/" +
+              // pendingProcessInstanceData[i].currentTask?._id,
             taskDetail: pendingProcessInstanceData[i].currentTask,
             mentorImage: mentorUserIds[i].media,
             mentorName: mentorUserIds[i].displayName,
@@ -1083,7 +982,6 @@ export class DynamicUiService {
           });
         }
       }
-
       return continueWatching;
     } catch (err) {
       throw err;
@@ -2823,9 +2721,9 @@ export class DynamicUiService {
         },
       });
       const { skip, limit } = query;
-      const [baseComponent, actualComponent, page] =
+      const [actualComponent, page] =
         await this.fetchBaseComponents(componentId, skillId);
-      if (!baseComponent) {
+      if (!actualComponent) {
         throw new NotFoundException("Filter component not found");
       }
       const tagName = actualComponent?.tag?.tagName;
@@ -2849,8 +2747,8 @@ export class DynamicUiService {
         finalInteractionData,
         filterOption
       );
-      this.updateBaseComponentWithFilterData(
-        baseComponent,
+      this.updateActualComponentWithFilterData(
+        actualComponent,
         finalInteractionData,
         processedFilterOptions,
         filteredData
@@ -2861,15 +2759,15 @@ export class DynamicUiService {
         token.id,
         filterOption
       );
-      baseComponent["totalCount"] = totalCount;
+      actualComponent["totalCount"] = totalCount;
 
       if (filteredData && filteredData.length > 0) {
-        baseComponent.actionData = filteredData;
-        baseComponent["totalCount"] = totalCount;
+        actualComponent.actionData = filteredData;
+        actualComponent["totalCount"] = totalCount;
       } else if (serviceItemData && serviceItemData.finalData && serviceItemData.finalData[tagName]) {
         const allTagData = serviceItemData.finalData[tagName] || [];
-        baseComponent.actionData = allTagData.slice(skip, skip + limit);
-        baseComponent["totalCount"] = allTagData.length;
+        actualComponent.actionData = allTagData.slice(skip, skip + limit);
+        actualComponent["totalCount"] = allTagData.length;
       } else {
         const completedSeries = await this.processService.getMySeries(
           token.id,
@@ -2896,12 +2794,12 @@ export class DynamicUiService {
         );
 
         if (nonMatchedSeries.length > 0) {
-          baseComponent.recommendedList = nonMatchedSeries;
-          baseComponent["totalCount"] = nonMatchedSeries.length;
+          actualComponent.recommendedList = nonMatchedSeries;
+          actualComponent["totalCount"] = nonMatchedSeries.length;
         }
       }
       
-      return { component: baseComponent };
+      return { component: actualComponent };
     } catch (err) {
       throw err;
     }
@@ -2921,13 +2819,7 @@ export class DynamicUiService {
     if (skillId) {
       filter["metaData.skillId"] = new ObjectId(skillId);
     }
-    const [baseComponent, actualComponent, page] = await Promise.all([
-      this.componentModel
-        .findOne({
-          componentKey: EComponentKey.filterActionButton,
-          status: EStatus.Active,
-        })
-        .lean(),
+    const [actualComponent, page] = await Promise.all([
       this.componentModel
         .findOne({
           _id: componentId,
@@ -2939,7 +2831,7 @@ export class DynamicUiService {
         .lean(),
     ]);
 
-    return [baseComponent, actualComponent, page] as [any, any, any];
+    return [actualComponent, page] as [any, any];
   }
 
   private async fetchServiceItemData(
@@ -2996,72 +2888,34 @@ export class DynamicUiService {
         filterOption,
       },
     });
-    const componentFilterTypes = this.extractFilterTypes(finalInteractionData);
-    const availableFilterOptions = await this.componentFilterOptions();
+    
+    // Extract filter options from the component-specific interaction data
+    const grouped = {};
+    
+    finalInteractionData.forEach((item: any) => {
+      const filterType = item.button?.type || item.type;
+      if (filterType && item.options && item.options.length > 0) {
+        grouped[filterType] = {
+          type: filterType,
+          filterTypeId: item.filterTypeId,
+          options: item.options.map((opt: any) => ({
+            filterOptionId: opt.filterOptionId,
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            description: opt.description,
+            icon: opt.icon,
+            color: opt.color,
+            metaData: opt.metaData,
+            isUserSelected: opt.isUserSelected || false,
+          })),
+        };
+      }
+    });
 
-    const filteredOptions =
-      componentFilterTypes.length > 0
-        ? availableFilterOptions.filter((opt) =>
-            componentFilterTypes.includes(opt.filterType)
-          )
-        : availableFilterOptions;
-
-    const grouped = this.groupFilterOptions(filteredOptions);
     this.applyUserSelections(grouped, filterOption);
 
     return grouped;
-  }
-
-  private extractFilterTypes(finalInteractionData: any[]): string[] {
-    Sentry.addBreadcrumb({
-      message: "extractFilterTypes",
-      level: "info",
-      data: {
-        finalInteractionData,
-      },
-    });
-    const componentFilterTypes: string[] = [];
-
-    if (finalInteractionData.length > 0) {
-      finalInteractionData.forEach((item: any) => {
-        if (item.button?.type || item.type) {
-          let filterType = item.button?.type || item.type;
-          if (filterType === "proficency") {
-            filterType = "proficiency";
-          }
-          componentFilterTypes.push(filterType);
-        }
-      });
-    }
-
-    return componentFilterTypes;
-  }
-
-  private groupFilterOptions(filteredOptions: any[]) {
-    Sentry.addBreadcrumb({
-      message: "groupFilterOptions",
-      level: "info",
-      data: {
-        filteredOptions,
-      },
-    });
-    return filteredOptions.reduce((acc, opt) => {
-      if (!acc[opt.filterType]) {
-        acc[opt.filterType] = {
-          type: opt.filterType,
-          filterTypeId: opt.filterTypeId.toString(),
-          options: [],
-        };
-      }
-      acc[opt.filterType].options.push({
-        filterOptionId: opt._id.toString(),
-        filterType: opt.filterType,
-        optionKey: opt.optionKey,
-        optionValue: opt.optionValue,
-        isUserSelected: false,
-      });
-      return acc;
-    }, {});
   }
 
   private applyUserSelections(grouped: any, filterOption: EFilterOption) {
@@ -3093,23 +2947,23 @@ export class DynamicUiService {
     });
   }
 
-  private updateBaseComponentWithFilterData(
-    baseComponent: any,
+  private updateActualComponentWithFilterData(
+    actualComponent: any,
     finalInteractionData: any[],
     processedFilterOptions: any,
     filteredData: any[]
   ) {
     Sentry.addBreadcrumb({
-      message: "updateBaseComponentWithFilterData",
+      message: "updateActualComponentWithFilterData",
       level: "info",
       data: {
-        baseComponent,
+        actualComponent,
         finalInteractionData,
         processedFilterOptions,
         filteredData,
       },
     });
-    if (baseComponent?.interactionData) {
+    if (actualComponent?.interactionData) {
       const groupedOptionsMap = new Map();
       Object.values(processedFilterOptions).forEach(
         (group: { type: string; filterTypeId: string; options: any[] }) => {
@@ -3149,10 +3003,10 @@ export class DynamicUiService {
         return item;
       });
 
-      baseComponent.interactionData = { items: transformedItems };
+      actualComponent.interactionData = { items: transformedItems };
     }
 
-    baseComponent.actionData = filteredData;
+    actualComponent.actionData = filteredData;
   }
 
   private async calculateTotalCount(
@@ -3297,7 +3151,6 @@ export class DynamicUiService {
 
       // Step 2: Build a Set of valid filterTypeIds
       const filterTypeIds = new Set(filterTypes.map((ft) => ft._id.toString()));
-
       // Step 3: Group filterOptions by filterTypeId using a Map
       const groupedOptions = new Map<string, any[]>();
       for (const option of filterOptions) {
@@ -3319,7 +3172,6 @@ export class DynamicUiService {
           metaData: option.metaData,
         });
       }
-
       // Step 4: Build interaction items
       const interactionItems = filterTypes.map((ft) => {
         const filterTypeId = ft._id.toString();
@@ -3345,7 +3197,6 @@ export class DynamicUiService {
           options: mappedOptions,
         };
       });
-
       return {
         componentId,
         interactionData: { items: interactionItems },
@@ -3422,6 +3273,7 @@ export class DynamicUiService {
       let subscriptionData = await this.subscriptionService.validateSubscription(userId, [
         EsubscriptionStatus.initiated,
         EsubscriptionStatus.failed,
+        EsubscriptionStatus.expired,
       ]);
       let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
       let chipData = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
@@ -3452,9 +3304,10 @@ export class DynamicUiService {
 
           const badgeItem = component.interactionData.items.find(item => item.type === EComponentItemType.badge);
           if (badgeItem) {
-            const navConfig = navigation?.value.find(config => config.name === isNewSubscriber);
+            let buttonToShow = isNewSubscriber ? EButtonToShow.referral : EButtonToShow.pro;
+            const navConfig = navigation?.value.find(config => config.key === buttonToShow);
             if (navConfig) {
-              badgeItem.button.lable = navConfig?.lable;
+              badgeItem.button.label = navConfig?.label;
               badgeItem.button.value = navConfig?.type;
               badgeItem.button.media = [{
                 mediaId:navConfig?.mediaId,
@@ -3470,9 +3323,8 @@ export class DynamicUiService {
                   "skill.skill_name": skillType,
                   "skill.skillId": new ObjectId(skillId),
                   type: EserviceItemType.courses,
-                }).select("itemId planItemId").lean();
+                }).select("planItemId").sort({_id: -1}).lean();
                 if (itemData) {
-                  badgeItem.navigation.params.itemId = itemData?.itemId;
                   badgeItem.navigation.params.planItemId = itemData?.planItemId[0]?.itemId;
                 }
               }
@@ -3503,7 +3355,7 @@ export class DynamicUiService {
       let data = {
         header : suggestionsTag?.value?.header,
         chips : matchedSkill?.chip,
-        media : suggestionsTag?.value?.media,
+        media : matchedSkill?.media,
       }
       return { data };
     } catch (error) {

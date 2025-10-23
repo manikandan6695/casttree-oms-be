@@ -25,3 +25,10 @@ export enum EComponentItemType {
   search = "search",
   badge = "badge"
 }
+export enum EButtonToShow {
+  pro = "pro",
+  referral = "referral"
+}
+export enum ESysConfigKey {
+  view_all_count = "view_all_count",
+}
