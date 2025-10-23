@@ -1477,6 +1477,7 @@ export class HelperService {
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
+        console.log("defaultBannerId",defaultBannerId?.value);
         let defaultBanner;
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
@@ -1485,12 +1486,27 @@ export class HelperService {
               banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
+          console.log("matchingBanner",matchingBanner);
           if (matchingBanner) {
-            defaultBanner = matchingBanner.bannerId.toString();
+            defaultBanner = matchingBanner.bannerId;
           }
         }
         const flattenedRows = response.data?.data?.rows?.flat() || [];
-        const bannerToShow = flattenedRows || defaultBanner;
+        const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
+        
+        let bannerToShow;
+        if (hasValidBanners) {
+          bannerToShow = flattenedRows
+            .filter(banner => banner !== null && banner !== undefined && banner !== '')
+            .map(banner => {
+              if (typeof banner === 'string' && banner.includes(',')) {
+                return banner.split(',')[0].trim();
+              }
+              return banner;
+            });
+        } else {
+          bannerToShow = defaultBanner;
+        }
         return {
           bannerToShow: bannerToShow,
         };
@@ -1526,11 +1542,25 @@ export class HelperService {
                 banner.sourceType === skillType
             );
             if (matchingBanner) {
-              defaultBanner = matchingBanner.bannerId.toString();
+              defaultBanner = matchingBanner.bannerId;
             }
           }
           const flattenedRows = retryResponse.data?.data?.rows?.flat() || [];
-          const bannerToShow = flattenedRows || defaultBanner;
+          console.log("flattenedRows",flattenedRows)
+          const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
+          let bannerToShow;
+          if (hasValidBanners) {
+            bannerToShow = flattenedRows
+              .filter(banner => banner !== null && banner !== undefined && banner !== '')
+              .map(banner => {
+                if (typeof banner === 'string' && banner.includes(',')) {
+                  return banner.split(',')[0].trim();
+                }
+                return banner;
+              });
+          } else {
+            bannerToShow = defaultBanner;
+          }
           return {
             bannerToShow: bannerToShow,
           };
@@ -1551,7 +1581,7 @@ export class HelperService {
             banner.sourceType === skillType
         );
         if (matchingBanner) {
-          defaultBanner = matchingBanner.bannerId.toString();
+          defaultBanner = matchingBanner.bannerId;
         }
       }
       // Return default banner in case of error
