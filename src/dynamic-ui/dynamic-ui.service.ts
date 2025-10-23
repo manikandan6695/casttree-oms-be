@@ -2812,7 +2812,7 @@ export class DynamicUiService {
     componentId: string,
     query: ComponentFilterQueryDto,
     filterOption: EFilterOption,
-    skillId: string,
+    skillId?: string,
   ) {
     try {
       Sentry.addBreadcrumb({
@@ -2910,7 +2910,7 @@ export class DynamicUiService {
     }
   }
 
-  private async fetchBaseComponents(componentId: string, skillId: string) {
+  private async fetchBaseComponents(componentId: string, skillId?: string) {
     Sentry.addBreadcrumb({
       message: "fetchBaseComponents",
       level: "info",
@@ -2918,6 +2918,12 @@ export class DynamicUiService {
         componentId,
       },
     });
+    let filter:any = {
+      "components.componentId": componentId,
+    }
+    if (skillId) {
+      filter["metaData.skillId"] = new ObjectId(skillId);
+    }
     const [baseComponent, actualComponent, page] = await Promise.all([
       this.componentModel
         .findOne({
@@ -2932,10 +2938,7 @@ export class DynamicUiService {
         })
         .lean(),
       this.contentPageModel
-        .findOne({
-          "components.componentId": componentId,
-          "metaData.skillId": new ObjectId(skillId),
-        })
+        .findOne(filter)
         .lean(),
     ]);
 
