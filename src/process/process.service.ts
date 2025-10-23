@@ -457,6 +457,7 @@ export class ProcessService {
         })
         .populate("currentTask")
         .sort({ updated_at: -1 })
+        .limit(5)
         .lean();
       let userProcessInstances = [];
       for (let i = 0; i < pendingTasks.length; i++) {

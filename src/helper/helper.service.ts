@@ -17,7 +17,7 @@ import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto"
 import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { RedisService } from "src/redis/redis.service";
 import { MixpanelExportService } from "./mixpanel-export.service";
-import { EMetabaseUrlLimit } from "./enums/mixedPanel.enums";
+import { EMetabaseUrlLimit, EMixedPanelEvents } from "./enums/mixedPanel.enums";
 import * as http from "http";
 import * as https from "https";
 @Injectable()
@@ -1506,6 +1506,14 @@ export class HelperService {
             });
         } else {
           bannerToShow = defaultBanner;
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+          mixPanelBody.distinctId = userId;
+          mixPanelBody.properties = {
+            user_id : userId,
+            skill_id : skillId,
+          };
+          await this.mixPanel(mixPanelBody);
         }
         return {
           bannerToShow: bannerToShow,
@@ -1560,6 +1568,14 @@ export class HelperService {
               });
           } else {
             bannerToShow = defaultBanner;
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+            mixPanelBody.distinctId = userId;
+            mixPanelBody.properties = {
+              user_id : userId,
+              skill_id : skillId,
+            };
+            await this.mixPanel(mixPanelBody);
           }
           return {
             bannerToShow: bannerToShow,
@@ -1582,6 +1598,14 @@ export class HelperService {
         );
         if (matchingBanner) {
           defaultBanner = matchingBanner.bannerId;
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+          mixPanelBody.distinctId = userId;
+          mixPanelBody.properties = {
+            user_id : userId,
+            skill_id : skillId,
+          };
+          await this.mixPanel(mixPanelBody);
         }
       }
       // Return default banner in case of error
