@@ -306,7 +306,9 @@ export class DynamicUiService {
           $in: bannerResp?.bannerToShow
         },
         status: EStatus.Active,
-      }).sort({_id: 1});
+      }).sort({_id: -1});
+      console.log("banners",banners);
+      
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
