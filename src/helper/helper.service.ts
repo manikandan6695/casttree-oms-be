@@ -1477,6 +1477,7 @@ export class HelperService {
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
+        console.log("defaultBannerId",defaultBannerId?.value);
         let defaultBanner;
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
@@ -1485,8 +1486,9 @@ export class HelperService {
               banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
+          console.log("matchingBanner",matchingBanner);
           if (matchingBanner) {
-            defaultBanner = matchingBanner.bannerId.toString();
+            defaultBanner = matchingBanner.bannerId;
           }
         }
         const flattenedRows = response.data?.data?.rows?.flat() || [];
@@ -1503,7 +1505,7 @@ export class HelperService {
               return banner;
             });
         } else {
-          bannerToShow = [defaultBanner];
+          bannerToShow = defaultBanner;
         }
         return {
           bannerToShow: bannerToShow,
@@ -1540,7 +1542,7 @@ export class HelperService {
                 banner.sourceType === skillType
             );
             if (matchingBanner) {
-              defaultBanner = matchingBanner.bannerId.toString();
+              defaultBanner = matchingBanner.bannerId;
             }
           }
           const flattenedRows = retryResponse.data?.data?.rows?.flat() || [];
@@ -1557,7 +1559,7 @@ export class HelperService {
                 return banner;
               });
           } else {
-            bannerToShow = [defaultBanner];
+            bannerToShow = defaultBanner;
           }
           return {
             bannerToShow: bannerToShow,
@@ -1579,7 +1581,7 @@ export class HelperService {
             banner.sourceType === skillType
         );
         if (matchingBanner) {
-          defaultBanner = matchingBanner.bannerId.toString();
+          defaultBanner = matchingBanner.bannerId;
         }
       }
       // Return default banner in case of error

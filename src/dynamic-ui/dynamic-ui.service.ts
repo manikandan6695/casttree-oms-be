@@ -264,7 +264,7 @@ export class DynamicUiService {
       );
       let skillId = data.metaData?.skillId;
       let skillType = data.metaData?.skill;
-      const bannerIdPromise = this.helperService.getBannerToShow(
+      const bannerIdPromise = await this.helperService.getBannerToShow(
         token.id,
         skillId,
         skillType,
@@ -297,13 +297,16 @@ export class DynamicUiService {
         unquieProcessIds
       );
       // Resolve banner configuration document now
+      console.log("bannerResp",bannerResp);
+      console.log("bannerResp.bannerToShow",bannerResp.bannerToShow);
+      
       let componentDocs = componentDocsRaw;
       let banners = await this.bannerConfigurationModel.find({
         _id: {
           $in: bannerResp?.bannerToShow
         },
         status: EStatus.Active,
-      });
+      }).sort({_id: 1});
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
