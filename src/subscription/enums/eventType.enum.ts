@@ -20,12 +20,14 @@ export enum EEventType {
   tokenConfirmed = "token.confirmed",
   tokenCancelled = "token.cancellation_initiated",
   paymentAuthorized = "payment.authorized",
+  paymentCaptured = "payment.captured",
   paymentFailed = "payment.failed",
   tokenCancel = "token.cancelled",
   tokenPaused = "token.paused",
   tokenRejected = "token.rejected",
   didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
   autoRenewDisabled="AUTO_RENEW_DISABLED",
+  paymentRefunded = "refund.processed"
 }
 
 export const ESEventType = [

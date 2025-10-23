@@ -20,11 +20,7 @@ export class CurrencyController {
       let data = await this.currency_service.getCurrency(search, skip, limit);
       return res.json(data);
     } catch (err) {
-      const { code, response } = this.shared_service.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 }

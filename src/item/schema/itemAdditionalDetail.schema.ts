@@ -98,6 +98,13 @@ export const videoDescriptionSchema = new mongoose.Schema<any>({
     type: String,
   },
 });
+export interface learnBottomSheetModel {
+  title: string;
+  type: string;
+  subTitle: string;
+  description: string;
+  button: string;
+}
 export interface itemAdditionalDetailModel {
   meetingLink: string;
   registrationExpiry: Date;
@@ -122,10 +129,20 @@ export interface itemAdditionalDetailModel {
   promotionDetails: any;
   premiumPage: any;
   ratingSummary: string;
-  isEnableExpertQueries:boolean;
-  coinValue: number,
-  bottomSheet : any;
+  isEnableExpertQueries: boolean;
+  coinValue: number;
+  bottomSheet: any;
+  // ⭐ Add missing fields
+  reponseMode: string;
+  maxFollowup: number;
+  maxCustomQuestions: number;
+  planDetails: any[];
+  badgeColour: string;
+  validity: string;
+  skipText: string;
+  learnBottomSheet: learnBottomSheetModel;
 }
+
 export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   meetingLink: { type: String },
   registrationExpiry: { type: Date },
@@ -158,7 +175,16 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   promotionDetails: { type: mongoose.Schema.Types.Mixed },
   premiumPage: { type: mongoose.Schema.Types.Mixed },
   ratingSummary: { type: String },
-  isEnableExpertQueries: {type: Boolean},
-  coinValue: {type: Number},
-  bottomSheet : { type: mongoose.Schema.Types.Mixed },
+  isEnableExpertQueries: { type: Boolean },
+  coinValue: { type: Number },
+  bottomSheet: { type: mongoose.Schema.Types.Mixed },
+  // ⭐ Add missing schema fields
+  reponseMode: { type: String },
+  maxFollowup: { type: Number },
+  maxCustomQuestions: { type: Number },
+  planDetails: [{ type: mongoose.Schema.Types.Mixed }],
+  badgeColour: { type: String },
+  validity: { type: String },
+  skipText: { type: String },
+  learnBottomSheet: { type: String },
 });

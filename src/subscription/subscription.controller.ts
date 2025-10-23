@@ -40,11 +40,18 @@ export class SubscriptionController {
       let data = await this.subscriptionService.createSubscription(body, token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("getPlanDetails")
+  async getAnnualSubscriptionDetails( @GetToken() token: UserToken, @Req() req ) {
+    try {
+      let data = await this.subscriptionService.getAnnualSubscriptionDetails(token, req.headers["authorization"]);
+      return data;
+    } catch (error) {
+      console.error("getAnnualSubscriptionDetails failed for userId:", "Error:", error);
+      throw error;
     }
   }
   @Post("webhook/provider/:providerId")
@@ -60,11 +67,7 @@ export class SubscriptionController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -77,11 +80,7 @@ export class SubscriptionController {
       let data = await this.subscriptionService.subscriptionComparision(token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -96,11 +95,7 @@ export class SubscriptionController {
       let data = await this.subscriptionService.addSubscription(body, token);
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -124,11 +119,7 @@ export class SubscriptionController {
         },
       });
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -145,11 +136,7 @@ export class SubscriptionController {
       );
       return res.json(subData);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
 
@@ -167,11 +154,7 @@ export class SubscriptionController {
       );
       return res.json(data);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
@@ -188,27 +171,20 @@ export class SubscriptionController {
       );
       return res.json(result);
     } catch (err) {
-      const { code, response } = await this.sservice.processError(
-        err,
-        this.constructor.name
-      );
-      return res.status(code).json(response);
+      throw err;
     }
   }
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getLatestSubscription(@GetToken() token: UserToken, @Res() res: Response) {
+  async getLatestSubscription(
+    @GetToken() token: UserToken,
+    @Res() res: Response
+  ) {
     try {
       let data = await this.subscriptionService.getLatestSubscription(token);
       return res.json(data);
     } catch (error) {
-      if (error instanceof HttpException) {
-        const status = error.getStatus();
-        const response = error.getResponse();
-        return res.status(status).json({
-          message: (response as any).message,
-        });
-      }
+      throw error;
     }
   }
 }

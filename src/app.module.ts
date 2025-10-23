@@ -1,7 +1,7 @@
 //import { CacheModule } from "@nestjs/cache-manager";
 import { MiddlewareConsumer, Module, RequestMethod } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -25,6 +25,8 @@ import { RedisInitializer } from "./redis/redis.initializer";
 import { EventOutBoxModule } from './event-outbox/event-outbox.module';
 import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
+import { AllExceptionsFilter } from "./shared/all-exception.filter";
+import { ProviderModule } from "./provider/provider.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -68,13 +70,18 @@ import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
     TaxModule,
     EventOutBoxModule,
     RedisModule,
-    DynamicUiModule
+    DynamicUiModule,
+    ProviderModule
   ],
   controllers: [],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
     },
     RedisInitializer,
   ],

@@ -604,6 +604,9 @@ export class PaymentRequestService {
       if (conversionBody.metaData) {
         updateFields.metaData = conversionBody.metaData;
       }
+      if(body?.isRefunded){
+        updateFields.isRefunded = body.isRefunded;
+      }
       console.log("updateFields", updateFields);
       const updateData = await this.paymentModel.updateOne(
         {
@@ -1075,6 +1078,22 @@ export class PaymentRequestService {
       throw error;
     }
   } 
+  async getPaymentByExternalId(externalId: string, provider: EProviderId) {
+    try {
+      let payment = await this.paymentModel.findOne({"metaData.externalId": externalId ,providerId: provider})
+      return payment
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getFirstPaymentByUserId(userId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({user_id: new ObjectId(userId), document_status: EDocumentStatus.completed}).sort({ _id: 1 })
+      return payment
+    } catch (error) {
+      throw error;
+    }
+  }
   // Uncomment and implement if handling other statuses like failed
   // async failPayment(ids) {
   //   await this.invoiceService.updateInvoice(ids.invoiceId, EDocumentStatus.failed);

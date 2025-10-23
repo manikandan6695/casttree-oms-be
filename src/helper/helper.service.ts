@@ -393,10 +393,15 @@ export class HelperService {
 
   async createCustomer(body, token: any) {
     try {
-      // console.log("token", token);
+      let name = body.userName?.trim();
 
+      if (!name || name.length < 3) {
+        name = "Creedom User";
+      }
+      // console.log("name is",name);
+      
       let fv = {
-        name: body.userName,
+        name: name,
         email: body.email,
         contact: body.phoneNumber,
         fail_existing: "0",
@@ -564,7 +569,7 @@ export class HelperService {
         .get(requestURL, body)
         .pipe(
           map((res) => {
-            console.log(res?.data);
+            // console.log(res?.data);
             return res?.data;
           })
         )
@@ -1317,4 +1322,63 @@ export class HelperService {
   //     );
   //   }
   // }
+
+  async generateNewMediaUrl(oldUrl: string): Promise<string> {
+    try {
+      const response = await axios.post(
+        this.configService.get("CASTTREE_BASE_URL") + "/peertube",
+        // "http://localhost:3000/casttree/peertube",
+        {
+          embeddedURL: oldUrl,
+        },
+        {
+          headers: {
+            "x-api-version": "2",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error generating new media URL:", error);
+      throw error;
+    }
+  }
+  async getUserRatings(rawToken) {
+    try {
+      let data = await this.http_service
+        .get(
+          `${this.configService.get("CASTTREE_RATINGS_BASE_URL")}/ratings`,
+          // `http://localhost:3200/casttree-ratings/ratings`,
+          {
+            headers: {
+              Authorization: `${rawToken}`,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserNominations(rawToken) {
+    try {
+      let data = await this.http_service
+      .get(
+         `${this.configService.get("CASTTREE_BASE_URL")}/nominations/user-nominations`,
+        // `http://localhost:3000/casttree/nominations/user-nominations`,
+        {
+          headers: {
+            Authorization: `${rawToken}`,
+          },
+        }
+      )
+      .toPromise();
+    return data.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

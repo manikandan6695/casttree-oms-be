@@ -29,6 +29,7 @@ import { EEventType } from "./enums/eventType.enum";
 import { ItemService } from "src/item/item.service";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
+import { RedisService } from "src/redis/redis.service";
 const issuerId = process.env.ISSUER_ID;
 const keyId = process.env.KEY_ID;
 const bundleId = process.env.BUNDLE_ID;
@@ -53,7 +54,8 @@ export class SubscriptionFactory {
     private readonly invoiceService: InvoiceService,
     @Inject(forwardRef(() => PaymentRequestService))
     private readonly paymentService: PaymentRequestService,
-    private readonly itemService: ItemService
+    private readonly itemService: ItemService,
+    private readonly redisService: RedisService
   ) {}
   // async onModuleInit() {
   //   await this.init();
@@ -115,12 +117,42 @@ export class SubscriptionFactory {
         payment_method: { upi: { channel: "link" } },
       };
       const auth = await this.helperService.createAuth(authData);
-      let endDate = new Date(bodyData?.firstCharge);
-      let endAt = endDate.setHours(23, 59, 59, 999);
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
+
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        startAt = new Date();
+        let endDate = new Date(bodyData?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }
       const subscriptionData = {
         userId: token.id,
         planId: subscription?.plan_details?.plan_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 2,
         provider: EProvider.cashfree,
@@ -140,7 +172,7 @@ export class SubscriptionFactory {
         sourceId: subscriptionCreated._id,
         userId: token.id,
         paymentMethod: "UPI",
-        amount: bodyData?.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         providerId: 2,
         provider: EProvider.cashfree,
         currency: "INR",
@@ -174,10 +206,10 @@ export class SubscriptionFactory {
         itemId: bodyData.itemId,
         source_id: subscriptionCreated._id,
         source_type: "subscription",
-        sub_total: bodyData.authAmount,
+        sub_total: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
-        grand_total: bodyData.authAmount,
+        grand_total: subscription?.authorization_details?.authorization_amount,
         user_id: token.id,
         created_by: token.id,
         updated_by: token.id,
@@ -188,14 +220,14 @@ export class SubscriptionFactory {
       );
 
       const paymentData = {
-        amount: bodyData.authAmount,
+        amount: subscription?.authorization_details?.authorization_amount,
         currencyCode: "INR",
         document_status: EDocumentStatus.pending,
         paymentType: EPaymentType.auth,
         providerId: 2,
         providerName: EProvider.cashfree,
       };
-      await this.paymentService.createPaymentRecord(
+      let payment = await this.paymentService.createPaymentRecord(
         paymentData,
         token,
         invoice,
@@ -205,7 +237,10 @@ export class SubscriptionFactory {
       // console.log("returning data");
 
       return {
-        subscriptionDetails: subscription,
+        subscriptionDetails: {
+        ...subscription,
+        paymentId: payment?.id,
+        },
         authorizationDetails: auth,
       };
     } catch (err) {
@@ -360,7 +395,7 @@ export class SubscriptionFactory {
           conversionRate: conversionRateAmt,
           paymentType: "Auth",
         };
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -398,7 +433,7 @@ export class SubscriptionFactory {
         });
 
         const subscriptionCount = await this.subscriptionService.countUserSubscriptions(token?.id);
-        
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
         mixPanelBody.distinctId = token.id;
@@ -420,7 +455,16 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});     
-        return subscriptionData;
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -430,7 +474,7 @@ export class SubscriptionFactory {
 
   private async hanldeGoogleIAPSubscription(data, bodyData, token: UserToken) {
     try {
-      // console.log("body data", data, bodyData);
+      console.log("body data", data, bodyData);
 
       let transactionId = bodyData.transactionDetails?.transactionId;
       let existingSubscription =
@@ -553,7 +597,7 @@ export class SubscriptionFactory {
         };
         // console.log("paymentData",paymentData);
 
-        await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -603,7 +647,16 @@ export class SubscriptionFactory {
           first_subscription_date: firstSubscription?.startAt
         }
         await this.helperService.setUserProfile({ distinctId: token?.id,properties: propertie});
-        return createdSubscription;
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = createdSubscription.toObject()
+        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...createdSubscription.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return finalResponse;
       }
       return existingSubscription;
     } catch (error) {
@@ -1073,11 +1126,13 @@ export class SubscriptionFactory {
     try {
       console.log("payload", payload);
       const pubSubMessage = payload?.message;
+      if (pubSubMessage) {        
       const messageBuffer = Buffer.from(pubSubMessage.data, "base64");
       const notification = JSON.parse(messageBuffer.toString());
       console.log("notification", notification);
 
       const { subscriptionNotification } = notification;
+      if (notification.subscriptionNotification) { 
       const { notificationType, purchaseToken } = subscriptionNotification;
       // console.log("notificationType", purchaseToken, notification.packageName);
 
@@ -1092,7 +1147,9 @@ export class SubscriptionFactory {
         purchaseToken: purchaseToken,
         notificationType: notificationType,
       };
-      return verificationData;
+      return verificationData;        
+    }
+  }
     } catch (err) {
       throw err;
     }
@@ -1116,7 +1173,7 @@ export class SubscriptionFactory {
       });
       // console.log("res", res);
       const transactionInfo = res.data;
-      // console.log("transactionInfo", transactionInfo);
+      console.log("transactionInfo", transactionInfo);
 
       return {
         success: res.data.expiryTime > new Date(),
@@ -1164,15 +1221,43 @@ export class SubscriptionFactory {
       // console.log("fv is", fv);
 
       const subscription = await this.helperService.addSubscription(fv);
-      let endDate = new Date(data?.firstCharge);
-      endDate.setHours(23, 59, 59, 999); // modifies in-place
-      let endAt = endDate;
-      // console.log("endAt is", endAt);
+      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let startAt: Date;
+      let endAt: Date;
+
+      if (existingSubscription) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
+        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 2000);
+        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
+          EsubscriptionStatus.initiated,
+          EsubscriptionStatus.failed,
+        ]);
+
+        startAt = new Date(new Date(existingSubscription?.endAt).getTime() + 2000);
+
+        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
+        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
+        endAt = new Date(startAt);
+        if (endAtValidityType === 'day') {
+          endAt.setDate(endAt.getDate() + endAtValidity);
+        } else if (endAtValidityType === 'month') {
+          endAt.setMonth(endAt.getMonth() + endAtValidity);
+        } else if (endAtValidityType === 'year') {
+          endAt.setFullYear(endAt.getFullYear() + endAtValidity);
+        }
+        endAt.setUTCHours(18, 29, 59, 999);
+        
+      } else {
+        startAt = new Date();
+        let endDate = new Date(data?.firstCharge);
+        endDate.setUTCHours(18, 29, 59, 999);
+        endAt = endDate;
+      }
 
       const subscriptionData = {
         userId: token.id,
         subscriptionId: data?.subscription_id,
-        startAt: new Date().toISOString(),
+        startAt: startAt.toISOString(),
         endAt: endAt,
         providerId: 1,
         provider: EProvider.razorpay,
@@ -1267,25 +1352,58 @@ export class SubscriptionFactory {
   }
   async handleIapCoinPurchase(body, token) {
     try {
-      // console.log("body",body)
-      if (body.providerName === EProvider.apple) {
-        // console.time("apple")
-        let transactionId =
-          body.transactionDetails.originalTransactionId ||
-          body.transactionDetails.transactionId;
-        let transaction = await this.getTransactionHistoryById(transactionId);
-        //  console.timeEnd("apple")
-         console.log("transaction",transaction)
-        const price = transaction?.price / 1000;
-        const currencyCode = transaction?.currency;
-        const currencyIdRes =
-          await this.helperService.getCurrencyId(currencyCode);
-        const currencyResponse = currencyIdRes?.data?.[0];
-        let provider = EProviderId.apple;
-        const item = await this.itemService.getItemByPlanConfig(
-          body?.transactionDetails?.planId,
-          provider
+      let transactionId =
+        body.providerName === EProvider.apple
+          ? body.transactionDetails.originalTransactionId || body.transactionDetails.transactionId
+          : body.transactionDetails.transactionId;
+  
+      const lockKey = `${body.providerName}_transaction_${transactionId}`;
+      const { acquired, value: lockValue } = await this.redisService.acquireLock(lockKey, undefined, 30);
+
+      if (!acquired) {
+        const providerId = body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google;
+      
+        const maxWaitMs = 3000;   
+        const intervalMs = 500;   
+      
+        for (let waited = 0; waited < maxWaitMs; waited += intervalMs) {
+          await new Promise(res => setTimeout(res, intervalMs));
+      
+          const existingPayment = await this.paymentService.getPaymentByExternalId(transactionId, providerId);
+          if (existingPayment) {
+            return { paymentResponse: existingPayment };
+          }
+        }
+      
+        return { paymentResponse: null, message: `Transaction is being processed by another request` };
+      }
+      
+      try {
+        let transaction;
+        if (body.providerName === EProvider.apple) {
+          transaction = await this.getTransactionHistoryById(transactionId);
+        } else {
+          const googlePackage = packageName;
+          transaction = await this.validatePurchaseState(
+            googlePackage,
+            transactionId,
+            body.transactionDetails.planId
+          );
+        }
+  
+        let existingPayment = await this.paymentService.getPaymentByExternalId(
+          transactionId,
+          body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google
         );
+        if (existingPayment) return { paymentResponse: existingPayment };
+  
+        const price = transaction?.amount ?? transaction?.price / 1000;
+        const currencyCode = transaction?.currency;
+        const currencyIdRes = await this.helperService.getCurrencyId(currencyCode);
+        const currencyResponse = currencyIdRes?.data?.[0];
+        const provider = body.providerName === EProvider.apple ? EProviderId.apple : EProviderId.google;
+        const item = await this.itemService.getItemByPlanConfig(body?.transactionDetails?.planId, provider);
+  
         const invoiceData = {
           itemId: item._id,
           source_type: EPaymentSourceType.coinTransaction,
@@ -1298,128 +1416,53 @@ export class SubscriptionFactory {
           currencyCode: currencyResponse.currency_code,
           currency: currencyResponse._id,
         };
-        const invoice = await this.invoiceService.createInvoice(
-          invoiceData,
-          token.id
-        );
-        const conversionRateAmt = await this.helperService.getConversionRate(
-          currencyCode,
-          price
-        );
+        const invoice = await this.invoiceService.createInvoice(invoiceData, token.id);
+        const conversionRateAmt = await this.helperService.getConversionRate(currencyCode, price);
         const baseAmount = Math.round(price * conversionRateAmt);
+  
         const paymentData = {
           amount: price,
           document_status: EDocumentStatus.completed,
-          providerId: EProviderId.apple,
-          providerName: EProvider.apple,
+          providerId: provider,
+          providerName: body.providerName,
           transactionDate: new Date(),
-          metaData: {
-            externalId: transaction?.originalTransactionId,
-            transaction: transaction,
-            // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
-          },
+          metaData: { externalId: transactionId, transaction },
           currencyCode: currencyResponse.currency_code,
           currencyId: currencyResponse._id,
-          baseAmount: baseAmount,
+          baseAmount,
           baseCurrency: currencyCode,
           conversionRate: conversionRateAmt,
         };
-        let paymentResponse = await this.paymentService.createPaymentRecord(
-          paymentData,
-          token,
-          invoice
-        );
-        let payload = {
+  
+        const paymentResponse = await this.paymentService.createPaymentRecord(paymentData, token, invoice);
+  
+        const payload = {
           userId: token.id,
           coinValue: item?.additionalDetail?.coinValue,
           sourceId: invoice?._id,
           sourceType: EDocumentTypeName.invoice,
         };
-        let createCoinValue =
-          await this.paymentService.createCoinValue(payload);
-        let updatedBody = {
+        const createCoinValue = await this.paymentService.createCoinValue(payload);
+  
+        const updatedInvoice = await this.invoiceService.updateSalseDocumentById({
           _id: new ObjectId(invoice?._id),
           sourceId: new ObjectId(createCoinValue),
-        };
-        let updatedInvoice =
-          await this.invoiceService.updateSalseDocumentById(updatedBody);
-
-        return { paymentResponse, updatedInvoice };
-      }
-      else if(body.providerName===EProvider.google){
-        let googlePackage = packageName
-        let transaction = await this.validatePurchaseState(googlePackage, body.transactionDetails.transactionId, body.transactionDetails.planId)
-        // console.log("transaction",transaction)
-        const price = transaction?.amount;
-        const currencyCode = transaction?.currency;
-        const currencyIdRes =
-          await this.helperService.getCurrencyId(currencyCode);
-        const currencyResponse = currencyIdRes?.data?.[0];
-        let provider = EProviderId.google;
-        const item = await this.itemService.getItemByPlanConfig(
-         body?.transactionDetails?.planId,
-          provider
-        );
-        const invoiceData = {
-         itemId: item._id,
-         source_type: EPaymentSourceType.coinTransaction,
-         sub_total: price,
-         document_status: EDocumentStatus.completed,
-         grand_total: price,
-         user_id:token.id,
-         created_by: token.id,
-         updated_by: token.id,
-         currencyCode: currencyResponse.currency_code,
-         currency: currencyResponse._id,
-       };
-       const invoice = await this.invoiceService.createInvoice(
-         invoiceData,
-         token.id
-       );
-       const conversionRateAmt = await this.helperService.getConversionRate(
-         currencyCode,
-         price
-       );
-       const baseAmount = Math.round(price * conversionRateAmt);
-       const paymentData = {
-         amount: price,
-         document_status: EDocumentStatus.completed,
-         providerId: EProviderId.google,
-         providerName: EProvider.google,
-         transactionDate: new Date(),
-         metaData: {
-           externalId: body.transactionDetails.transactionId,
-           transaction: transaction
-           // latestOrderId: matchingTransaction?.transactionInfo?.latestOrderId,
-         },
-         currencyCode: currencyResponse.currency_code,
-         currencyId: currencyResponse._id,
-         baseAmount: baseAmount,
-         baseCurrency: currencyCode,
-         conversionRate: conversionRateAmt,
-       };
-      let paymentResponse =  await this.paymentService.createPaymentRecord(
-         paymentData,
-         token,
-         invoice
-       );
-       let payload = {
-         userId: token.id,
-         coinValue: item?.additionalDetail?.coinValue,
-         sourceId:invoice?._id,
-         sourceType: EDocumentTypeName.invoice
-       }
-      //  console.log("payload", payload);
-      let createCoinValue = await this.paymentService.createCoinValue(payload)
-      // console.log("createCoinValue", createCoinValue);
-       let updatedBody = {
-         _id: new ObjectId(invoice?._id),
-         sourceId: new ObjectId(createCoinValue)
-       }
-      let updatedInvoice= await this.invoiceService.updateSalseDocumentById(updatedBody)
-       return {paymentResponse,updatedInvoice}
+        });
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
+        let finalResponse:any = paymentResponse.toObject()
+        if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+          finalResponse = {
+            ...paymentResponse.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id
+          }
+        }
+        return { paymentResponse: finalResponse, updatedInvoice };
+      } finally {
+        await this.redisService.releaseLock(lockKey, lockValue);
       }
     } catch (error) {
+      console.error('[handleIapCoinPurchase Error]', error);
       throw error;
     }
   }

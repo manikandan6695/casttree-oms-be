@@ -15,7 +15,7 @@ export class HelperController {
       let data = await this.helperService.sendMail(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
 
@@ -25,7 +25,7 @@ export class HelperController {
       let data = await this.helperService.sendWhastappMessage(body);
       return data;
     } catch (err) {
-      return err;
+      throw err;
     }
   }
   @Get("banner/:userId")

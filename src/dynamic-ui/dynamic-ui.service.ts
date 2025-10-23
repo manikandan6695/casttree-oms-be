@@ -1,17 +1,16 @@
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { EprocessStatus, EStatus } from "./../process/enums/process.enum";
+import { Estatus } from "src/item/enum/status.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel, InjectConnection } from "@nestjs/mongoose";
+import { Model, Connection, ClientSession } from "mongoose";
 import { IAppNavBar } from "./schema/app-navbar.entity";
 import { IComponent } from "./schema/component.entity";
 import { IContentPage } from "./schema/page-content.entity";
 import { serviceitems } from "src/item/schema/serviceItem.schema";
 import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
-import { Estatus } from "src/item/enum/status.enum";
 import { ProcessService } from "src/process/process.service";
-import { EprofileType } from "src/item/enum/profileType.enum";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
@@ -22,7 +21,7 @@ import {
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
 import { EComponentKey, EComponentType } from "./enum/component.enum";
-import { EFilterOption } from "./dto/filter-option.dto";
+import { ComponentFilterQueryDto, EFilterOption } from "./dto/filter-option.dto";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
 import { EUpdateComponents } from "./dto/update-components.dto";
@@ -31,6 +30,34 @@ const { ObjectId } = require("mongodb");
 import { ICategory } from "./schema/category.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { RedisService } from "src/redis/redis.service";
+import { AddNewSeriesDto } from "./dto/add-new-series.dto";
+import { IProfile } from "src/shared/schema/profile.schema";
+import { IUserOrganization } from "src/shared/schema/user-organization.schema";
+import { IOrganization } from "src/shared/schema/organization.schema";
+import { IItemModel } from "src/item/schema/item.schema";
+import { processModel } from "src/process/schema/process.schema";
+import { EprofileType } from "src/item/enum/profileType.enum";
+import { EItemType } from "src/item/enum/item-type.enum";
+import { ESeriesTag, ERoleTag } from "src/dynamic-ui/enum/series-tag.enum";
+import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
+import { taskModel } from "src/process/schema/task.schema";
+import { AddAchievementDto } from "./dto/add-achievement.dto";
+import { Achievement } from "src/dynamic-ui/schema/achievement.schema";
+import { EAchievementType } from "src/item/enum/achievement.enum";
+import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
+import {
+  ItemType,
+  MapVirtualItemToSeriesDto,
+} from "./dto/map-virtual-item.dto";
+import { ISkill } from "src/shared/schema/skill.schema";
+import { IRole } from "src/shared/schema/role.schema";
+import { ILanguage } from "src/shared/schema/language.schema";
+import { ICurrencyModel } from "src/shared/schema/currency.schema";
+import { ConfigService } from "@nestjs/config";
+import { VirtualItem } from "./schema/virtual-item.schema";
+import { VirtualItemGroup } from "./schema/virtual-item-group.schema";
+import { Award } from "./schema/awards.schema";
+import { mediaModel } from "./schema/media.schema";
 
 @Injectable()
 export class DynamicUiService {
@@ -48,6 +75,7 @@ export class DynamicUiService {
     private processService: ProcessService,
     private helperService: HelperService,
     private subscriptionService: SubscriptionService,
+    private configService: ConfigService,
     @InjectModel("filterTypes")
     private readonly filterTypeModel: Model<IFilterType>,
     @InjectModel("filterOptions")
@@ -56,7 +84,39 @@ export class DynamicUiService {
     private readonly categoryModel: Model<ICategory>,
     @InjectModel("bannerConfiguration")
     private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
+    @InjectModel("profile")
+    private readonly profileModel: Model<IProfile>,
+    @InjectModel("userOrganization")
+    private readonly userOrganizationModel: Model<IUserOrganization>,
+    @InjectModel("organization")
+    private readonly organizationModel: Model<IOrganization>,
+    @InjectModel("item")
+    private readonly itemModel: Model<IItemModel>,
+    @InjectModel("process")
+    private readonly processModel: Model<processModel>,
+    @InjectModel("task")
+    private readonly taskModel: Model<taskModel>,
+    @InjectModel("achievement")
+    private readonly achievementModel: Model<Achievement>,
+    @InjectModel("virtualItem")
+    private readonly virtualItemModel: Model<VirtualItem>,
+    @InjectModel("virtualItemGroup")
+    private readonly virtualItemGroupModel: Model<VirtualItemGroup>,
+    @InjectModel("awards")
+    private readonly awardsModel: Model<Award>,
+    @InjectModel("media")
+    private readonly mediaModel: Model<mediaModel>,
+    @InjectModel("skill")
+    private readonly skillModel: Model<ISkill>,
+    @InjectModel("role")
+    private readonly roleModel: Model<IRole>,
+    @InjectModel("language")
+    private readonly languageModel: Model<ILanguage>,
+    @InjectModel("currency")
+    private readonly currencyModel: Model<ICurrencyModel>,
+    @InjectConnection()
+    private readonly connection: Connection
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -229,9 +289,18 @@ export class DynamicUiService {
       const serviceItem = serviceItemData.finalData;
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
-          serviceItem[category].forEach((item) => {
+          serviceItem[category].forEach(async (item) => {
             if (item.processId) {
               processIds.push(item.processId);
+              const itemId = await this.serviceItemModel
+                .findOne({ "additionalDetails.processId": item.processId })
+                .select("itemId")
+                .lean();
+              if (itemId) {
+                const itemName = await this.itemModel.findOne({ _id: itemId.itemId }).select("itemName").lean();
+                item.itemName = itemName?.itemName;
+              }
+              // console.log("itemName", itemName);
             }
           });
         }
@@ -1113,6 +1182,7 @@ export class DynamicUiService {
       throw err;
     }
   }
+
   async fetchContinueWatching(userId: string, processIds: string[]) {
     const timingLabel = `fetchContinueWatching:${userId}`;
     console.time(timingLabel);
@@ -1496,7 +1566,7 @@ export class DynamicUiService {
       }
 
       const categoryId = categoryDoc._id;
-      console.log("categoryId", categoryId);
+      // console.log("categoryId", categoryId);
 
       // Process selected series - use Promise.all for parallel execution
       series.map(async (item, index) => {
@@ -1538,5 +1608,1491 @@ export class DynamicUiService {
       console.error("Error updating series tags:", error);
       throw error;
     }
+  }
+
+  async getFilterOptions() {
+    try {
+      const proficiencyOptions = await this.filterOptionsModel
+        .find({
+          filterType: EItemType.proficiency,
+          status: EStatus.Active,
+        })
+        .select("_id optionValue")
+        .sort({ sortOrder: 1 })
+        .lean();
+
+      const categoryOptions = await this.filterOptionsModel
+        .find({
+          filterType: EItemType.category,
+          status: EStatus.Active,
+        })
+        .select("_id optionValue")
+        .sort({ sortOrder: 1 })
+        .lean();
+
+      return {
+        proficiency: proficiencyOptions,
+        category: categoryOptions,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getExpertList() {
+    try {
+      const experts = await this.profileModel
+        .find({
+          type: "Expert",
+        })
+        .select("userId displayName")
+        .lean();
+      // console.log("experts", experts)
+
+      return experts;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getSkillList() {
+    try {
+      const skills = await this.skillModel
+        .find({
+          status: EStatus.Active,
+        })
+        .select("_id skill_name")
+        .lean();
+
+      // console.log("skills", skills);
+      return skills;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getRoleList() {
+    try {
+      const roles = await this.categoryModel.aggregate([
+        {
+          $match: {
+            category_type: ERoleTag.role,
+            status: EStatus.Active,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            role_name: "$category_name",
+          },
+        },
+      ]);
+
+      // console.log("roles", roles);
+      return roles;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getLanguageList() {
+    try {
+      const languages = await this.languageModel
+        .find({})
+        .select("_id language_name")
+        .lean();
+      return languages;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getTagList() {
+    try {
+      const components = await this.componentModel.aggregate([
+        {
+          $match: {
+            componentKey: {
+              $in: ["course-series-card", "upcoming-series-card"],
+            },
+            title: { $ne: "All Series" },
+          },
+        },
+        {
+          $project: {
+            tag: 1,
+            title: 1,
+          },
+        },
+      ]);
+      return components;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getSeriesData() {
+    try {
+      const getSeriesData = {
+        filterOptions: await this.getFilterOptions(),
+        experts: await this.getExpertList(),
+        skills: await this.getSkillList(),
+        roles: await this.getRoleList(),
+        languages: await this.getLanguageList(),
+        tags: await this.getTagList(),
+        proItem: await this.getProItem(),
+      };
+
+      return getSeriesData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCurrencyList() {
+    try {
+      const currencies = await this.currencyModel
+        .find({})
+        .sort({ _id: -1 })
+        .select("_id currency_name currency_code")
+        .lean();
+      return currencies;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getProItem() {
+    try {
+      const proItem = await this.itemModel
+        .find({ itemName: "PRO" })
+        .select("_id itemName price")
+        .lean();
+      return proItem;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async addNewSeries(data: AddNewSeriesDto) {
+    // Start a session for the transaction
+    const session = await this.connection.startSession();
+    try {
+      // console.log("data", JSON.stringify(data, null, 2));
+      // Start the transaction
+      await session.withTransaction(async () => {
+        const expert = await this.profileModel
+          .findOne({
+            type: EprofileType.Expert,
+            _id: new ObjectId(data.expert),
+          })
+          .select("_id displayName userId")
+          .session(session)
+          .lean();
+
+        const orgId = await this.userOrganizationModel
+          .findOne({
+            userId: new ObjectId(expert.userId),
+          })
+          .select("_id organizationId")
+          .lean();
+
+        const org = await this.organizationModel
+          .findOne({
+            _id: orgId.organizationId,
+          })
+          .select("_id organizationName phoneCountryCode phoneNumber")
+          .lean();
+
+        const newItem = await this.itemModel.create(
+          [
+            {
+              platformItemId: new ObjectId("678e5803560c74f7eb0686b3"),
+              itemName: data.seriesName,
+              itemDescription: data.itemDescription,
+              additionalDetail: {
+                isEnableExpertQueries: data.expertQueriesEnabled,
+                reponseMode: "FormResponse",
+                maxFollowup: -1,
+                maxCustomQuestions: -1,
+                planDetails: [],
+                badgeColour: "#FFC107D4",
+                validity: "for this series",
+                promotionDetails: {
+                  title: "Buy only this series ",
+                  ctaName: "this series",
+                  planUserSave: "Switch to Pro and save INR 1000+",
+                  subtitle:
+                    "This will only unlock the series that you are currently watching",
+                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
+                  payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
+                  paywallVisibility: true,
+                },
+                allowMulti: false,
+              },
+              itemCommissionMarkupType: "Percent",
+              itemCommissionMarkup: 0,
+              isItemCommissionIncluded: false,
+              itemStatus: EStatus.Active,
+              price: data.price,
+              currency: {
+                _id: new ObjectId("6091525bf2d365fa107635e2"),
+                currency_name: "Indian Rupee",
+                currency_code: "INR",
+              },
+              status: EStatus.Active,
+              item_taxes: [
+                {
+                  item_tax_specification: new ObjectId(
+                    "6093710eaf330d4074429afe"
+                  ),
+                  item_tax_id: new ObjectId("61d3dc51c62fec16fec825e8"),
+                },
+              ],
+              comparePrice: data.comparePrice,
+              orgId: {
+                _id: org._id,
+                phoneCountryCode: org.phoneCountryCode,
+                phoneNumber: org.phoneNumber, // ⭐ Changed from { "$numberLong": org.phoneNumber } to simple string
+                created_at: new Date(),
+                updated_at: new Date(),
+                organizationName: org.organizationName,
+                organizationId: org._id,
+              },
+            },
+          ],
+          { session }
+        ); // Pass session to create operation
+        const itemId = newItem[0]._id; // Note: create with session returns array
+        // console.log("itemId", itemId);
+
+        // Create the process document
+        const newProcess = await this.processModel.create(
+          [
+            {
+              processMetaData: {},
+              parentProcessId: null,
+            },
+          ],
+          { session }
+        ); // Pass session to create operation
+        const processId = newProcess[0]._id; // Note: create with session returns array
+        // console.log("processId", processId);
+
+        // Fetch language data
+        const languageIds = data.languages.map((id) => new ObjectId(id));
+        const language = await this.languageModel.aggregate(
+          [
+            {
+              $match: { _id: { $in: languageIds } },
+            },
+            {
+              $project: {
+                languageId: "$_id",
+                languageName: "$language_name",
+                languageCode: "$language_code",
+              },
+            },
+          ],
+          { session }
+        ); // Pass session to aggregate operation // Pass session to aggregate operation
+
+        // Fetch skill data
+        const skillIds = data.skills.map((id) => new ObjectId(id));
+        const skill = await this.skillModel.aggregate(
+          [
+            {
+              $match: { _id: { $in: skillIds } },
+            },
+            {
+              $project: {
+                skillId: "$_id",
+                skill_name: "$skill_name",
+              },
+            },
+          ],
+          { session }
+        ); // Pass session to aggregate operation
+        // console.log("skill", skill);
+
+        // Fetch category data - only those matching frontend data
+        const category = await this.filterOptionsModel.aggregate(
+          [
+            {
+              $match: {
+                filterType: EItemType.category,
+                status: EStatus.Active,
+                optionValue: { $in: data.category }, // ⭐ Only get categories from frontend data
+              },
+            },
+            {
+              $project: {
+                name: "$optionValue",
+                filterOptionId: "$_id",
+              },
+            },
+          ],
+          { session }
+        );
+
+        // Fetch proficiency data - only those matching frontend data
+        const proficiency = await this.filterOptionsModel.aggregate(
+          [
+            {
+              $match: {
+                filterType: EItemType.proficiency,
+                status: EStatus.Active,
+                optionValue: { $in: data.proficiency }, // ⭐ Only get proficiencies from frontend data
+              },
+            },
+            {
+              $project: {
+                name: "$optionValue",
+                filterOptionId: "$_id",
+              },
+            },
+          ],
+          { session }
+        );
+
+        const role = await this.categoryModel.aggregate([
+          {
+            $match: {
+              _id: { $in: data.roles.map((id) => new ObjectId(id)) },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              role_name: "$category_name",
+            },
+          },
+        ]);
+        // console.log("role", role);
+
+        const componentId = await this.componentModel
+          .findOne({
+            title: "All Series",
+          })
+          .select("tag")
+          .lean();
+
+        // ⭐ Optimized: get highest "allSeries" order via aggregation (desc sort + limit 1)
+        const [allSeriesMax] = await this.serviceItemModel
+          .aggregate([
+            {
+              $match: {
+                "tag.name": ESeriesTag.allSeries,
+                "skill.skillId": skillIds[0],
+              },
+            },
+            { $unwind: "$tag" },
+            { $match: { "tag.name": ESeriesTag.allSeries } },
+            { $sort: { "tag.order": -1 } },
+            { $limit: 1 },
+            { $project: { _id: 0, order: "$tag.order" } },
+          ])
+          .exec();
+
+        const highestAllSeriesOrder = allSeriesMax?.order ?? 0;
+        const length = highestAllSeriesOrder;
+
+        // Precompute all tag data before creating the service item
+        const tagsData = data.tags;
+        const additionalTags = [];
+
+        // Process all tags sequentially to get proper order calculations
+        for (const tag of tagsData) {
+          const categoryData = await this.categoryModel
+            .findOne({
+              category_name: tag,
+            })
+            .select("_id category_name")
+            .lean();
+
+          // ⭐ Optimized: get highest order for this tag via aggregation
+          const [maxTagOrder] = await this.serviceItemModel
+            .aggregate([
+              {
+                $match: {
+                  "tag.name": tag,
+                  "skill.skillId": skillIds[0],
+                },
+              },
+              { $unwind: "$tag" },
+              { $match: { "tag.name": tag } },
+              { $sort: { "tag.order": -1 } },
+              { $limit: 1 },
+              { $project: { _id: 0, order: "$tag.order" } },
+            ])
+            .exec();
+
+          const highestOrder = maxTagOrder?.order ?? 0;
+
+          const tagData = {
+            category_id: categoryData._id,
+            order: highestOrder + 1,
+            name: categoryData.category_name,
+          };
+
+          additionalTags.push(tagData);
+        }
+
+        // Prepare the complete tag array including the default "allSeries" tag
+        const allTags = [
+          {
+            category_id: new ObjectId(componentId.tag.tagId.toString()),
+            order: length + 1,
+            name: ESeriesTag.allSeries,
+          },
+          ...additionalTags,
+        ];
+
+        // Create the service item document with all tags in a single operation
+        const newServiceItem = await this.serviceItemModel.create(
+          [
+            {
+              itemId: new ObjectId(itemId),
+              userId: new ObjectId(expert.userId),
+              language: language,
+              status: EStatus.Active,
+              itemSold: 0,
+              role: role.map((item) => ({
+                roleId: new ObjectId(item._id),
+                roleName: item.role_name,
+              })),
+              skill: {
+                skillId: new ObjectId(skillIds[0]),
+                skill_name: skill[0].skill_name,
+              },
+              type: "courses",
+              additionalDetails: {
+                ctaName: "Start Learning",
+                navigationURL: "a",
+                thumbnail: data.thumbnail,
+                processId: new ObjectId(processId),
+                parentProcessId: new ObjectId(processId),
+              },
+              tag: allTags,
+              priorityOrder: 100,
+              proficiency: proficiency,
+              category: category,
+              planItemId: [
+                {
+                  itemName: data.proItem.itemName,
+                  itemId: data.proItem._id,
+                },
+              ],
+            },
+          ],
+          { session }
+        ); // Pass session to create operation
+
+        const serviceItemId = newServiceItem[0]._id;
+        // console.log("newServiceItem id", serviceItemId);
+
+        // console.log("tags at last", tags)
+      });
+      // If we reach here, the transaction was successful
+      return {
+        success: true,
+        message: "Series created successfully",
+      };
+    } catch (error) {
+      // Transaction will automatically rollback on error
+      console.error("Transaction failed:", error);
+      throw error;
+    } finally {
+      // Always end the session
+      await session.endSession();
+    }
+  }
+
+  // advertisement episode metadata
+  private async processAdvertisementEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        let mediaId = media.mediaId.toString();
+
+        if (media.type === "story" && mediaId) {
+          const loc = await this.lookupStoryMediaLocation(mediaId, session);
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: new ObjectId(mediaId), // advertisement requires ObjectId
+              mediaUrl: loc,
+            };
+          }
+        }
+
+        // For non-story types or if lookup fails, use original data
+        return {
+          type: media.type,
+          mediaId: new ObjectId(mediaId), // Convert ALL mediaIds to ObjectId for advertisement episodes
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    const advMetaData = episode.taskMetaData as any;
+    return {
+      media: processedMedia,
+      shareText: advMetaData.shareText,
+      redirectionUrl: advMetaData.redirectionUrl,
+      type: advMetaData.type,
+      expertId: new ObjectId(advMetaData.expertId),
+      ctaname: advMetaData.ctaname,
+    };
+  }
+
+  // break episode metadata
+  private async processBreakEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        let mediaId = media.mediaId.toString();
+
+        if (media.type === "story" && mediaId) {
+          const loc = await this.lookupStoryMediaLocation(mediaId, session);
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: mediaId, // Break stores as string
+              mediaUrl: loc,
+            };
+          }
+        }
+
+        // For non-story types or if lookup fails, use original data
+        return {
+          type: media.type,
+          mediaId: mediaId, // Store as string for Break episodes
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    const breakMetaData = episode.taskMetaData as any;
+    return {
+      timeDurationInMin: breakMetaData.timeDurationInMin,
+      media: processedMedia,
+      shareText: breakMetaData.shareText,
+    };
+  }
+
+  // Q&A episode metadata
+  private async processQAEpisode(episode: any, session: any) {
+    const qaMetaData = episode.taskMetaData as any;
+
+    // Handle media if present (some Q&A might not have media)
+    let processedMedia = [];
+    if (qaMetaData.media && Array.isArray(qaMetaData.media)) {
+      processedMedia = await Promise.all(
+        qaMetaData.media.map(async (media) => {
+          if (media.type === "story" && media.mediaId) {
+            const id = media.mediaId.toString();
+            const loc = await this.lookupStoryMediaLocation(id, session);
+            if (loc) {
+              return {
+                type: media.type,
+                mediaId: id, // Q&A uses string id here
+                mediaUrl: loc,
+              };
+            }
+          }
+          return {
+            type: media.type,
+            mediaId: media.mediaId,
+            mediaUrl: media.mediaUrl,
+          };
+        })
+      );
+    }
+
+    // Copy mediaUrl from first media item to use as questionMediaUrl
+    let questionMediaUrl = qaMetaData.questionMediaUrl;
+    if (processedMedia.length > 0 && processedMedia[0].mediaUrl) {
+      questionMediaUrl = processedMedia[0].mediaUrl;
+    }
+
+    return {
+      question: qaMetaData.question,
+      questionType: qaMetaData.questionType,
+      questionMediaUrl: questionMediaUrl,
+      responseFormat: qaMetaData.responseFormat,
+      response: qaMetaData.response,
+      options: qaMetaData.options,
+      correctAnswer: qaMetaData.correctAnswer,
+      isSkippable: !!qaMetaData.isSkippable,
+      media: processedMedia,
+      shareText: qaMetaData.shareText,
+    };
+  }
+
+  // (video/audio episodes)
+  private async processDefaultEpisode(episode: any, session: any) {
+    const processedMedia = await Promise.all(
+      episode.taskMetaData.media.map(async (media) => {
+        if (media.type === "story" && media.mediaId) {
+          const loc = await this.lookupStoryMediaLocation(
+            media.mediaId,
+            session
+          );
+          if (loc) {
+            return {
+              type: media.type,
+              mediaId: media.mediaId, // default flow keeps original format
+              mediaUrl: loc,
+            };
+          }
+        }
+        return {
+          type: media.type,
+          mediaId: media.mediaId,
+          mediaUrl: media.mediaUrl,
+        };
+      })
+    );
+
+    return {
+      media: processedMedia,
+      shareText: episode.taskMetaData.shareText,
+    };
+  }
+
+  async addNewEpisodes(data: AddNewEpisodesDto) {
+    try {
+      // Start a session for the transaction
+      const session = await this.taskModel.db.startSession();
+
+      try {
+        // Start the transaction
+        const createdEpisodes = await session.withTransaction(async () => {
+          // Prepare episodes for creation
+          const episodesToCreate = await Promise.all(
+            data.episodes.map(async (episode) => {
+              let taskMetaData;
+
+              // Process episode based on type using dedicated functions
+              switch (episode.type) {
+                case "advertisement":
+                  taskMetaData = await this.processAdvertisementEpisode(
+                    episode,
+                    session
+                  );
+                  break;
+                case "Break":
+                  taskMetaData = await this.processBreakEpisode(
+                    episode,
+                    session
+                  );
+                  break;
+                case "Q&A":
+                  taskMetaData = await this.processQAEpisode(episode, session);
+                  break;
+                default:
+                  // For video/audio episodes (existing logic)
+                  taskMetaData = await this.processDefaultEpisode(
+                    episode,
+                    session
+                  );
+                  break;
+              }
+
+              return {
+                title: episode.title,
+                type: episode.type,
+                isLocked: episode.isLocked,
+                taskNumber: episode.taskNumber,
+                parentProcessId: new ObjectId(episode.parentProcessId),
+                processId: new ObjectId(episode.processId),
+                taskMetaData: taskMetaData,
+                status: EStatus.Active,
+              };
+            })
+          );
+
+          // Create all episodes in the transaction
+          const createdTasks = await this.taskModel.create(episodesToCreate, {
+            session,
+            ordered: true,
+          });
+
+          return createdTasks;
+        });
+
+        return {
+          success: true,
+          message: `${createdEpisodes.length} episodes created successfully`,
+        };
+      } finally {
+        // Always end the session
+        await session.endSession();
+      }
+    } catch (error) {
+      console.error("Error creating episodes:", error);
+      throw error;
+    }
+  }
+
+  async addNewAchievement(payload: AddAchievementDto) {
+    try {
+      const uploadData = {
+        key: EAchievementType.course_complete,
+        title: EAchievementType.title,
+        type: EAchievementType.certificate,
+        metaData: {
+          shareOptions: {
+            text: payload.shareText,
+          },
+          templateUrl: payload.image.mediaUrl,
+          textColor: payload.color,
+        },
+        status: EStatus.Active,
+        sourceId: new ObjectId(payload.processId),
+        sourceType: "process",
+        visibilityStatus: true,
+        provider: "casttree",
+        version: 1,
+        description: "string",
+        createdBy: new ObjectId(payload.processId),
+        updatedBy: new ObjectId(payload.processId),
+      };
+
+      const res = await this.achievementModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateEpisodeMedia(payload: { seriesId: string }) {
+    try {
+      const seriesId = payload.seriesId;
+
+      // First, get all tasks with their media
+      const series = await this.taskModel.aggregate([
+        {
+          $match: {
+            processId: new ObjectId(seriesId),
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            "taskMetaData.media": 1,
+            type: 1,
+          },
+        },
+      ]);
+
+      // Process each task and update story media URLs
+      const updatePromises = series.map(async (task) => {
+        const taskId = task._id;
+        const media = task.taskMetaData?.media;
+        const type = task.type;
+        // console.log(task, type)
+
+        // Filter only story type media
+        const storyMedia = media.filter((m) => m.type === "story");
+
+        if (storyMedia.length === 0) return null; // Skip if no story media
+
+        // Update each story media item
+        const mediaUpdatePromises = storyMedia.map(
+          async (mediaItem, mediaIndex) => {
+            try {
+              // console.log("mediaItem", mediaItem);
+
+              // Only update if the old URL starts with the specified domain
+              if (
+                !mediaItem.mediaUrl.startsWith(
+                  this.configService.get("PEERTUBE_BASE_URL")
+                )
+              ) {
+                console.log(
+                  `Skipping media item ${mediaIndex} - URL doesn't match required domain`
+                );
+                return null;
+              }
+
+              // Call external endpoint to get new URL
+              const newMediaUrl = await this.helperService.generateNewMediaUrl(
+                mediaItem.mediaUrl
+              );
+              // console.log("newMediaUrl", newMediaUrl);
+
+              // Check if the new URL still points to the original domain (video not transcoded yet)
+              if (
+                newMediaUrl.startsWith(
+                  this.configService.get("PEERTUBE_BASE_URL")
+                )
+              ) {
+                console.log(
+                  `Video not transcoded yet for media ${mediaItem.mediaId}`
+                );
+                return {
+                  status: "pending",
+                  message:
+                    "Video has not been transcoded yet. Please wait and try again.",
+                  mediaId: mediaItem.mediaId,
+                };
+              }
+
+              // Update the specific media item in the array
+              const res = await this.taskModel.updateOne(
+                {
+                  _id: taskId,
+                  "taskMetaData.media": {
+                    $elemMatch: {
+                      type: "story",
+                      mediaId: mediaItem.mediaId,
+                    },
+                  },
+                },
+                {
+                  $set: {
+                    "taskMetaData.media.$.mediaUrl": newMediaUrl,
+                    "taskMetaData.questionMediaUrl":
+                      type === "Q&A" ? newMediaUrl : "",
+                  },
+                }
+              );
+
+              // console.log("res", res);
+              return res;
+            } catch (error) {
+              console.error(
+                `Failed to update media URL for task ${taskId}, media index ${mediaIndex}:`,
+                error
+              );
+              return null;
+            }
+          }
+        );
+
+        return Promise.all(mediaUpdatePromises);
+      });
+
+      // Execute all updates
+      await Promise.all(updatePromises.filter(Boolean));
+
+      return {
+        success: true,
+        message: "Episode media URLs updated successfully",
+      };
+    } catch (error) {
+      console.error("Error updating episode media:", error);
+      throw error;
+    }
+  }
+
+  async addGiftGroup(payload: {
+    giftGroupId: string;
+    seriesId: string;
+    type: string;
+  }) {
+    try {
+      // console.log("payload", payload);
+      const findGroup = await this.virtualItemGroupModel.findOne({
+        _id: payload.giftGroupId,
+      });
+
+      if (findGroup) {
+        findGroup.source.push({
+          sourceId: new ObjectId(payload.seriesId),
+          sourceType: payload.type,
+        });
+        await findGroup.save();
+      } else {
+        throw new Error("Group not found");
+      }
+      return {
+        success: true,
+        message: "Group added successfully",
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getVirtualItemGroup() {
+    try {
+      const res = await this.virtualItemGroupModel.aggregate().project({
+        _id: 1,
+        virtualItemGroupName: 1,
+      });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getVirtualItemList(type: string) {
+    try {
+      const res = await this.virtualItemModel
+        .aggregate([
+          {
+            $match: {
+              type: type,
+            },
+          },
+        ])
+        .project({
+          _id: 1,
+          name: 1,
+          mediaUrl: { $arrayElemAt: ["$media.mediaUrl", 0] },
+        });
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createVirtualItem(payload: CreateVirtualItemDto) {
+    try {
+      const uploadData = {
+        name: payload.name,
+        type: payload.type, // Now handles both "queries" and "gift"
+        media: [],
+        isPayable: payload.isPayable,
+        status: EStatus.Active,
+        payableType: new ObjectId(payload.currencyId),
+        comparePrice: payload.comparePrice || payload.price,
+        description: payload.description,
+        shortDescription: "",
+        payableValue: payload.price,
+        source: [],
+      };
+
+      if (payload.type === "gift") {
+        uploadData["media"] = [payload.media];
+      }
+
+      if (payload.type === "gift" && payload.isPayable) {
+        uploadData["stickerSound"] =
+          "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832546781WhatsApp%20Audio%202025-06-25%20at%2010.58.24%20AM.mpeg";
+        uploadData["stickerGif"] =
+          "https://tecxprt-media.sgp1.digitaloceanspaces.com/1750832457037Animation%20-%201750829319104.json";
+      } else {
+        uploadData["stickerSound"] =
+          "https://storage.googleapis.com/download/storage/v1/b/ct-bucket-prod/o/1750874302452pop%20sound.mp3?generation=1750874300873927&alt=media";
+        uploadData["stickerGif"] =
+          "https://tecxprt-media.sgp1.digitaloceanspaces.com/1744786545186confetti.json";
+      }
+
+      if (payload.type === "queries") {
+        delete uploadData["stickerSound"];
+        delete uploadData["stickerGif"];
+      }
+
+      // console.log("uploadData", uploadData);
+
+      const res = await this.virtualItemModel.create(uploadData);
+
+      return {
+        success: true,
+        message: `${payload.type === "gift" ? "Gift" : "Query"} created successfully`,
+        data: res,
+      };
+    } catch (error) {
+      console.error("=== DEBUG: Error creating query ===", error);
+      console.error("Error stack:", error.stack);
+      throw error;
+    }
+  }
+
+  async createVirtualItemGroup(payload: {
+    groupName: string;
+    giftIds: string[];
+  }) {
+    try {
+      // console.log("payload", payload);
+      const uploadData = {
+        source: [],
+        virtualItemGroupName: payload.groupName,
+        virtualItemIds: payload.giftIds.map((id) => new ObjectId(id)),
+      };
+      // console.log("uploadData", uploadData);
+      const res = await this.virtualItemGroupModel.create(uploadData);
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async mapVirtualItemToSeries(payload: MapVirtualItemToSeriesDto) {
+    try {
+      const compId = payload.seriesId ? payload.seriesId : payload.awardId;
+      const compType = payload.seriesId ? "process" : "award";
+      const itemIds = payload.itemIds;
+
+      const itemType = payload.itemType;
+
+      if (itemType === ItemType.GIFT_GROUPS) {
+        const res = await this.addGiftGroup({
+          giftGroupId: itemIds[0],
+          seriesId: compId,
+          type: compType,
+        });
+        return res;
+      }
+
+      const res = await this.virtualItemModel.updateMany(
+        { _id: { $in: itemIds } },
+        {
+          $push: {
+            source: {
+              sourceId: new ObjectId(compId),
+              sourceType: compType,
+            },
+          },
+        }
+      );
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getAwardList() {
+    try {
+      const res = await this.awardsModel.find({}).select("_id title");
+      return res;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async lookupStoryMediaLocation(
+    mediaId: any,
+    session?: ClientSession
+  ): Promise<string | null> {
+    try {
+      let query = this.mediaModel
+        .findOne({ _id: new ObjectId(mediaId.toString()) })
+        .select("location");
+
+      if (session) {
+        query = query.session(session);
+      }
+
+      const mediaDoc = await query.lean();
+      return mediaDoc?.location ?? null;
+    } catch (e) {
+      console.warn(`Failed to lookup media for mediaId: ${mediaId}`, e);
+      return null;
+    }
+  }
+  async getFilterComponent(
+    token: UserToken,
+    componentId: string,
+    query: ComponentFilterQueryDto,
+    filterOption: EFilterOption
+  ) {
+    try {
+      const { skip, limit } = query;
+      const [baseComponent, actualComponent, page] =
+        await this.fetchBaseComponents(componentId);
+      if (!baseComponent) {
+        throw new NotFoundException("Filter component not found");
+      }
+      const tagName = actualComponent?.tag?.tagName;
+
+      const { serviceItemData, filteredData } = await this.fetchServiceItemData(
+        page,
+        token.id,
+        tagName,
+        skip,
+        limit,
+        filterOption
+      );
+      const componentFilterData = await this.getComponentFilterOptions(
+        componentId,
+        token,
+        filterOption
+      );
+      const finalInteractionData =
+        componentFilterData?.interactionData?.items || [];
+      const processedFilterOptions = await this.processFilterOptions(
+        finalInteractionData,
+        filterOption
+      );
+      this.updateBaseComponentWithFilterData(
+        baseComponent,
+        finalInteractionData,
+        processedFilterOptions,
+        filteredData
+      );
+      const totalCount = await this.calculateTotalCount(
+        serviceItemData,
+        tagName,
+        token.id,
+        filterOption
+      );
+      baseComponent["totalCount"] = totalCount;
+
+      if (!filteredData || filteredData.length === 0) {
+        const completedSeries = await this.processService.getMySeries(
+          token.id,
+          EprocessStatus.Completed
+        );
+        const completedProcessIds = new Set(
+          completedSeries.map((s: any) => String(s.processId))
+        );
+
+        const allServiceItemData = await this.fetchServiceItemDetails(
+          page,
+          token.id,
+          false,
+          0,
+          0,
+          null
+        );
+
+        const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+
+        const nonMatchedSeries = allSeriesData.filter(
+          (series: any) =>
+            !completedProcessIds.has(String(series.processId))
+        );
+
+        if (nonMatchedSeries.length > 0) {
+          baseComponent.recommendedList = nonMatchedSeries;
+          baseComponent["totalCount"] = nonMatchedSeries.length;
+        }
+      }
+      
+      return { component: baseComponent };
+    } catch (err) {
+      throw err;
+    }
+  }
+  private async fetchBaseComponents(componentId: string) {
+    const [baseComponent, actualComponent, page] = await Promise.all([
+      this.componentModel
+        .findOne({
+          componentKey: EComponentKey.filterActionButton,
+          status: EStatus.Active,
+        })
+        .lean(),
+      this.componentModel
+        .findOne({
+          _id: componentId,
+          status: EStatus.Active,
+        })
+        .lean(),
+      this.contentPageModel
+        .findOne({
+          "components.componentId": componentId,
+        })
+        .lean(),
+    ]);
+
+    return [baseComponent, actualComponent, page] as [any, any, any];
+  }
+  private async fetchServiceItemData(
+    page: any,
+    userId: string,
+    tagName: string,
+    skip: number,
+    limit: number,
+    filterOption: EFilterOption
+  ) {
+    let serviceItemData;
+    let filteredData: any[] = [];
+
+    if (page) {
+      serviceItemData = await this.fetchServiceItemDetails(
+        page,
+        userId,
+        false,
+        0,
+        0,
+        filterOption
+      );
+
+      if (tagName && serviceItemData?.finalData?.[tagName]) {
+        const allTagData = serviceItemData.finalData[tagName];
+        filteredData = allTagData.slice(skip, skip + limit);
+      }
+    }
+
+    return { serviceItemData, filteredData };
+  }
+
+  private async processFilterOptions(
+    finalInteractionData: any[],
+    filterOption: EFilterOption
+  ) {
+    const componentFilterTypes = this.extractFilterTypes(finalInteractionData);
+    const availableFilterOptions = await this.componentFilterOptions();
+
+    const filteredOptions =
+      componentFilterTypes.length > 0
+        ? availableFilterOptions.filter((opt) =>
+            componentFilterTypes.includes(opt.filterType)
+          )
+        : availableFilterOptions;
+
+    const grouped = this.groupFilterOptions(filteredOptions);
+    this.applyUserSelections(grouped, filterOption);
+
+    return grouped;
+  }
+  private extractFilterTypes(finalInteractionData: any[]): string[] {
+    const componentFilterTypes: string[] = [];
+
+    if (finalInteractionData.length > 0) {
+      finalInteractionData.forEach((item: any) => {
+        if (item.button?.type || item.type) {
+          let filterType = item.button?.type || item.type;
+          if (filterType === "proficency") {
+            filterType = "proficiency";
+          }
+          componentFilterTypes.push(filterType);
+        }
+      });
+    }
+
+    return componentFilterTypes;
+  }
+
+  private groupFilterOptions(filteredOptions: any[]) {
+    return filteredOptions.reduce((acc, opt) => {
+      if (!acc[opt.filterType]) {
+        acc[opt.filterType] = {
+          type: opt.filterType,
+          filterTypeId: opt.filterTypeId.toString(),
+          options: [],
+        };
+      }
+      acc[opt.filterType].options.push({
+        filterOptionId: opt._id.toString(),
+        filterType: opt.filterType,
+        optionKey: opt.optionKey,
+        optionValue: opt.optionValue,
+        isUserSelected: false,
+      });
+      return acc;
+    }, {});
+  }
+
+  private applyUserSelections(grouped: any, filterOption: EFilterOption) {
+    if (!filterOption) return;
+
+    Object.keys(filterOption).forEach((filterKey) => {
+      const filterValue = filterOption[filterKey];
+      const groupedData = grouped[filterKey];
+
+      if (groupedData && filterValue) {
+        if (Array.isArray(filterValue)) {
+          groupedData.options.forEach((opt: any) => {
+            opt.isUserSelected = filterValue.includes(opt.filterOptionId);
+          });
+        } else {
+          groupedData.options.forEach((opt: any) => {
+            opt.isUserSelected = opt.filterOptionId === filterValue;
+          });
+        }
+      }
+    });
+  }
+
+  private updateBaseComponentWithFilterData(
+    baseComponent: any,
+    finalInteractionData: any[],
+    processedFilterOptions: any,
+    filteredData: any[]
+  ) {
+    if (baseComponent?.interactionData) {
+      const groupedOptionsMap = new Map();
+      Object.values(processedFilterOptions).forEach(
+        (group: { type: string; filterTypeId: string; options: any[] }) => {
+          groupedOptionsMap.set(group.type, group);
+        }
+      );
+
+      const transformedItems = finalInteractionData.map((item: any) => {
+        let filterType = item.button?.type || item.type;
+        if (filterType === "proficency") {
+          filterType = "proficiency";
+        }
+        const groupedData = groupedOptionsMap.get(filterType);
+
+        if (groupedData) {
+          const existingOptions = item.options || [];
+          const newOptions = groupedData.options || [];
+
+          const existingOptionIds = new Set(
+            existingOptions.map((opt: any) => opt.filterOptionId)
+          );
+
+          const uniqueNewOptions = newOptions.filter(
+            (opt: any) => !existingOptionIds.has(opt.filterOptionId)
+          );
+
+          const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+          return {
+            ...item,
+            type: filterType,
+            filterTypeId: groupedData.filterTypeId,
+            options: mergedOptions,
+          };
+        }
+
+        return item;
+      });
+
+      baseComponent.interactionData = { items: transformedItems };
+    }
+
+    baseComponent.actionData = filteredData;
+  }
+
+  private async calculateTotalCount(
+    serviceItemData: any,
+    tagName: string,
+    userId: string,
+    filterOption: EFilterOption
+  ): Promise<number> {
+    if (tagName && serviceItemData?.finalData?.[tagName]) {
+      return await this.getTagNameTotalCount(
+        serviceItemData,
+        tagName,
+        userId,
+        filterOption
+      );
+    }
+    return 0;
+  }
+  async getComponentFilterOptions(
+    componentId: string,
+    token?: UserToken,
+    filterOption?: EFilterOption
+  ): Promise<any> {
+    try {
+      const componentObjectId = new ObjectId(componentId);
+
+      // Step 1: Fetch filterTypes and filterOptions in parallel
+      const [filterTypes, filterOptions] = await Promise.all([
+        this.filterTypeModel
+          .find({ "source.sourceId": componentObjectId, isActive: true })
+          .sort({ sortOrder: 1 })
+          .lean(),
+
+        this.filterOptionsModel
+          .find({ status: EStatus.Active })
+          .sort({ sortOrder: 1 })
+          .lean(),
+      ]);
+
+      if (!filterTypes?.length) {
+        return {
+          componentId,
+          filterTypes: [],
+          interactionData: { items: [] },
+        };
+      }
+
+      // Step 2: Build a Set of valid filterTypeIds
+      const filterTypeIds = new Set(filterTypes.map((ft) => ft._id.toString()));
+
+      // Step 3: Group filterOptions by filterTypeId using a Map
+      const groupedOptions = new Map<string, any[]>();
+      for (const option of filterOptions) {
+        const filterTypeId = option.filterTypeId?.toString();
+        if (!filterTypeId || !filterTypeIds.has(filterTypeId)) continue;
+
+        if (!groupedOptions.has(filterTypeId)) {
+          groupedOptions.set(filterTypeId, []);
+        }
+
+        groupedOptions.get(filterTypeId)!.push({
+          filterOptionId: option._id.toString(),
+          filterType: option.filterType,
+          optionKey: option.optionKey,
+          optionValue: option.optionValue,
+          description: option.description,
+          icon: option.icon,
+          color: option.color,
+          metaData: option.metaData,
+        });
+      }
+
+      // Step 4: Build interaction items
+      const interactionItems = filterTypes.map((ft) => {
+        const filterTypeId = ft._id.toString();
+        const options = groupedOptions.get(filterTypeId) || [];
+        const userValue = filterOption?.[ft.type];
+
+        const mappedOptions = options.map((option) => ({
+          ...option,
+          isUserSelected: Array.isArray(userValue)
+            ? userValue.includes(option.filterOptionId)
+            : userValue === option.filterOptionId,
+        }));
+
+        return {
+          button: {
+            type: ft.type,
+            lable: ft.displayName,
+            selectionType:
+              ft.validationRules?.maxSelections > 1 ? "multiple" : "single",
+          },
+          type: ft.type,
+          filterTypeId,
+          options: mappedOptions,
+        };
+      });
+
+      return {
+        componentId,
+        interactionData: { items: interactionItems },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  private async getTagNameTotalCount(
+    serviceItemData: any,
+    tagName: string,
+    userId: string,
+    filterOption: EFilterOption
+  ): Promise<number> {
+    let page = serviceItemData?.page ?? null;
+
+    if (!page) {
+      const [serviceItem] = await this.serviceItemModel
+        .find({
+          "tag.name": tagName,
+          status: Estatus.Active,
+          type: EserviceItemType.courses,
+        })
+        .limit(1)
+        .lean();
+
+      if (serviceItem?.skill?.skillId) {
+        page = { metaData: { skillId: serviceItem.skill.skillId } };
+      }
+    }
+
+    if (page) {
+      const fullServiceItemData = await this.fetchServiceItemDetails(
+        page,
+        userId,
+        false,
+        0,
+        0,
+        filterOption
+      );
+
+      const fullTagData = fullServiceItemData?.finalData?.[tagName];
+      if (fullTagData) {
+        return fullTagData.length;
+      }
+    }
+
+    return 0;
   }
 }

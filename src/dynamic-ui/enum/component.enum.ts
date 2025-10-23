@@ -12,5 +12,6 @@ export enum EItemType  {
   category = "category"
 }
 export enum EComponentKey {
-  learnFilterActionButton = "learn-filter-action-button"
+  learnFilterActionButton = "learn-filter-action-button",
+  filterActionButton = "filter-action-button"
 }
