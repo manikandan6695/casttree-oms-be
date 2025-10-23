@@ -11,6 +11,7 @@ export enum EMixedPanelEvents {
     mandate_cancelled = "mandate_cancelled",
     coin_purchase_success = "coin_purchase_success",
     meta_event_sent = "meta_event_sent",
+    default_fallback_banner = "default_fallback_banner"
 }
   
 export const ESMixedPanelEvents = [
