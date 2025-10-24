@@ -11,6 +11,7 @@ export enum EMixedPanelEvents {
     coin_purchase_success="coin_purchase_success",
     mandate_cancelled = "mandate_cancelled",
     meta_event_sent = "meta_event_sent",
+    default_fallback_banner = "default_fallback_banner"
   }
   
 export const ESMixedPanelEvents = [
@@ -25,3 +26,8 @@ export const ESMixedPanelEvents = [
     EMixedPanelEvents.subscription_add,
     EMixedPanelEvents.mandate_cancelled,
   ];
+  export enum EMetabaseUrlLimit {
+    dynamic_banner = "dynamic-banner",
+    full_size_banner = "full-size-banner",
+    default_banner = "default-banner",
+}

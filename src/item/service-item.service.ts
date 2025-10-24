@@ -1791,7 +1791,7 @@ export class ServiceItemService {
       let ids = [];
       subscriptionItemIds.map((data) => ids.push(new ObjectId(data?.itemId)));
       let plandata: any = await this.itemService.getItemsDetails(ids);
-      plandata.reverse();
+      // plandata.reverse();
       // ids.push(new ObjectId(processPricingData?.planItemId?.[0]?.itemId?._id));
       let planItem = processPricingData?.planItemId?.[0]?.itemId;
       // console.log("planItem",planItem);
