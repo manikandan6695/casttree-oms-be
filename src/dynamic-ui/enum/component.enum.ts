@@ -30,5 +30,5 @@ export enum EButtonToShow {
   referral = "referral"
 }
 export enum ESysConfigKey {
-  view_all_count = "view_all_count",
+  view_all_count = "view-all-count",
 }
