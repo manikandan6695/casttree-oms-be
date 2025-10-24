@@ -1824,7 +1824,7 @@ export class SubscriptionService {
                     
           if (!userActiveSubscription) {
             let updateBody = {
-              userId: userId,
+              userId: [userId],
               membership: "",
               badge: "",
             };
@@ -2784,7 +2784,10 @@ export class SubscriptionService {
       let subscription = await this.subscriptionModel.findOne({
         userId: new ObjectId(userId),
         status: EStatus.Active,
-        subscriptionStatus: EsubscriptionStatus.active,
+        $or: [
+          { subscriptionStatus: EsubscriptionStatus.active },
+          { subscriptionStatus: EsubscriptionStatus.expired }
+        ]
       }).sort({ _id: -1 });
       return subscription;
     } catch (error) {

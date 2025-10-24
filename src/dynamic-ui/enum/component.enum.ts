@@ -13,5 +13,21 @@ export enum EItemType  {
 }
 export enum EComponentKey {
   learnFilterActionButton = "learn-filter-action-button",
-  filterActionButton = "filter-action-button"
+  filterActionButton = "filter-action-button",
+  headerActionBar = "header-action-bar"
+}
+export enum EConfigKeyName {
+  suggestionsTag = "suggestions-tag",
+  dynamicHeaderNavigation = "dynamic-header-navigation"
+}
+export enum EComponentItemType {
+  search = "search",
+  badge = "badge"
+}
+export enum EButtonToShow {
+  pro = "pro",
+  referral = "referral"
+}
+export enum ESysConfigKey {
+  view_all_count = "view-all-count",
 }

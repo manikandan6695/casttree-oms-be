@@ -14,10 +14,10 @@ import { ProcessService } from "src/process/process.service";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/subscription/enums/subscriptionStatus.enum";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
-import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
+import { EMetabaseUrlLimit, EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { log } from "console";
 import { ENavBar } from "./enum/nav-bar.enum";
-import { EComponentKey, EComponentType } from "./enum/component.enum";
+import { EButtonToShow, EComponentItemType, EComponentKey, EComponentType, EConfigKeyName, ESysConfigKey } from "./enum/component.enum";
 import { ComponentFilterQueryDto, EFilterOption } from "./dto/filter-option.dto";
 import { IFilterType } from "./schema/filter-type.schema";
 import { IFilterOption } from "./schema/filter-option.schema";
@@ -53,6 +53,8 @@ import { VirtualItem } from "./schema/virtual-item.schema";
 import { VirtualItemGroup } from "./schema/virtual-item-group.schema";
 import { Award } from "./schema/awards.schema";
 import { mediaModel } from "./schema/media.schema";
+import { IBannerConfiguration } from "./schema/banner-configuration.schema";
+import { MetaBaseService } from "src/meta-base/metabase.service";
 
 @Injectable()
 export class DynamicUiService {
@@ -108,7 +110,10 @@ export class DynamicUiService {
     @InjectModel("currency")
     private readonly currencyModel: Model<ICurrencyModel>,
     @InjectConnection()
-    private readonly connection: Connection
+    private readonly connection: Connection,
+    @InjectModel("bannerConfiguration")
+    private readonly bannerConfigurationModel: Model<IBannerConfiguration>,
+    private readonly metaBaseService: MetaBaseService
   ) {}
   async getNavBarDetails(token: any, key: string) {
     try {
@@ -120,13 +125,6 @@ export class DynamicUiService {
         .lean();
       let tabs = await this.matchRoleByUser(token, data.tabs);
       data["tabs"] = tabs;
-      if (key == ENavBar.learnHomeHeader) {
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
-        mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = {};
-        await this.helperService.mixPanel(mixPanelBody);
-      }
       return { data };
     } catch (err) {
       throw err;
@@ -163,57 +161,25 @@ export class DynamicUiService {
   async getPageDetails(
     token: UserToken,
     pageId: string,
-    filterOption: EFilterOption
+    skip?: number | 0,
+    limit?: number | 30,
   ) {
     try {
-      // const subscriptionData =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //     EsubscriptionStatus.expired,
-      //   ]);
-      // const existingUserSubscription =
-      //   await this.subscriptionService.validateSubscription(token.id, [
-      //     EsubscriptionStatus.initiated,
-      //     EsubscriptionStatus.failed,
-      //   ]);
-      // const isNewSubscription = subscriptionData ? true : false;
-      // const isSubscriber = existingUserSubscription ? true : false;
-      const [subscriptionData, existingUserSubscription] = await Promise.all([
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-          EsubscriptionStatus.expired,
-        ]),
-        this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]),
-      ]);
-      const isNewSubscription = !!subscriptionData;
-      const isSubscriber = !!existingUserSubscription;
-      console.log("subscriber", isNewSubscription, isSubscriber);
-
-      const { data: { country_code: countryCode } = {} } =
-        await this.helperService.getUserById(token.id);
-      let country_code = countryCode;
-
       let data = await this.contentPageModel
         .findOne({
           _id: pageId,
           status: EStatus.Active,
         })
         .lean();
-      //   console.log("data", data);
       let componentIds = data.components.map((e) => e.componentId);
-      let componentDocs = await this.componentModel
+      const componentDocsPromise = this.componentModel
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
         })
         .populate("interactionData.items.banner")
         .lean();
-      let serviceItemData = await this.fetchServiceItemDetails(
+      const serviceItemPromise = this.fetchServiceItemDetails(
         data,
         token.id,
         false,
@@ -221,64 +187,48 @@ export class DynamicUiService {
         0,
         null
       );
-
-      // console.log("serviceItemData", serviceItemData.finalData.trendingSeries);
-
+      let skillId = data.metaData?.skillId;
+      let skillType = data.metaData?.skill;
+      const bannerIdPromise = await this.metaBaseService.getBannerToShow(
+        token.id,
+        skillId,
+        skillType,
+        EMetabaseUrlLimit.full_size_banner
+      );
+      const [componentDocsRaw, serviceItemData, bannerResp] =
+        await Promise.all([
+          componentDocsPromise,
+          serviceItemPromise,
+          bannerIdPromise,
+        ]);
       const processIds = [];
-
       const serviceItem = serviceItemData.finalData;
       for (const category in serviceItem) {
         if (Array.isArray(serviceItem[category])) {
-          serviceItem[category].forEach(async (item) => {
+          serviceItem[category].forEach((item) => {
             if (item.processId) {
               processIds.push(item.processId);
-              const itemId = await this.serviceItemModel
-                .findOne({ "additionalDetails.processId": item.processId })
-                .select("itemId")
-                .lean();
-              if (itemId) {
-                const itemName = await this.itemModel.findOne({ _id: itemId.itemId }).select("itemName").lean();
-                item.itemName = itemName?.itemName;
-              }
-              // console.log("itemName", itemName);
             }
           });
         }
       }
 
       let unquieProcessIds = [...new Set(processIds)];
-
+      let viewAllCount = await this.systemConfigurationModel.findOne({key: ESysConfigKey.view_all_count});
       let continueWatching = await this.fetchContinueWatching(
         token.id,
         unquieProcessIds
       );
-      let singleAdBanner = await this.fetchSingleAdBanner(
-        isNewSubscription,
-        token.id,
-        isSubscriber
-      );
-      let banners = await this.fetchUserPreferenceBanner(
-        isNewSubscription,
-        token.id,
-        continueWatching,
-        componentDocs,
-        country_code,
-        isSubscriber
-      );
+      let componentDocs = componentDocsRaw;
+      let banners = await this.bannerConfigurationModel.find({
+        _id: {
+          $in: bannerResp?.bannerToShow
+        },
+        status: EStatus.Active,
+      });
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
           comp.actionData = continueWatching?.actionData;
-        }
-        if (comp.type == EComponentType.userPreferenceBanner) {
-          comp.media = singleAdBanner?.media;
-          comp.banner = {
-            ...comp.banner,
-            bannerImage: singleAdBanner?.media?.mediaUrl,
-          };
-          comp.navigation = {
-            ...singleAdBanner?.navigation,
-            type: comp?.navigation?.type,
-          };
         }
         if (comp.type == EComponentType.userPreferenceBanner) {
           comp.interactionData = { items: banners };
@@ -286,91 +236,42 @@ export class DynamicUiService {
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
           comp.actionData = serviceItemData.finalData[tagName];
+          comp.actionData = comp.actionData.slice(0,viewAllCount?.value?.seriesCount);
           comp["isViewAll"] =
-            serviceItemData.finalData[tagName].length > 10 ? true : false;
+          serviceItemData.finalData[tagName].length >
+          (viewAllCount?.value?.viewAllCount ?? 5)
+          ? true
+          : false;
         }
       });
-      componentDocs.sort((a, b) => a.order - b.order);
-      data["components"] = componentDocs;
-      const componentsWithInteractionData = componentDocs.filter(
-        (comp) => comp.interactionData
-      );
-      if (componentsWithInteractionData.length > 0) {
-        let availableFilterOptions = await this.componentFilterOptions();
-
-        const grouped = availableFilterOptions.reduce((acc, opt) => {
-          if (!acc[opt.filterType]) {
-            acc[opt.filterType] = {
-              type: opt.filterType,
-              filterTypeId: opt.filterTypeId.toString(),
-              options: [],
-            };
-          }
-          acc[opt.filterType].options.push({
-            filterOptionId: opt._id.toString(),
-            filterType: opt.filterType,
-            optionKey: opt.optionKey,
-            optionValue: opt.optionValue,
-          });
-          return acc;
-        }, {});
-
-        componentsWithInteractionData.forEach((component) => {
-          if (
-            component.componentKey === EComponentKey.learnFilterActionButton
-          ) {
-            const originalItems = component.interactionData?.items || [];
-
-            const groupedOptionsMap = new Map();
-            Object.values(grouped).forEach(
-              (group: {
-                type: string;
-                filterTypeId: string;
-                options: any[];
-              }) => {
-                groupedOptionsMap.set(group.type, group);
-              }
-            );
-
-            const transformedItems = originalItems.map((item: any) => {
-              let filterType = item.button?.type;
-
-              if (filterType === "proficency") {
-                filterType = "proficiency";
-              }
-
-              const groupedData = groupedOptionsMap.get(filterType);
-
-              if (groupedData) {
-                const existingOptions = item.options || [];
-                const newOptions = groupedData.options || [];
-
-                const existingOptionIds = new Set(
-                  existingOptions.map((opt) => opt.filterOptionId)
-                );
-
-                const uniqueNewOptions = newOptions.filter(
-                  (opt) => !existingOptionIds.has(opt.filterOptionId)
-                );
-
-                const mergedOptions = [...existingOptions, ...uniqueNewOptions];
-
-                return {
-                  ...item,
-                  type: filterType,
-                  filterTypeId: groupedData.filterTypeId,
-                  options: mergedOptions,
-                };
-              }
-
-              return item;
-            });
-
-            component.interactionData = { items: transformedItems };
-          }
-        });
+      for (const comp of componentDocs) {
+        if (comp.componentKey === EComponentKey.headerActionBar) {
+          await this.updateHeaderActionBarComponent(comp, skillType, skillId, token.id);
+        }
       }
-      return { data };
+      componentDocs.sort((a, b) => a.order - b.order);
+      if (typeof limit === "number" && limit > 0) {
+        const start = Math.max(
+          0,
+          typeof skip === "number" && isFinite(skip) ? skip : 0
+        );
+        const end = start + limit;
+        componentDocs = componentDocs.slice(start, end);
+      }
+      data["components"] = componentDocs;
+      let mixPanelBody: any = {};
+      mixPanelBody.eventName = EMixedPanelEvents.learn_homepage_success;
+      mixPanelBody.distinctId = token.id;
+      mixPanelBody.properties = {
+        category : skillType,
+        banner1 : banners[0]?.banner?.name,
+        banner2 : banners[1]?.banner?.name,
+        banner3 : banners[2]?.banner?.name,
+        banner4 : banners[3]?.banner?.name,
+      };
+      await this.helperService.mixPanel(mixPanelBody);
+      const response = { data };
+      return response;
     } catch (err) {
       throw err;
     }
@@ -1100,17 +1001,9 @@ export class DynamicUiService {
 
         for (let i = 0; i < pendingProcessInstanceData.length; i++) {
           continueWatching["actionData"].push({
-            thumbnail: await this.processService.getThumbNail(
-              pendingProcessInstanceData[i].currentTask.taskMetaData?.media
-            ),
             title: pendingProcessInstanceData[i].currentTask.taskTitle,
             ctaName: "Continue",
             progressPercentage: pendingProcessInstanceData[i].completed,
-            navigationURL:
-              "process/" +
-              pendingProcessInstanceData[i].processId +
-              "/task/" +
-              pendingProcessInstanceData[i].currentTask._id,
             taskDetail: pendingProcessInstanceData[i].currentTask,
             mentorImage: mentorUserIds[i].media,
             mentorName: mentorUserIds[i].displayName,
@@ -2572,13 +2465,14 @@ export class DynamicUiService {
     token: UserToken,
     componentId: string,
     query: ComponentFilterQueryDto,
-    filterOption: EFilterOption
+    filterOption: EFilterOption,
+    skillId?: string,
   ) {
     try {
       const { skip, limit } = query;
-      const [baseComponent, actualComponent, page] =
-        await this.fetchBaseComponents(componentId);
-      if (!baseComponent) {
+      const [actualComponent, page] =
+        await this.fetchBaseComponents(componentId, skillId);
+      if (!actualComponent) {
         throw new NotFoundException("Filter component not found");
       }
       const tagName = actualComponent?.tag?.tagName;
@@ -2602,8 +2496,8 @@ export class DynamicUiService {
         finalInteractionData,
         filterOption
       );
-      this.updateBaseComponentWithFilterData(
-        baseComponent,
+      this.updateActualComponentWithFilterData(
+        actualComponent,
         finalInteractionData,
         processedFilterOptions,
         filteredData
@@ -2614,9 +2508,16 @@ export class DynamicUiService {
         token.id,
         filterOption
       );
-      baseComponent["totalCount"] = totalCount;
+      actualComponent["totalCount"] = totalCount;
 
-      if (!filteredData || filteredData.length === 0) {
+      if (filteredData && filteredData.length > 0) {
+        actualComponent.actionData = filteredData;
+        actualComponent["totalCount"] = totalCount;
+      } else if (serviceItemData && serviceItemData.finalData && serviceItemData.finalData[tagName]) {
+        const allTagData = serviceItemData.finalData[tagName] || [];
+        actualComponent.actionData = allTagData.slice(skip, skip + limit);
+        actualComponent["totalCount"] = allTagData.length;
+      } else {
         const completedSeries = await this.processService.getMySeries(
           token.id,
           EprocessStatus.Completed
@@ -2642,24 +2543,24 @@ export class DynamicUiService {
         );
 
         if (nonMatchedSeries.length > 0) {
-          baseComponent.recommendedList = nonMatchedSeries;
-          baseComponent["totalCount"] = nonMatchedSeries.length;
+          actualComponent.recommendedList = nonMatchedSeries;
+          actualComponent["totalCount"] = nonMatchedSeries.length;
         }
       }
       
-      return { component: baseComponent };
+      return { component: actualComponent };
     } catch (err) {
       throw err;
     }
   }
-  private async fetchBaseComponents(componentId: string) {
-    const [baseComponent, actualComponent, page] = await Promise.all([
-      this.componentModel
-        .findOne({
-          componentKey: EComponentKey.filterActionButton,
-          status: EStatus.Active,
-        })
-        .lean(),
+  private async fetchBaseComponents(componentId: string, skillId?: string) {
+    let filter:any = {
+      "components.componentId": componentId,
+    }
+    if (skillId) {
+      filter["metaData.skillId"] = new ObjectId(skillId);
+    }
+    const [actualComponent, page] = await Promise.all([
       this.componentModel
         .findOne({
           _id: componentId,
@@ -2667,13 +2568,11 @@ export class DynamicUiService {
         })
         .lean(),
       this.contentPageModel
-        .findOne({
-          "components.componentId": componentId,
-        })
+        .findOne(filter)
         .lean(),
     ]);
 
-    return [baseComponent, actualComponent, page] as [any, any, any];
+    return [actualComponent, page] as [any, any];
   }
   private async fetchServiceItemData(
     page: any,
@@ -2709,57 +2608,31 @@ export class DynamicUiService {
     finalInteractionData: any[],
     filterOption: EFilterOption
   ) {
-    const componentFilterTypes = this.extractFilterTypes(finalInteractionData);
-    const availableFilterOptions = await this.componentFilterOptions();
+    const grouped = {};
+    finalInteractionData.forEach((item: any) => {
+      const filterType = item.button?.type || item.type;
+      if (filterType && item.options && item.options.length > 0) {
+        grouped[filterType] = {
+          type: filterType,
+          filterTypeId: item.filterTypeId,
+          options: item.options.map((opt: any) => ({
+            filterOptionId: opt.filterOptionId,
+            filterType: opt.filterType,
+            optionKey: opt.optionKey,
+            optionValue: opt.optionValue,
+            description: opt.description,
+            icon: opt.icon,
+            color: opt.color,
+            metaData: opt.metaData,
+            isUserSelected: opt.isUserSelected || false,
+          })),
+        };
+      }
+    });
 
-    const filteredOptions =
-      componentFilterTypes.length > 0
-        ? availableFilterOptions.filter((opt) =>
-            componentFilterTypes.includes(opt.filterType)
-          )
-        : availableFilterOptions;
-
-    const grouped = this.groupFilterOptions(filteredOptions);
     this.applyUserSelections(grouped, filterOption);
 
     return grouped;
-  }
-  private extractFilterTypes(finalInteractionData: any[]): string[] {
-    const componentFilterTypes: string[] = [];
-
-    if (finalInteractionData.length > 0) {
-      finalInteractionData.forEach((item: any) => {
-        if (item.button?.type || item.type) {
-          let filterType = item.button?.type || item.type;
-          if (filterType === "proficency") {
-            filterType = "proficiency";
-          }
-          componentFilterTypes.push(filterType);
-        }
-      });
-    }
-
-    return componentFilterTypes;
-  }
-
-  private groupFilterOptions(filteredOptions: any[]) {
-    return filteredOptions.reduce((acc, opt) => {
-      if (!acc[opt.filterType]) {
-        acc[opt.filterType] = {
-          type: opt.filterType,
-          filterTypeId: opt.filterTypeId.toString(),
-          options: [],
-        };
-      }
-      acc[opt.filterType].options.push({
-        filterOptionId: opt._id.toString(),
-        filterType: opt.filterType,
-        optionKey: opt.optionKey,
-        optionValue: opt.optionValue,
-        isUserSelected: false,
-      });
-      return acc;
-    }, {});
   }
 
   private applyUserSelections(grouped: any, filterOption: EFilterOption) {
@@ -2783,13 +2656,13 @@ export class DynamicUiService {
     });
   }
 
-  private updateBaseComponentWithFilterData(
-    baseComponent: any,
+  private updateActualComponentWithFilterData(
+    actualComponent: any,
     finalInteractionData: any[],
     processedFilterOptions: any,
     filteredData: any[]
   ) {
-    if (baseComponent?.interactionData) {
+    if (actualComponent?.interactionData) {
       const groupedOptionsMap = new Map();
       Object.values(processedFilterOptions).forEach(
         (group: { type: string; filterTypeId: string; options: any[] }) => {
@@ -2829,10 +2702,10 @@ export class DynamicUiService {
         return item;
       });
 
-      baseComponent.interactionData = { items: transformedItems };
+      actualComponent.interactionData = { items: transformedItems };
     }
 
-    baseComponent.actionData = filteredData;
+    actualComponent.actionData = filteredData;
   }
 
   private async calculateTotalCount(
@@ -2882,7 +2755,6 @@ export class DynamicUiService {
 
       // Step 2: Build a Set of valid filterTypeIds
       const filterTypeIds = new Set(filterTypes.map((ft) => ft._id.toString()));
-
       // Step 3: Group filterOptions by filterTypeId using a Map
       const groupedOptions = new Map<string, any[]>();
       for (const option of filterOptions) {
@@ -2904,7 +2776,6 @@ export class DynamicUiService {
           metaData: option.metaData,
         });
       }
-
       // Step 4: Build interaction items
       const interactionItems = filterTypes.map((ft) => {
         const filterTypeId = ft._id.toString();
@@ -2945,6 +2816,10 @@ export class DynamicUiService {
     userId: string,
     filterOption: EFilterOption
   ): Promise<number> {
+    const tagData = serviceItemData?.finalData?.[tagName];
+    if (tagData) {
+      return tagData.length;
+    }
     let page = serviceItemData?.page ?? null;
 
     if (!page) {
@@ -2979,5 +2854,95 @@ export class DynamicUiService {
     }
 
     return 0;
+  }
+  private async updateHeaderActionBarComponent(
+    component: any,
+    skillType: string,
+    skillId: string,
+    userId: string
+  ) {
+    try {
+      let subscriptionData = await this.subscriptionService.validateSubscription(userId, [
+        EsubscriptionStatus.initiated,
+        EsubscriptionStatus.failed,
+        EsubscriptionStatus.expired,
+      ]);
+      // let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
+      let chipData = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
+      const isNewSubscriber = subscriptionData ? true : false;
+      let placeholder;
+      if (chipData) {
+        const skillConfig = chipData?.value?.tags?.find(config => 
+          config.skillName === skillType
+        );
+        if (skillConfig) {
+          placeholder = component?.interactionData?.items?.[0]?.metaData?.placeholder;
+        }
+      }
+
+        if (component.interactionData && component.interactionData.items) {
+          let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
+          const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
+          if (searchItem && searchItem.metaData) {
+            searchItem.metaData.placeholder = placeholder;
+
+              const matchedSkill = chipData.value.tags.find(tag => 
+                tag.skillName === skillType
+              );
+              if (matchedSkill && matchedSkill.chip) {
+                searchItem.actionData = matchedSkill.chip;
+              }
+          }
+
+          const badgeItem = component.interactionData.items.find(item => item.type === EComponentItemType.badge);
+          if (badgeItem) {
+            let buttonToShow = isNewSubscriber ? EButtonToShow.referral : EButtonToShow.pro;
+            const navConfig = navigation?.value.find(config => config.key === buttonToShow);
+            if (navConfig) {
+              badgeItem.button.label = navConfig?.label;
+              badgeItem.button.value = navConfig?.type;
+              badgeItem.button.media = [{
+                mediaId:navConfig?.mediaId,
+                type: navConfig?.mediaType,
+                mediaUrl: navConfig?.mediaUrl
+              }];              
+              
+              if (navConfig.navigation ) {
+                badgeItem.navigation = navConfig.navigation;
+                if (!isNewSubscriber) {
+                let itemData = await this.serviceItemModel.findOne({
+                  status: EStatus.Active,
+                  "skill.skill_name": skillType,
+                  "skill.skillId": new ObjectId(skillId),
+                  type: EserviceItemType.courses,
+                }).select("planItemId").sort({_id: -1}).lean();
+                if (itemData) {
+                  badgeItem.navigation.params.planItemId = itemData?.planItemId[0]?.itemId;
+                }
+              }
+              }
+            }
+          }
+        }
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getSuggestionsTag(token: UserToken, skillId: string, skillName: string){
+    try {
+      const suggestionsTag = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
+      
+      const matchedSkill = suggestionsTag.value.tags.find(tag => 
+        tag.skillId.toString() === skillId && tag.skillName === skillName
+      );
+      let data = {
+        header : suggestionsTag?.value?.header,
+        chips : matchedSkill?.chip,
+        media : matchedSkill?.media,
+      }
+      return { data };
+    } catch (error) {
+      throw error;
+    }
   }
 }

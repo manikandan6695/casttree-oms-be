@@ -27,6 +27,7 @@ import { RedisModule } from "./redis/redis.module";
 import { DynamicUiModule } from './dynamic-ui/dynamic-ui.module';
 import { AllExceptionsFilter } from "./shared/all-exception.filter";
 import { ProviderModule } from "./provider/provider.module";
+import { MetaBaseModule } from "./meta-base/metabase.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
@@ -71,7 +72,8 @@ import { ProviderModule } from "./provider/provider.module";
     EventOutBoxModule,
     RedisModule,
     DynamicUiModule,
-    ProviderModule
+    ProviderModule,
+    MetaBaseModule
   ],
   controllers: [],
   providers: [
