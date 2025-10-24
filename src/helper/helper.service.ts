@@ -1455,12 +1455,6 @@ export class HelperService {
           metaCart = matchingConfig.value;
         }
       }
-      // If no matching config found, throw an error
-      if (!metaCart) {
-        throw new Error(
-          `No Metabase card configuration found for component key: ${componentKey}`
-        );
-      }
 
       const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
 

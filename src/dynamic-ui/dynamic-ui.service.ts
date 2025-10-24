@@ -288,8 +288,9 @@ export class DynamicUiService {
         const tagName = comp?.tag?.tagName;
         if (tagName && serviceItemData?.finalData?.[tagName]) {
           comp.actionData = serviceItemData.finalData[tagName];
+          comp.actionData = comp.actionData.slice(0,viewAllCount?.value?.seriesCount || 5);
           comp["isViewAll"] =
-            serviceItemData.finalData[tagName].length > viewAllCount?.value ? true : false;
+            serviceItemData.finalData[tagName].length > viewAllCount?.value?.viewAllCount || 5 ? true : false;
         }
       });
       for (const comp of componentDocs) {
