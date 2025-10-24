@@ -28,7 +28,7 @@ import { webhookSchema } from "./schema/webhook.schema";
     forwardRef(() => PaymentRequestModule),
     forwardRef(() => ItemModule),
     MandatesModule,
-    RedisModule,
+    forwardRef(() => RedisModule),
   ],
   controllers: [SubscriptionController],
   providers: [

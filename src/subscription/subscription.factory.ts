@@ -55,6 +55,7 @@ export class SubscriptionFactory {
     @Inject(forwardRef(() => PaymentRequestService))
     private readonly paymentService: PaymentRequestService,
     private readonly itemService: ItemService,
+    @Inject(forwardRef(() => RedisService))
     private readonly redisService: RedisService
   ) {}
   // async onModuleInit() {
