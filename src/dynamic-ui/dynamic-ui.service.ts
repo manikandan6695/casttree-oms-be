@@ -971,6 +971,7 @@ export class DynamicUiService {
                     tagOrder: "$tagOrder",
                     tagName: "$tagName",
                     itemName: "$itemName",
+                    priorityOrder: "$priorityOrder",
                   },
                 ],
               },
@@ -3408,64 +3409,6 @@ export class DynamicUiService {
     return 0;
   }
 
-  async getAllSeries(skillId?: string) {
-    try {
-      Sentry.addBreadcrumb({
-        message: "getAllSeries",
-        level: "info",
-        data: {
-          skillId,
-        },
-      });
-      const filter = {
-        status: Estatus.Active,
-        type: EserviceItemType.courses,
-      };
-      if (skillId) {
-        filter["skill.skillId"] = new ObjectId(skillId);
-      }
-
-      const serviceitems = await this.serviceItemModel.aggregate([
-        {
-          $match: filter,
-        },
-        {
-          $lookup: {
-            from: "item",
-            localField: "itemId",
-            foreignField: "_id",
-            as: "itemDetails",
-            pipeline: [
-              {
-                $project: {
-                  itemName: 1,
-                },
-              },
-            ],
-          },
-        },
-        {
-          $unwind: {
-            path: "$itemDetails",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            itemId: 1,
-            thumbnail: "$additionalDetails.thumbnail",
-            processId: "$additionalDetails.processId",
-            priorityOrder: 1,
-            itemName: "$itemDetails.itemName",
-          },
-        },
-      ]);
-      return serviceitems;
-    } catch (err) {
-      throw err;
-    }
-  }
-
   async updatePriorityOrder(payload: any) {
     try {
       Sentry.addBreadcrumb({
@@ -3478,7 +3421,7 @@ export class DynamicUiService {
       // Build bulk update operations
       const bulkOps = payload.map((item) => ({
         updateOne: {
-          filter: { itemId: item.itemId },
+          filter: { "additionalDetails.processId": item.processId },
           update: { $set: { priorityOrder: item.priorityOrder } },
         },
       }));

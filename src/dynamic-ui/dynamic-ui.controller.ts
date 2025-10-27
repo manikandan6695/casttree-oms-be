@@ -318,17 +318,6 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("allSeries")
-  async getAllSeries(@Req() req, @Query("skill") skillId: string) {
-    try {
-      const res = await this.dynamicUIService.getAllSeries(skillId);
-      return res;
-    } catch (err) {
-      throw err;
-    }
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Post("series/priority-order")
   async updatePriorityOrder(
     @Req() req,
