@@ -74,6 +74,7 @@ import { EAchievementType } from "src/item/enum/achievement.enum";
 import { ICurrencyModel } from "src/shared/schema/currency.schema";
 import { ESeriesTag, ERoleTag } from "./enum/series-tag.enum";
 import { RedisService } from "src/redis/redis.service";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -3409,7 +3410,7 @@ export class DynamicUiService {
     return 0;
   }
 
-  async updatePriorityOrder(payload: any) {
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
     try {
       Sentry.addBreadcrumb({
         message: "updatePriorityOrder",

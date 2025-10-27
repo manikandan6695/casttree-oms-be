@@ -25,6 +25,7 @@ import { Model } from "mongoose";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
 import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
 import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 
 @Controller("dynamic-ui")
@@ -321,7 +322,7 @@ export class DynamicUiController {
   @Post("series/priority-order")
   async updatePriorityOrder(
     @Req() req,
-    @Body(new ValidationPipe({ transform: true })) payload: any
+    @Body(new ValidationPipe({ transform: true })) payload: UpdatePriorityOrderDto[]
   ) {
     try {
       const res = await this.dynamicUIService.updatePriorityOrder(payload);
