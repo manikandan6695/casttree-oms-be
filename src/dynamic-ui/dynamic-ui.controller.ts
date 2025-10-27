@@ -58,8 +58,7 @@ export class DynamicUiController {
     @Param("pageId") pageId: string,
     @GetToken() token: UserToken,
     @Query("skip") skip?: string,
-    @Query("limit") limit?: string,
-    @Query(new ValidationPipe({ transform: true })) filterOption?: EFilterOption
+    @Query("limit") limit?: string
   ) {
     try {
       let data = await this.dynamicUIService.getPageDetails(
@@ -67,7 +66,6 @@ export class DynamicUiController {
         pageId,
         skip ? parseInt(skip as any, 10) : undefined,
         limit ? parseInt(limit as any, 10) : undefined,
-        filterOption
       );
       return data;
     } catch (err) {
@@ -137,13 +135,15 @@ export class DynamicUiController {
     @Query(new ValidationPipe({ whitelist: true }))
     query: ComponentFilterQueryDto,
     @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
+    @Query("skillId") skillId?: string,
   ) {
     try {
       let data = await this.dynamicUIService.getFilterComponent(
         token,
         componentId,
         query,
-        filterOption
+        filterOption,
+        skillId
       );
       return data;
   } catch (err) {

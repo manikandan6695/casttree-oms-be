@@ -17,7 +17,7 @@ import { getServiceRequestRatingsDto } from "./dto/getServicerequestRatings.dto"
 import { GetBannerDto, BannerResponseDto } from "./dto/getBanner.dto";
 import { RedisService } from "src/redis/redis.service";
 import { MixpanelExportService } from "./mixpanel-export.service";
-import { EMetabaseUrlLimit } from "./enums/mixedPanel.enums";
+import { EMetabaseUrlLimit, EMixedPanelEvents } from "./enums/mixedPanel.enums";
 import * as http from "http";
 import * as https from "https";
 @Injectable()
@@ -1455,12 +1455,6 @@ export class HelperService {
           metaCart = matchingConfig.value;
         }
       }
-      // If no matching config found, throw an error
-      if (!metaCart) {
-        throw new Error(
-          `No Metabase card configuration found for component key: ${componentKey}`
-        );
-      }
 
       const fullUrl = `${metabaseBaseUrl}/api/card/${metaCart}/query`;
 
@@ -1477,6 +1471,7 @@ export class HelperService {
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
+        console.log("defaultBannerId",defaultBannerId?.value);
         let defaultBanner;
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
@@ -1485,12 +1480,35 @@ export class HelperService {
               banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
+          console.log("matchingBanner",matchingBanner);
           if (matchingBanner) {
-            defaultBanner = matchingBanner.bannerId.toString();
+            defaultBanner = matchingBanner.bannerId;
           }
         }
         const flattenedRows = response.data?.data?.rows?.flat() || [];
-        const bannerToShow = flattenedRows || defaultBanner;
+        const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
+        
+        let bannerToShow;
+        if (hasValidBanners) {
+          bannerToShow = flattenedRows
+            .filter(banner => banner !== null && banner !== undefined && banner !== '')
+            .map(banner => {
+              if (typeof banner === 'string' && banner.includes(',')) {
+                return banner.split(',')[0].trim();
+              }
+              return banner;
+            });
+        } else {
+          bannerToShow = defaultBanner;
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+          mixPanelBody.distinctId = userId;
+          mixPanelBody.properties = {
+            user_id : userId,
+            skill_id : skillId,
+          };
+          await this.mixPanel(mixPanelBody);
+        }
         return {
           bannerToShow: bannerToShow,
         };
@@ -1526,11 +1544,33 @@ export class HelperService {
                 banner.sourceType === skillType
             );
             if (matchingBanner) {
-              defaultBanner = matchingBanner.bannerId.toString();
+              defaultBanner = matchingBanner.bannerId;
             }
           }
           const flattenedRows = retryResponse.data?.data?.rows?.flat() || [];
-          const bannerToShow = flattenedRows || defaultBanner;
+          console.log("flattenedRows",flattenedRows)
+          const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
+          let bannerToShow;
+          if (hasValidBanners) {
+            bannerToShow = flattenedRows
+              .filter(banner => banner !== null && banner !== undefined && banner !== '')
+              .map(banner => {
+                if (typeof banner === 'string' && banner.includes(',')) {
+                  return banner.split(',')[0].trim();
+                }
+                return banner;
+              });
+          } else {
+            bannerToShow = defaultBanner;
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+            mixPanelBody.distinctId = userId;
+            mixPanelBody.properties = {
+              user_id : userId,
+              skill_id : skillId,
+            };
+            await this.mixPanel(mixPanelBody);
+          }
           return {
             bannerToShow: bannerToShow,
           };
@@ -1551,7 +1591,15 @@ export class HelperService {
             banner.sourceType === skillType
         );
         if (matchingBanner) {
-          defaultBanner = matchingBanner.bannerId.toString();
+          defaultBanner = matchingBanner.bannerId;
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
+          mixPanelBody.distinctId = userId;
+          mixPanelBody.properties = {
+            user_id : userId,
+            skill_id : skillId,
+          };
+          await this.mixPanel(mixPanelBody);
         }
       }
       // Return default banner in case of error
