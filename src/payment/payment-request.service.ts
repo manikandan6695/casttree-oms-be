@@ -232,6 +232,10 @@ export class PaymentRequestService {
           userId: body.userId,
         }
       );
+      if(!body.providerName || !body.providerId){
+        body.providerName = EProvider.razorpay;
+        body.providerId = EProviderId.razorpay;
+      }
       // console.log("orderDetail", orderDetail);
       const paymentData = await this.createPaymentRecord(
         body,

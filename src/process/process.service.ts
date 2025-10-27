@@ -132,8 +132,9 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
+      let isUserCompleteSeries = await this.getUserCompletedProcessInstanceDetail(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
-
+      finalResponse["isSeriesCompleted"] = isUserCompleteSeries
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
 
       return finalResponse;
@@ -312,56 +313,48 @@ export class ProcessService {
         await this.serviceItemService.getServiceItemDetailbyProcessId(
           taskDetail.processId
         );
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
-      mixPanelBody.distinctId = token.id;
-      mixPanelBody.properties = {
-        itemname: serviceItemDetail.itemId.itemName,
-        task_name: taskDetail.title,
-        task_number: taskDetail.taskNumber,
-        isLocked: taskDetail.isLocked,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
-      if (totalTasks == taskDetail.taskNumber) {
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.series_complete;
-        mixPanelBody.distinctId = token.id;
-        mixPanelBody.properties = {
-          itemname: serviceItemDetail.itemId.itemName,
-          task_name: taskDetail.title,
-          task_number: taskDetail.taskNumber,
-        };
-        mixPanelBody.properties = {
-          itemname: serviceItemDetail.itemId.itemName,
-          task_name: taskDetail.title,
-          task_number: taskDetail.taskNumber,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
-
-        processInstanceBody["processStatus"] = EprocessStatus.Completed;
-        // console.log("inside process instance update body", processInstanceBody);
-
-        let processInstanceData = await this.processInstancesModel.updateOne(
-          {
-            processId: taskDetail.processId,
-            userId: new ObjectId(token.id),
-          },
-          { $set: processInstanceBody }
-        );
-      }
-      // console.log("processId", taskDetail.processId, token.id);
-
-      // console.log("processInstanceDetailBody", processInstanceDetailBody);
-
       let processInstanceDetailData =
         await this.processInstanceDetailsModel.updateOne(
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
-            // updated_at: currentTime,
           },
           { $set: processInstanceDetailBody }
         );
+        if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true){
+          let completedTasksCount = await this.processInstanceDetailsModel.countDocuments({
+            processId: taskDetail.processId,
+            createdBy: token.id
+          });
+          if (completedTasksCount === totalTasks) {
+            processInstanceBody["processStatus"] = EprocessStatus.Completed;
+            
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.series_complete;
+            mixPanelBody.distinctId = token.id;
+            mixPanelBody.properties = {
+              itemname: serviceItemDetail.itemId.itemName,
+              task_name: taskDetail.title,
+              task_number: taskDetail.taskNumber,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
+          }
+        } else {
+          if (totalTasks == taskDetail.taskNumber) {
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
+            mixPanelBody.distinctId = token.id;
+            mixPanelBody.properties = {
+              itemname: serviceItemDetail.itemId.itemName,
+              task_name: taskDetail.title,
+              task_number: taskDetail.taskNumber,
+              isLocked: taskDetail.isLocked,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
+            
+            processInstanceBody["processStatus"] = EprocessStatus.Completed;
+          }
+        }
       let finalResponse = {
         message: "updated",
       };
@@ -413,9 +406,9 @@ export class ProcessService {
             pendingTasks[i].currentTask.isLocked = false;
           }
         }
-        let completedTaskNumber = pendingTasks[i].currentTask.taskNumber - 1;
+        let userCompletedTaskNumber = await this.getCompletedProcessDetail(userId, pendingTasks[i].processId.toString());
         pendingTasks[i].completed = Math.ceil(
-          (completedTaskNumber / totalTasks) * 100
+          (userCompletedTaskNumber.length / totalTasks) * 100
         );
         userProcessInstances.push(pendingTasks[i]._id);
       }
@@ -472,9 +465,9 @@ export class ProcessService {
             pendingTasks[i].currentTask.isLocked = false;
           }
         }
-        let completedTaskNumber = pendingTasks[i].currentTask?.taskNumber - 1;
+        let userCompletedTaskNumber = await this.getCompletedProcessDetail(userId, pendingTasks[i].processId.toString());
         pendingTasks[i].completed = Math.ceil(
-          (completedTaskNumber / totalTasks) * 100
+          (userCompletedTaskNumber.length / totalTasks) * 100
         );
         let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
           pendingTasks[i].processId.toString()
@@ -486,6 +479,19 @@ export class ProcessService {
       return pendingTasks;
     } catch (err) {
       throw err;
+    }
+  }
+  async getCompletedProcessDetail(userId:string, processId:string) {
+    try {
+      let processInstanceDetailData = await this.processInstanceDetailsModel.find({
+        createdBy: new ObjectId(userId),
+        processId: new ObjectId(processId),
+        taskStatus: EprocessStatus.Completed,
+        status: Estatus.Active,
+      }).lean()
+      return processInstanceDetailData
+    } catch (error) {
+      throw error
     }
   }
 
@@ -530,8 +536,9 @@ export class ProcessService {
           status == EprocessStatus.Completed
             ? mySeries[i].currentTask.taskNumber
             : mySeries[i].currentTask.taskNumber - 1;
+        let userCompletedTaskNumber = await this.getCompletedProcessDetail(userId, mySeries[i].processId.toString());
         mySeries[i].progressPercentage = Math.ceil(
-          (completedTaskNumber / totalTasks) * 100
+          (userCompletedTaskNumber.length / totalTasks) * 100
         );
         let itemDetail = await this.serviceItemService.getItemDetailFromProcessId(
           mySeries[i].processId.toString()
@@ -599,7 +606,9 @@ export class ProcessService {
         userProcessInstanceData.map((data) => {
           createdInstanceTasks.push(data.taskId.toString());
         });
-
+        let serviceItemDetail = await this.serviceItemService.getServiceItemDetailbyProcessId(
+          processId
+        );
         allTaskdata.forEach((task) => {
           if (subscription || payment.paymentData.length > 0) {
             task.isLocked = false;
@@ -608,6 +617,12 @@ export class ProcessService {
             task.isCompleted = true;
           } else {
             task.isCompleted = false;
+          }
+          if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true && subscription){
+            task.isSeriesEnable = true;
+          }
+          else {
+            task.isSeriesEnable = false;
           }
         });
         let count = await this.tasksModel.countDocuments({
@@ -894,6 +909,23 @@ export class ProcessService {
       });
       let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
       return { data, itemId: serviceItemData?.itemId };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserCompletedProcessInstanceDetail(processId: string, userId: string) {
+    try {
+      let taskData = await this.tasksModel.find({
+        processId: new ObjectId(processId),
+      }).lean()
+      let processInstanceDetailData = await this.processInstanceDetailsModel.find({
+        createdBy: new ObjectId(userId),
+        processId: new ObjectId(processId),
+        taskStatus: EprocessStatus.Completed,
+        status: Estatus.Active,
+      }).lean()
+      let isUserCompleteSeries = processInstanceDetailData.length === taskData.length
+      return isUserCompleteSeries;
     } catch (error) {
       throw error;
     }
