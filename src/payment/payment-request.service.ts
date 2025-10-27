@@ -758,10 +758,12 @@ export class PaymentRequestService {
   }
   async updateCoinValue(paymentId: string,token: UserToken) {
     try {
+      console.log("paymentId",paymentId)
       let payment;
       let paymentData = await this.paymentModel.findOne({
         _id: new ObjectId(paymentId),
       }).lean();
+      console.log("paymentData", paymentData);
       let totalBalance;
       let invoiceData = await this.invoiceService.getInvoiceDetail(
         paymentData?.source_id
@@ -779,6 +781,7 @@ export class PaymentRequestService {
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
       ) {
+        console.log("inside complete payment");
         let coinData = await this.currency_service.getCurrencyByCurrencyName(
           ECurrencyName.currencyId,
           ECurrencyName.casttreeCoin
@@ -789,18 +792,22 @@ export class PaymentRequestService {
           transactionType: ETransactionType.In,
           type: ETransactionType.purchased,
         });
+        console.log("coinTransaction", coinTransaction);
         if (
           coinTransaction?.documentStatus === ECoinStatus.pending &&
           coinTransaction?.transactionType === ECoinTransactionTypes.In
         ) {
+          console.log("inside update user additional");
           let updateUserAdditional =
             await this.helperService.updateUserPurchaseCoin({
               userId: coinTransaction?.userId,
               coinValue: coinTransaction?.coinValue,
             });
+            console.log("updateUserAdditional", updateUserAdditional);
           totalBalance =
             (updateUserAdditional?.purchasedBalance || 0) +
             (updateUserAdditional?.earnedBalance || 0);
+            console.log("totalBalance", totalBalance);
           await this.coinTransactionModel.updateOne(
             {
               sourceId: new ObjectId(invoiceData?._id),
@@ -825,11 +832,13 @@ export class PaymentRequestService {
           coinTransactionOut?.documentStatus === ECoinStatus.pending &&
           coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
         ) {
+          console.log("inside update admin coin value");
           let updateUserAdditionalData =
             await this.helperService.updateAdminCoinValue({
               userId: coinTransactionOut?.userId,
               coinValue: coinTransactionOut?.coinValue,
             });
+            console.log("updateUserAdditionalData", updateUserAdditionalData);
           await this.coinTransactionModel.updateOne(
             {
               sourceId: new ObjectId(invoiceData?._id),
@@ -863,6 +872,7 @@ export class PaymentRequestService {
         await this.helperService.mixPanel(mixPanelBody);
         return finalResponse;
       } else {
+        console.log("inside else");
         return {
           coinValue: 0,
           totalBalance: 0,
