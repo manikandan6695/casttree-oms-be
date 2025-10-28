@@ -31,18 +31,18 @@ export class MailService {
         variables: templateVariables,
       };
 
-      // const response = await axios.post(
-      //   this.configService.get("MSG91_EMAIL_END_POINT"),
-      //   emailData,
-      //   {
-      //     headers: {
-      //       Authkey: this.configService.get("MSG91_AUTHKEY"),
-      //       "Content-Type": "application/json",
-      //     },
-      //   }
-      // );
+      const response = await axios.post(
+        this.configService.get("MSG91_EMAIL_END_POINT"),
+        emailData,
+        {
+          headers: {
+            Authkey: this.configService.get("MSG91_AUTHKEY"),
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      // return response.data;
+      return response.data;
     } catch (error) {
       console.error(
         "Error sending email via MSG91:",
