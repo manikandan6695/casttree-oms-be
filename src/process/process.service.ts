@@ -134,7 +134,11 @@ export class ProcessService {
       }
       let isSeriesCompleted = await this.getCompletedTask(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
+      if (subscription) {
       finalResponse["isSeriesCompleted"] = isSeriesCompleted
+      } else {
+        finalResponse["isSeriesCompleted"] = false
+      }
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
 
       return finalResponse;
@@ -631,20 +635,39 @@ export class ProcessService {
         let serviceItemDetail = await this.serviceItemService.getServiceItemDetailbyProcessId(
           processId
         );
+        let userProcessInstance = await this.processInstanceDetailsModel
+          .find({ processId: processId, createdBy: token.id, taskStatus: EprocessStatus.Completed })
+          .lean();
         allTaskdata.forEach((task) => {
           if (subscription || payment.paymentData.length > 0) {
             task.isLocked = false;
           }
-          if (createdInstanceTasks.includes(task._id.toString())) {
+          if (userProcessInstance.some(data => data.taskId.toString() === task._id.toString())) {
             task.isCompleted = true;
           } else {
             task.isCompleted = false;
           }
-          if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true && subscription){
-            task.showAllEpisodes = true;
+          if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true){
+            if (subscription) {
+              task.showAllEpisodes = true;
+            }
+            else if (task.isLocked === false) {
+              task.showAllEpisodes = true;
+            }
+            else {
+              task.showAllEpisodes = false;
+            }
           }
           else {
+            if (task.isLocked === false && createdInstanceTasks.includes(task._id.toString()) ) {
+              task.showAllEpisodes = true;
+            }
+            else if (createdInstanceTasks.includes(task._id.toString()) && subscription) {
+              task.showAllEpisodes = true;
+            }
+            else {
             task.showAllEpisodes = false;
+            }
           }
         });
         let count = await this.tasksModel.countDocuments({
