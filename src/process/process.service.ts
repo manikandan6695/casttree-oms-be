@@ -132,9 +132,9 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-      let isUserCompleteSeries = await this.getCompletedTask(processId, token.id)
+      let isSeriesCompleted = await this.getCompletedTask(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
-      finalResponse["isSeriesCompleted"] = isUserCompleteSeries
+      finalResponse["isSeriesCompleted"] = isSeriesCompleted
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
 
       return finalResponse;
