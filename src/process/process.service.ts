@@ -319,6 +319,17 @@ export class ProcessService {
           },
           { $set: processInstanceDetailBody }
         );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
+        mixPanelBody.distinctId = token.id;
+        mixPanelBody.properties = {
+          itemname: serviceItemDetail.itemId.itemName,
+          task_name: taskDetail.title,
+          task_number: taskDetail.taskNumber,
+          isLocked: taskDetail.isLocked,
+          is_locked: taskDetail.isLocked,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
         let completedTasksCount = await this.processInstanceDetailsModel.countDocuments({
           processId: taskDetail.processId,
           createdBy: token.id
@@ -340,18 +351,7 @@ export class ProcessService {
               itemname: serviceItemDetail.itemId.itemName,
               task_name: taskDetail.title,
               task_number: taskDetail.taskNumber,
-            };
-            await this.helperService.mixPanel(mixPanelBody);
-          }
-          else {
-            let mixPanelBody: any = {};
-            mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
-            mixPanelBody.distinctId = token.id;
-            mixPanelBody.properties = {
-              itemname: serviceItemDetail.itemId.itemName,
-              task_name: taskDetail.title,
-              task_number: taskDetail.taskNumber,
-              isLocked: taskDetail.isLocked,
+              item_name: serviceItemDetail.itemId.itemName,
             };
             await this.helperService.mixPanel(mixPanelBody);
           }
@@ -372,18 +372,7 @@ export class ProcessService {
               itemname: serviceItemDetail.itemId.itemName,
               task_name: taskDetail.title,
               task_number: taskDetail.taskNumber,
-            };
-            await this.helperService.mixPanel(mixPanelBody);
-          }
-          else {
-            let mixPanelBody: any = {};
-            mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
-            mixPanelBody.distinctId = token.id;
-            mixPanelBody.properties = {
-              itemname: serviceItemDetail.itemId.itemName,
-              task_name: taskDetail.title,
-              task_number: taskDetail.taskNumber,
-              isLocked: taskDetail.isLocked,
+              item_name: serviceItemDetail.itemId.itemName,
             };
             await this.helperService.mixPanel(mixPanelBody);
           }
@@ -958,8 +947,8 @@ export class ProcessService {
         taskStatus: EprocessStatus.Completed,
         status: Estatus.Active,
       }).lean()
-      let isUserCompleteSeries = processInstanceDetailData.length === taskData.length
-      return isUserCompleteSeries;
+      let isSeriesCompleted = processInstanceDetailData.length === taskData.length
+      return isSeriesCompleted;
     } catch (error) {
       throw error;
     }
