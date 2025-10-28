@@ -297,8 +297,6 @@ export class ProcessService {
           processInstanceDetailBody["endedAt"] = endAt;
         }
         if (body.processStatus == EprocessStatus.Completed) {
-          console.log("inside completed");
-
           processInstanceDetailBody["taskResponse"] = body.taskResponse;
           processInstanceDetailBody["endedAt"] = currentTimeIso;
         }
@@ -321,14 +319,20 @@ export class ProcessService {
           },
           { $set: processInstanceDetailBody }
         );
+        let completedTasksCount = await this.processInstanceDetailsModel.countDocuments({
+          processId: taskDetail.processId,
+          createdBy: token.id
+        });
         if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true){
-          let completedTasksCount = await this.processInstanceDetailsModel.countDocuments({
-            processId: taskDetail.processId,
-            createdBy: token.id
-          });
           if (completedTasksCount === totalTasks) {
             processInstanceBody["processStatus"] = EprocessStatus.Completed;
-            
+            let processInstanceData = await this.processInstancesModel.updateOne(
+              {
+                processId: taskDetail.processId,
+                userId: new ObjectId(token.id),
+              },
+              { $set: processInstanceBody }
+            );
             let mixPanelBody: any = {};
             mixPanelBody.eventName = EMixedPanelEvents.series_complete;
             mixPanelBody.distinctId = token.id;
@@ -339,8 +343,7 @@ export class ProcessService {
             };
             await this.helperService.mixPanel(mixPanelBody);
           }
-        } else {
-          if (totalTasks == taskDetail.taskNumber) {
+          else {
             let mixPanelBody: any = {};
             mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
             mixPanelBody.distinctId = token.id;
@@ -351,8 +354,38 @@ export class ProcessService {
               isLocked: taskDetail.isLocked,
             };
             await this.helperService.mixPanel(mixPanelBody);
-            
+          }
+        } else {
+          if (totalTasks === completedTasksCount) {
             processInstanceBody["processStatus"] = EprocessStatus.Completed;
+            let processInstanceData = await this.processInstancesModel.updateOne(
+              {
+                processId: taskDetail.processId,
+                userId: new ObjectId(token.id),
+              },
+              { $set: processInstanceBody }
+            );
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.series_complete;
+            mixPanelBody.distinctId = token.id;
+            mixPanelBody.properties = {
+              itemname: serviceItemDetail.itemId.itemName,
+              task_name: taskDetail.title,
+              task_number: taskDetail.taskNumber,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
+          }
+          else {
+            let mixPanelBody: any = {};
+            mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
+            mixPanelBody.distinctId = token.id;
+            mixPanelBody.properties = {
+              itemname: serviceItemDetail.itemId.itemName,
+              task_name: taskDetail.title,
+              task_number: taskDetail.taskNumber,
+              isLocked: taskDetail.isLocked,
+            };
+            await this.helperService.mixPanel(mixPanelBody);
           }
         }
       let finalResponse = {
@@ -619,10 +652,10 @@ export class ProcessService {
             task.isCompleted = false;
           }
           if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true && subscription){
-            task.isSeriesEnable = true;
+            task.showAllEpisodes = true;
           }
           else {
-            task.isSeriesEnable = false;
+            task.showAllEpisodes = false;
           }
         });
         let count = await this.tasksModel.countDocuments({
