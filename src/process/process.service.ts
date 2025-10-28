@@ -132,7 +132,7 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-      let isUserCompleteSeries = await this.getUserCompletedProcessInstanceDetail(processId, token.id)
+      let isUserCompleteSeries = await this.getCompletedTask(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
       finalResponse["isSeriesCompleted"] = isUserCompleteSeries
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
@@ -913,10 +913,11 @@ export class ProcessService {
       throw error;
     }
   }
-  async getUserCompletedProcessInstanceDetail(processId: string, userId: string) {
+  async getCompletedTask(processId: string, userId: string) {
     try {
       let taskData = await this.tasksModel.find({
         processId: new ObjectId(processId),
+        status: Estatus.Active,
       }).lean()
       let processInstanceDetailData = await this.processInstanceDetailsModel.find({
         createdBy: new ObjectId(userId),
