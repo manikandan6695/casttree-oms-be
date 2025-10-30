@@ -140,12 +140,12 @@ export class ProcessService {
       finalResponse["nextTaskData"] = nextTask;
       finalResponse["isRatingSubmitted"] = isRatingSubmitted ? true : false
      
-       if(subscription && completedSeries.isSeriesCompleted === true ){
-        finalResponse["isSeriesCompleted"] = completedSeries.isSeriesCompleted
-      } else {
-        if ( completedSeries.isSeriesCompleted === false && completedSeries.taskNumber === currentTaskData.taskNumber ) {
-          finalResponse["isSeriesCompleted"] = false
-        }
+      const isSeriesCompleted = completedSeries.isSeriesCompleted
+      if (
+        (subscription && isSeriesCompleted === true) ||
+        (isSeriesCompleted === false && completedSeries.taskNumber === currentTaskData.taskNumber)
+      ) {
+        finalResponse["isSeriesCompleted"] = isSeriesCompleted
       }
       if (finalResponse["isRatingSubmitted"] === true && completedSeries.taskNumber !== currentTaskData.taskNumber) {
         delete finalResponse["isSeriesCompleted"]
