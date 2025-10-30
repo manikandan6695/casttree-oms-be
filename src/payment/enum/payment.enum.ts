@@ -158,3 +158,6 @@ export enum ECoinTransactionTypes {
   purchased = "purchased",
   withdrawn = "withdrawn",
 }
+export enum EPaymentProvider {
+  paymentProvider = "payment_provider",
+}

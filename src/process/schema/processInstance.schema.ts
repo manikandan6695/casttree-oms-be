@@ -39,3 +39,5 @@ export const processInstanceSchema = new mongoose.Schema<any>({
         collection: "processInstance",
         timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
     });
+
+processInstanceSchema.index({ userId: 1, processId: 1, status: 1 });
