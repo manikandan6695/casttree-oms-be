@@ -16,12 +16,15 @@ import { ItemModule } from "src/item/item.module";
 import { RedisModule } from "src/redis/redis.module";
 import { CoinTransactionSchema } from "./schema/coinPurchase.schema";
 import { SubscriptionModule } from "src/subscription/subscription.module";
+import { SystemConfigurationSchema } from "src/shared/schema/system-configuration.schema";
+import { PaymentRequestFactory } from "./payment-request.factory";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "payment", schema: PaymentSchema },
       { name: "salesDocument", schema: SalesDocumentSchema },
+      { name: "systemConfiguration", schema: SystemConfigurationSchema },
     ]),
     SharedModule,
     AuthModule,
@@ -34,8 +37,8 @@ import { SubscriptionModule } from "src/subscription/subscription.module";
     MongooseModule.forFeature([{ name: "coinTransaction", schema: CoinTransactionSchema }]),
     forwardRef(() => SubscriptionModule),
   ],
-  providers: [PaymentRequestService, PaymentService],
+  providers: [PaymentRequestService, PaymentService,PaymentRequestFactory],
   controllers: [PaymentRequestController],
-  exports: [PaymentRequestService],
+  exports: [PaymentRequestService, PaymentRequestFactory],
 })
 export class PaymentRequestModule {}
