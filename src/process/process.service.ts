@@ -135,19 +135,22 @@ export class ProcessService {
             ? false
             : nextTaskData.isLocked;
       }
-      let isSeriesCompleted = await this.getCompletedTask(processId, token.id)
+      let completedSeries = await this.getCompletedTask(processId, token.id)
       let isRatingSubmitted = await this.getUserRating(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
-      if (!subscription && finalResponse["isLocked"]===false) {
-      finalResponse["isSeriesCompleted"] = isSeriesCompleted
-      }
-      else if(subscription){
+      finalResponse["isRatingSubmitted"] = isRatingSubmitted ? true : false
+     
+      const isSeriesCompleted = completedSeries.isSeriesCompleted
+      if (
+        (subscription && isSeriesCompleted === true) ||
+        (isSeriesCompleted === false && completedSeries.taskNumber === currentTaskData.taskNumber)
+      ) {
         finalResponse["isSeriesCompleted"] = isSeriesCompleted
-      } else {
-        finalResponse["isSeriesCompleted"] = false
+      }
+      if (finalResponse["isRatingSubmitted"] === true && completedSeries.taskNumber !== currentTaskData.taskNumber) {
+        delete finalResponse["isSeriesCompleted"]
       }
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
-      finalResponse["isRatingSubmitted"] = isRatingSubmitted ? true : false
       return finalResponse;
     } catch (err) {
       throw err;
@@ -978,7 +981,7 @@ export class ProcessService {
         status: Estatus.Active,
       }).lean()
       let isSeriesCompleted = processInstanceDetailData.length === taskData.taskNumber
-      return isSeriesCompleted;
+      return {isSeriesCompleted, taskNumber: taskData.taskNumber};
     } catch (error) {
       throw error;
     }
