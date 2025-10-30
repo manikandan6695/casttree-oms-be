@@ -19,7 +19,8 @@ import {
 import { processInstanceModel } from "./schema/processInstance.schema";
 import { processInstanceDetailModel } from "./schema/processInstanceDetails.schema";
 import { taskModel } from "./schema/task.schema";
-
+import { ratings } from "./schema/ratings.schema";
+import { EtransactionType } from "./enums/ratings.enum";
 @Injectable()
 export class ProcessService {
   constructor(
@@ -29,6 +30,8 @@ export class ProcessService {
     private readonly processInstanceDetailsModel: Model<processInstanceDetailModel>,
     @InjectModel("task")
     private readonly tasksModel: Model<taskModel>,
+    @InjectModel("ratings")
+    private readonly ratingsModel: Model<ratings>,
     @Inject(forwardRef(() => ServiceItemService))
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
@@ -133,14 +136,18 @@ export class ProcessService {
             : nextTaskData.isLocked;
       }
       let isSeriesCompleted = await this.getCompletedTask(processId, token.id)
+      let isRatingSubmitted = await this.getUserRating(processId, token.id)
       finalResponse["nextTaskData"] = nextTask;
-      if (subscription) {
+      if (!subscription && finalResponse["isLocked"]===false) {
       finalResponse["isSeriesCompleted"] = isSeriesCompleted
+      }
+      else if(subscription){
+        finalResponse["isSeriesCompleted"] = isSeriesCompleted
       } else {
         finalResponse["isSeriesCompleted"] = false
       }
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
-
+      finalResponse["isRatingSubmitted"] = isRatingSubmitted ? true : false
       return finalResponse;
     } catch (err) {
       throw err;
@@ -960,18 +967,35 @@ export class ProcessService {
   }
   async getCompletedTask(processId: string, userId: string) {
     try {
-      let taskData = await this.tasksModel.find({
+      let taskData = await this.tasksModel.findOne({
         processId: new ObjectId(processId),
         status: Estatus.Active,
-      }).lean()
+      }).sort({ taskNumber: -1 }).lean()
       let processInstanceDetailData = await this.processInstanceDetailsModel.find({
         createdBy: new ObjectId(userId),
         processId: new ObjectId(processId),
-        taskStatus: EprocessStatus.Completed,
+        // taskStatus: EprocessStatus.Started,
         status: Estatus.Active,
       }).lean()
-      let isSeriesCompleted = processInstanceDetailData.length === taskData.length
+      let isSeriesCompleted = processInstanceDetailData.length === taskData.taskNumber
       return isSeriesCompleted;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserRating(processId: string, userId: string) {
+    try {
+      let processInstanceDetail = await this.processInstancesModel.findOne({
+        userId: new ObjectId(userId),
+        processId: new ObjectId(processId),
+        status: Estatus.Active,
+      }).lean()
+      let ratings = await this.ratingsModel.findOne({
+        transactionId: processInstanceDetail._id.toString(),
+        transactionType: EtransactionType.processInstance,
+        reviewedBy: new ObjectId(userId),
+      }).lean()
+      return ratings;
     } catch (error) {
       throw error;
     }
