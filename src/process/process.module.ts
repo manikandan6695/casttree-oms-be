@@ -11,6 +11,7 @@ import { processInstanceSchema } from "./schema/processInstance.schema";
 import { processInstanceDetailSchema } from "./schema/processInstanceDetails.schema";
 import { taskSchema } from "./schema/task.schema";
 import { ratingSchema } from "./schema/ratings.schema";
+import { RedisModule } from "src/redis/redis.module";
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { ratingSchema } from "./schema/ratings.schema";
     forwardRef(() => ItemModule),
     SubscriptionModule,
     forwardRef(() => PaymentRequestModule),
-    forwardRef(() => HelperModule)
+    forwardRef(() => HelperModule),
+    forwardRef(() => RedisModule)
   ],
   controllers: [ProcessController],
   providers: [ProcessService],
