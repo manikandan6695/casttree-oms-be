@@ -10,7 +10,7 @@ import { processSchema } from "./schema/process.schema";
 import { processInstanceSchema } from "./schema/processInstance.schema";
 import { processInstanceDetailSchema } from "./schema/processInstanceDetails.schema";
 import { taskSchema } from "./schema/task.schema";
-
+import { ratingSchema } from "./schema/ratings.schema";
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -18,6 +18,7 @@ import { taskSchema } from "./schema/task.schema";
       { name: "processInstance", schema: processInstanceSchema },
       { name: "processInstanceDetail", schema: processInstanceDetailSchema },
       { name: "task", schema: taskSchema },
+      { name: "ratings", schema: ratingSchema },
     ]),
     forwardRef(() => ItemModule),
     SubscriptionModule,

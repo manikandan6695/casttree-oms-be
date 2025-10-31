@@ -22,6 +22,7 @@ import {
   EAdminId,
   ECoinStatus,
   ECoinTransactionTypes,
+  EConfigProvider,
   ECurrencyName,
   EFilterType,
   EPaymentSourceType,
@@ -40,6 +41,8 @@ import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ICoinTransaction } from "./schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
+import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
+import { PaymentRequestFactory } from "./payment-request.factory";
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -54,6 +57,8 @@ export class PaymentRequestService {
   constructor(
     @InjectModel("payment")
     private readonly paymentModel: Model<IPaymentModel>,
+    @InjectModel("systemConfiguration")
+    private systemConfigurationModel: Model<ISystemConfigurationModel>,
     private sharedService: SharedService,
     private paymentService: PaymentService,
     @Inject(forwardRef(() => ServiceRequestService))
@@ -70,7 +75,8 @@ export class PaymentRequestService {
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private redisService: RedisService,
     @Inject(forwardRef(() => SubscriptionService))
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private paymentRequestFactory: PaymentRequestFactory
   ) {}
   async handleCoinPurchaseFromRedis(coinPurchaseData: any) {
     try {
@@ -88,6 +94,11 @@ export class PaymentRequestService {
           // console.log("Existing data Found:", existingData);
           return existingData;
         }
+        let providerDetail = await this.systemConfigurationModel.findOne({
+          key: EConfigProvider.paymentProvider
+        }).lean();
+        let providerId = providerDetail?.value?.providerId;
+        let providerName = providerDetail?.value?.provider;
         const bodyData: paymentDTO = {
           amount: payload?.amount,
           paymentMode: payload?.paymentMode,
@@ -95,8 +106,8 @@ export class PaymentRequestService {
           itemId: payload?.itemId,
           currencyCode: payload?.currencyCode,
           transactionDate: new Date(),
-          providerId: EProviderId.razorpay,
-          providerName: EProvider.razorpay,
+          providerId: providerId,
+          providerName: providerName,
           document_status: EPaymentStatus.initiated,
           invoiceDetail: {
             sourceType: EPaymentSourceType.coinTransaction,
@@ -117,8 +128,8 @@ export class PaymentRequestService {
           source_id: new ObjectId(invoiceData?._id),
           source_type: EDocumentTypeName.invoice,
           document_status: EPaymentStatus.initiated,
-          providerId: EProviderId.razorpay,
-          providerName: EProvider.razorpay,
+          providerId: providerId,
+          providerName: providerName,
         });
         if (orderId) {
           let consumer =
@@ -182,7 +193,13 @@ export class PaymentRequestService {
       }
 
       const invoiceData = await this.createNewInvoice(body, token);
-
+      if (!body.providerId) {
+        let providerDetail = await this.systemConfigurationModel.findOne({
+          key: EConfigProvider.paymentProvider
+        }).lean();
+        body.providerId = providerDetail?.value?.providerId;
+        body.providerName = providerDetail?.value?.provider;
+       }
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
@@ -216,20 +233,13 @@ export class PaymentRequestService {
       let requestId = serviceRequest?.request?._id.toString()
         ? serviceRequest?.request?._id.toString()
         : body?.invoiceDetail?.sourceId.toString();
-      const orderDetail = await this.paymentService.createPGOrder(
-        body.userId.toString(),
-        body.currencyCode,
-        body.currency,
-        body.amount,
-        requestId,
-        accessToken,
-        {
+        const provider = this.paymentRequestFactory.getPaymentProvider(body.providerName);
+        const orderDetail = await provider.createPayment(body, requestId, accessToken, {
           invoiceId: invoiceData._id,
           itemId: body.itemId,
           invoiceNumber: invoiceData.document_number,
           userId: body.userId,
-        }
-      );
+        });
 
       const paymentData = await this.createPaymentRecord(
         body,
