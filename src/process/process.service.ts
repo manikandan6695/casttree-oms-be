@@ -21,6 +21,7 @@ import { processInstanceDetailModel } from "./schema/processInstanceDetails.sche
 import { taskModel } from "./schema/task.schema";
 import { ratings } from "./schema/ratings.schema";
 import { EtransactionType } from "./enums/ratings.enum";
+import { RedisService } from "src/redis/redis.service";
 @Injectable()
 export class ProcessService {
   constructor(
@@ -38,7 +39,9 @@ export class ProcessService {
     @Inject(forwardRef(() => PaymentRequestService))
     private paymentService: PaymentRequestService,
     @Inject(forwardRef(() => HelperService))
-    private helperService: HelperService
+    private helperService: HelperService,
+    @Inject(forwardRef(() => RedisService))
+    private redisService: RedisService
   ) {}
   async getTaskDetail(processId, taskId, token) {
     try {
@@ -141,15 +144,7 @@ export class ProcessService {
       finalResponse["isRatingSubmitted"] = isRatingSubmitted ? true : false
      
       const isSeriesCompleted = completedSeries.isSeriesCompleted
-      if (
-        (subscription && isSeriesCompleted === true) ||
-        (isSeriesCompleted === false && completedSeries.taskNumber === currentTaskData.taskNumber)
-      ) {
-        finalResponse["isSeriesCompleted"] = isSeriesCompleted
-      }
-      if (finalResponse["isRatingSubmitted"] === true && completedSeries.taskNumber !== currentTaskData.taskNumber) {
-        delete finalResponse["isSeriesCompleted"]
-      }
+      finalResponse["isSeriesCompleted"] = isSeriesCompleted
       finalResponse["processInstanceDetails"] = createProcessInstanceData;
       return finalResponse;
     } catch (err) {
@@ -163,6 +158,14 @@ export class ProcessService {
     taskType,
     breakDuration?
   ) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${userId}:${processId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    console.log(lockResult)
+    lockAcquired = lockResult.acquired;
+    lockValue = lockResult.value as string;
     try {
       let itemId =
         await this.serviceItemService.getServuceItemDetailsByProcessId(
@@ -290,6 +293,10 @@ export class ProcessService {
       return finalResponse;
     } catch (err) {
       throw err;
+    } finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
     }
   }
 
@@ -977,7 +984,7 @@ export class ProcessService {
       let processInstanceDetailData = await this.processInstanceDetailsModel.find({
         createdBy: new ObjectId(userId),
         processId: new ObjectId(processId),
-        // taskStatus: EprocessStatus.Started,
+        taskStatus: EprocessStatus.Started,
         status: Estatus.Active,
       }).lean()
       let isSeriesCompleted = processInstanceDetailData.length === taskData.taskNumber

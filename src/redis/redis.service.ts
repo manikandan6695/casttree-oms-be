@@ -26,6 +26,10 @@ export class RedisService implements OnModuleDestroy {
     private helperService: HelperService
   ) { }
 
+  async generateLockValue(): Promise<string> {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
   async initRedisClients() {
     this.client = createClient({
       url: process.env.REDIS_URL,
@@ -151,6 +155,66 @@ export class RedisService implements OnModuleDestroy {
       orderId,
       sourceId
     );
+  }
+
+  async acquireLock(
+    key: string,
+    value?: string,
+    ttl: number = 30,
+    retry: number = 5,
+    backoffMs: number = 200
+  ): Promise<{ acquired: boolean; value: string }> {
+    try {
+      if (!this.isConnected) {
+        await this.initRedisClients();
+      }
+
+      const lockValue = value || await this.generateLockValue();
+      const lockKey = `lock:${key}`;
+      for (let i = 0; i < retry; i++) {
+        const result = await this.client.set(lockKey, lockValue, {
+          NX: true,
+          EX: ttl,
+        });
+        if (result === 'OK') {
+          return { acquired: true, value: lockValue };
+        }
+
+        const wait = backoffMs * Math.pow(2, i) + Math.floor(Math.random() * 50);
+        await new Promise(res => setTimeout(res, wait));
+      }
+
+      return { acquired: false, value: lockValue };
+    } catch (error: any) {
+      console.error('[Lock Acquisition Error]', error.message || error);
+      return { acquired: false, value } as any;
+    }
+  }
+
+  async releaseLock(key: string, value: string): Promise<boolean> {
+    try {
+      if (!this.isConnected) {
+        await this.initRedisClients();
+      }
+      const lockKey = `lock:${key}`;
+      const script = `
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+          return redis.call("del", KEYS[1])
+        else
+          return 0
+        end
+      `;
+
+      const result = await this.client.eval(script, {
+        keys: [lockKey],
+        arguments: [value],
+      });
+
+      return result === 1;
+    } catch (error: any) {
+      console.error('[Lock Release Error]', error.message || error);
+      return false;
+    }
   }
 
   getClient() {
