@@ -22,6 +22,17 @@ export class ProItemDto {
   price: number;
 }
 
+export class MediaDto {
+  @IsString()
+  type: string;
+
+  @IsString()
+  mediaId: string;
+
+  @IsString()
+  mediaUrl: string;
+}
+
 export class AddNewSeriesDto {
   @IsOptional()
   @IsArray()
@@ -84,4 +95,17 @@ export class AddNewSeriesDto {
 
   @IsNotEmpty()
   proItem: ProItemDto;
+
+  @IsArray()
+  @IsNotEmpty()
+  paywallVideo: MediaDto[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  premiumThumbnails: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  skipText: string;
 }
