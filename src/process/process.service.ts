@@ -984,7 +984,7 @@ export class ProcessService {
       let processInstanceDetailData = await this.processInstanceDetailsModel.find({
         createdBy: new ObjectId(userId),
         processId: new ObjectId(processId),
-        taskStatus: EprocessStatus.Started,
+        // taskStatus: EprocessStatus.Started,
         status: Estatus.Active,
       }).lean()
       let isSeriesCompleted = processInstanceDetailData.length === taskData.taskNumber
