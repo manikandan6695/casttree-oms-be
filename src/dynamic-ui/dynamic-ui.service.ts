@@ -1987,10 +1987,10 @@ export class DynamicUiService {
                 roleId: new ObjectId(item._id),
                 roleName: item.role_name,
               })),
-              skill: {
-                skillId: new ObjectId(skillIds[0]),
-                skill_name: skill[0].skill_name,
-              },
+              skill: skill.map((item) => ({
+                skillId: new ObjectId(item._id),
+                skill_name: item.skill_name,
+              })),
               type: "courses",
               additionalDetails: {
                 ctaName: "Start Learning",
@@ -3252,8 +3252,8 @@ export class DynamicUiService {
         .limit(1)
         .lean();
 
-      if (serviceItem?.skill?.skillId) {
-        page = { metaData: { skillId: serviceItem.skill.skillId } };
+      if (serviceItem?.skill?.some(s => s.skillId)) {
+        page = { metaData: { skillId: serviceItem.skill.find(s => s.skillId).skillId } };
       }
     }
 
