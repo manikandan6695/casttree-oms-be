@@ -319,6 +319,20 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get("priorityOrder/:pageId")
+  async getPriorityList(
+    @Req() req,
+    @Param("pageId") pageId: string
+  ) {
+    try {
+      const res = await this.dynamicUIService.getPriorityList(pageId);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post("series/priority-order")
   async updatePriorityOrder(
     @Req() req,
@@ -331,6 +345,7 @@ export class DynamicUiController {
       throw err;
     }
   }
+
   @UseGuards(JwtAuthGuard)
   @Get("suggestions-tag")
   async getSuggestionsTag(

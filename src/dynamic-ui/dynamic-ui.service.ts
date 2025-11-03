@@ -3282,6 +3282,57 @@ export class DynamicUiService {
     return 0;
   }
 
+  async getPriorityList(pageId: string) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "getPriorityList",
+        level: "info",
+        data: {
+          pageId,
+        },
+      });
+      
+      const contentPage = await this.contentPageModel.findById(pageId).lean();
+      const skillId = contentPage.metaData?.skillId;
+      
+      const serviceItems = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            status: Estatus.Active,
+            type: EserviceItemType.courses,
+            "skill.0.skillId": skillId,
+            // $or: [
+            //   {
+            //     skill: { $type: "object" },
+            //     "skill.skillId": skillId,
+            //   },
+            //   {
+            //     skill: { $type: "array" },
+            //     "skill.0.skillId": skillId,
+            //   },
+            // ]
+          },
+        },
+        {
+          $project: {
+            thumbnail: "$additionalDetails.thumbnail",
+            processId: "$additionalDetails.processId",
+            priorityOrder: 1,
+          },
+        },
+        {
+          $sort: {
+            priorityOrder: 1,
+          },
+        },
+      ]);
+
+        return serviceItems;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
     try {
       Sentry.addBreadcrumb({
