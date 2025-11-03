@@ -322,6 +322,7 @@ export class DynamicUiService {
         banner2 : banners[1]?.banner?.name,
         banner3 : banners[2]?.banner?.name,
         banner4 : banners[3]?.banner?.name,
+        banners : [...new Set(banners.map((banner) => banner.banner?.name))],
       };
       await this.helperService.mixPanel(mixPanelBody);
       const response = { data };
