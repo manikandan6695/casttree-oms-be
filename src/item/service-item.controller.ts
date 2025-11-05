@@ -16,6 +16,7 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { processIdListDTO } from "./dto/filter-platformItem.dto";
 import { ServiceItemService } from "./service-item.service";
+import { ERecommendationListType } from "./enum/serviceItem.type.enum";
 
 @Controller("service-item")
 export class ServiceItemController {
@@ -34,6 +35,16 @@ export class ServiceItemController {
       return data;
     } catch (err) {
       throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("recommendations")
+  async getRecommendationList(@Req() req,@Query("itemId") itemId: string,@Query("type") type: ERecommendationListType) {
+    try {
+      let data = await this.serviceItemService.getRecommendationList(req.headers["x-userid"],itemId,type);
+      return data;
+    } catch (error) {
+      throw error;
     }
   }
   @Get("promotion-details")

@@ -20,6 +20,7 @@ import { MixpanelExportService } from "./mixpanel-export.service";
 import { EMetabaseUrlLimit, EMixedPanelEvents } from "./enums/mixedPanel.enums";
 import * as http from "http";
 import * as https from "https";
+import { ERecommendationListType } from "src/item/enum/serviceItem.type.enum";
 @Injectable()
 export class HelperService {
   constructor(
@@ -1606,6 +1607,55 @@ export class HelperService {
       return {
         bannerToShow: defaultBanner,
       };
+    }
+  }
+  async getItemIdFromMetaBase(userId: string, itemId: string, type: ERecommendationListType) {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      // if (!metabaseBaseUrl) {
+      // throw new Error("METABASE_BASE_URL environment variable is not set");
+      // }
+      const requestBody = {
+        parameters: [
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "userid"]],
+            value: userId,
+          },
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "itemid"]],
+            value: itemId,
+          },
+        ],
+      };
+      let metabaseSession = await this.getMetabaseSession();
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Metabase-Session": metabaseSession,
+      };
+      
+      const systemConfig = await this.getSystemConfigByKey(EMetabaseUrlLimit.recommendation_list_card_id);
+      const cardConfigs = systemConfig?.value || [];
+
+      const cardConfig = cardConfigs.find((config: any) => config?.type === type);
+      
+      if (!cardConfig || !cardConfig.card) {
+        return [];
+      }
+
+      try {
+        const response = await this.http_service
+          .post(`${metabaseBaseUrl}/api/card/${cardConfig.card}/query`, requestBody, {
+            headers,
+          })
+          .toPromise();
+        return response.data?.data?.rows || [];
+      } catch (error) {
+        return [];
+      }
+    } catch (error) {
+      return [];
     }
   }
   private async processLargeDatasetToCsv(jsonlData: string): Promise<string> {
