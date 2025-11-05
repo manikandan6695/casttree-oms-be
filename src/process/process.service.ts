@@ -332,13 +332,26 @@ export class ProcessService {
         await this.serviceItemService.getServiceItemDetailbyProcessId(
           taskDetail.processId
         );
+        let existingProcessInstance = await this.processInstanceDetailsModel.findOne({
+          processId: taskDetail.processId,
+          createdBy: new ObjectId(token.id),
+          taskId: new ObjectId(body.taskId),
+          taskStatus: EprocessStatus.Completed,
+          status: Estatus.Active,
+        })
+        const updatedBody: any = {
+          $set: processInstanceDetailBody
+        };
+        if (existingProcessInstance) {
+          updatedBody.$inc = { watchedCount: 1 };
+        }
       let processInstanceDetailData =
         await this.processInstanceDetailsModel.updateOne(
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
           },
-          { $set: processInstanceDetailBody }
+          updatedBody
         );
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.episode_complete;
@@ -1006,6 +1019,18 @@ export class ProcessService {
         reviewedBy: new ObjectId(userId),
       }).lean()
       return ratings;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getUserProcessDetails(userId: string) {
+    try {
+      let processInstanceData = await this.processInstancesModel.find({
+        userId: new ObjectId(userId),
+        status: Estatus.Active,
+        processStatus: EprocessStatus.Completed,
+      }).select("processId").lean()
+      return processInstanceData;
     } catch (error) {
       throw error;
     }

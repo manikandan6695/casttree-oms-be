@@ -2139,80 +2139,37 @@ export class ServiceItemService {
       throw error;
     }
   }
-  async getRecommendationList(userId: string,itemId: string,type: ERecommendationListType) {
+  async getRecommendationList(userId: string, itemId: string, type: ERecommendationListType) {
     try {
-      const metaBaseData = await this.helperService.getItemIdFromMetaBase(userId,itemId,type);
-      const itemList = Array.isArray(metaBaseData) && metaBaseData.length > 0 
-        ? metaBaseData as [string, string][] 
-        : [];
-      const validItems = itemList.filter(([itemId]) => 
-        itemId && ObjectId.isValid(itemId)
-      ) as [string, string][];
+      const metabaseResponse = await this.helperService.getItemIdFromMetaBase(userId, itemId, type);
 
-      if (validItems.length === 0) {
-        return { data: [] };
+      const itemPairs: [string, string][] = [];
+      if (Array.isArray(metabaseResponse)) {
+        for (let i = 0; i < metabaseResponse.length; i += 2) {
+          if (metabaseResponse[i] && metabaseResponse[i + 1]) {
+            itemPairs.push([String(metabaseResponse[i]), String(metabaseResponse[i + 1])]);
+          }
+        }
       }
-
-      const validItemIds = validItems.map(([itemId]) => new ObjectId(itemId));
-
-      const aggregationPipeline = [
+      const itemIds = itemPairs.map(([itemId]) => new ObjectId(itemId));
+      const pipeline = [
         {
           $match: {
-            itemId: { $in: validItemIds },
+            itemId: { $in: itemIds },
             type: { $in: ["course", "courses", "feedback"] },
-            status: Estatus.Active,
-          },
-        },
-        {
-          $project: {
-            itemId: 1,
-            type: 1,
-            userId: 1,
-            proficiency: 1,
-            category: 1,
-            language: 1,
-            additionalDetails: { processId: 1, views: 1, media: 1 },
-          },
+            status: Estatus.Active
+          }
         },
         {
           $lookup: {
             from: "item",
             let: { serviceItemId: "$itemId" },
             pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$_id", "$$serviceItemId"] },
-                },
-              },
-              {
-                $project: {
-                  itemName: 1,
-                  _id: 0,
-                },
-              },
+              { $match: { $expr: { $eq: ["$_id", "$$serviceItemId"] } } },
+              { $project: { itemName: 1 } }
             ],
-            as: "itemDetails",
-          },
-        },
-        {
-          $unwind: {
-            path: "$itemDetails",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            itemId: 1,
-            type: 1,
-            userId: 1,
-            itemName: "$itemDetails.itemName",
-            proficiency: 1,
-            category: 1,
-            language: 1,
-            processId: "$additionalDetails.processId",
-            views: "$additionalDetails.views",
-            media: "$additionalDetails.media",
-          },
+            as: "itemDetails"
+          }
         },
         {
           $lookup: {
@@ -2225,184 +2182,109 @@ export class ServiceItemService {
                     $and: [
                       { $eq: ["$userId", "$$expertUserId"] },
                       { $eq: ["$type", "Expert"] }
-                    ],
-                  },
-                },
+                    ]
+                  }
+                }
               },
-              {
-                $project: {
-                  displayName: 1,
-                  language: 1,
-                  about: 1,
-                  tags: 1,
-                  _id: 0,
-                },
-              },
+              { $project: { displayName: 1, language: 1, about: 1, tags: 1 } }
             ],
-            as: "expertProfile",
-          },
-        },
-        {
-          $project: {
-            itemId: 1,
-            type: 1,
-            userId: 1,
-            itemName: 1,
-            expertProfile: { $arrayElemAt: ["$expertProfile", 0] },
-            proficiency: 1,
-            category: 1,
-            language: 1,
-            processId: 1,
-            views: 1,
-            media: 1,
-          },
+            as: "expertProfile"
+          }
         },
         {
           $lookup: {
             from: "task",
-            let: { taskProcessId: "$processId" },
+            let: { taskProcessId: "$additionalDetails.processId" },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
                       { $eq: ["$processId", "$$taskProcessId"] },
-                      { $eq: ["$taskNumber", 1] },
-                    ],
-                  },
-                },
+                      { $eq: ["$taskNumber", 1] }
+                    ]
+                  }
+                }
               },
-              {
-                $project: {
-                  _id: 1,
-                  taskMedia: { $ifNull: ["$taskMetaData.media", []] },
-                },
-              },
+              { $project: { taskId: "$_id", taskMedia: { $ifNull: ["$taskMetaData.media", []] } } }
             ],
-            as: "firstTask",
-          },
+            as: "taskDetails"
+          }
         },
         {
           $project: {
-            itemId: 1,
-            type: 1,
+            _id: 1,
+            itemIdString: { $toString: "$itemId" },
             userId: 1,
-            itemName: 1,
-            expertProfile: 1,
-            proficiency: 1,
-            category: 1,
+            itemName: { $arrayElemAt: ["$itemDetails.itemName", 0] },
+            expertName: { $arrayElemAt: ["$expertProfile.displayName", 0] },
+            expertAbout: { $arrayElemAt: ["$expertProfile.about", 0] },
+            expertLanguage: { $arrayElemAt: ["$expertProfile.language", 0] },
+            expertTags: { $arrayElemAt: ["$expertProfile.tags", 0] },
+            proficiency: { $ifNull: ["$proficiency", []] },
+            category: { $ifNull: ["$category", []] },
             language: 1,
-            processId: 1,
-            views: 1,
-            media: 1,
-            firstTaskId: { $arrayElemAt: ["$firstTask._id", 0] },
+            processId: "$additionalDetails.processId",
+            views: "$additionalDetails.views",
+            media: { $ifNull: ["$additionalDetails.media", []] },
+            taskId: { $arrayElemAt: ["$taskDetails.taskId", 0] },
             taskMedia: {
               $let: {
-                vars: {
-                  firstTaskObj: { $arrayElemAt: ["$firstTask", 0] }
-                },
-                in: {
-                  $ifNull: ["$$firstTaskObj.taskMedia", []]
-                }
+                vars: { firstTask: { $arrayElemAt: ["$taskDetails", 0] } },
+                in: { $ifNull: ["$$firstTask.taskMedia", []] }
               }
-            },
-          },
-        },
-      ];
-
-      const aggregatedData = await this.serviceItemModel.aggregate(aggregationPipeline);
-      const itemMapByItemId = new Map<string, any>();
-      const userIdsNeedingProfile = new Set<string>();
-
-      aggregatedData.forEach((item) => {
-        const itemIdStr = item?.itemId?.toString();
-        if (itemIdStr && !itemMapByItemId.has(itemIdStr)) {
-          itemMapByItemId.set(itemIdStr, item);
-          if (!item?.expertProfile && item?.userId) {
-            userIdsNeedingProfile.add(item.userId.toString());
+            }
           }
         }
-      });
+      ];
 
-      if (userIdsNeedingProfile.size > 0) {
-        const fetchedProfiles = await this.helperService.getProfileByIdTl(
-          Array.from(userIdsNeedingProfile),
-          EprofileType.Expert
-        );
+      const aggregatedRecommendationData = await this.serviceItemModel.aggregate(pipeline);
+      const recommendationDataByItemId = new Map(
+        aggregatedRecommendationData.map((recommendationItem) => [
+          recommendationItem?.itemIdString,
+          recommendationItem
+        ])
+      );
 
-        const profileMapByUserId = new Map(
-          fetchedProfiles
-            .filter(profile => profile?.tags?.some(tag => tag?.name === EprofileType.Expert))
-            .map(profile => [
-              profile?.userId?.toString(),
-              {
-                displayName: profile?.displayName,
-                language: profile?.language,
-                about: profile?.about,
-                tags: profile?.tags,
-              }
-            ])
-        );
+      const formattedRecommendationList = itemPairs
+        .map(([recommendationItemId, recommendationItemType]) => {
+          const recommendationData = recommendationDataByItemId.get(recommendationItemId);
+          const isCourseType = recommendationItemType === EType.courses || recommendationItemType === EType.course;
 
-        itemMapByItemId.forEach((item) => {
-          if (!item?.expertProfile && item?.userId) {
-            item.expertProfile = profileMapByUserId.get(item.userId?.toString());
-          }
-        });
-      }
-
-      const extractBadge = (item, field) => 
-        (item?.[field] || [])
-          .filter(x => x?.filterOptionId && x?.name)
-          .map(x => ({ id: x.filterOptionId?.toString(), name: x.name }));
-
-      const formattedResults = validItems
-        .map(([itemId, itemType]) => {
-          const item = itemMapByItemId.get(itemId);
-          if (!item?.expertProfile) return null;
-
-          if (itemType === EType.courses || itemType === "course") {
+          if (isCourseType) {
             return {
               type: EType.courses,
-              itemName: item?.itemName,
-              expertName: item?.expertProfile?.displayName,
-              badges: [...extractBadge(item, 'proficiency'), ...extractBadge(item, 'category')],
-              media: item?.taskMedia || [],
-              views: item?.views?.toString(),
+              itemName: recommendationData?.itemName,
+              expertName: recommendationData?.expertName,
+              badges: [...recommendationData?.proficiency, ...recommendationData?.category],
+              media: recommendationData?.taskMedia,
+              views: recommendationData?.views,
               buttonText: EButtonText.watchNow,
               navigation: {
                 page: ENavigation.courseShotVideo,
                 type: ENavigation.internal,
                 params: {
-                  processId: item?.processId?.toString(),
-                  taskId: item?.firstTaskId?.toString(),
+                  processId: recommendationData?.processId,
+                  taskId: recommendationData?.taskId,
                 },
               },
             };
           }
 
-          if (itemType === EType.feedback) {
+          if (recommendationItemType === EType.feedback) {
             return {
               type: EType.feedback,
-              expertName: item?.expertProfile?.displayName,
-              about: item?.expertProfile?.about,
-              languages: item?.language || item?.expertProfile?.language,
-              badges: (item?.expertProfile?.tags || [])
-                .filter(tag => tag?._id && tag?.name)
-                .map(tag => ({
-                  id: tag?._id?.toString(),
-                  name: tag?.name,
-                  icon: tag?.icon,
-                  color: tag?.color,
-                  _id: tag?._id?.toString(),
-                })),
+              expertName: recommendationData?.expertName,
+              about: recommendationData?.expertAbout,
+              languages: recommendationData?.language || recommendationData?.expertLanguage,
+              badges: recommendationData?.expertTags,
               buttonText: EButtonText.getFeedback,
-              media: item?.media || [],
+              media: recommendationData?.media,
               navigation: {
                 page: ENavigation.expert,
                 type: ENavigation.internal,
                 params: {
-                  expertId: item?.userId?.toString(),
+                  expertId: recommendationData?._id,
                 },
               },
             };
@@ -2412,30 +2294,67 @@ export class ServiceItemService {
         })
         .filter(Boolean);
 
-      return { data: formattedResults };
+      return { data: formattedRecommendationList };
     } catch (error) {
       throw error;
     }
   }
-  // async defaultRecommendationItemId(userId: string,itemId: string,type: string) {
-  //   try {
-  //     let itemType;
-  //     if(type === EType.course) {
-  //       itemType = EType.courses;
-  //     }
-  //     else if(type === EType.contest) {
-  //       itemType = EType.contest;
-  //     }
-  //     let serviceItem = await this.serviceItemModel.findOne({
-  //       status: EStatus.Active,
-  //       itemId: new ObjectId(itemId),
-  //       type: itemType,
-  //     }).select("skill.skillId skill.skillName").lean();
-  //     if (serviceItem?.skill?.skill_name === "Singing") {
-        
-  //     }
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
+  async defaultRecommendationItemId(userId: string, itemId: string, type: string) {
+    try {
+      const serviceItemType = type === EType.course ? EType.courses : EserviceItemType.contest;
+
+      const currentServiceItem = await this.serviceItemModel
+        .findOne({
+          status: EStatus.Active,
+          itemId: new ObjectId(itemId),
+          type: serviceItemType,
+        })
+        .select("skill.skillId")
+        .lean();
+      
+      const isCourse = type === EType.course;
+      const skillId = isCourse 
+        ? currentServiceItem?.skill?.[0]?.skillId 
+        : currentServiceItem?.skill?.skillId;
+      if (!skillId) return [];
+      
+      const relatedServiceItems = await this.serviceItemModel
+        .find({
+          status: EStatus.Active,
+          type: "courses",
+          "skill.skillId": skillId,
+          itemId: { $ne: new ObjectId(itemId) },
+        })
+        .sort({ priorityOrder: 1 })
+        .select("itemId additionalDetails.processId")
+        .lean();
+      
+      const watchedProcessIds = isCourse
+        ? new Set(
+            (await this.processService.getUserProcessDetails(userId))
+              .map((p) => p.processId?.toString())
+              .filter(Boolean)
+          )
+        : new Set<string>();
+
+      const recommendationItems: string[] = [];
+      for (const serviceItem of relatedServiceItems) {
+        if (recommendationItems.length >= 6) break;
+        const itemIdString = serviceItem.itemId?.toString();
+        if (!itemIdString) continue;
+
+        if (isCourse) {
+          const processId = serviceItem.additionalDetails?.processId?.toString();
+          if (processId && !watchedProcessIds.has(processId)) {
+            recommendationItems.push(itemIdString, EType.course);
+          }
+        } else {
+          recommendationItems.push(itemIdString, EType.course);
+        }
+      }
+      return recommendationItems;
+    } catch (error) {
+     throw error;
+    }
+  }
 }

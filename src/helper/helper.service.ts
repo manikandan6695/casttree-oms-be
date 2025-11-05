@@ -21,6 +21,7 @@ import { EMetabaseUrlLimit, EMixedPanelEvents } from "./enums/mixedPanel.enums";
 import * as http from "http";
 import * as https from "https";
 import { ERecommendationListType } from "src/item/enum/serviceItem.type.enum";
+import { ServiceItemService } from "src/item/service-item.service";
 @Injectable()
 export class HelperService {
   constructor(
@@ -29,7 +30,9 @@ export class HelperService {
     private sharedService: SharedService,
     // @Inject(forwardRef(() => RedisService))
     private readonly redisService: RedisService,
-    private mixpanelExportService: MixpanelExportService
+    private mixpanelExportService: MixpanelExportService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private serviceItemService: ServiceItemService
   ) {}
   private httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
   private httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
@@ -1639,10 +1642,6 @@ export class HelperService {
       const cardConfigs = systemConfig?.value || [];
 
       const cardConfig = cardConfigs.find((config: any) => config?.type === type);
-      
-      if (!cardConfig || !cardConfig.card) {
-        return [];
-      }
 
       try {
         const response = await this.http_service
@@ -1650,12 +1649,14 @@ export class HelperService {
             headers,
           })
           .toPromise();
-        return response.data?.data?.rows || [];
+        return response.data?.data?.rows.flat() || [];
       } catch (error) {
-        return [];
+       let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
+       return defaultItemId;
       }
     } catch (error) {
-      return [];
+      let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
+      return defaultItemId;
     }
   }
   private async processLargeDatasetToCsv(jsonlData: string): Promise<string> {
