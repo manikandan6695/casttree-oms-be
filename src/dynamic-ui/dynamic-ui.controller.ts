@@ -25,6 +25,7 @@ import { Model } from "mongoose";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
 import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
 import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item-to-series.dto";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 
 @Controller("dynamic-ui")
@@ -316,6 +317,35 @@ export class DynamicUiController {
       throw err;
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("priorityOrder/:pageId")
+  async getPriorityList(
+    @Req() req,
+    @Param("pageId") pageId: string
+  ) {
+    try {
+      const res = await this.dynamicUIService.getPriorityList(pageId);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/priority-order")
+  async updatePriorityOrder(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true })) payload: UpdatePriorityOrderDto[]
+  ) {
+    try {
+      const res = await this.dynamicUIService.updatePriorityOrder(payload);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get("suggestions-tag")
   async getSuggestionsTag(

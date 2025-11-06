@@ -76,6 +76,7 @@ import { EAchievementType } from "src/item/enum/achievement.enum";
 import { ICurrencyModel } from "src/shared/schema/currency.schema";
 import { ESeriesTag, ERoleTag } from "./enum/series-tag.enum";
 import { RedisService } from "src/redis/redis.service";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 const { ObjectId } = require("mongodb");
 @Injectable()
@@ -274,7 +275,7 @@ export class DynamicUiService {
       let componentDocs = componentDocsRaw;
       let banners = await this.bannerConfigurationModel.find({
         _id: {
-          $in: bannerResp?.bannerToShow
+          $in: bannerResp?.bannerToShow,
         },
         status: EStatus.Active,
       }).sort({_id: -1});
@@ -300,7 +301,12 @@ export class DynamicUiService {
       });
       for (const comp of componentDocs) {
         if (comp.componentKey === EComponentKey.headerActionBar) {
-          await this.updateHeaderActionBarComponent(comp, skillType, skillId, token.id);
+          await this.updateHeaderActionBarComponent(
+            comp,
+            skillType,
+            skillId,
+            token.id
+          );
         }
       }
       componentDocs.sort((a, b) => a.order - b.order);
@@ -876,6 +882,7 @@ export class DynamicUiService {
                     tagOrder: "$tagOrder",
                     tagName: "$tagName",
                     itemName: "$itemName",
+                    priorityOrder: "$priorityOrder",
                   },
                 ],
               },
@@ -899,7 +906,6 @@ export class DynamicUiService {
         },
         { $project: { _id: 0, tagName: "$_id", details: 1 } },
       ];
-
 
       const result = await this.serviceItemModel.aggregate([
         {
@@ -1570,9 +1576,9 @@ export class DynamicUiService {
           },
         },
         {
-          $project: { 
+          $project: {
             _id: 1,
-            role_name: "$category_name"
+            role_name: "$category_name",
           },
         },
       ]);
@@ -1637,8 +1643,10 @@ export class DynamicUiService {
         level: "info",
         data: {},
       });
-      const proItem = await this.itemModel.find({ itemName: "PRO" })
-        .select("_id itemName price").lean();
+      const proItem = await this.itemModel
+        .find({ itemName: "PRO" })
+        .select("_id itemName price")
+        .lean();
       return proItem;
     } catch (error) {
       throw error;
@@ -1659,7 +1667,7 @@ export class DynamicUiService {
         roles: await this.getRoleList(),
         languages: await this.getLanguageList(),
         tags: await this.getTagList(),
-        proItem: await this.getProItem()
+        proItem: await this.getProItem(),
       };
 
       return getSeriesData;
@@ -1722,7 +1730,7 @@ export class DynamicUiService {
           })
           .select("_id organizationName phoneCountryCode phoneNumber")
           .lean();
-        
+
         const premiumThumbnails = data.premiumThumbnails;
         const paywallThumbnail = data.paywallVideo[0].mediaUrl;
         const paywallVideo = data.paywallVideo[1].mediaUrl;
@@ -2802,8 +2810,7 @@ export class DynamicUiService {
         const allSeriesData = allServiceItemData.finalData?.allSeries || [];
 
         const nonMatchedSeries = allSeriesData.filter(
-          (series: any) =>
-            !completedProcessIds.has(String(series.processId))
+          (series: any) => !completedProcessIds.has(String(series.processId))
         );
 
         if (nonMatchedSeries.length > 0) {
@@ -3276,6 +3283,83 @@ export class DynamicUiService {
     return 0;
   }
 
+  async getPriorityList(pageId: string) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "getPriorityList",
+        level: "info",
+        data: {
+          pageId,
+        },
+      });
+      
+      const contentPage = await this.contentPageModel.findById(pageId).lean();
+      const skillId = contentPage.metaData?.skillId;
+      
+      const serviceItems = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            status: Estatus.Active,
+            type: EserviceItemType.courses,
+            "skill.0.skillId": skillId,
+            // $or: [
+            //   {
+            //     skill: { $type: "object" },
+            //     "skill.skillId": skillId,
+            //   },
+            //   {
+            //     skill: { $type: "array" },
+            //     "skill.0.skillId": skillId,
+            //   },
+            // ]
+          },
+        },
+        {
+          $project: {
+            thumbnail: "$additionalDetails.thumbnail",
+            processId: "$additionalDetails.processId",
+            priorityOrder: 1,
+          },
+        },
+        {
+          $sort: {
+            priorityOrder: 1,
+          },
+        },
+      ]);
+
+        return serviceItems;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "updatePriorityOrder",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
+      // Build bulk update operations
+      const bulkOps = payload.map((item) => ({
+        updateOne: {
+          filter: { "additionalDetails.processId": item.processId },
+          update: { $set: { priorityOrder: item.priorityOrder } },
+        },
+      }));
+
+      // Execute bulk update
+      const result = await this.serviceItemModel.bulkWrite(bulkOps);
+
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   private async updateHeaderActionBarComponent(
     component: any,
     skillType: string,
@@ -3293,27 +3377,31 @@ export class DynamicUiService {
       const isNewSubscriber = subscriptionData ? true : false;
       let placeholder;
       if (systemConfiguration) {
-        const skillConfig = systemConfiguration.value.find(config => 
-          config.skill === skillType
+        const skillConfig = systemConfiguration.value.find(
+          (config) => config.skill === skillType
         );
         if (skillConfig) {
           placeholder = `Type `;
         }
       }
 
-        if (component.interactionData && component.interactionData.items) {
-          let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
-          const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
-          if (searchItem && searchItem.metaData) {
-            searchItem.metaData.placeholder = placeholder;
+      if (component.interactionData && component.interactionData.items) {
+        let navigation = await this.systemConfigurationModel.findOne({
+          key: EConfigKeyName.dynamicHeaderNavigation,
+        });
+        const searchItem = component.interactionData.items.find(
+          (item) => item.type === EComponentItemType.search
+        );
+        if (searchItem && searchItem.metaData) {
+          searchItem.metaData.placeholder = placeholder;
 
-              const matchedSkill = chipData.value.tags.find(tag => 
-                tag.skillName === skillType
-              );
-              if (matchedSkill && matchedSkill.chip) {
-                searchItem.actionData = matchedSkill.chip;
-              }
+          const matchedSkill = chipData.value.tags.find(
+            (tag) => tag.skillName === skillType
+          );
+          if (matchedSkill && matchedSkill.chip) {
+            searchItem.actionData = matchedSkill.chip;
           }
+        }
 
           const badgeItem = component.interactionData.items.find(item => item.type === EComponentItemType.badge);
           if (badgeItem) {
@@ -3341,15 +3429,20 @@ export class DynamicUiService {
                   badgeItem.navigation.params.planItemId = itemData?.planItemId[0]?.itemId;
                 }
               }
-              }
             }
           }
         }
+      }
     } catch (error) {
       throw error;
     }
   }
-  async getSuggestionsTag(token: UserToken, skillId: string, skillName: string){
+
+  async getSuggestionsTag(
+    token: UserToken,
+    skillId: string,
+    skillName: string
+  ) {
     try {
       Sentry.addBreadcrumb({
         message: "getSuggestionsTag",
@@ -3360,10 +3453,13 @@ export class DynamicUiService {
           skillName,
         },
       });
-      const suggestionsTag = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
-      
-      const matchedSkill = suggestionsTag.value.tags.find(tag => 
-        tag.skillId.toString() === skillId && tag.skillName === skillName
+      const suggestionsTag = await this.systemConfigurationModel.findOne({
+        key: EConfigKeyName.suggestionsTag,
+      });
+
+      const matchedSkill = suggestionsTag.value.tags.find(
+        (tag) =>
+          tag.skillId.toString() === skillId && tag.skillName === skillName
       );
       let data = {
         header : suggestionsTag?.value?.header,
