@@ -6,7 +6,7 @@ import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EsubscriptionStatus } from "src/process/enums/process.enum";
 import { ProcessService } from "src/process/process.service";
-import { EServiceRequestStatus } from "src/service-request/enum/service-request.enum";
+import { EServiceRequestStatus, EStatus } from "src/service-request/enum/service-request.enum";
 import { ServiceRequestService } from "src/service-request/service-request.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { SubscriptionService } from "src/subscription/subscription.service";
@@ -15,8 +15,12 @@ import { EcomponentType, Eheader } from "./enum/courses.enum";
 import { EprofileType } from "./enum/profileType.enum";
 import { Eitem } from "./enum/rating_sourcetype_enum";
 import {
+  EButtonText,
+  ENavigation,
+  ERecommendationListType,
   EServiceItemTag,
-  EserviceItemType
+  EserviceItemType,
+  EType
 } from "./enum/serviceItem.type.enum";
 import { Estatus } from "./enum/status.enum";
 import { ItemService } from "./item.service";
@@ -28,6 +32,7 @@ import {
   ESystemConfigurationKeyName,
 } from "./enum/item-type.enum";
 import { UserToken } from "src/auth/dto/usertoken.dto";
+import { MetaBaseService } from "src/meta-base/metabase.service";
 
 @Injectable()
 export class ServiceItemService {
@@ -43,7 +48,8 @@ export class ServiceItemService {
     @Inject(forwardRef(() => ServiceRequestService))
     private serviceRequestService: ServiceRequestService,
     private itemService: ItemService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private metaBaseService: MetaBaseService
   ) {}
   async getServiceItemDetailbyItemId(itemId) {
     try {
@@ -1998,6 +2004,224 @@ export class ServiceItemService {
       return { data };
     } catch (error) {
       throw error;
+    }
+  }
+  async getRecommendationList(userId: string, itemId: string, type: ERecommendationListType) {
+    try {
+      const metabaseResponse = await this.metaBaseService.getItemIdFromMetaBase(userId, itemId, type);
+      const itemPairs: [string, string][] = [];
+      if (Array.isArray(metabaseResponse)) {
+        for (let i = 0; i < metabaseResponse.length; i += 2) {
+          if (metabaseResponse[i] && metabaseResponse[i + 1]) {
+            itemPairs.push([String(metabaseResponse[i]), String(metabaseResponse[i + 1])]);
+          }
+        }
+      }
+      const itemIds = itemPairs.map(([itemId]) => new ObjectId(itemId));
+      const pipeline = [
+        {
+          $match: {
+            itemId: { $in: itemIds },
+            type: { $in: ["course", "courses", "feedback"] },
+            status: Estatus.Active
+          }
+        },
+        {
+          $lookup: {
+            from: "item",
+            let: { serviceItemId: "$itemId" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$_id", "$$serviceItemId"] } } },
+              { $project: { itemName: 1 } }
+            ],
+            as: "itemDetails"
+          }
+        },
+        {
+          $lookup: {
+            from: "profile",
+            let: { expertUserId: "$userId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$userId", "$$expertUserId"] },
+                      { $eq: ["$type", "Expert"] }
+                    ]
+                  }
+                }
+              },
+              { $project: { displayName: 1, language: 1, about: 1, tags: 1 } }
+            ],
+            as: "expertProfile"
+          }
+        },
+        {
+          $lookup: {
+            from: "task",
+            let: { taskProcessId: "$additionalDetails.processId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$processId", "$$taskProcessId"] },
+                      { $eq: ["$taskNumber", 1] }
+                    ]
+                  }
+                }
+              },
+              { $project: { taskId: "$_id", taskMedia: { $ifNull: ["$taskMetaData.media", []] } } }
+            ],
+            as: "taskDetails"
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            itemIdString: { $toString: "$itemId" },
+            userId: 1,
+            itemName: { $arrayElemAt: ["$itemDetails.itemName", 0] },
+            expertName: { $arrayElemAt: ["$expertProfile.displayName", 0] },
+            expertAbout: { $arrayElemAt: ["$expertProfile.about", 0] },
+            expertLanguage: { $arrayElemAt: ["$expertProfile.language", 0] },
+            expertTags: { $arrayElemAt: ["$expertProfile.tags", 0] },
+            proficiency: { $ifNull: ["$proficiency", []] },
+            category: { $ifNull: ["$category", []] },
+            language: 1,
+            processId: "$additionalDetails.processId",
+            views: "$additionalDetails.views",
+            media: { $ifNull: ["$additionalDetails.media", []] },
+            taskId: { $arrayElemAt: ["$taskDetails.taskId", 0] },
+            taskMedia: {
+              $let: {
+                vars: { firstTask: { $arrayElemAt: ["$taskDetails", 0] } },
+                in: { $ifNull: ["$$firstTask.taskMedia", []] }
+              }
+            }
+          }
+        }
+      ];
+
+      const aggregatedRecommendationData = await this.serviceItemModel.aggregate(pipeline);
+      const recommendationDataByItemId = new Map(
+        aggregatedRecommendationData.map((recommendationItem) => [
+          recommendationItem?.itemIdString,
+          recommendationItem
+        ])
+      );
+
+      const formattedRecommendationList = itemPairs
+        .map(([recommendationItemId, recommendationItemType]) => {
+          const recommendationData = recommendationDataByItemId.get(recommendationItemId);
+          const isCourseType = recommendationItemType === EType.courses || recommendationItemType === EType.course;
+
+          if (isCourseType) {
+            return {
+              type: EType.courses,
+              itemName: recommendationData?.itemName,
+              expertName: recommendationData?.expertName,
+              badges: [...recommendationData?.proficiency, ...recommendationData?.category],
+              media: recommendationData?.taskMedia,
+              views: recommendationData?.views,
+              buttonText: EButtonText.watchNow,
+              navigation: {
+                page: ENavigation.courseShotVideo,
+                type: ENavigation.internal,
+                params: {
+                  processId: recommendationData?.processId,
+                  taskId: recommendationData?.taskId,
+                },
+              },
+            };
+          }
+
+          if (recommendationItemType === EType.feedback) {
+            return {
+              type: EType.feedback,
+              expertName: recommendationData?.expertName,
+              about: recommendationData?.expertAbout,
+              languages: recommendationData?.language || recommendationData?.expertLanguage,
+              badges: recommendationData?.expertTags,
+              buttonText: EButtonText.getFeedback,
+              media: recommendationData?.media,
+              navigation: {
+                page: ENavigation.expert,
+                type: ENavigation.internal,
+                params: {
+                  expertId: recommendationData?._id,
+                },
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      return { data: formattedRecommendationList };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async defaultRecommendationItemId(userId: string, itemId: string, type: string) {
+    try {
+      const serviceItemType = type === EType.course ? EType.courses : EserviceItemType.contest;
+
+      const currentServiceItem = await this.serviceItemModel
+        .findOne({
+          status: EStatus.Active,
+          itemId: new ObjectId(itemId),
+          type: serviceItemType,
+        })
+        .select("skill.skillId")
+        .lean();
+      
+      const isCourse = type === EType.course;
+      const skill = currentServiceItem?.skill;
+      const skillId = Array.isArray(skill) && skill[0] 
+        ? skill[0]?.skillId 
+        : (skill as any)?.skillId;
+      if (!skillId) return [];
+      
+      const relatedServiceItems = await this.serviceItemModel
+        .find({
+          status: EStatus.Active,
+          type: "courses",
+          "skill.skillId": skillId,
+          itemId: { $ne: new ObjectId(itemId) },
+        })
+        .sort({ priorityOrder: 1 })
+        .select("itemId additionalDetails.processId")
+        .lean();
+      
+      const watchedProcessIds = isCourse
+        ? new Set(
+            (await this.processService.getUserProcessDetails(userId))
+              .map((p) => p.processId?.toString())
+              .filter(Boolean)
+          )
+        : new Set<string>();
+
+      const recommendationItems: string[] = [];
+      for (const serviceItem of relatedServiceItems) {
+        if (recommendationItems.length >= 6) break;
+        const itemIdString = serviceItem.itemId?.toString();
+        if (!itemIdString) continue;
+
+        if (isCourse) {
+          const processId = serviceItem.additionalDetails?.processId?.toString();
+          if (processId && !watchedProcessIds.has(processId)) {
+            recommendationItems.push(itemIdString, EType.course);
+          }
+        } else {
+          recommendationItems.push(itemIdString, EType.course);
+        }
+      }
+      return recommendationItems;
+    } catch (error) {
+     throw error;
     }
   }
 }

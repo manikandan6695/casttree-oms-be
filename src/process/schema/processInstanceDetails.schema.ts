@@ -12,6 +12,7 @@ export interface processInstanceDetailModel {
     status: string;
     createdBy: string;
     updatedBy: string;
+    watchedCount: number;
 }
 export const processInstanceDetailSchema = new mongoose.Schema<any>({
     processInstanceId: { type: mongoose.Schema.Types.ObjectId, ref: "processInstance" },
@@ -23,6 +24,7 @@ export const processInstanceDetailSchema = new mongoose.Schema<any>({
     startedAt: { type: Date },
     endedAt: { type: Date },
     status: { type: String },
+    watchedCount: { type: Number },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
 },
