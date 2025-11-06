@@ -3282,10 +3282,10 @@ export class DynamicUiService {
     return 0;
   }
 
-  async getPriorityList(pageId: string) {
+  async getSeriesList(pageId: string) {
     try {
       Sentry.addBreadcrumb({
-        message: "getPriorityList",
+        message: "getSeriesList",
         level: "info",
         data: {
           pageId,
