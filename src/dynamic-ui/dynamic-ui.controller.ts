@@ -24,6 +24,7 @@ import { AddNewEpisodesDto } from "./dto/add-new-episodes.dto";
 import { AddAchievementDto } from "./dto/add-achievement.dto";
 import { CreateVirtualItemDto } from "./dto/create-virtual-item.dto";
 import { MapVirtualItemToSeriesDto } from "./dto/map-virtual-item.dto";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 @Controller("dynamic-ui")
 export class DynamicUiController {
@@ -308,7 +309,37 @@ export class DynamicUiController {
     @Query("skillName") skillName: string
   ) {
     try {
-      const res = await this.dynamicUIService.getSuggestionsTag(token, skillId, skillName);
+      const res = await this.dynamicUIService.getSuggestionsTag(
+        token,
+        skillId,
+        skillName
+      );
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("series/:pageId")
+  async getSeriesList(@Req() req, @Param("pageId") pageId: string) {
+    try {
+      const res = await this.dynamicUIService.getSeriesList(pageId);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("series/priority-order")
+  async updatePriorityOrder(
+    @Req() req,
+    @Body(new ValidationPipe({ transform: true }))
+    payload: UpdatePriorityOrderDto[]
+  ) {
+    try {
+      const res = await this.dynamicUIService.updatePriorityOrder(payload);
       return res;
     } catch (err) {
       throw err;
