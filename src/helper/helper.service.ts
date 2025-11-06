@@ -1649,7 +1649,12 @@ export class HelperService {
             headers,
           })
           .toPromise();
-        return response.data?.data?.rows.flat() || [];
+          const result = response.data?.data?.rows.flat() || [];
+          if (!result || result.length === 0) {
+            const defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId, itemId, type);
+            return defaultItemId || [];
+          }
+          return result;
       } catch (error) {
        let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
        return defaultItemId;
