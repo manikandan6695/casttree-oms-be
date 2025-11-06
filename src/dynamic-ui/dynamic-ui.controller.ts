@@ -49,14 +49,16 @@ export class DynamicUiController {
   async getPageDetails(
     @Req() req,
     @Param("pageId") pageId: string,
-    @Query(new ValidationPipe({ transform: true })) filterOption: EFilterOption,
-    @GetToken() token: UserToken
+    @GetToken() token: UserToken,
+    @Query("skip") skip?: number,
+    @Query("limit") limit?: number,
   ) {
     try {
       let data = await this.dynamicUIService.getPageDetails(
         token,
         pageId,
-        filterOption
+        skip,
+        limit
       );
       return data;
     } catch (err) {
@@ -295,6 +297,20 @@ export class DynamicUiController {
       );
       return data;
   } catch (err) {
+      throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("suggestions-tag")
+  async getSuggestionsTag(
+    @GetToken() token: UserToken,
+    @Query("skillId") skillId: string,
+    @Query("skillName") skillName: string
+  ) {
+    try {
+      const res = await this.dynamicUIService.getSuggestionsTag(token, skillId, skillName);
+      return res;
+    } catch (err) {
       throw err;
     }
   }

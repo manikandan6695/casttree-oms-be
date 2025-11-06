@@ -31,6 +31,7 @@ import { SkillsSchema } from "src/shared/schema/skill.schema";
 import { RoleSchema } from "src/shared/schema/role.schema";
 import { LanguageSchema } from "src/shared/schema/language.schema";
 import { CurrencySchema } from "src/shared/schema/currency.schema";
+import { MetaBaseModule } from "src/meta-base/metabase.module";
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { CurrencySchema } from "src/shared/schema/currency.schema";
     HelperModule,
     ProcessModule,
     SubscriptionModule,
+    MetaBaseModule
   ],
   controllers: [DynamicUiController],
   providers: [DynamicUiService],
