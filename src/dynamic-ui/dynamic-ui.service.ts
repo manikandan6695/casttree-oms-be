@@ -1582,6 +1582,11 @@ export class DynamicUiService {
           })
           .select("_id organizationName phoneCountryCode phoneNumber")
           .lean();
+        
+        const premiumThumbnails = data.premiumThumbnails;
+        const paywallThumbnail = data.paywallVideo[0].mediaUrl;
+        const paywallVideo = data.paywallVideo[1].mediaUrl;
+        const skipText = data.skipText;
 
         const newItem = await this.itemModel.create(
           [
@@ -1603,10 +1608,12 @@ export class DynamicUiService {
                   planUserSave: "Switch to Pro and save INR 1000+",
                   subtitle:
                     "This will only unlock the series that you are currently watching",
-                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
-                  payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
+                  payWallVideo: paywallVideo,
+                  payWallThumbnail: paywallThumbnail,
+                  premiumThumbnails: premiumThumbnails,
                   paywallVisibility: true,
                 },
+                skipText: skipText,
                 allowMulti: false,
               },
               itemCommissionMarkupType: "Percent",
