@@ -2833,7 +2833,7 @@ export class DynamicUiService {
         .lean();
 
       if (serviceItem?.skill?.[0].skillId) {
-        page = { metaData: { skillId: serviceItem.skill?.[0].skillId } };
+        page = { metaData: { skillId: serviceItem?.skill?.[0].skillId } };
       }
     }
 
