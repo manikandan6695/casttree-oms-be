@@ -319,13 +319,13 @@ export class DynamicUiController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get("priorityOrder/:pageId")
-  async getPriorityList(
+  @Get("series/:pageId")
+  async getSeriesList(
     @Req() req,
     @Param("pageId") pageId: string
   ) {
     try {
-      const res = await this.dynamicUIService.getPriorityList(pageId);
+      const res = await this.dynamicUIService.getSeriesList(pageId);
       return res;
     } catch (err) {
       throw err;
