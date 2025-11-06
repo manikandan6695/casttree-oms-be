@@ -290,7 +290,7 @@ export class ServiceItemService {
       }
 
       let newQuery = {
-        skillId: data.skill.skillId,
+        skillId: data?.skill?.[0] ? data?.skill?.[0]?.skillId : data?.skill?.skillId,
         type: EserviceItemType.feedback,
       };
       let moreExpertsData = await this.getServiceItems(
@@ -2085,7 +2085,7 @@ export class ServiceItemService {
         if (planItemIdStr && data._id?.toString() === planItemIdStr) {
           // Add skillName to matched items only
           data.additionalDetail.promotionDetails.skillName =
-            processPricingData?.skill?.skill_name;
+            processPricingData?.skill?.[0] ? processPricingData?.skill?.[0]?.skill_name : processPricingData?.skill?.skill_name;
           data.additionalDetail.promotionDetails.skipText =
             processPricingData?.itemId?.additionalDetail?.skipText;
           data.additionalDetail.promotionDetails.premiumThumbnails =
@@ -2313,7 +2313,10 @@ export class ServiceItemService {
         .lean();
       
       const isCourse = type === EType.course;
-      const skillId =  currentServiceItem?.skill?.[0]?.skillId 
+      const skill = currentServiceItem?.skill;
+      const skillId = Array.isArray(skill) && skill[0] 
+        ? skill[0]?.skillId 
+        : (skill as any)?.skillId;
       if (!skillId) return [];
       
       const relatedServiceItems = await this.serviceItemModel
