@@ -55,6 +55,7 @@ import { Award } from "./schema/awards.schema";
 import { mediaModel } from "./schema/media.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { MetaBaseService } from "src/meta-base/metabase.service";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 @Injectable()
 export class DynamicUiService {
@@ -2943,6 +2944,68 @@ export class DynamicUiService {
       return { data };
     } catch (error) {
       throw error;
+    }
+  }
+
+  async getSeriesList(pageId: string) {
+    try {
+      const contentPage = await this.contentPageModel.findById(pageId).lean();
+      const skillId = contentPage.metaData?.skillId;
+
+      const serviceItems = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            status: Estatus.Active,
+            type: EserviceItemType.courses,
+            "skill.0.skillId": skillId,
+            // $or: [
+            //   {
+            //     skill: { $type: "object" },
+            //     "skill.skillId": skillId,
+            //   },
+            //   {
+            //     skill: { $type: "array" },
+            //     "skill.0.skillId": skillId,
+            //   },
+            // ]
+          },
+        },
+        {
+          $project: {
+            thumbnail: "$additionalDetails.thumbnail",
+            processId: "$additionalDetails.processId",
+            priorityOrder: 1,
+          },
+        },
+        {
+          $sort: {
+            priorityOrder: 1,
+          },
+        },
+      ]);
+
+      return serviceItems;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
+    try {
+      // Build bulk update operations
+      const bulkOps = payload.map((item) => ({
+        updateOne: {
+          filter: { "additionalDetails.processId": item.processId },
+          update: { $set: { priorityOrder: item.priorityOrder } },
+        },
+      }));
+
+      // Execute bulk update
+      const result = await this.serviceItemModel.bulkWrite(bulkOps);
+
+      return result;
+    } catch (err) {
+      throw err;
     }
   }
 }
