@@ -2832,8 +2832,8 @@ export class DynamicUiService {
         .limit(1)
         .lean();
 
-      if (serviceItem?.skill?.skillId) {
-        page = { metaData: { skillId: serviceItem.skill.skillId } };
+      if (serviceItem?.skill?.[0].skillId) {
+        page = { metaData: { skillId: serviceItem.skill?.[0].skillId } };
       }
     }
 
