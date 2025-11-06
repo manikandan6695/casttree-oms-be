@@ -99,7 +99,7 @@ export interface planItemIdModel {
 export interface serviceitems {
   itemId: string;
   userId: string;
-  skill: IskillModel;
+  skill: IskillModel[];
   language: ILanguageModel[];
   status: string;
   respondTime: string;
@@ -130,9 +130,7 @@ export const serviceitemsSchema = new mongoose.Schema<any>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
     },
-    skill: {
-      type: skillSchema,
-    },
+    skill: [skillSchema],
     respondTime: {
       type: String,
     },

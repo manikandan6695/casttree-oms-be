@@ -1,11 +1,12 @@
-import { 
-  IsArray, 
-  IsString, 
-  IsOptional, 
+import {
+  IsArray,
+  IsString,
+  IsOptional,
   IsNotEmpty,
   IsBoolean,
   ArrayMinSize,
-  IsMongoId
+  IsMongoId,
+  ArrayMaxSize,
 } from "class-validator";
 
 // Move ProItemDto before AddNewSeriesDto
@@ -70,6 +71,7 @@ export class AddNewSeriesDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(1)
   @IsString({ each: true })
   roles: string[];
 

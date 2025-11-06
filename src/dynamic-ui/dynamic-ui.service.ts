@@ -1839,10 +1839,10 @@ export class DynamicUiService {
                 roleId: new ObjectId(item._id),
                 roleName: item.role_name,
               })),
-              skill: {
-                skillId: new ObjectId(skillIds[0]),
-                skill_name: skill[0].skill_name,
-              },
+              skill: skill.map((item) => ({
+                skillId: new ObjectId(item._id),
+                skill_name: item.skill_name,
+              })),
               type: "courses",
               additionalDetails: {
                 ctaName: "Start Learning",
