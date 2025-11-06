@@ -2313,9 +2313,7 @@ export class ServiceItemService {
         .lean();
       
       const isCourse = type === EType.course;
-      const skillId = isCourse 
-        ? currentServiceItem?.skill?.[0]?.skillId 
-        : currentServiceItem?.skill?.skillId;
+      const skillId =  currentServiceItem?.skill?.[0]?.skillId 
       if (!skillId) return [];
       
       const relatedServiceItems = await this.serviceItemModel
