@@ -63,6 +63,7 @@ import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
+import { RedisService } from "src/redis/redis.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -86,7 +87,8 @@ export class SubscriptionService {
     private readonly mandateHistoryService: MandateHistoryService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
-    private readonly coinTransactionModel: Model<ICoinTransaction>
+    private readonly coinTransactionModel: Model<ICoinTransaction>,
+    private readonly redisService: RedisService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -290,7 +292,9 @@ export class SubscriptionService {
          if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
           await this.handleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
          }
+         else {
           await this.handleRazorpaySubscriptionPayment(payload);
+         }
         }
         // if (event === EEventType.tokenConfirmed) {
         //   const payload = req?.body?.payload;
@@ -2788,7 +2792,21 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async onModuleInit(){
+    Promise.all([
+      this.handleCoinPurchaseInWebHook("order_RcY8BOw1hEgkHF"),
+      this.handleCoinPurchaseInWebHook("order_RcY8BOw1hEgkHF"),
+    ])
+  }
   async handleCoinPurchaseInWebHook(rzpPaymentId) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${rzpPaymentId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    // console.log(lockResult)
+    lockAcquired = lockResult.acquired;
+    lockValue = lockResult.value as string;
     try {
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
@@ -2919,6 +2937,11 @@ export class SubscriptionService {
       }
      } catch (error) {
       throw error;
+    }
+    finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
     }
   }
 
