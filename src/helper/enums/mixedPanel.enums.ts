@@ -30,4 +30,5 @@ export const ESMixedPanelEvents = [
     dynamic_banner = "dynamic-banner",
     full_size_banner = "full-size-banner",
     default_banner = "default-banner",
+  recommendation_list_card_id = "recommendation_list_card_id",
 }

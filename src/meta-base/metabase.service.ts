@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
@@ -9,6 +9,8 @@ import * as http from "http";
 import * as https from "https";
 import { BannerResponseDto } from './dto/banner.dto';
 import { HelperService } from 'src/helper/helper.service';
+import { ERecommendationListType } from 'src/item/enum/serviceItem.type.enum';
+import { ServiceItemService } from 'src/item/service-item.service';
 @Injectable()
 export class MetaBaseService {
   constructor(
@@ -16,7 +18,9 @@ export class MetaBaseService {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly sharedService: SharedService,
-    private readonly helperService: HelperService
+    private readonly helperService: HelperService,
+    @Inject(forwardRef(() => ServiceItemService))
+    private readonly serviceItemService: ServiceItemService
   ) { }
   private httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
   private httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50 });
@@ -305,6 +309,58 @@ export class MetaBaseService {
       return {
         bannerToShow: defaultBanner,
       };
+    }
+  }
+  async getItemIdFromMetaBase(userId: string, itemId: string, type: ERecommendationListType) {
+    try {
+      const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
+      // if (!metabaseBaseUrl) {
+      // throw new Error("METABASE_BASE_URL environment variable is not set");
+      // }
+      const requestBody = {
+        parameters: [
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "userid"]],
+            value: userId,
+          },
+          {
+            type: "text",
+            target: ["variable", ["template-tag", "itemid"]],
+            value: itemId,
+          },
+        ],
+      };
+      let metabaseSession = await this.getMetabaseSession();
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Metabase-Session": metabaseSession,
+      };
+      
+      const systemConfig = await this.helperService.getSystemConfigByKey(EMetabaseUrlLimit.recommendation_list_card_id);
+      const cardConfigs = systemConfig?.value || [];
+
+      const cardConfig = cardConfigs.find((config: any) => config?.type === type);
+
+      try {
+        const response = await this.http_service
+          .post(`${metabaseBaseUrl}/api/card/532/query`, requestBody, {
+            headers,
+          })
+          .toPromise();
+          const result = response.data?.data?.rows.flat() || [];
+          if (!result || result.length === 0) {
+            const defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId, itemId, type);
+            return defaultItemId || [];
+          }
+          return result;
+      } catch (error) {
+       let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
+       return defaultItemId;
+      }
+    } catch (error) {
+      let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
+      return defaultItemId;
     }
   }
 }
