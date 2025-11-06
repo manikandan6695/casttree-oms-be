@@ -8,6 +8,7 @@ import { HelperService } from "./helper.service";
 import { GetUserOriginMiddleware } from "./middleware/get-user-origin.middleware";
 import { RedisModule } from "src/redis/redis.module";
 import { MixpanelExportService } from "./mixpanel-export.service";
+import { ItemModule } from "src/item/item.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MixpanelExportService } from "./mixpanel-export.service";
     AuthModule,
     HttpModule,
     forwardRef(() => RedisModule),
+    forwardRef(() => ItemModule),
   ],
   controllers: [HelperController],
   providers: [HelperService, GetUserOriginMiddleware, MixpanelExportService],
