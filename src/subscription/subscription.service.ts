@@ -2792,12 +2792,6 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async onModuleInit(){
-    Promise.all([
-      this.handleCoinPurchaseInWebHook("order_RcY8BOw1hEgkHF"),
-      this.handleCoinPurchaseInWebHook("order_RcY8BOw1hEgkHF"),
-    ])
-  }
   async handleCoinPurchaseInWebHook(rzpPaymentId) {
     let lockKey: string;
     let lockValue: string;
