@@ -2189,6 +2189,9 @@ export class DynamicUiService {
           async (mediaItem, mediaIndex) => {
             try {
               // console.log("mediaItem", mediaItem);
+              if (mediaItem.mediaUrl.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                mediaItem.mediaUrl = `${this.configService.get("PEERTUBE_BASE_URL")}/videos/embed/${mediaItem.mediaUrl}`;
+              }
 
               // Only update if the old URL starts with the specified domain
               if (
