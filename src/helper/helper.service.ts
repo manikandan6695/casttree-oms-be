@@ -424,7 +424,7 @@ export class HelperService {
         name = "Creedom User";
       }
       // console.log("name is",name);
-      
+
       let fv = {
         name: name,
         email: body.email,
@@ -574,6 +574,70 @@ export class HelperService {
         .pipe(
           catchError((err) => {
             //  console.log(err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createPhonepeAuth() {
+    try {
+      const requestURL = `${this.configService.get("PHONEPE_BASE_URL")}/apis/pg-sandbox/v1/oauth/token`;
+      const headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+      };
+      let body = {
+        client_id: this.configService.get("PHONEPE_CLIENT_ID"),
+        client_version: this.configService.get("PHONEPE_CLIENT_VERSION"),
+        client_secret: this.configService.get("PHONEPE_CLIENT_SECRET"),
+        grant_type: "client_credentials",
+      };
+      const request = this.http_service
+        .post(requestURL,body, { headers: headers })
+        .pipe(
+          map((res) => {
+            //console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log("auth err is", err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createPhonepeSubscription(token, body) {
+    try {
+      const requestURL = `${this.configService.get("PHONEPE_BASE_URL")}/apis/pg-sandbox/subscriptions/v2/setup`;
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `O-Bearer ${token}`,
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            //console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log("err", err);
             throw new BadRequestException("API not available");
           })
         );
@@ -1475,7 +1539,7 @@ export class HelperService {
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
-        console.log("defaultBannerId",defaultBannerId?.value);
+        console.log("defaultBannerId", defaultBannerId?.value);
         let defaultBanner;
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
@@ -1484,21 +1548,27 @@ export class HelperService {
               banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
-          console.log("matchingBanner",matchingBanner);
+          console.log("matchingBanner", matchingBanner);
           if (matchingBanner) {
             defaultBanner = matchingBanner.bannerId;
           }
         }
         const flattenedRows = response.data?.data?.rows?.flat() || [];
-        const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
-        
+        const hasValidBanners =
+          flattenedRows &&
+          flattenedRows.length > 0 &&
+          flattenedRows.some((banner) => banner !== null);
+
         let bannerToShow;
         if (hasValidBanners) {
           bannerToShow = flattenedRows
-            .filter(banner => banner !== null && banner !== undefined && banner !== '')
-            .map(banner => {
-              if (typeof banner === 'string' && banner.includes(',')) {
-                return banner.split(',')[0].trim();
+            .filter(
+              (banner) =>
+                banner !== null && banner !== undefined && banner !== ""
+            )
+            .map((banner) => {
+              if (typeof banner === "string" && banner.includes(",")) {
+                return banner.split(",")[0].trim();
               }
               return banner;
             });
@@ -1508,8 +1578,8 @@ export class HelperService {
           mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
           mixPanelBody.distinctId = userId;
           mixPanelBody.properties = {
-            user_id : userId,
-            skill_id : skillId,
+            user_id: userId,
+            skill_id: skillId,
           };
           await this.mixPanel(mixPanelBody);
         }
@@ -1552,15 +1622,21 @@ export class HelperService {
             }
           }
           const flattenedRows = retryResponse.data?.data?.rows?.flat() || [];
-          console.log("flattenedRows",flattenedRows)
-          const hasValidBanners = flattenedRows && flattenedRows.length > 0 && flattenedRows.some(banner => banner !== null);
+          console.log("flattenedRows", flattenedRows);
+          const hasValidBanners =
+            flattenedRows &&
+            flattenedRows.length > 0 &&
+            flattenedRows.some((banner) => banner !== null);
           let bannerToShow;
           if (hasValidBanners) {
             bannerToShow = flattenedRows
-              .filter(banner => banner !== null && banner !== undefined && banner !== '')
-              .map(banner => {
-                if (typeof banner === 'string' && banner.includes(',')) {
-                  return banner.split(',')[0].trim();
+              .filter(
+                (banner) =>
+                  banner !== null && banner !== undefined && banner !== ""
+              )
+              .map((banner) => {
+                if (typeof banner === "string" && banner.includes(",")) {
+                  return banner.split(",")[0].trim();
                 }
                 return banner;
               });
@@ -1570,8 +1646,8 @@ export class HelperService {
             mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
             mixPanelBody.distinctId = userId;
             mixPanelBody.properties = {
-              user_id : userId,
-              skill_id : skillId,
+              user_id: userId,
+              skill_id: skillId,
             };
             await this.mixPanel(mixPanelBody);
           }
@@ -1600,8 +1676,8 @@ export class HelperService {
           mixPanelBody.eventName = EMixedPanelEvents.default_fallback_banner;
           mixPanelBody.distinctId = userId;
           mixPanelBody.properties = {
-            user_id : userId,
-            skill_id : skillId,
+            user_id: userId,
+            skill_id: skillId,
           };
           await this.mixPanel(mixPanelBody);
         }
@@ -1612,7 +1688,11 @@ export class HelperService {
       };
     }
   }
-  async getItemIdFromMetaBase(userId: string, itemId: string, type: ERecommendationListType) {
+  async getItemIdFromMetaBase(
+    userId: string,
+    itemId: string,
+    type: ERecommendationListType
+  ) {
     try {
       const metabaseBaseUrl = this.configService.get("METABASE_BASE_URL");
       // if (!metabaseBaseUrl) {
@@ -1637,30 +1717,53 @@ export class HelperService {
         "Content-Type": "application/json",
         "X-Metabase-Session": metabaseSession,
       };
-      
-      const systemConfig = await this.getSystemConfigByKey(EMetabaseUrlLimit.recommendation_list_card_id);
+
+      const systemConfig = await this.getSystemConfigByKey(
+        EMetabaseUrlLimit.recommendation_list_card_id
+      );
       const cardConfigs = systemConfig?.value || [];
 
-      const cardConfig = cardConfigs.find((config: any) => config?.type === type);
+      const cardConfig = cardConfigs.find(
+        (config: any) => config?.type === type
+      );
 
       try {
         const response = await this.http_service
-          .post(`${metabaseBaseUrl}/api/card/${cardConfig.card}/query`, requestBody, {
-            headers,
-          })
+          .post(
+            `${metabaseBaseUrl}/api/card/${cardConfig.card}/query`,
+            requestBody,
+            {
+              headers,
+            }
+          )
           .toPromise();
-          const result = response.data?.data?.rows.flat() || [];
-          if (!result || result.length === 0) {
-            const defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId, itemId, type);
-            return defaultItemId || [];
-          }
-          return result;
+        const result = response.data?.data?.rows.flat() || [];
+        if (!result || result.length === 0) {
+          const defaultItemId =
+            await this.serviceItemService.defaultRecommendationItemId(
+              userId,
+              itemId,
+              type
+            );
+          return defaultItemId || [];
+        }
+        return result;
       } catch (error) {
-       let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
-       return defaultItemId;
+        let defaultItemId =
+          await this.serviceItemService.defaultRecommendationItemId(
+            userId,
+            itemId,
+            type
+          );
+        return defaultItemId;
       }
     } catch (error) {
-      let defaultItemId = await this.serviceItemService.defaultRecommendationItemId(userId,itemId,type);
+      let defaultItemId =
+        await this.serviceItemService.defaultRecommendationItemId(
+          userId,
+          itemId,
+          type
+        );
       return defaultItemId;
     }
   }
@@ -1966,17 +2069,17 @@ export class HelperService {
   async getUserNominations(rawToken) {
     try {
       let data = await this.http_service
-      .get(
-         `${this.configService.get("CASTTREE_BASE_URL")}/nominations/user-nominations`,
-        // `http://localhost:3000/casttree/nominations/user-nominations`,
-        {
-          headers: {
-            Authorization: `${rawToken}`,
-          },
-        }
-      )
-      .toPromise();
-    return data.data;
+        .get(
+          `${this.configService.get("CASTTREE_BASE_URL")}/nominations/user-nominations`,
+          // `http://localhost:3000/casttree/nominations/user-nominations`,
+          {
+            headers: {
+              Authorization: `${rawToken}`,
+            },
+          }
+        )
+        .toPromise();
+      return data.data;
     } catch (error) {
       throw error;
     }

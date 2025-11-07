@@ -17,7 +17,11 @@ import { CurrencyService } from "src/shared/currency/currency.service";
 import { SharedService } from "src/shared/shared.service";
 import { InvoiceService } from "../invoice/invoice.service";
 import { PaymentService } from "../service-provider/payment.service";
-import { paymentDTO, filterTypeDTO, paymentIsSentToMetaDTO } from "./dto/payment.dto";
+import {
+  paymentDTO,
+  filterTypeDTO,
+  paymentIsSentToMetaDTO,
+} from "./dto/payment.dto";
 import {
   EAdminId,
   ECoinStatus,
@@ -92,9 +96,11 @@ export class PaymentRequestService {
           payload?.coinTransactionId,
           EPaymentSourceType.coinTransaction
         );
-        let providerDetail = await this.systemConfigurationModel.findOne({
-          key: EPaymentProvider.paymentProvider
-        }).lean();
+        let providerDetail = await this.systemConfigurationModel
+          .findOne({
+            key: EPaymentProvider.paymentProvider,
+          })
+          .lean();
         let providerId = providerDetail?.value?.providerId;
         let providerName = providerDetail?.value?.provider;
         if (!existingData) {
@@ -178,9 +184,12 @@ export class PaymentRequestService {
         let appleCoinPurchase =
           await this.subscriptionService.handleIapCoinTransactions(body, token);
         return appleCoinPurchase;
-      }
-      else if(body.providerId === EProviderId.google && body.providerName === EProvider.google){
-        let googleCoinPurchase = await this.subscriptionService.handleIapCoinTransactions(body,token)
+      } else if (
+        body.providerId === EProviderId.google &&
+        body.providerName === EProvider.google
+      ) {
+        let googleCoinPurchase =
+          await this.subscriptionService.handleIapCoinTransactions(body, token);
         return googleCoinPurchase;
       }
       let serviceRequest;
@@ -195,13 +204,15 @@ export class PaymentRequestService {
       }
 
       const invoiceData = await this.createNewInvoice(body, token);
-     if (!body.providerId) {
-      let providerDetail = await this.systemConfigurationModel.findOne({
-        key: EPaymentProvider.paymentProvider
-      }).lean();
-      body.providerId = providerDetail?.value?.providerId;
-      body.providerName = providerDetail?.value?.provider;
-     }
+      if (!body.providerId) {
+        let providerDetail = await this.systemConfigurationModel
+          .findOne({
+            key: EPaymentProvider.paymentProvider,
+          })
+          .lean();
+        body.providerId = providerDetail?.value?.providerId;
+        body.providerName = providerDetail?.value?.provider;
+      }
       const existingPayment = await this.paymentModel.findOne({
         source_id: invoiceData._id,
         source_type: EDocumentTypeName.invoice,
@@ -235,13 +246,20 @@ export class PaymentRequestService {
       let requestId = serviceRequest?.request?._id.toString()
         ? serviceRequest?.request?._id.toString()
         : body?.invoiceDetail?.sourceId.toString();
-      const provider = this.paymentRequestFactory.getPaymentProvider(body.providerName);
-      const orderDetail = await provider.createPayment(body, requestId, accessToken, {
-        invoiceId: invoiceData._id,
-        itemId: body.itemId,
-        invoiceNumber: invoiceData.document_number,
-        userId: body.userId,
-      });
+      const provider = this.paymentRequestFactory.getPaymentProvider(
+        body.providerName
+      );
+      const orderDetail = await provider.createPayment(
+        body,
+        requestId,
+        accessToken,
+        {
+          invoiceId: invoiceData._id,
+          itemId: body.itemId,
+          invoiceNumber: invoiceData.document_number,
+          userId: body.userId,
+        }
+      );
 
       // console.log("orderDetail", orderDetail);
       const paymentData = await this.createPaymentRecord(
@@ -266,7 +284,7 @@ export class PaymentRequestService {
 
       await this.helperService.mixPanel(mixPanelBody);
       // paymentData["serviceRequest"] = serviceRequest;
-     
+
       return { paymentData, serviceRequest };
     } catch (err) {
       throw err;
@@ -302,13 +320,19 @@ export class PaymentRequestService {
     orderDetail = null,
     userId?: String
   ) {
-    const paymentSequence = await this.sharedService.getNextNumber(
-      "payment",
-      "PMT",
-      5,
-      null
-    );
-    const paymentNumber = paymentSequence.toString().padStart(5, "0");
+    let paymentNumber;
+    if (body?.paymentNumber) {
+      paymentNumber = body?.paymentNumber;
+    } else {
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "payment",
+        "PMT",
+        5,
+        null
+      );
+      paymentNumber = paymentSequence.toString().padStart(5, "0");
+    }
+
     // console.log("paymentRecord", body, invoiceData);
 
     const paymentData = {
@@ -380,19 +404,22 @@ export class PaymentRequestService {
     }
   }
 
-  async getPaymentDetail(id: string,token: UserToken) {
+  async getPaymentDetail(id: string, token: UserToken) {
     try {
       let payment;
       let paymentData = await this.paymentModel.findOne({ _id: id }).lean();
-      const firstPayment = await this.paymentModel.findOne({
-        user_id: new ObjectId(token.id),
-        document_status: EDocumentStatus.completed,
-      }).sort({ transactionDate: 1 });
+      const firstPayment = await this.paymentModel
+        .findOne({
+          user_id: new ObjectId(token.id),
+          document_status: EDocumentStatus.completed,
+        })
+        .sort({ transactionDate: 1 });
       payment = {
-        ...paymentData
-      }
+        ...paymentData,
+      };
       if (!paymentData?.metaData?.isSentToMeta) {
-        payment.isFirstPayment = firstPayment && firstPayment._id.toString() === id.toString();
+        payment.isFirstPayment =
+          firstPayment && firstPayment._id.toString() === id.toString();
       }
       return { payment };
     } catch (err) {
@@ -604,7 +631,7 @@ export class PaymentRequestService {
         document_status: body.document_status || body.status,
         metaData: body.metaData,
       };
-      if(body?.isRefunded){
+      if (body?.isRefunded) {
         updateFields.isRefunded = body.isRefunded;
       }
       const conversionBody = body.conversionBody || {};
@@ -726,8 +753,7 @@ export class PaymentRequestService {
 
           // Calculate isFirstPayment but don't include it in the return
           const isFirstPayment =
-            isFirstPaymentToday &&
-            payment._id?.toString() === earliestPaymentId
+            isFirstPaymentToday && payment._id?.toString() === earliestPaymentId
               ? true
               : undefined;
 
@@ -822,25 +848,30 @@ export class PaymentRequestService {
   async updateCoinValue(paymentId: string, token: UserToken) {
     try {
       let payment;
-      let paymentData = await this.paymentModel.findOne({
-        _id: new ObjectId(paymentId),
-      }).lean();
+      let paymentData = await this.paymentModel
+        .findOne({
+          _id: new ObjectId(paymentId),
+        })
+        .lean();
       // console.log("paymentData", paymentData);
-      
+
       let invoiceData = await this.invoiceService.getInvoiceDetail(
         paymentData?.source_id
       );
-      const firstPayment = await this.paymentModel.findOne({
-        user_id: new ObjectId(token.id),
-        document_status: EDocumentStatus.completed,
-      }).sort({ created_at: 1 });
+      const firstPayment = await this.paymentModel
+        .findOne({
+          user_id: new ObjectId(token.id),
+          document_status: EDocumentStatus.completed,
+        })
+        .sort({ created_at: 1 });
       // console.log("firstPayment", firstPayment);
-      
+
       payment = {
         ...paymentData,
-        isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
-      }
-      
+        isFirstPayment:
+          firstPayment && firstPayment._id.toString() === paymentId.toString(),
+      };
+
       if (
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
@@ -850,21 +881,22 @@ export class PaymentRequestService {
           ECurrencyName.casttreeCoin
         );
         // console.log("coinData", coinData);
-        
+
         let coinTransaction = await this.coinTransactionModel.findOne({
           sourceId: new ObjectId(invoiceData?._id),
           transactionType: ETransactionType.In,
           type: ETransactionType.purchased,
         });
         // console.log("coinTransaction", coinTransaction);
-        
+
         // Get user's current balance for totalCoinValue
         let userAdditional = await this.helperService.getUserAdditionalDetails({
-          userId: coinTransaction?.userId
+          userId: coinTransaction?.userId,
         });
-        let totalCoinValue = (userAdditional?.userAdditional?.purchasedBalance || 0) + 
-                           (userAdditional?.userAdditional?.earnedBalance || 0);
-        
+        let totalCoinValue =
+          (userAdditional?.userAdditional?.purchasedBalance || 0) +
+          (userAdditional?.userAdditional?.earnedBalance || 0);
+
         let finalResponse = {
           coinValue: coinTransaction?.coinValue,
           totalBalance: totalCoinValue,
@@ -872,7 +904,7 @@ export class PaymentRequestService {
           paymentData: payment,
         };
         // console.log("finalResponse", finalResponse);
-        
+
         // let mixPanelBody: any = {};
         // mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
         // mixPanelBody.distinctId = coinTransaction?.userId;
@@ -1069,53 +1101,64 @@ export class PaymentRequestService {
       throw error;
     }
   }
-  async updatePaymentMeta(paymentId: string, payload: paymentIsSentToMetaDTO,token: UserToken) {
-    try{
-      let payment = await this.paymentModel.findOneAndUpdate({
-        _id: new ObjectId(paymentId),
-      }, {
-        $set: {
-          "metaData.isSentToMeta": payload.isSentToMeta,
+  async updatePaymentMeta(
+    paymentId: string,
+    payload: paymentIsSentToMetaDTO,
+    token: UserToken
+  ) {
+    try {
+      let payment = await this.paymentModel.findOneAndUpdate(
+        {
+          _id: new ObjectId(paymentId),
         },
-      }, { new: true}
-    )
-    if (payment){
-    let salesDoc = await this.salesDocumentModel.findOne({
-      _id: new ObjectId(payment?.source_id),
-    })
-    let mixPanelBody: any = {};
-    mixPanelBody.eventName = EMixedPanelEvents.meta_event_sent;
-    mixPanelBody.distinctId = payment?.user_id;
-    mixPanelBody.properties = {
-      user_id: payment?.user_id,
-      payment_id: paymentId,
-      subscription_id: salesDoc?.source_id,
-    };
-    await this.helperService.mixPanel(mixPanelBody);
-  }
-    return payment
-    }
-    catch (error){
+        {
+          $set: {
+            "metaData.isSentToMeta": payload.isSentToMeta,
+          },
+        },
+        { new: true }
+      );
+      if (payment) {
+        let salesDoc = await this.salesDocumentModel.findOne({
+          _id: new ObjectId(payment?.source_id),
+        });
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.meta_event_sent;
+        mixPanelBody.distinctId = payment?.user_id;
+        mixPanelBody.properties = {
+          user_id: payment?.user_id,
+          payment_id: paymentId,
+          subscription_id: salesDoc?.source_id,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
+      return payment;
+    } catch (error) {
       throw error;
     }
   }
   async getSalseDocumentFromOrderId(orderId: string) {
     try {
       let payment = await this.paymentModel.findOne({
-        payment_order_id : orderId
-      })
+        payment_order_id: orderId,
+      });
       let salseDocument = await this.salesDocumentModel.findOne({
-        _id : payment?.source_id
-      })
-      return salseDocument
+        _id: payment?.source_id,
+      });
+      return salseDocument;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
   async getFirstPaymentByUserId(userId: string) {
     try {
-      let payment = await this.paymentModel.findOne({user_id: new ObjectId(userId), document_status: EDocumentStatus.completed}).sort({ _id: 1 })
-      return payment
+      let payment = await this.paymentModel
+        .findOne({
+          user_id: new ObjectId(userId),
+          document_status: EDocumentStatus.completed,
+        })
+        .sort({ _id: 1 });
+      return payment;
     } catch (error) {
       throw error;
     }

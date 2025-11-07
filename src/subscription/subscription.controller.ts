@@ -18,6 +18,7 @@ import { SharedService } from "src/shared/shared.service";
 import {
   AddSubscriptionDTO,
   CreateSubscriptionDTO,
+  InitiateSubscriptionDTO,
   ValidateSubscriptionDTO,
 } from "./dto/subscription.dto";
 import { SubscriptionService } from "./subscription.service";
@@ -45,6 +46,24 @@ export class SubscriptionController {
       throw err;
     }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("initiate-subscription")
+  async initiateSubscription(
+    @GetToken() token: UserToken,
+    @Body(new ValidationPipe({ whitelist: true })) body: InitiateSubscriptionDTO,
+    @Res() res: Response
+  ) {
+    try {
+      console.log("inside create subscription controller", body);
+
+      let data = await this.subscriptionService.initiateSubscription(body, token);
+      return res.json(data);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   @Post("webhook/provider/:providerId")
   async subscriptionWebhook(
     @Req() req,

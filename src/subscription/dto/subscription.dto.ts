@@ -96,6 +96,20 @@ export class CreateSubscriptionDTO {
   currencyCode: string;
 }
 
+export class InitiateSubscriptionDTO {
+  @IsNotEmpty()
+  @IsMongoId()
+  itemId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  targetApp : string;
+
+  @IsNotEmpty()
+  @IsString()
+  deviceOS : string;
+}
+
 export class AddSubscriptionDTO {
   @IsNotEmpty()
   @IsMongoId()
