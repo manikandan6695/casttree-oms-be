@@ -3455,7 +3455,8 @@ export class SubscriptionService {
         currency,
         { order_id: subscriptionResponse?.orderId }
       );
-      return { data: subscriptionResponse };
+
+      return { data: { ...subscriptionResponse, paymentId: payment?.id } };
     } catch (error) {
       throw error;
     }
