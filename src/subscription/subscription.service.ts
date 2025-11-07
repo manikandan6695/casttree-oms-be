@@ -371,6 +371,15 @@ export class SubscriptionService {
           await this.handleRazorpayRefund(payload);
         }
         // await this.handleRazorpaySubscription(req.body.payload);
+      } else if (provider === EProvider.phonepe) {
+        const eventType = req?.body?.event;
+        console.log("event type is", eventType);
+        console.log("body is", req?.body);
+        if (eventType === EEventType.subscriptionSetupCompleted) {
+          await this.handlePhonpeCompletedSubscription(req?.body);
+        } else if (eventType === EEventType.subscriptionSetupFailed) {
+          await this.handlePhonpeFailedSubscription(req?.body);
+        }
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
         if (eventType === "SUBSCRIPTION_STATUS_CHANGED") {
@@ -1777,7 +1786,148 @@ export class SubscriptionService {
       throw err;
     }
   }
+  async handlePhonpeCompletedSubscription(body) {
+    try {
+      const phPaymentId = body?.payload?.orderId;
 
+      let paymentRequest =
+        await this.paymentService.fetchPaymentByOrderId(phPaymentId);
+
+      let updatedStatus = await this.paymentService.completePayment({
+        invoiceId: paymentRequest?.source_id,
+        paymentId: paymentRequest?._id,
+      });
+      let invoice = await this.invoiceService.getInvoiceDetail(
+        paymentRequest?.source_id
+      );
+      let subscription = await this.subscriptionModel.findOne({
+        _id: invoice?.source_id,
+      });
+      if (subscription) {
+        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+          subscription.subscriptionStatus = EsubscriptionStatus.active;
+          await subscription.save();
+
+          let item = await this.itemService.getItemDetail(
+            subscription?.notes?.itemId
+          );
+
+          let mixPanelBodyData: any = {};
+          mixPanelBodyData.eventName = EMixedPanelEvents.payment_success;
+          mixPanelBodyData.distinctId = subscription?.userId;
+          mixPanelBodyData.properties = {
+            itemname: item.itemName,
+            amount: invoice.grand_total,
+            currency_code: invoice.currencyCode,
+            serviceItemType: "subscription",
+          };
+          await this.helperService.mixPanel(mixPanelBodyData);
+          let subscriptionCount = await this.countUserSubscriptions(
+            subscription?.userId
+          );
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+          mixPanelBody.distinctId = subscription?.userId;
+          mixPanelBody.properties = {
+            user_id: subscription?.userId,
+            provider: EProvider.phonepe,
+            subscription_id: subscription._id,
+            subscription_status: EsubscriptionStatus.active,
+            subscription_date: subscription?.startAt,
+            item_name: item?.itemName,
+            subscription_expired: subscription?.endAt,
+            subscription_count: subscriptionCount,
+            subscription_mode: ESubscriptionMode.Auth,
+            subscription_amount: invoice.grand_total,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+          let firstSubscription = await this.userFirstSubscription(
+            subscription?.userId
+          );
+          let propertie = {
+            first_subscription_date: firstSubscription?.startAt,
+          };
+          await this.helperService.setUserProfile({
+            distinctId: subscription?.userId,
+            properties: propertie,
+          });
+          let userBody = {
+            userId: subscription?.userId,
+            membership: item?.itemName,
+            badge: item?.additionalDetail?.badge,
+          };
+          await this.helperService.updateUser(userBody);
+          let userData = await this.helperService.getUserById(
+            subscription?.userId
+          );
+          // await this.helperService.facebookEvents(
+          //   userData.data.phoneNumber,
+          //   invoice.currencyCode,
+          //   invoice.grand_total
+          // );
+          if (
+            item?.additionalDetail?.subscriptionDetail?.amount ===
+            subscription?.amount
+          ) {
+            try {
+              await this.handleReferralStatus(
+                subscription?.userId.toString(),
+                subscription?._id.toString()
+              );
+            } catch (error) {
+              console.warn(
+                `Referral data fetch failed for user ${subscription?.userId}:`,
+                error?.message || error
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handlePhonpeFailedSubscription(inputBody) {
+    try {
+      const phPaymentId = inputBody?.payload?.orderId;
+      // console.log("cfPaymentId", cfPaymentId);
+
+      let failedReason = inputBody?.payload?.errorCode;
+      // console.log("failure details is", payload?.data?.failure_details);
+      let body = {
+        document_status: EPaymentStatus.failed,
+        reason: failedReason,
+      };
+      const paymentRecord =
+        await this.paymentService.fetchPaymentByOrderId(phPaymentId);
+      // console.log("paymentRecord", paymentRecord);
+
+      await this.paymentService.updateMetaData(
+        paymentRecord._id as string,
+        inputBody
+      );
+      // console.log("invoice id is", paymentRecord?.source_id);
+
+      await this.paymentService.updateStatus(paymentRecord._id, inputBody);
+      let updatedInvoice = await this.invoiceService.updateInvoice(
+        paymentRecord?.source_id,
+        EPaymentStatus.failed
+      );
+      // console.log("subscription id is", updatedInvoice?.invoice?.source_id);
+
+      await this.subscriptionModel.updateOne(
+        {
+          _id: updatedInvoice?.invoice?.source_id,
+          subscriptionStatus: EsubscriptionStatus.initiated,
+        },
+        { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
+      );
+      return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
   async handleReferralStatus(userid: string, id: string) {
     try {
       Sentry.addBreadcrumb({

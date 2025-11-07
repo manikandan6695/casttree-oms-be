@@ -26,6 +26,8 @@ export enum EEventType {
   tokenPaused = "token.paused",
   tokenRejected = "token.rejected",
   paymentRefunded = "refund.processed",
+  subscriptionSetupCompleted = "subscription.setup.order.completed",
+  subscriptionSetupFailed = "subscription.setup.order.failed",
   didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
   autoRenewDisabled="AUTO_RENEW_DISABLED"
 }
