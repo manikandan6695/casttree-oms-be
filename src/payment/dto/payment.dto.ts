@@ -65,6 +65,10 @@ export class paymentDTO {
   @IsNumber()
   discount?: number;
 
+@IsOptional()
+  @IsString()
+  paymentNumber ?: string;
+
   @IsOptional()
   serviceRequest?: AddServiceRequestDTO;
 

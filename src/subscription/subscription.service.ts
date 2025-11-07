@@ -36,6 +36,7 @@ import {
   CashfreeFailedPaymentPayload,
   CashfreeNewPaymentPayload,
   CreateSubscriptionDTO,
+  InitiateSubscriptionDTO,
   PaymentRecordData,
   SubscriptionData,
   UpdatePaymentBody,
@@ -1094,7 +1095,7 @@ export class SubscriptionService {
       });
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if(mandate){
+      if (mandate) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
           { mandateStatus: EMandateStatus.cancel_initiated }
@@ -1146,7 +1147,7 @@ export class SubscriptionService {
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
 
-      if(mandate){
+      if (mandate) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
           { mandateStatus: EMandateStatus.cancelled }
@@ -1159,14 +1160,14 @@ export class SubscriptionService {
           createdBy: payload?.token?.entity?.notes?.userId,
           updatedBy: payload?.token?.entity?.notes?.userId,
         });
-  
+
         let subscriptionData = await this.subscriptionModel.findOne({
           _id: new ObjectId(mandate?.sourceId),
         });
         let itemName = await this.itemService.getItemDetail(
           subscriptionData?.notes?.itemId
         );
-  
+
         let mixPanelBody: any = {};
         mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
         mixPanelBody.distinctId = mandate?.userId;
@@ -1199,7 +1200,7 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if(mandate){
+      if (mandate) {
         let data = await this.mandateService.updateMandateDetail(
           { _id: mandate?._id },
           { mandateStatus: EMandateStatus.rejected }
@@ -1429,9 +1430,15 @@ export class SubscriptionService {
             subscription?.amount
           ) {
             try {
-              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+              await this.handleReferralStatus(
+                subscription?.userId.toString(),
+                subscription?._id.toString()
+              );
             } catch (error) {
-              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+              console.warn(
+                `Referral data fetch failed for user ${subscription?.userId}:`,
+                error?.message || error
+              );
             }
           }
         }
@@ -1525,7 +1532,10 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(paymentId);
 
-      if (paymentRecord.document_status === EPaymentStatus.completed || paymentRecord.document_status === EPaymentStatus.pending) {
+      if (
+        paymentRecord.document_status === EPaymentStatus.completed ||
+        paymentRecord.document_status === EPaymentStatus.pending
+      ) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
           reason: { failureReason: refundReason },
@@ -1745,11 +1755,20 @@ export class SubscriptionService {
           //   invoice.currencyCode,
           //   invoice.grand_total
           // );
-          if (item?.additionalDetail?.subscriptionDetail?.amount === subscription?.amount) {
+          if (
+            item?.additionalDetail?.subscriptionDetail?.amount ===
+            subscription?.amount
+          ) {
             try {
-              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+              await this.handleReferralStatus(
+                subscription?.userId.toString(),
+                subscription?._id.toString()
+              );
             } catch (error) {
-              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+              console.warn(
+                `Referral data fetch failed for user ${subscription?.userId}:`,
+                error?.message || error
+              );
             }
           }
         }
@@ -1759,7 +1778,7 @@ export class SubscriptionService {
     }
   }
 
-  async handleReferralStatus(userid: string, id: string){
+  async handleReferralStatus(userid: string, id: string) {
     try {
       Sentry.addBreadcrumb({
         message: "handleReferralStatus",
@@ -1769,17 +1788,20 @@ export class SubscriptionService {
           id,
         },
       });
-      let subscriptionId = new ObjectId(id)
-      let userId = new ObjectId(userid)
-      let userAdditional = await this.helperService.getUserAdditional(userId)
+      let subscriptionId = new ObjectId(id);
+      let userId = new ObjectId(userid);
+      let userAdditional = await this.helperService.getUserAdditional(userId);
       if (userAdditional?.referredBy) {
         try {
-          let referelData = await this.helperService.getReferralData(userId, userAdditional?.referredBy)
+          let referelData = await this.helperService.getReferralData(
+            userId,
+            userAdditional?.referredBy
+          );
           if (referelData?.referralStatus === EReferralStatus.Onboarded) {
             let eventBody = {
               subscriptionId: subscriptionId,
               userId: userId,
-            }
+            };
             await this.sharedService.trackAndEmitEvent(
               EVENT_UPDATE_REFERRAL_STATUS,
               eventBody,
@@ -1788,11 +1810,17 @@ export class SubscriptionService {
             );
           }
         } catch (referralError) {
-          console.warn(`Referral data fetch failed for user ${userId}:`, referralError?.message || referralError)
+          console.warn(
+            `Referral data fetch failed for user ${userId}:`,
+            referralError?.message || referralError
+          );
         }
       }
     } catch (userAdditionalError) {
-      console.warn(`User additional data fetch failed for user ${userid}:`, userAdditionalError?.message || userAdditionalError)
+      console.warn(
+        `User additional data fetch failed for user ${userid}:`,
+        userAdditionalError?.message || userAdditionalError
+      );
     }
   }
   async validateSubscription(userId: string, status: String[]) {
@@ -3217,67 +3245,217 @@ export class SubscriptionService {
   }
   async getSubscriptionByUserId(userId: string) {
     try {
-      let subscription = await this.subscriptionModel.findOne({
-        userId: new ObjectId(userId),
-        status: EStatus.Active,
-        $or: [
-          { subscriptionStatus: EsubscriptionStatus.active },
-          { subscriptionStatus: EsubscriptionStatus.expired }
-        ]
-      }).sort({ _id: -1 });
+      let subscription = await this.subscriptionModel
+        .findOne({
+          userId: new ObjectId(userId),
+          status: EStatus.Active,
+          $or: [
+            { subscriptionStatus: EsubscriptionStatus.active },
+            { subscriptionStatus: EsubscriptionStatus.expired },
+          ],
+        })
+        .sort({ _id: -1 });
       return subscription;
     } catch (error) {
       throw error;
     }
   }
 
-  async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
+  async getAnnualSubscriptionDetails(token: UserToken, rawToken) {
     try {
       let userData = await this.helperService.getUserByUserId(rawToken);
-      if(userData?.country_code === "IN"){
+      if (userData?.country_code === "IN") {
         let existingSubscription = await this.getSubscriptionByUserId(token.id);
-      if (existingSubscription) {
-        const [userRatingInfo, userNominationsInfo] = await Promise.all([
-          this.helperService.getUserRatings(rawToken),
-          this.helperService.getUserNominations(rawToken),
-        ]);
+        if (existingSubscription) {
+          const [userRatingInfo, userNominationsInfo] = await Promise.all([
+            this.helperService.getUserRatings(rawToken),
+            this.helperService.getUserNominations(rawToken),
+          ]);
 
-        let userSubscription = await this.subscriptionModel.find({
-          userId: new ObjectId(token.id),
-          status: EStatus.Active,
-          amount: { $gt: 20 },
-          subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
-        })
-        const isEligible = userRatingInfo.length > 3 || userNominationsInfo.length > 2 || userSubscription.length > 2;
-        if(isEligible){
-        let itemId = existingSubscription?.notes?.itemId;
-        let itemData = await this.itemService.getGroupedItemDetail(
-          itemId
-        );
-       let subscriptionData = await this.subscriptionModel.findOne({
-        status: EStatus.Active,
-        subscriptionStatus: EsubscriptionStatus.active,
-        userId: new ObjectId(token.id),
-        notes: { itemId: itemData?.itemId.toString() },
-       });
-        let isEnableCart = subscriptionData ? false : true;
-        let data = {
-          itemId: itemData?.itemId,
-          title: itemData?.learnBottomSheet?.title,
-          type: itemData?.learnBottomSheet?.type,
-          subTitle: itemData?.learnBottomSheet?.subTitle,
-          description:
-            itemData?.learnBottomSheet?.description,
-          button: itemData?.learnBottomSheet?.button,
-          isEnableCart,
-        };
-        return { data };
+          let userSubscription = await this.subscriptionModel.find({
+            userId: new ObjectId(token.id),
+            status: EStatus.Active,
+            amount: { $gt: 20 },
+            subscriptionStatus: {
+              $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed],
+            },
+          });
+          const isEligible =
+            userRatingInfo.length > 3 ||
+            userNominationsInfo.length > 2 ||
+            userSubscription.length > 2;
+          if (isEligible) {
+            let itemId = existingSubscription?.notes?.itemId;
+            let itemData = await this.itemService.getGroupedItemDetail(itemId);
+            let subscriptionData = await this.subscriptionModel.findOne({
+              status: EStatus.Active,
+              subscriptionStatus: EsubscriptionStatus.active,
+              userId: new ObjectId(token.id),
+              notes: { itemId: itemData?.itemId.toString() },
+            });
+            let isEnableCart = subscriptionData ? false : true;
+            let data = {
+              itemId: itemData?.itemId,
+              title: itemData?.learnBottomSheet?.title,
+              type: itemData?.learnBottomSheet?.type,
+              subTitle: itemData?.learnBottomSheet?.subTitle,
+              description: itemData?.learnBottomSheet?.description,
+              button: itemData?.learnBottomSheet?.button,
+              isEnableCart,
+            };
+            return { data };
+          }
+          return { data: { isEnableCart: false } };
         }
-        return { data: {isEnableCart: false} };
+        return { data: { isEnableCart: false } };
       }
-      return { data: {isEnableCart: false} };
-      }
-      return { data: {isEnableCart: false} };
+      return { data: { isEnableCart: false } };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async initiateSubscription(body: InitiateSubscriptionDTO, token: UserToken) {
+    try {
+      let item = await this.itemService.getItemDetail(body.itemId);
+      let authorization = await this.helperService.createPhonepeAuth();
+      let accessToken = authorization?.access_token;
+      const phonepeSubscriptionSequence =
+        await this.sharedService.getNextNumber(
+          "phonepe-subscription",
+          "PHNPE-SUB",
+          5,
+          null
+        );
+      let authAmount =
+        item?.additionalDetail?.promotionDetails?.authDetail?.amount * 100;
+      let subscriptionAmount =
+        item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount *
+        100;
+      let currency =
+        item?.additionalDetail?.promotionDetails?.authDetail?.currency_code;
+      let chargeDate = await this.getFutureDate(
+        item?.additionalDetail?.promotionDetails?.authDetail
+      );
+      let expiryDate = this.sharedService.getFutureYearISO(10);
+      let phonepeSubscriptionNewNumber = `${phonepeSubscriptionSequence}-${Date.now()}`;
+
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "payment",
+        "PMT",
+        5,
+        null
+      );
+      let phonepePaymentNumber = `${paymentSequence}-${Date.now()}`;
+      let paymentId = phonepePaymentNumber;
+      let fv = {
+        merchantOrderId: paymentId,
+        amount: authAmount,
+        expireAt: new Date(chargeDate).getTime(),
+        paymentFlow: {
+          type: "SUBSCRIPTION_SETUP",
+          merchantSubscriptionId: phonepeSubscriptionNewNumber,
+          authWorkflowType: "TRANSACTION",
+          amountType: "VARIABLE",
+          maxAmount: subscriptionAmount,
+          frequency: "ON_DEMAND",
+          expireAt: new Date(chargeDate).getTime(),
+          paymentMode: {
+            type: "UPI_INTENT",
+            targetApp: body?.targetApp,
+          },
+        },
+        deviceContext: {
+          deviceOS: body?.deviceOS,
+        },
+      };
+      let subscriptionResponse =
+        await this.helperService.createPhonepeSubscription(accessToken, fv);
+      const subscriptionData = {
+        userId: token.id,
+        subscriptionId: phonepeSubscriptionNewNumber,
+        startAt: new Date().toISOString(),
+        endAt: new Date(chargeDate).getTime(),
+        providerId: 5,
+        provider: EProvider.phonepe,
+        amount: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
+        currencyCode: currency,
+        notes: { itemId: new ObjectId(body.itemId) },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        metaData: subscriptionResponse,
+      };
+      // console.log("subscription data", subscriptionData);
+
+      const subscriptionCreated = await this.subscription(
+        subscriptionData,
+        token
+      );
+
+      const mandateData = {
+        sourceId: subscriptionCreated._id,
+        userId: token.id,
+        amount:
+          item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+        paymentMethod: "UPI",
+        providerId: 5,
+        provider: EProvider.phonepe,
+        currency: currency,
+        frequency: "ON_DEMAND",
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        metaData: {
+          referenceOrderId: subscriptionResponse?.orderId,
+          orderId: paymentId,
+        },
+        startDate: new Date().toISOString(),
+        endDate: expiryDate,
+      };
+      // console.log("mandate data", mandateData);
+      let mandate = await this.mandateService.addMandate(mandateData, token);
+
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate._id,
+        mandateStatus: EMandateStatus.initiated,
+        status: EStatus.Active,
+        createdBy: token.id,
+        updatedBy: token.id,
+      });
+
+      const invoiceData = {
+        itemId: body?.itemId,
+        source_id: subscriptionCreated._id,
+        source_type: "subscription",
+        sub_total: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
+        currencyCode: currency,
+        document_status: EDocumentStatus.pending,
+        grand_total:
+          item?.additionalDetail?.promotionDetails?.authDetail?.amount,
+        user_id: token.id,
+        created_by: token.id,
+        updated_by: token.id,
+      };
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        token.id
+      );
+
+      const paymentData = {
+        amount: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
+        currencyCode: currency,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.auth,
+        providerId: 5,
+        providerName: EProvider.phonepe,
+        paymentNumber: paymentId,
+      };
+      let payment = await this.paymentService.createPaymentRecord(
+        paymentData,
+        token,
+        invoice,
+        currency,
+        { order_id: subscriptionResponse?.orderId }
+      );
+      return { data: subscriptionResponse };
     } catch (error) {
       throw error;
     }
