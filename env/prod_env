@@ -65,7 +65,7 @@ RAZORPAY_BASE_URL = "https://api.razorpay.com"
 
 #TODO: Prod details to be updated - Peertube
 # PEERTUBE
-PEERTUBE_BASE_URL = " https://peertube-prod.casttree.com"
+PEERTUBE_BASE_URL = "https://peertube-prod.casttree.com"
 PEERTUBE_CLIENT_ID = "8utwvw0taeegwlyf2v1f0ar7j01wdpgn"
 PEERTUBE_CLIENT_SECRET = "07ga30fc9ADHpqTiU4Sd4FsbhtPACZ48"
 PEERTUBE_USERNAME = "root"
