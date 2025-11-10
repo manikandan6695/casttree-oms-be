@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, forwardRef, Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
@@ -11,6 +11,7 @@ import { ServiceItemService } from "src/item/service-item.service";
 import { EPaymentSourceType } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
+import { RedisService } from "src/redis/redis.service";
 import {
   EprocessStatus,
   EsubscriptionStatus,
@@ -37,7 +38,8 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
-    private helperService: HelperService
+    private helperService: HelperService,
+    private redisService: RedisService
   ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
@@ -156,6 +158,14 @@ export class ProcessService {
     taskType,
     breakDuration?
   ) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${userId}:${processId}:${taskId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    // console.log(lockResult)
+    lockAcquired = lockResult.acquired;  
+    lockValue = lockResult.value as string;
     try {
       let itemId =
         await this.serviceItemService.getServuceItemDetailsByProcessId(
@@ -172,7 +182,7 @@ export class ProcessService {
         })
         .lean();
       if (checkInstanceHistory) {
-        checkInstanceHistory.itemId = itemId.itemId;
+        checkInstanceHistory.itemId = itemId?.itemId;
       }
       let finalResponse = {};
       if (!checkInstanceHistory) {
@@ -189,7 +199,7 @@ export class ProcessService {
         let processInstanceData =
           await this.processInstancesModel.create(processInstanceBody);
         let updatedProcessInstanceData: any = processInstanceData;
-        updatedProcessInstanceData.itemId = itemId.itemId;
+        updatedProcessInstanceData.itemId = itemId?.itemId;
 
         let processInstanceDetailBody = {
           processInstanceId: processInstanceData._id,
@@ -283,6 +293,10 @@ export class ProcessService {
       return finalResponse;
     } catch (err) {
       throw err;
+    } finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
     }
   }
 

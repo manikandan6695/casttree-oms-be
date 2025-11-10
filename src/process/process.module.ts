@@ -4,6 +4,7 @@ import { HelperModule } from "src/helper/helper.module";
 import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SubscriptionModule } from "src/subscription/subscription.module";
+import { RedisModule } from "src/redis/redis.module";
 import { ProcessController } from "./process.controller";
 import { ProcessService } from "./process.service";
 import { processSchema } from "./schema/process.schema";
@@ -24,7 +25,8 @@ import { ratingSchema } from "./schema/ratings.schema";
     forwardRef(() => ItemModule),
     SubscriptionModule,
     PaymentRequestModule,
-    HelperModule
+    HelperModule,
+    RedisModule
   ],
   controllers: [ProcessController],
   providers: [ProcessService],
