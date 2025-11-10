@@ -28,8 +28,12 @@ export enum EEventType {
   paymentRefunded = "refund.processed",
   subscriptionSetupCompleted = "subscription.setup.order.completed",
   subscriptionSetupFailed = "subscription.setup.order.failed",
-  didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
-  autoRenewDisabled="AUTO_RENEW_DISABLED"
+  subscriptionPaused = "SUBSCRIPTION_PAUSED",
+  subscriptionUnPaused = "SUBSCRIPTION_UNPAUSED",
+  subscriptionRevoked = "SUBSCRIPTION_REVOKED",
+  subscriptionCancelled = "SUBSCRIPTION_CANCELLED",
+  didChangeRenewalStatus = "DID_CHANGE_RENEWAL_STATUS",
+  autoRenewDisabled = "AUTO_RENEW_DISABLED",
 }
 
 export const ESEventType = [
@@ -50,7 +54,7 @@ export const ESEventType = [
   EEventType.expiredSubType,
   EEventType.paymentRefunded,
   EEventType.didChangeRenewalStatus,
-  EEventType.autoRenewDisabled
+  EEventType.autoRenewDisabled,
 ];
 
 export enum EEventId {
@@ -59,6 +63,6 @@ export enum EEventId {
   purchase = 4,
 }
 export const ESEventId = [EEventId.renew, EEventId.cancel, EEventId.purchase];
-export enum EReferralStatus{
+export enum EReferralStatus {
   Onboarded = "Onboarded",
 }

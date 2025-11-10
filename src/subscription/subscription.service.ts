@@ -374,12 +374,31 @@ export class SubscriptionService {
         // await this.handleRazorpaySubscription(req.body.payload);
       } else if (provider === EProvider.phonepe) {
         const eventType = req?.body?.event;
+        const type = req?.body?.type;
         console.log("event type is", eventType);
         console.log("body is", req?.body);
         if (eventType === EEventType.subscriptionSetupCompleted) {
           await this.handlePhonpeCompletedSubscription(req?.body);
         } else if (eventType === EEventType.subscriptionSetupFailed) {
           await this.handlePhonpeFailedSubscription(req?.body);
+        }
+        if (type === EEventType.subscriptionPaused) {
+          await this.handlePhonpePausedSubscription(req?.body);
+        }
+        if (type === EEventType.subscriptionUnPaused) {
+          await this.handlePhonpeUnPausedSubscription(req?.body);
+        }
+
+        if (type === EEventType.subscriptionCancelled) {
+          const payload = req?.body?.payload;
+          await this.handleRazorpayCancelledMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
+        }
+
+        if (type === EEventType.subscriptionRevoked) {
+          const payload = req?.body?.payload;
+          await this.handleRazorpayCancelMandate(payload);
+          // await this.handleRazorpaySubscription(payload);
         }
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
@@ -1925,6 +1944,149 @@ export class SubscriptionService {
         { $set: { subscriptionStatus: EsubscriptionStatus.failed } }
       );
       return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+  async handlePhonpePausedSubscription(inputBody) {
+    try {
+      const subscriptionId = inputBody?.payload?.merchantSubscriptionId;
+
+      let mandate = await this.mandateService.getMandateById(subscriptionId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        { mandateStatus: EMandateStatus.paused }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.paused,
+        "metaData.additionalDetail": inputBody?.payload,
+        status: EStatus.Active,
+        createdBy: mandate?.userId,
+        updatedBy: mandate?.userId,
+      });
+      return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+  async handlePhonpeUnPausedSubscription(inputBody) {
+    try {
+      const subscriptionId = inputBody?.payload?.merchantSubscriptionId;
+
+      let mandate = await this.mandateService.getMandateById(subscriptionId);
+      let data = await this.mandateService.updateMandateDetail(
+        { _id: mandate?._id },
+        { mandateStatus: EMandateStatus.active }
+      );
+      await this.mandateHistoryService.createMandateHistory({
+        mandateId: mandate?._id,
+        mandateStatus: EMandateStatus.active,
+        "metaData.additionalDetail": inputBody?.payload,
+        status: EStatus.Active,
+        createdBy: mandate?.userId,
+        updatedBy: mandate?.userId,
+      });
+      return { message: "Updated Successfully" };
+    } catch (err) {
+      throw err;
+    }
+  }
+  async handlePhonepeCancelledMandate(body: any) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "handlePhonpeCancelledMandate",
+        level: "info",
+        data: {
+          body,
+        },
+      });
+      let tokenId = body?.payload?.merchantSubscriptionId;
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      if (mandate) {
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.cancel_initiated }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id,
+          mandateStatus: EMandateStatus.cancel_initiated,
+          "metaData.additionalDetail": body?.payload,
+          status: EStatus.Active,
+          createdBy: mandate?.userId,
+          updatedBy: mandate?.userId,
+        });
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async handlePhonepeRevokedMandate(body: any) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "handlePhonpeCancelMandate",
+        level: "info",
+        data: {
+          body,
+        },
+      });
+      // console.log("inside razorpay cancelled mandate", payload);
+
+      let tokenId = body?.payload?.merchantSubscriptionId;
+      let mandate = await this.mandateService.getMandateById(tokenId);
+      if (mandate) {
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.cancelled }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id,
+          mandateStatus: EMandateStatus.cancelled,
+          "metaData.additionalDetail": body?.payload,
+          status: EStatus.Active,
+          createdBy: mandate?.userId,
+          updatedBy: mandate?.userId,
+        });
+
+        let subscriptionData = await this.subscriptionModel.findOne({
+          _id: new ObjectId(mandate?.sourceId),
+        });
+        let itemName = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+        mixPanelBody.distinctId = mandate?.userId;
+        mixPanelBody.properties = {
+          mandate_id: mandate?._id,
+          user_id: mandate?.userId,
+          mandate_status: EMandateStatus.cancelled,
+          date: new Date().toISOString(),
+          item_name: itemName?.itemName,
+          provider: mandate?.provider,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
+      }
     } catch (err) {
       throw err;
     }
@@ -3557,9 +3719,11 @@ export class SubscriptionService {
         metaData: {
           referenceOrderId: subscriptionResponse?.orderId,
           orderId: paymentId,
+          merchantSubscriptionId: phonepeSubscriptionNewNumber,
         },
         startDate: new Date().toISOString(),
         endDate: expiryDate,
+        referenceId: phonepeSubscriptionNewNumber,
       };
       // console.log("mandate data", mandateData);
       let mandate = await this.mandateService.addMandate(mandateData, token);
