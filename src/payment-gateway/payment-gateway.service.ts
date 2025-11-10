@@ -1,0 +1,81 @@
+import {
+  BadRequestException,
+  Injectable,
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import {
+  IPaymentGatewayConfigurationModel,
+} from "./schema/payment-gateway-configuration.schema";
+import {
+  InstrumentsResponseDto,
+  InstrumentDto,
+} from "./dto/payment-gateway.dto";
+
+@Injectable()
+export class PaymentGatewayService {
+  constructor(
+    @InjectModel("paymentGatewayConfiguration")
+    private readonly paymentConfigModel: Model<IPaymentGatewayConfigurationModel>
+  ) {}
+
+  async getSupportedInstruments(
+    paymentType: string,
+    device: string
+  ): Promise<InstrumentsResponseDto> {
+    // Validate
+    if (!["payments", "subscription"].includes(paymentType)) {
+      throw new BadRequestException("Invalid paymentType");
+    }
+
+    if (!["android", "ios", "web"].includes(device)) {
+      throw new BadRequestException("Invalid device");
+    }
+
+    // Get distinct instruments
+    const instruments = await this.paymentConfigModel.distinct("instrument", {
+      paymentType,
+      device,
+      status: "active",
+    });
+
+    // Check health for each
+    const result: InstrumentDto[] = [];
+
+    for (const instrumentId of instruments) {
+      // Get all gateways for this instrument
+      const gateways = await this.paymentConfigModel
+        .find({
+          paymentType,
+          device,
+          instrument: instrumentId,
+          status: "active",
+        })
+        .lean()
+        .exec();
+
+      if (gateways.length === 0) continue;
+
+      // Check if any gateway is healthy
+      const isAnyHealthy = gateways.some((g) => g.isHealthy);
+
+      // Get metadata from first record
+      const metadata = gateways[0];
+
+      result.push({
+        id: instrumentId,
+        displayName: metadata.displayName,
+        imageUrl: metadata.imageUrl,
+        available: true,
+        status: isAnyHealthy ? "healthy" : "Currently facing issues",
+      });
+    }
+
+    return {
+      paymentType,
+      device,
+      instruments: result,
+    };
+  }
+}
+
