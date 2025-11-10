@@ -304,6 +304,7 @@ export class SubscriptionService {
           [EProviderId.cashfree]: EProvider.cashfree,
           [EProviderId.apple]: EProvider.apple,
           [EProviderId.google]: EProvider.google,
+          [EProviderId.phonepe]: EProvider.phonepe,
         };
         return map[id];
       };
