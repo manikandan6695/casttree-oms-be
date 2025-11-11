@@ -335,9 +335,9 @@ export class DynamicUiController {
   @UseGuards(JwtAuthGuard)
   @Post("series/priority-order")
   async updatePriorityOrder(
-    @Req() req,
+    @Req() req: any,
     @Body(new ValidationPipe({ transform: true })) payload: UpdatePriorityOrderDto[]
-  ) {
+  ): Promise<any> {
     try {
       const res = await this.dynamicUIService.updatePriorityOrder(payload);
       return res;

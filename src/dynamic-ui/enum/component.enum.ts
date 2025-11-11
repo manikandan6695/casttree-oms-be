@@ -19,7 +19,8 @@ export enum EComponentKey {
 export enum EConfigKeyName {
   dynamicSearch = "dynamic-search",
   suggestionsTag = "suggestions-tag",
-  dynamicHeaderNavigation = "dynamic-header-navigation"
+  dynamicHeaderNavigation = "dynamic-header-navigation",
+  learnCategorySection = "learn-category-section"
 }
 export enum EComponentItemType {
   search = "search",

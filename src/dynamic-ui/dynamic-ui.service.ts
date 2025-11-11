@@ -229,6 +229,7 @@ export class DynamicUiService {
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
+          showInLearnPage: true,
         })
         .populate("interactionData.items.banner")
         .lean();
@@ -279,7 +280,7 @@ export class DynamicUiService {
         },
         status: EStatus.Active,
       }).sort({_id: -1});
-      console.log("banners",banners);
+      // console.log("banners",banners);
       
       componentDocs.forEach((comp) => {
         if (comp.type == "userPreference") {
@@ -307,6 +308,11 @@ export class DynamicUiService {
             skillId,
             token.id
           );
+        }
+        if (comp.componentKey === EConfigKeyName.learnCategorySection) {
+          if (comp.actionData?.length > 7) {
+            comp["isViewAll"] = true;
+          }
         }
       }
       componentDocs.sort((a, b) => a.order - b.order);
@@ -2748,7 +2754,20 @@ export class DynamicUiService {
         throw new NotFoundException("Filter component not found");
       }
       const tagName = actualComponent?.tag?.tagName;
+      if (actualComponent?.componentKey === EConfigKeyName.learnCategorySection) {
+        const allActionData = Array.isArray(actualComponent.actionData)
+          ? actualComponent.actionData
+          : [];
+        const totalCount = allActionData.length;
+        const start = Math.max(0, Number(skip) || 0);
+        const size = Number(limit);
+        const end = size > 0 ? start + Math.floor(size) : undefined;
 
+        actualComponent.actionData = allActionData.slice(start, end);
+        actualComponent.totalCount = totalCount;
+
+        return { component: actualComponent };
+      }
       const { serviceItemData, filteredData } = await this.fetchServiceItemData(
         page,
         token.id,
@@ -3334,7 +3353,7 @@ export class DynamicUiService {
     }
   }
 
-  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]): Promise<any> {
     try {
       Sentry.addBreadcrumb({
         message: "updatePriorityOrder",
