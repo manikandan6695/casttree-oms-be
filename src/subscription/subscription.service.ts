@@ -105,6 +105,7 @@ export class SubscriptionService {
           token,
         },
       });
+      console.log("body in createSubscription is", body);
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
@@ -113,6 +114,10 @@ export class SubscriptionService {
         EsubscriptionStatus.failed,
       ]);
       let item = await this.itemService.getItemDetail(body.itemId);
+      console.log(
+        "authDetail",
+        item?.additionalDetail?.promotionDetails?.authDetail
+      );
 
       let authAmount =
         body?.refId ||
@@ -265,7 +270,7 @@ export class SubscriptionService {
             .toString()
             .padStart(5, "0");
           let phonepeSubscriptionNewNumber = `${phonepeSubscriptionNumber}-${Date.now()}`;
-          
+
           const paymentSequence = await this.sharedService.getNextNumber(
             "payment",
             "PMT",
@@ -273,14 +278,25 @@ export class SubscriptionService {
             null
           );
           let phonepePaymentNumber = `${paymentSequence}-${Date.now()}`;
-          
+          console.log("auth amount is", authAmount);
+          console.log(
+            "subscription detail",
+            item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+          );
+
           subscriptionData = {
             subscription_id: phonepeSubscriptionNewNumber.toString(),
             amount: authAmount * 100,
             authAmount: authAmount,
-            currency: item?.additionalDetail?.promotionDetails?.authDetail?.currency_code,
-            subscriptionAmount: item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
-            maximumAmount: item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
+            currency:
+              item?.additionalDetail?.promotionDetails?.authDetail
+                ?.currency_code,
+            subscriptionAmount:
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            maximumAmount:
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
             itemId: body?.itemId,
             firstCharge: chargeDate,
             expiryTime: expiryDate,
@@ -3525,22 +3541,48 @@ export class SubscriptionService {
         ios: "ios",
         web: "web",
       };
-      const device = deviceMap[body.deviceOS.toUpperCase()] || body.deviceOS.toLowerCase();
+      const device =
+        deviceMap[body.deviceOS.toUpperCase()] || body.deviceOS.toLowerCase();
 
       // Map targetApp to instrument (e.g., com.phonepe.app -> phonepe, com.google.android.apps.nfc.payment -> gpay)
       const instrumentMap: Record<string, string> = {
         "com.phonepe.app": "phonepe",
-        "com.google.android.apps.nfc.payment": "gpay",
+        "com.google.app": "gpay",
         "net.one97.paytm": "paytm",
-        "in.amazon.mshop.android.shopping": "amazonpay",
+        "in.amazon.app": "amazonpay",
+        "com.bhim.upi": "bhim",
+        "com.bhim.upi.android": "bhim",
         phonepe: "phonepe",
         gpay: "gpay",
         paytm: "paytm",
         amazonpay: "amazonpay",
+        bhim: "upi",
+        upi: "upi",
       };
+
+      // Reverse map: instrument to package name (for Android)
+      const instrumentToPackageMap: Record<string, string> = {
+        phonepe: "com.phonepe.app",
+        gpay: "com.google.app",
+        paytm: "net.one97.paytm",
+        amazonpay: "in.amazon.app",
+        bhim: "com.bhim.upi",
+        upi: "com.bhim.upi",
+      };
+
+      // Map instrument to static values (for iOS)
+      const instrumentToIOSMap: Record<string, string> = {
+        phonepe: "PHONEPE",
+        gpay: "GPAY",
+        paytm: "PAYTM",
+        amazonpay: "AMAZONPAY",
+        bhim: "BHIM",
+        upi: "UPI",
+      };
+
       const targetAppLower = body.targetApp.toLowerCase();
       let instrument = instrumentMap[targetAppLower];
-      
+
       // If not found in map, try to extract from package name
       if (!instrument) {
         // Extract last meaningful part before .app or similar
@@ -3559,6 +3601,7 @@ export class SubscriptionService {
           instrument = parts[parts.length - 1].replace(/app$/, "");
         }
       }
+      console.log("instrument is", instrument);
 
       // Get best gateway for the instrument
       const gatewayResult =
@@ -3567,7 +3610,7 @@ export class SubscriptionService {
           device,
           instrument
         );
-
+        console.log("gatewayResult is", gatewayResult);
       // Map gateway to EProvider enum
       const providerMap: Record<string, EProvider> = {
         phonepe: EProvider.phonepe,
@@ -3576,7 +3619,7 @@ export class SubscriptionService {
       };
       const provider =
         providerMap[gatewayResult.gateway.toLowerCase()] || EProvider.phonepe;
-
+      console.log("provider is", provider);
       // Log warning if unhealthy gateway is selected
       if (gatewayResult.warning) {
         console.warn(
@@ -3584,16 +3627,87 @@ export class SubscriptionService {
         );
       }
 
+      // Determine targetApp for createSubscriptionBody
+      let targetAppForSubscription = body.targetApp;
+      
+      if (device === "ios" && instrument && instrumentToIOSMap[instrument]) {
+        // For iOS, use static uppercase values (PHONEPE, GPAY, PAYTM)
+        targetAppForSubscription = instrumentToIOSMap[instrument];
+      } else if (
+        device === "android" &&
+        instrument &&
+        instrumentToPackageMap[instrument]
+      ) {
+        // For Android, use package name from instrument mapping
+        targetAppForSubscription = instrumentToPackageMap[instrument];
+      }
+
       // Convert InitiateSubscriptionDTO to CreateSubscriptionDTO format
       const createSubscriptionBody: CreateSubscriptionDTO = {
         itemId: body.itemId,
         provider: provider,
-        targetApp: body.targetApp,
+        targetApp: targetAppForSubscription,
         deviceOS: body.deviceOS,
       } as CreateSubscriptionDTO;
+      console.log("body is", body);
 
       // Use the same createSubscription flow
-      return await this.createSubscription(createSubscriptionBody, token);
+      const subscriptionResponse = await this.createSubscription(
+        createSubscriptionBody,
+        token
+      );
+
+      // Extract intentUrl from Cashfree response based on deviceOS and targetApp
+      if (
+        provider === EProvider.cashfree &&
+        subscriptionResponse?.data?.authorizationDetails
+      ) {
+        const authDetails = subscriptionResponse.data.authorizationDetails;
+        const upiIntentData =
+          authDetails?.data?.payload?.upiIntentData;
+
+        if (upiIntentData) {
+          let intentUrl: string | null = null;
+          
+          // Map instrument to uppercase key for matching with response keys
+          const instrumentToKeyMap: Record<string, string> = {
+            phonepe: "PHONEPE",
+            gpay: "GPAY",
+            paytm: "PAYTM",
+            amazonpay: "AMAZONPAY",
+            bhim: "BHIM",
+            upi: "BHIM", // UPI maps to BHIM in Cashfree response
+          };
+          
+          // Use instrument to get the correct key, or use targetApp if it's already uppercase (iOS)
+          const responseKey =
+            instrument && instrumentToKeyMap[instrument]
+              ? instrumentToKeyMap[instrument]
+              : targetAppForSubscription.toUpperCase();
+
+          if (device === "android" && upiIntentData.androidAuthAppLinks) {
+            // For Android, get URL from androidAuthAppLinks
+            intentUrl =
+              upiIntentData.androidAuthAppLinks[responseKey] ||
+              upiIntentData.androidAuthAppLinks["DEFAULT"];
+          } else if (device === "ios" && upiIntentData.iosAuthAppLinks) {
+            // For iOS, get URL from iosAuthAppLinks
+            intentUrl =
+              upiIntentData.iosAuthAppLinks[responseKey] ||
+              upiIntentData.iosAuthAppLinks["DEFAULT"];
+          }
+
+          // Add intentUrl to response if found
+          if (intentUrl) {
+            return {
+              ...subscriptionResponse,
+              intentUrl: intentUrl,
+            };
+          }
+        }
+      }
+
+      return subscriptionResponse;
     } catch (err) {
       throw err;
     }

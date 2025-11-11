@@ -105,7 +105,7 @@ export class SubscriptionFactory {
     token: UserToken
   ) {
     try {
-      console.log("body data is", bodyData);
+      console.log("body data is", bodyData,data);
 
       const subscription = await this.helperService.createSubscription(
         data,
@@ -129,32 +129,48 @@ export class SubscriptionFactory {
         payment_method: { upi: { channel: "link" } },
       };
       const auth = await this.helperService.createAuth(authData);
-      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let existingSubscription =
+        await this.subscriptionService.getSubscriptionByUserId(token.id);
       let startAt: Date;
       let endAt: Date;
 
-      if (existingSubscription && existingSubscription.subscriptionStatus === EsubscriptionStatus.active) {
-        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
-        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]);
+      if (
+        existingSubscription &&
+        existingSubscription.subscriptionStatus === EsubscriptionStatus.active
+      ) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId);
+        let subscriptionData =
+          await this.subscriptionService.validateSubscription(token.id, [
+            EsubscriptionStatus.initiated,
+            EsubscriptionStatus.failed,
+          ]);
 
-        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 100);
+        startAt = new Date(
+          new Date(existingSubscription.endAt).getTime() + 100
+        );
 
-        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
-        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
-        
+        let endAtValidity =
+          bodyData?.refId || subscriptionData
+            ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+            : itemdetail?.additionalDetail?.promotionDetails?.authDetail
+                ?.validity;
+        let endAtValidityType =
+          bodyData?.refId || subscriptionData
+            ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validityType
+            : itemdetail?.additionalDetail?.promotionDetails?.authDetail
+                ?.validityType;
+
         endAt = new Date(startAt);
-        if (endAtValidityType === 'day') {
+        if (endAtValidityType === "day") {
           endAt.setDate(endAt.getDate() + endAtValidity);
-        } else if (endAtValidityType === 'month') {
+        } else if (endAtValidityType === "month") {
           endAt.setMonth(endAt.getMonth() + endAtValidity);
-        } else if (endAtValidityType === 'year') {
+        } else if (endAtValidityType === "year") {
           endAt.setFullYear(endAt.getFullYear() + endAtValidity);
         }
         endAt.setUTCHours(18, 29, 59, 999);
-        
       } else {
         startAt = new Date();
         let endDate = new Date(bodyData?.firstCharge);
@@ -248,7 +264,12 @@ export class SubscriptionFactory {
       );
 
       return {
-        subscriptionDetails: { ...subscription, paymentId: payment?.id },
+        subscriptionDetails: {
+          ...subscription,
+          paymentId: payment?.id,
+          providerId: 2,
+          provider: EProvider.cashfree,
+        },
         authorizationDetails: auth,
       };
     } catch (err) {
@@ -389,7 +410,7 @@ export class SubscriptionFactory {
           baseCurrency: currencyCode,
           conversionRate: conversionRateAmt,
         };
-       let paymentDetails = await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -446,14 +467,19 @@ export class SubscriptionFactory {
           distinctId: token?.id,
           properties: propertie,
         });
-        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        let finalResponse:any = createdSubscription.toObject()
-        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(
+          token?.id
+        );
+        let finalResponse: any = createdSubscription.toObject();
+        if (
+          isFirstPayment &&
+          paymentDetails?._id.toString() === isFirstPayment?._id.toString()
+        ) {
           finalResponse = {
             ...createdSubscription.toObject(),
             isFirstPayment: true,
-            paymentId: isFirstPayment?._id
-          }
+            paymentId: isFirstPayment?._id,
+          };
         }
         return finalResponse;
       }
@@ -579,7 +605,7 @@ export class SubscriptionFactory {
         };
         // console.log("paymentData",paymentData);
 
-       let paymentDetails = await this.paymentService.createPaymentRecord(
+        let paymentDetails = await this.paymentService.createPaymentRecord(
           paymentData,
           token,
           invoice
@@ -632,14 +658,19 @@ export class SubscriptionFactory {
           distinctId: token?.id,
           properties: propertie,
         });
-        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        let finalResponse:any = createdSubscription.toObject()
-        if (isFirstPayment && paymentDetails?._id.toString() === isFirstPayment?._id.toString()) {
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(
+          token?.id
+        );
+        let finalResponse: any = createdSubscription.toObject();
+        if (
+          isFirstPayment &&
+          paymentDetails?._id.toString() === isFirstPayment?._id.toString()
+        ) {
           finalResponse = {
             ...createdSubscription.toObject(),
             isFirstPayment: true,
-            paymentId: isFirstPayment?._id
-          }
+            paymentId: isFirstPayment?._id,
+          };
         }
         return finalResponse;
       }
@@ -1179,39 +1210,57 @@ export class SubscriptionFactory {
       // console.log("fv is", fv);
 
       const subscription = await this.helperService.addSubscription(fv);
-      let existingSubscription = await this.subscriptionService.getSubscriptionByUserId( token.id)
+      let existingSubscription =
+        await this.subscriptionService.getSubscriptionByUserId(token.id);
       let startAt: Date;
       let endAt: Date;
 
-      if (existingSubscription && existingSubscription.subscriptionStatus === EsubscriptionStatus.active) {
-        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId)
-        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 100);
-        let subscriptionData = await this.subscriptionService.validateSubscription(token.id, [
-          EsubscriptionStatus.initiated,
-          EsubscriptionStatus.failed,
-        ]);
+      if (
+        existingSubscription &&
+        existingSubscription.subscriptionStatus === EsubscriptionStatus.active
+      ) {
+        let itemdetail = await this.itemService.getItemDetail(bodyData?.itemId);
+        startAt = new Date(
+          new Date(existingSubscription.endAt).getTime() + 100
+        );
+        let subscriptionData =
+          await this.subscriptionService.validateSubscription(token.id, [
+            EsubscriptionStatus.initiated,
+            EsubscriptionStatus.failed,
+          ]);
 
-        startAt = new Date(new Date(existingSubscription.endAt).getTime() + 100);
+        startAt = new Date(
+          new Date(existingSubscription.endAt).getTime() + 100
+        );
 
-        let endAtValidity = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validity : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validity
-        let endAtValidityType = bodyData?.refId || subscriptionData ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail?.validityType : itemdetail?.additionalDetail?.promotionDetails?.authDetail?.validityType
+        let endAtValidity =
+          bodyData?.refId || subscriptionData
+            ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+            : itemdetail?.additionalDetail?.promotionDetails?.authDetail
+                ?.validity;
+        let endAtValidityType =
+          bodyData?.refId || subscriptionData
+            ? itemdetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validityType
+            : itemdetail?.additionalDetail?.promotionDetails?.authDetail
+                ?.validityType;
         endAt = new Date(startAt);
-        if (endAtValidityType === 'day') {
+        if (endAtValidityType === "day") {
           endAt.setDate(endAt.getDate() + endAtValidity);
-        } else if (endAtValidityType === 'month') {
+        } else if (endAtValidityType === "month") {
           endAt.setMonth(endAt.getMonth() + endAtValidity);
-        } else if (endAtValidityType === 'year') {
+        } else if (endAtValidityType === "year") {
           endAt.setFullYear(endAt.getFullYear() + endAtValidity);
         }
         endAt.setUTCHours(18, 29, 59, 999);
-        
       } else {
-        console.log("inside else",data?.firstCharge);
+        console.log("inside else", data?.firstCharge);
         startAt = new Date();
         let endDate = new Date(data?.firstCharge);
         endDate.setUTCHours(18, 29, 59, 999);
         endAt = endDate;
-      }     
+      }
       // console.log("endAt is", endAt);
 
       const subscriptionData = {
@@ -1302,6 +1351,8 @@ export class SubscriptionFactory {
         subscriptionDetails: {
           customerId: customerId,
           ...subscription,
+          providerId: 1,
+          providerName: EProvider.razorpay,
           paymentId: payment?.id,
         },
       };
@@ -1471,10 +1522,13 @@ export class SubscriptionFactory {
         { order_id: subscriptionResponse?.orderId }
       );
 
-      // Return same format as original initiateSubscription
       return {
-        ...subscriptionResponse,
-        paymentId: payment?.id,
+        subscriptionDetails: {
+          ...subscriptionResponse,
+          providerId: EProviderId.phonepe,
+          provider: EProvider.phonepe,
+          paymentId: payment?.id,
+        },
       };
     } catch (err) {
       throw err;
@@ -1559,15 +1613,20 @@ export class SubscriptionFactory {
         };
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
-          let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-          let finalResponse:any = paymentResponse.toObject()
-          if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
-            finalResponse = {
-              ...paymentResponse.toObject(),
-              isFirstPayment: true,
-              paymentId: isFirstPayment?._id
-            }
-          }
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(
+          token?.id
+        );
+        let finalResponse: any = paymentResponse.toObject();
+        if (
+          isFirstPayment &&
+          paymentResponse?._id.toString() === isFirstPayment?._id.toString()
+        ) {
+          finalResponse = {
+            ...paymentResponse.toObject(),
+            isFirstPayment: true,
+            paymentId: isFirstPayment?._id,
+          };
+        }
         return { paymentResponse: finalResponse, updatedInvoice };
       } else if (body.providerName === EProvider.google) {
         let googlePackage = packageName;
@@ -1644,14 +1703,19 @@ export class SubscriptionFactory {
         };
         let updatedInvoice =
           await this.invoiceService.updateSalseDocumentById(updatedBody);
-        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(token?.id);
-        let finalResponse:any = paymentResponse.toObject()
-        if (isFirstPayment && paymentResponse?._id.toString() === isFirstPayment?._id.toString()) {
+        let isFirstPayment = await this.paymentService.getFirstPaymentByUserId(
+          token?.id
+        );
+        let finalResponse: any = paymentResponse.toObject();
+        if (
+          isFirstPayment &&
+          paymentResponse?._id.toString() === isFirstPayment?._id.toString()
+        ) {
           finalResponse = {
             ...paymentResponse.toObject(),
             isFirstPayment: true,
-            paymentId: isFirstPayment?._id
-          }
+            paymentId: isFirstPayment?._id,
+          };
         }
         return { paymentResponse: finalResponse, updatedInvoice };
       }
