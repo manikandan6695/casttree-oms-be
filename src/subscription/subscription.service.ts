@@ -179,7 +179,16 @@ export class SubscriptionService {
           break;
 
         case "cashfree":
-          let planData = await this.helperService.getPlanDetails(body.planId);
+          // Get planId from item.additionalDetail.planConfig for cashfree
+          const itemDetail = item?.additionalDetail as any;
+          const cashfreePlanConfig = itemDetail?.planConfig?.find(
+            (config: any) =>
+              config?.providerName?.toLowerCase() === "cashfree" ||
+              config?.providerId === 2
+          );
+          const cashfreePlanId = cashfreePlanConfig?.planId || body.planId;
+          
+          let planData = await this.helperService.getPlanDetails(cashfreePlanId);
           const subscriptionSequence = await this.sharedService.getNextNumber(
             "cashfree-subscription",
             "CSH-SUB",
@@ -308,8 +317,6 @@ export class SubscriptionService {
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
-      console.log("formed subscription data", subscriptionData, body);
-
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(
         subscriptionData,

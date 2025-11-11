@@ -1524,11 +1524,12 @@ export class SubscriptionFactory {
 
       return {
         subscriptionDetails: {
-          ...subscriptionResponse,
+          ...subscriptionResponse, 
           providerId: EProviderId.phonepe,
           provider: EProvider.phonepe,
           paymentId: payment?.id,
         },
+        intentUrl : subscriptionResponse?.intentUrl,
       };
     } catch (err) {
       throw err;
