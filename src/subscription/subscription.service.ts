@@ -55,6 +55,7 @@ import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
 import { ServiceItemService } from "src/item/service-item.service";
+import { PaymentGatewayService } from "src/payment-gateway/payment-gateway.service";
 import {
   ELIGIBLE_SUBSCRIPTION,
   NOT_ELIGIBLE_SUBSCRIPTION,
@@ -89,7 +90,9 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private currencyService: CurrencyService
+    private currencyService: CurrencyService,
+    @Inject(forwardRef(() => PaymentGatewayService))
+    private paymentGatewayService: PaymentGatewayService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -102,6 +105,7 @@ export class SubscriptionService {
           token,
         },
       });
+      console.log("body in createSubscription is", body);
       // console.log("subscription creation body is ==>", body, body.provider);
       let subscriptionData;
       let mandateExpiryTime = this.sharedService.getFutureYearISO(5);
@@ -110,6 +114,10 @@ export class SubscriptionService {
         EsubscriptionStatus.failed,
       ]);
       let item = await this.itemService.getItemDetail(body.itemId);
+      console.log(
+        "authDetail",
+        item?.additionalDetail?.promotionDetails?.authDetail
+      );
 
       let authAmount =
         body?.refId ||
@@ -171,7 +179,16 @@ export class SubscriptionService {
           break;
 
         case "cashfree":
-          let planData = await this.helperService.getPlanDetails(body.planId);
+          // Get planId from item.additionalDetail.planConfig for cashfree
+          const itemDetail = item?.additionalDetail as any;
+          const cashfreePlanConfig = itemDetail?.planConfig?.find(
+            (config: any) =>
+              config?.providerName?.toLowerCase() === "cashfree" ||
+              config?.providerId === 2
+          );
+          const cashfreePlanId = cashfreePlanConfig?.planId || body.planId;
+          
+          let planData = await this.helperService.getPlanDetails(cashfreePlanId);
           const subscriptionSequence = await this.sharedService.getNextNumber(
             "cashfree-subscription",
             "CSH-SUB",
@@ -250,11 +267,56 @@ export class SubscriptionService {
             metaData: { externalId: body?.transactionDetails?.transactionId },
           };
           break;
+        case EProvider.phonepe:
+          const phonepeSubscriptionSequence =
+            await this.sharedService.getNextNumber(
+              "phonepe-subscription",
+              "PHNPE-SUB",
+              5,
+              null
+            );
+          const phonepeSubscriptionNumber = phonepeSubscriptionSequence
+            .toString()
+            .padStart(5, "0");
+          let phonepeSubscriptionNewNumber = `${phonepeSubscriptionNumber}-${Date.now()}`;
+
+          const paymentSequence = await this.sharedService.getNextNumber(
+            "payment",
+            "PMT",
+            5,
+            null
+          );
+          let phonepePaymentNumber = `${paymentSequence}-${Date.now()}`;
+          console.log("auth amount is", authAmount);
+          console.log(
+            "subscription detail",
+            item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount
+          );
+
+          subscriptionData = {
+            subscription_id: phonepeSubscriptionNewNumber.toString(),
+            amount: authAmount * 100,
+            authAmount: authAmount,
+            currency:
+              item?.additionalDetail?.promotionDetails?.authDetail
+                ?.currency_code,
+            subscriptionAmount:
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            maximumAmount:
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount,
+            itemId: body?.itemId,
+            firstCharge: chargeDate,
+            expiryTime: expiryDate,
+            paymentId: phonepePaymentNumber,
+            targetApp: body?.targetApp,
+            deviceOS: body?.deviceOS,
+          };
+          break;
         default:
           throw new Error(`Unsupported provider: ${body.provider}`);
       }
-      console.log("formed subscription data", subscriptionData, body);
-
       const provider = this.subscriptionFactory.getProvider(body.provider);
       const data = await provider.createSubscription(
         subscriptionData,
@@ -3468,148 +3530,193 @@ export class SubscriptionService {
 
   async initiateSubscription(body: InitiateSubscriptionDTO, token: UserToken) {
     try {
-      let item = await this.itemService.getItemDetail(body.itemId);
-      let authorization = await this.helperService.createPhonepeAuth();
-      let accessToken = authorization?.access_token;
-      const phonepeSubscriptionSequence =
-        await this.sharedService.getNextNumber(
-          "phonepe-subscription",
-          "PHNPE-SUB",
-          5,
-          null
+      Sentry.addBreadcrumb({
+        message: "initiateSubscription",
+        level: "info",
+        data: {
+          body,
+          token,
+        },
+      });
+
+      // Map deviceOS to device format (ANDROID -> android, IOS -> ios, etc.)
+      const deviceMap: Record<string, string> = {
+        ANDROID: "android",
+        IOS: "ios",
+        WEB: "web",
+        android: "android",
+        ios: "ios",
+        web: "web",
+      };
+      const device =
+        deviceMap[body.deviceOS.toUpperCase()] || body.deviceOS.toLowerCase();
+
+      // Map targetApp to instrument (e.g., com.phonepe.app -> phonepe, com.google.android.apps.nfc.payment -> gpay)
+      const instrumentMap: Record<string, string> = {
+        "com.phonepe.app": "phonepe",
+        "com.google.app": "gpay",
+        "net.one97.paytm": "paytm",
+        "in.amazon.app": "amazonpay",
+        "com.bhim.upi": "bhim",
+        "com.bhim.upi.android": "bhim",
+        phonepe: "phonepe",
+        gpay: "gpay",
+        paytm: "paytm",
+        amazonpay: "amazonpay",
+        bhim: "upi",
+        upi: "upi",
+      };
+
+      // Reverse map: instrument to package name (for Android)
+      const instrumentToPackageMap: Record<string, string> = {
+        phonepe: "com.phonepe.app",
+        gpay: "com.google.app",
+        paytm: "net.one97.paytm",
+        amazonpay: "in.amazon.app",
+        bhim: "com.bhim.upi",
+        upi: "com.bhim.upi",
+      };
+
+      // Map instrument to static values (for iOS)
+      const instrumentToIOSMap: Record<string, string> = {
+        phonepe: "PHONEPE",
+        gpay: "GPAY",
+        paytm: "PAYTM",
+        amazonpay: "AMAZONPAY",
+        bhim: "BHIM",
+        upi: "UPI",
+      };
+
+      const targetAppLower = body.targetApp.toLowerCase();
+      let instrument = instrumentMap[targetAppLower];
+
+      // If not found in map, try to extract from package name
+      if (!instrument) {
+        // Extract last meaningful part before .app or similar
+        const parts = targetAppLower.split(".");
+        if (parts.length > 1) {
+          // Try to find phonepe, paytm, etc. in the package name
+          for (const part of parts) {
+            if (instrumentMap[part]) {
+              instrument = instrumentMap[part];
+              break;
+            }
+          }
+        }
+        // Fallback: use the last part of package name
+        if (!instrument) {
+          instrument = parts[parts.length - 1].replace(/app$/, "");
+        }
+      }
+      console.log("instrument is", instrument);
+
+      // Get best gateway for the instrument
+      const gatewayResult =
+        await this.paymentGatewayService.getBestGatewayForInstrument(
+          "subscription",
+          device,
+          instrument
         );
-      let authAmount =
-        item?.additionalDetail?.promotionDetails?.authDetail?.amount * 100;
-      let subscriptionAmount =
-        item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount *
-        100;
-      let currency =
-        item?.additionalDetail?.promotionDetails?.authDetail?.currency_code;
-      let chargeDate = await this.getFutureDate(
-        item?.additionalDetail?.promotionDetails?.authDetail
-      );
-      let expiryDate = this.sharedService.getFutureYearISO(10);
-      let phonepeSubscriptionNewNumber = `${phonepeSubscriptionSequence}-${Date.now()}`;
-
-      const paymentSequence = await this.sharedService.getNextNumber(
-        "payment",
-        "PMT",
-        5,
-        null
-      );
-      let phonepePaymentNumber = `${paymentSequence}-${Date.now()}`;
-      let paymentId = phonepePaymentNumber;
-      let fv = {
-        merchantOrderId: paymentId,
-        amount: authAmount,
-        expireAt: new Date(chargeDate).getTime(),
-        paymentFlow: {
-          type: "SUBSCRIPTION_SETUP",
-          merchantSubscriptionId: phonepeSubscriptionNewNumber,
-          authWorkflowType: "TRANSACTION",
-          amountType: "VARIABLE",
-          maxAmount: subscriptionAmount,
-          frequency: "ON_DEMAND",
-          expireAt: new Date(chargeDate).getTime(),
-          paymentMode: {
-            type: "UPI_INTENT",
-            targetApp: body?.targetApp,
-          },
-        },
-        deviceContext: {
-          deviceOS: body?.deviceOS,
-        },
+        console.log("gatewayResult is", gatewayResult);
+      // Map gateway to EProvider enum
+      const providerMap: Record<string, EProvider> = {
+        phonepe: EProvider.phonepe,
+        razorpay: EProvider.razorpay,
+        cashfree: EProvider.cashfree,
       };
-      let subscriptionResponse =
-        await this.helperService.createPhonepeSubscription(accessToken, fv);
-      const subscriptionData = {
-        userId: token.id,
-        subscriptionId: phonepeSubscriptionNewNumber,
-        startAt: new Date().toISOString(),
-        endAt: new Date(chargeDate).getTime(),
-        providerId: 5,
-        provider: EProvider.phonepe,
-        amount: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
-        currencyCode: currency,
-        notes: { itemId: new ObjectId(body.itemId) },
-        subscriptionStatus: EsubscriptionStatus.initiated,
-        metaData: subscriptionResponse,
-      };
-      // console.log("subscription data", subscriptionData);
+      const provider =
+        providerMap[gatewayResult.gateway.toLowerCase()] || EProvider.phonepe;
+      console.log("provider is", provider);
+      // Log warning if unhealthy gateway is selected
+      if (gatewayResult.warning) {
+        console.warn(
+          `Gateway selection warning: ${gatewayResult.reason} - Using ${gatewayResult.gateway}`
+        );
+      }
 
-      const subscriptionCreated = await this.subscription(
-        subscriptionData,
+      // Determine targetApp for createSubscriptionBody
+      let targetAppForSubscription = body.targetApp;
+      
+      if (device === "ios" && instrument && instrumentToIOSMap[instrument]) {
+        // For iOS, use static uppercase values (PHONEPE, GPAY, PAYTM)
+        targetAppForSubscription = instrumentToIOSMap[instrument];
+      } else if (
+        device === "android" &&
+        instrument &&
+        instrumentToPackageMap[instrument]
+      ) {
+        // For Android, use package name from instrument mapping
+        targetAppForSubscription = instrumentToPackageMap[instrument];
+      }
+
+      // Convert InitiateSubscriptionDTO to CreateSubscriptionDTO format
+      const createSubscriptionBody: CreateSubscriptionDTO = {
+        itemId: body.itemId,
+        provider: provider,
+        targetApp: targetAppForSubscription,
+        deviceOS: body.deviceOS,
+      } as CreateSubscriptionDTO;
+      console.log("body is", body);
+
+      // Use the same createSubscription flow
+      const subscriptionResponse = await this.createSubscription(
+        createSubscriptionBody,
         token
       );
 
-      const mandateData = {
-        sourceId: subscriptionCreated._id,
-        userId: token.id,
-        amount:
-          item?.additionalDetail?.promotionDetails?.subscriptionDetail?.amount,
-        paymentMethod: "UPI",
-        providerId: 5,
-        provider: EProvider.phonepe,
-        currency: currency,
-        frequency: "ON_DEMAND",
-        mandateStatus: EMandateStatus.initiated,
-        status: EStatus.Active,
-        metaData: {
-          referenceOrderId: subscriptionResponse?.orderId,
-          orderId: paymentId,
-        },
-        startDate: new Date().toISOString(),
-        endDate: expiryDate,
-      };
-      // console.log("mandate data", mandateData);
-      let mandate = await this.mandateService.addMandate(mandateData, token);
+      // Extract intentUrl from Cashfree response based on deviceOS and targetApp
+      if (
+        provider === EProvider.cashfree &&
+        subscriptionResponse?.data?.authorizationDetails
+      ) {
+        const authDetails = subscriptionResponse.data.authorizationDetails;
+        const upiIntentData =
+          authDetails?.data?.payload?.upiIntentData;
 
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate._id,
-        mandateStatus: EMandateStatus.initiated,
-        status: EStatus.Active,
-        createdBy: token.id,
-        updatedBy: token.id,
-      });
+        if (upiIntentData) {
+          let intentUrl: string | null = null;
+          
+          // Map instrument to uppercase key for matching with response keys
+          const instrumentToKeyMap: Record<string, string> = {
+            phonepe: "PHONEPE",
+            gpay: "GPAY",
+            paytm: "PAYTM",
+            amazonpay: "AMAZONPAY",
+            bhim: "BHIM",
+            upi: "BHIM", // UPI maps to BHIM in Cashfree response
+          };
+          
+          // Use instrument to get the correct key, or use targetApp if it's already uppercase (iOS)
+          const responseKey =
+            instrument && instrumentToKeyMap[instrument]
+              ? instrumentToKeyMap[instrument]
+              : targetAppForSubscription.toUpperCase();
 
-      const invoiceData = {
-        itemId: body?.itemId,
-        source_id: subscriptionCreated._id,
-        source_type: "subscription",
-        sub_total: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
-        currencyCode: currency,
-        document_status: EDocumentStatus.pending,
-        grand_total:
-          item?.additionalDetail?.promotionDetails?.authDetail?.amount,
-        user_id: token.id,
-        created_by: token.id,
-        updated_by: token.id,
-      };
-      const invoice = await this.invoiceService.createInvoice(
-        invoiceData,
-        token.id
-      );
+          if (device === "android" && upiIntentData.androidAuthAppLinks) {
+            // For Android, get URL from androidAuthAppLinks
+            intentUrl =
+              upiIntentData.androidAuthAppLinks[responseKey] ||
+              upiIntentData.androidAuthAppLinks["DEFAULT"];
+          } else if (device === "ios" && upiIntentData.iosAuthAppLinks) {
+            // For iOS, get URL from iosAuthAppLinks
+            intentUrl =
+              upiIntentData.iosAuthAppLinks[responseKey] ||
+              upiIntentData.iosAuthAppLinks["DEFAULT"];
+          }
 
-      const paymentData = {
-        amount: item?.additionalDetail?.promotionDetails?.authDetail?.amount,
-        currencyCode: currency,
-        document_status: EDocumentStatus.pending,
-        paymentType: EPaymentType.auth,
-        providerId: 5,
-        providerName: EProvider.phonepe,
-        paymentNumber: paymentId,
-      };
-      let payment = await this.paymentService.createPaymentRecord(
-        paymentData,
-        token,
-        invoice,
-        currency,
-        { order_id: subscriptionResponse?.orderId }
-      );
+          // Add intentUrl to response if found
+          if (intentUrl) {
+            return {
+              ...subscriptionResponse,
+              intentUrl: intentUrl,
+            };
+          }
+        }
+      }
 
-      return { data: { ...subscriptionResponse, paymentId: payment?.id } };
-    } catch (error) {
-      throw error;
+      return subscriptionResponse;
+    } catch (err) {
+      throw err;
     }
   }
 }

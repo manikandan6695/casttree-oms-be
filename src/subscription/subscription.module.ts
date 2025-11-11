@@ -7,6 +7,7 @@ import { ItemModule } from "src/item/item.module";
 import { PaymentRequestModule } from "src/payment/payment-request.module";
 import { SharedModule } from "src/shared/shared.module";
 import { MandatesModule } from "src/mandates/mandates.module"; // ✅ Import MandatesModule
+import { PaymentGatewayModule } from "src/payment-gateway/payment-gateway.module";
 import { subscriptionSchema } from "./schema/subscription.schema";
 import { SubscriptionController } from "./subscription.controller";
 import { SubscriptionService } from "./subscription.service";
@@ -26,10 +27,9 @@ import { CoinTransactionSchema } from "src/payment/schema/coinPurchase.schema";
     forwardRef(() => HelperModule),
     InvoiceModule,
     forwardRef(() => PaymentRequestModule),
-
-    forwardRef(() =>  ItemModule),
-    MandatesModule
-
+    forwardRef(() => ItemModule),
+    MandatesModule,
+    PaymentGatewayModule,
   ],
   controllers: [SubscriptionController],
   providers: [
