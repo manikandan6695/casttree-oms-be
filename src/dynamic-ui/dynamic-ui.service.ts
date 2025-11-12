@@ -811,19 +811,17 @@ export class DynamicUiService {
         status: Estatus.Active,
       };
       if (filterOption) {
-        Object.entries(filterOption).forEach(([key, val]) => {
-          if (!val || key === 'skillId' || key === 'skip' || key === 'limit') return;
-          if (Array.isArray(val)) {
-            const validIds = val.filter((id) => id?.length === 24);
-            if (validIds.length) {
-              filter[`${key}.filterOptionId`] = {
-                $in: validIds.map((id) => new ObjectId(id)),
-              };
-            }
-          } else if (val?.length === 24) {
-            filter[`${key}.filterOptionId`] = new ObjectId(val);
-          }
-        });
+        const { allOptionIds } =
+          this.extractFilterOptionIds(filterOption);
+        if (allOptionIds.length) {
+          filter["filterOptionsIds"] = {
+            $all: allOptionIds.map(
+              (id) => ({
+                $elemMatch: { filterOptionId: new ObjectId(id) },
+              })
+            ),
+          };
+        }
       }
 
       const pipeline: any[] = [
@@ -2776,16 +2774,30 @@ export class DynamicUiService {
         limit,
         filterOption
       );
+      const componentFilterTypeIds = Array.isArray(actualComponent?.filters)
+        ? actualComponent.filters
+            .map((filter: any) =>
+              this.normalizeId(filter?.filterTypeId ?? filter)
+            )
+            .filter((id: string | null): id is string => Boolean(id))
+        : [];
       const componentFilterData = await this.getComponentFilterOptions(
         componentId,
         token,
-        filterOption
+        filterOption,
+        componentFilterTypeIds
       );
       const finalInteractionData =
         componentFilterData?.interactionData?.items || [];
+      const availableFilterOptionIds = this.getAvailableFilterOptionIds(
+        serviceItemData,
+        tagName,
+        filteredData
+      );
       const processedFilterOptions = await this.processFilterOptions(
         finalInteractionData,
-        filterOption
+        filterOption,
+        availableFilterOptionIds
       );
       this.updateActualComponentWithFilterData(
         actualComponent,
@@ -2915,9 +2927,146 @@ export class DynamicUiService {
     return { serviceItemData, filteredData };
   }
 
+  private getAvailableFilterOptionIds(
+    serviceItemData: any,
+    tagName: string,
+    filteredData: any[]
+  ): Set<string> {
+    const availableIds = new Set<string>();
+
+    const collectFromItem = (item: any) => {
+      if (!item || typeof item !== "object") return;
+
+      this.addFilterOptionIdsFromCollection(
+        item.filterOptionsIds,
+        availableIds
+      );
+    };
+
+    if (serviceItemData?.finalData) {
+      if (tagName && serviceItemData.finalData[tagName]) {
+        serviceItemData.finalData[tagName].forEach(collectFromItem);
+      } else {
+        Object.values(serviceItemData.finalData).forEach((items: any) => {
+          if (Array.isArray(items)) {
+            items.forEach(collectFromItem);
+          }
+        });
+      }
+    }
+
+    if (Array.isArray(filteredData)) {
+      filteredData.forEach(collectFromItem);
+    }
+
+    return availableIds;
+  }
+
+  private addFilterOptionIdsFromCollection(
+    collection: any,
+    store: Set<string>
+  ) {
+    if (!collection) return;
+    const items = Array.isArray(collection) ? collection : [collection];
+    items.forEach((entry) => {
+      const id =
+        this.normalizeId(entry?.filterOptionId ?? entry?._id ?? entry) ?? null;
+      if (id && id.length === 24) {
+        store.add(id);
+      }
+    });
+  }
+
+  private normalizeId(id: any): string | null {
+    if (!id) return null;
+    if (typeof id === "string") return id;
+    if (id instanceof ObjectId) return id.toString();
+    if (id?.$oid && typeof id.$oid === "string") return id.$oid;
+    if (id?._id) return this.normalizeId(id._id);
+    if (typeof id === "object" && typeof id.toString === "function") {
+      const str = id.toString();
+      if (str && str !== "[object Object]") {
+        return str;
+      }
+    }
+    return null;
+  }
+
+  private normalizeFilterValues(value: any): string[] {
+    if (value === undefined || value === null) return [];
+
+    let items: any[] = [];
+
+    if (Array.isArray(value)) {
+      items = value;
+    } else if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          items = parsed;
+        } else {
+          items = [trimmed];
+        }
+      } catch {
+        items = trimmed
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+        if (!items.length) {
+          items = [trimmed];
+        }
+      }
+    } else {
+      items = [value];
+    }
+
+    return items
+      .map((entry) => {
+        const normalized = this.normalizeId(
+          typeof entry === "string" ? entry.trim() : entry
+        );
+        return normalized && ObjectId.isValid(normalized) && normalized.length === 24
+          ? normalized
+          : null;
+      })
+      .filter((id): id is string => Boolean(id));
+  }
+
+  private extractFilterOptionIds(
+    filterOption?: EFilterOption
+  ): { filterOptionMap: Record<string, string[]>; allOptionIds: string[] } {
+    const filterOptionMap: Record<string, string[]> = {};
+    const allIds = new Set<string>();
+
+    if (!filterOption) {
+      return { filterOptionMap, allOptionIds: [] };
+    }
+
+    Object.entries(filterOption as Record<string, any>).forEach(
+      ([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (["skip", "limit", "skillId"].includes(key)) return;
+
+        const ids = this.normalizeFilterValues(value);
+        if (!ids.length) return;
+
+        filterOptionMap[key] = ids;
+        ids.forEach((id) => allIds.add(id));
+      }
+    );
+
+    return {
+      filterOptionMap,
+      allOptionIds: Array.from(allIds),
+    };
+  }
+
   private async processFilterOptions(
     finalInteractionData: any[],
-    filterOption: EFilterOption
+    filterOption: EFilterOption,
+    availableFilterOptionIds: Set<string>
   ) {
     Sentry.addBreadcrumb({
       message: "processFilterOptions",
@@ -2925,21 +3074,25 @@ export class DynamicUiService {
       data: {
         finalInteractionData,
         filterOption,
+        availableFilterOptionIds: Array.from(
+          availableFilterOptionIds ?? []
+        ),
       },
     });
     
-    // Extract filter options from the component-specific interaction data
     const grouped = {};
-    
-    finalInteractionData.forEach((item: any) => {
-      const filterType = item.button?.type || item.type;
-      if (filterType && item.options && item.options.length > 0) {
-        grouped[filterType] = {
-          type: filterType,
-          filterTypeId: item.filterTypeId,
-          options: item.options.map((opt: any) => ({
-            filterOptionId: opt.filterOptionId,
-            filterType: opt.filterType,
+    const shouldFilter =
+      availableFilterOptionIds && availableFilterOptionIds.size > 0;
+    let hasAnyFilteredOption = false;
+
+    const registerGroup = (filterType: string, item: any, options: any[]) => {
+      grouped[filterType] = {
+        type: filterType,
+        filterTypeId: item.filterTypeId,
+        options: options.map((opt: any) => {
+          return {
+            filterOptionId: opt?.filterOptionId,
+            filterType: opt.filterType || filterType,
             optionKey: opt.optionKey,
             optionValue: opt.optionValue,
             description: opt.description,
@@ -2947,10 +3100,38 @@ export class DynamicUiService {
             color: opt.color,
             metaData: opt.metaData,
             isUserSelected: opt.isUserSelected || false,
-          })),
-        };
+          };
+        }),
+      };
+    };
+
+    finalInteractionData.forEach((item: any) => {
+      const filterType = item.button?.type || item.type;
+      if (!filterType) return;
+
+      const itemOptions = Array.isArray(item.options) ? item.options : [];
+      const filteredOptions = itemOptions.filter((opt: any) => {
+        const optionId = this.normalizeId(opt?.filterOptionId);
+        if (!optionId) {
+          return !shouldFilter;
+        }
+        return !shouldFilter || availableFilterOptionIds.has(optionId);
+      });
+      if (filteredOptions.length > 0) {
+        hasAnyFilteredOption = true;
       }
+      registerGroup(filterType, item, filteredOptions);
     });
+
+    if (shouldFilter && !hasAnyFilteredOption) {
+      Object.keys(grouped).forEach((key) => delete grouped[key]);
+      finalInteractionData.forEach((item: any) => {
+        const filterType = item.button?.type || item.type;
+        if (!filterType) return;
+        const itemOptions = Array.isArray(item.options) ? item.options : [];
+        registerGroup(filterType, item, itemOptions);
+      });
+    }
 
     this.applyUserSelections(grouped, filterOption);
 
@@ -2968,21 +3149,26 @@ export class DynamicUiService {
     });
     if (!filterOption) return;
 
-    Object.keys(filterOption).forEach((filterKey) => {
-      const filterValue = filterOption[filterKey];
-      const groupedData = grouped[filterKey];
+    const { allOptionIds, filterOptionMap } =
+      this.extractFilterOptionIds(filterOption);
+    const globalSelection = new Set(allOptionIds);
 
-      if (groupedData && filterValue) {
-        if (Array.isArray(filterValue)) {
-          groupedData.options.forEach((opt: any) => {
-            opt.isUserSelected = filterValue.includes(opt.filterOptionId);
-          });
-        } else {
-          groupedData.options.forEach((opt: any) => {
-            opt.isUserSelected = opt.filterOptionId === filterValue;
-          });
-        }
-      }
+    Object.values(grouped).forEach((group: any) => {
+      group.options.forEach((opt: any) => {
+        const optionId = this.normalizeId(opt.filterOptionId);
+        opt.isUserSelected = optionId ? globalSelection.has(optionId) : false;
+      });
+    });
+
+    Object.entries(filterOptionMap).forEach(([filterKey, ids]) => {
+      const groupedData = grouped[filterKey];
+      if (!groupedData) return;
+
+      const selectedSet = new Set(ids);
+      groupedData.options.forEach((opt: any) => {
+        const optionId = this.normalizeId(opt.filterOptionId);
+        opt.isUserSelected = optionId ? selectedSet.has(optionId) : false;
+      });
     });
   }
 
@@ -3002,48 +3188,35 @@ export class DynamicUiService {
         filteredData,
       },
     });
-    if (actualComponent?.interactionData) {
-      const groupedOptionsMap = new Map();
-      Object.values(processedFilterOptions).forEach(
-        (group: { type: string; filterTypeId: string; options: any[] }) => {
-          groupedOptionsMap.set(group.type, group);
-        }
-      );
+    const groupedOptionsMap = new Map();
+    Object.values(processedFilterOptions).forEach(
+      (group: { type: string; filterTypeId: string; options: any[] }) => {
+        groupedOptionsMap.set(group.type, group);
+      }
+    );
 
-      const transformedItems = finalInteractionData.map((item: any) => {
-        let filterType = item.button?.type || item.type;
-        if (filterType === "proficency") {
-          filterType = "proficiency";
-        }
-        const groupedData = groupedOptionsMap.get(filterType);
+    const transformedItems = finalInteractionData.map((item: any) => {
+      let filterType = item.button?.type || item.type;
+      if (filterType === "proficency") {
+        filterType = "proficiency";
+      }
+      const groupedData = groupedOptionsMap.get(filterType);
 
-        if (groupedData) {
-          const existingOptions = item.options || [];
-          const newOptions = groupedData.options || [];
+      if (groupedData) {
+        const newOptions = groupedData.options || [];
 
-          const existingOptionIds = new Set(
-            existingOptions.map((opt: any) => opt.filterOptionId)
-          );
+        return {
+          ...item,
+          type: filterType,
+          filterTypeId: groupedData.filterTypeId,
+          options: newOptions,
+        };
+      }
 
-          const uniqueNewOptions = newOptions.filter(
-            (opt: any) => !existingOptionIds.has(opt.filterOptionId)
-          );
+      return item;
+    });
 
-          const mergedOptions = [...existingOptions, ...uniqueNewOptions];
-
-          return {
-            ...item,
-            type: filterType,
-            filterTypeId: groupedData.filterTypeId,
-            options: mergedOptions,
-          };
-        }
-
-        return item;
-      });
-
-      actualComponent.interactionData = { items: transformedItems };
-    }
+    actualComponent.interactionData = { items: transformedItems };
 
     actualComponent.actionData = filteredData;
   }
@@ -3074,86 +3247,11 @@ export class DynamicUiService {
     }
     return 0;
   }
-
-  // async getComponentFilterOptions(
-  //   componentId: string,
-  //   token?: UserToken,
-  //   filterOption?: EFilterOption
-  // ): Promise<any> {
-  //   try {
-  //     const filterTypes = await this.filterTypeModel
-  //       .find({ "source.sourceId": new ObjectId(componentId), isActive: true })
-  //       .sort({ sortOrder: 1 })
-  //       .lean();
-
-  //     if (!filterTypes?.length) {
-  //       return {
-  //         componentId,
-  //         filterTypes: [],
-  //         interactionData: { items: [] },
-  //       };
-  //     }
-
-  //     const filterTypeIds = filterTypes.map(ft => ft._id);
-  //     const filterOptions = await this.filterOptionsModel
-  //       .find({ filterTypeId: { $in: filterTypeIds }, status: EStatus.Active })
-  //       .sort({ sortOrder: 1 })
-  //       .lean();
-
-  //     const groupedOptions = filterOptions.reduce<Record<string, any[]>>((acc, option) => {
-  //       const filterTypeId = option.filterTypeId.toString();
-  //       if (!acc[filterTypeId]) acc[filterTypeId] = [];
-
-  //       acc[filterTypeId].push({
-  //         filterOptionId: option._id.toString(),
-  //         filterType: option.filterType,
-  //         optionKey: option.optionKey,
-  //         optionValue: option.optionValue,
-  //         description: option.description,
-  //         icon: option.icon,
-  //         color: option.color,
-  //         metaData: option.metaData,
-  //       });
-
-  //       return acc;
-  //     }, {});
-
-  //     const interactionItems = filterTypes.map(ft => {
-  //       const filterTypeId = ft._id.toString();
-  //       const options = groupedOptions[filterTypeId] || [];
-  //       const userValue = filterOption?.[ft.type];
-
-  //       const mappedOptions = options.map(option => ({
-  //         ...option,
-  //         isUserSelected: Array.isArray(userValue)
-  //           ? userValue.includes(option.filterOptionId)
-  //           : userValue === option.filterOptionId,
-  //       }));
-
-  //       return {
-  //         button: {
-  //           type: ft.type,
-  //           lable: ft.displayName,
-  //           selectionType: ft.validationRules?.maxSelections > 1 ? "multiple" : "single",
-  //         },
-  //         type: ft.type,
-  //         filterTypeId,
-  //         options: mappedOptions,
-  //       };
-  //     });
-
-  //     return {
-  //       componentId,
-  //       interactionData: { items: interactionItems },
-  //     };
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
   async getComponentFilterOptions(
     componentId: string,
     token?: UserToken,
-    filterOption?: EFilterOption
+    filterOption?: EFilterOption,
+    filterTypeIdsFromComponent: string[] = []
   ): Promise<any> {
     try {
       Sentry.addBreadcrumb({
@@ -3167,18 +3265,76 @@ export class DynamicUiService {
       });
       const componentObjectId = new ObjectId(componentId);
 
+      const normalizedFilterTypeIds = filterTypeIdsFromComponent
+        .map((id) => this.normalizeId(id))
+        .filter(
+          (id): id is string => typeof id === "string" && id.length === 24
+        );
+
+      const filterTypeQuery: any = {
+        isActive: true,
+      };
+
+      if (normalizedFilterTypeIds.length > 0) {
+        filterTypeQuery._id = {
+          $in: normalizedFilterTypeIds.map((id) => new ObjectId(id)),
+        };
+      } else {
+        filterTypeQuery["source.sourceId"] = componentObjectId;
+      }
+
       // Step 1: Fetch filterTypes and filterOptions in parallel
-      const [filterTypes, filterOptions] = await Promise.all([
+      let [filterTypes, filterOptions] = await Promise.all([
         this.filterTypeModel
-          .find({ "source.sourceId": componentObjectId, isActive: true })
+          .find(filterTypeQuery)
           .sort({ sortOrder: 1 })
           .lean(),
 
         this.filterOptionsModel
-          .find({ status: EStatus.Active })
+          .find({
+            status: EStatus.Active,
+            ...(normalizedFilterTypeIds.length > 0
+              ? {
+                  filterTypeId: {
+                    $in: normalizedFilterTypeIds.map((id) => new ObjectId(id)),
+                  },
+                }
+              : {}),
+          })
           .sort({ sortOrder: 1 })
           .lean(),
       ]);
+
+      if ((!filterTypes || filterTypes.length === 0) && filterOptions.length > 0) {
+        const fallbackMap = new Map<
+          string,
+          {
+            _id: string;
+            type: string;
+            displayName: string;
+            sortOrder: number;
+          }
+        >();
+
+        filterOptions.forEach((option) => {
+          const filterTypeId = this.normalizeId(option.filterTypeId);
+          if (!filterTypeId) return;
+          if (!fallbackMap.has(filterTypeId)) {
+            fallbackMap.set(filterTypeId, {
+              _id: filterTypeId,
+              type: option.filterType || "filterOptionsIds",
+              displayName: option.filterType || option.optionKey || "Filter",
+              sortOrder: option.sortOrder ?? 0,
+            });
+          }
+        });
+
+        if (fallbackMap.size > 0) {
+          filterTypes = Array.from(fallbackMap.values()).sort(
+            (a, b) => a.sortOrder - b.sortOrder
+          ) as any[];
+        }
+      }
 
       if (!filterTypes?.length) {
         return {
