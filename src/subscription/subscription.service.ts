@@ -187,8 +187,9 @@ export class SubscriptionService {
               config?.providerId === 2
           );
           const cashfreePlanId = cashfreePlanConfig?.planId || body.planId;
-          
-          let planData = await this.helperService.getPlanDetails(cashfreePlanId);
+
+          let planData =
+            await this.helperService.getPlanDetails(cashfreePlanId);
           const subscriptionSequence = await this.sharedService.getNextNumber(
             "cashfree-subscription",
             "CSH-SUB",
@@ -440,8 +441,15 @@ export class SubscriptionService {
         console.log("body is", req?.body);
         if (eventType === EEventType.subscriptionSetupCompleted) {
           await this.handlePhonpeCompletedSubscription(req?.body);
-        } else if (eventType === EEventType.subscriptionSetupFailed) {
+        }
+        if (eventType === EEventType.subscriptionSetupFailed) {
           await this.handlePhonpeFailedSubscription(req?.body);
+        }
+        if (eventType === EEventType.subscriptionRedemptionCompleted) {
+          await this.handlePhonpeReedemptionCompletedSubscription(req?.body);
+        }
+        if (eventType === EEventType.subscriptionRedemptionFailed) {
+          await this.handlePhonpeReedemptionFailedSubscription(req?.body);
         }
       } else if (provider === EProvider.cashfree) {
         const eventType = req.body?.type;
@@ -498,6 +506,33 @@ export class SubscriptionService {
       }
     } catch (err) {
       throw err;
+    }
+  }
+  async handlePhonpeReedemptionCompletedSubscription(payload) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "handlePhonpeReedemptionCompletedSubscription",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
+      
+    } catch (error) {
+      throw error;
+    }
+  }
+  async handlePhonpeReedemptionFailedSubscription(payload) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "handlePhonpeReedemptionFailedSubscription",
+        level: "info",
+        data: {
+          payload,
+        },
+      });
+    } catch (error) {
+      throw error;
     }
   }
   async handleAppleIAPPurchase(payload) {
@@ -2472,6 +2507,203 @@ export class SubscriptionService {
         if (mandate?.providerId == EProviderId.razorpay) {
           await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
         }
+        if (mandate?.providerId == EProviderId.phonepe) {
+          await this.createPhonepeCharge(
+            expiringSubscriptionsList[i],
+            planDetail
+          );
+        }
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createPhonepeCharge(subscriptionData, planDetail) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "createPhonepeCharge",
+        level: "info",
+        data: {
+          subscriptionData,
+          planDetail,
+        },
+      });
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "phonepe-payment",
+        "PHNPE-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      let paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+      let now = new Date();
+      let paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      let subscriptionAmount =
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount * 100;
+      let paymentScheduleInMM = new Date(paymentSchedule).getTime();
+      let paymentScheduleInSeconds = Math.floor(paymentScheduleInMM / 1000);
+      let subscriptionNotifyBody = {
+        merchantOrderId: paymentNumber,
+        amount: subscriptionAmount,
+        expireAt: paymentScheduleInSeconds,
+        paymentFlow: {
+          type: "SUBSCRIPTION_REDEMPTION",
+          merchantSubscriptionId:
+            subscriptionData?.latestDocument?.metaData?.subscription_id,
+          redemptionRetryStrategy: "STANDARD",
+          autoDebit: true,
+        },
+      };
+
+      const today = new Date();
+      const startAt = new Date();
+      startAt.setDate(today.getDate() + 1);
+      startAt.setHours(18, 30, 0, 0);
+
+      let endAt = new Date();
+
+      planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+        ?.validityType == EvalidityType.day
+        ? endAt.setDate(
+            endAt.getDate() +
+              planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.validity
+          )
+        : planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.validityType == EvalidityType.month
+          ? endAt.setMonth(
+              endAt.getMonth() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            )
+          : endAt.setFullYear(
+              endAt.getFullYear() +
+                planDetail?.additionalDetail?.promotionDetails
+                  ?.subscriptionDetail?.validity
+            );
+
+      let chargeResponse = await this.helperService.notifyPhonepeSubscription(
+        "",
+        subscriptionNotifyBody
+      );
+
+      let recurring = {
+        merchantOrderId: paymentNumber,
+      };
+
+      let recurringResponse =
+        await this.helperService.redeemPhonepeSubscription("", recurring);
+      if (recurringResponse) {
+        endAt.setDate(endAt.getDate());
+        endAt.setHours(18, 29, 59, 999);
+        const phonpeSubscriptionSequence =
+          await this.sharedService.getNextNumber(
+            "phonepe-subscription",
+            "PHNPE-SUB",
+            5,
+            null
+          );
+        const phonepeSubscriptionNumber = phonpeSubscriptionSequence
+          .toString()
+          .padStart(5, "0");
+        let fv = {
+          userId: subscriptionData?.latestDocument?.userId,
+          subscriptionId: phonepeSubscriptionNumber,
+          startAt: startAt,
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          providerId: EProviderId.phonepe,
+          provider: EProvider.phonepe,
+          endAt: endAt,
+          metaData: {
+            recurringResponse,
+            ...chargeResponse,
+          },
+          currencyCode: "INR",
+          notes: {
+            itemId: subscriptionData?.latestDocument?.notes?.itemId,
+            amount: subscriptionAmount,
+            paymentScheduledAt: paymentSchedule,
+            paymentId: paymentNumber,
+          },
+          subscriptionStatus: EsubscriptionStatus.initiated,
+          status: EStatus.Active,
+          createdBy: subscriptionData?.latestDocument?.userId,
+          updatedBy: subscriptionData?.latestDocument?.userId,
+        };
+
+        let subscription = await this.subscriptionModel.create(fv);
+
+        const invoiceData = {
+          itemId: subscriptionData.latestDocument.notes.itemId,
+          source_id: subscription._id,
+          source_type: "subscription",
+          sub_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          document_status: EDocumentStatus.pending,
+          grand_total:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          user_id: subscriptionData?.latestDocument?.userId,
+          created_by: subscriptionData?.latestDocument?.userId,
+          updated_by: subscriptionData?.latestDocument?.userId,
+        };
+        const invoice = await this.invoiceService.createInvoice(
+          invoiceData,
+          subscriptionData?.latestDocument?.userId
+        );
+
+        const paymentData = {
+          amount:
+            planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+              ?.amount,
+          currencyCode: "INR",
+          source_id: invoice._id,
+          source_type: EPaymentSourceType.invoice,
+          userId: subscriptionData?.latestDocument?.userId,
+          document_status: EDocumentStatus.pending,
+          paymentType: EPaymentType.charge,
+          providerId: EProviderId.phonepe,
+          providerName: EProvider.phonepe,
+          transactionDate: paymentSchedule,
+          metaData: { response: { chargeResponse, recurringResponse } },
+        };
+
+        await this.paymentService.createPaymentRecord(
+          paymentData,
+          null,
+          invoice,
+          "INR",
+          { order_id: recurringResponse?.orderId }
+        );
+        let item = await this.itemService.getItemDetail(
+          subscriptionData?.notes?.itemId
+        );
+        let subscriptionCount = await this.countUserSubscriptions(
+          subscriptionData?.userId
+        );
+        let mixPanelBody: any = {};
+        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+        mixPanelBody.distinctId = subscriptionData?.userId;
+        mixPanelBody.properties = {
+          user_id: subscriptionData?.userId,
+          provider: subscriptionData?.provider,
+          subscription_id: subscription?._id,
+          subscription_status: EsubscriptionStatus.active,
+          subscription_date: subscription?.startAt,
+          item_name: item?.itemName,
+          subscription_expired: subscription?.endAt,
+          subscription_count: subscriptionCount,
+          subscription_mode: ESubscriptionMode.Charge,
+          subscription_amount: invoice.grand_total,
+        };
+        await this.helperService.mixPanel(mixPanelBody);
       }
     } catch (error) {
       throw error;
@@ -3617,7 +3849,7 @@ export class SubscriptionService {
           device,
           instrument
         );
-        console.log("gatewayResult is", gatewayResult);
+      console.log("gatewayResult is", gatewayResult);
       // Map gateway to EProvider enum
       const providerMap: Record<string, EProvider> = {
         phonepe: EProvider.phonepe,
@@ -3636,7 +3868,7 @@ export class SubscriptionService {
 
       // Determine targetApp for createSubscriptionBody
       let targetAppForSubscription = body.targetApp;
-      
+
       if (device === "ios" && instrument && instrumentToIOSMap[instrument]) {
         // For iOS, use static uppercase values (PHONEPE, GPAY, PAYTM)
         targetAppForSubscription = instrumentToIOSMap[instrument];
@@ -3670,12 +3902,11 @@ export class SubscriptionService {
         subscriptionResponse?.data?.authorizationDetails
       ) {
         const authDetails = subscriptionResponse.data.authorizationDetails;
-        const upiIntentData =
-          authDetails?.data?.payload?.upiIntentData;
+        const upiIntentData = authDetails?.data?.payload?.upiIntentData;
 
         if (upiIntentData) {
           let intentUrl: string | null = null;
-          
+
           // Map instrument to uppercase key for matching with response keys
           const instrumentToKeyMap: Record<string, string> = {
             phonepe: "PHONEPE",
@@ -3685,7 +3916,7 @@ export class SubscriptionService {
             bhim: "BHIM",
             upi: "BHIM", // UPI maps to BHIM in Cashfree response
           };
-          
+
           // Use instrument to get the correct key, or use targetApp if it's already uppercase (iOS)
           const responseKey =
             instrument && instrumentToKeyMap[instrument]
