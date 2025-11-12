@@ -15,6 +15,7 @@ import { InvoiceModule } from "./invoice/invoice.module";
 import { ItemModule } from "./item/item.module";
 import { MandatesModule } from "./mandates/mandates.module";
 import { PaymentRequestModule } from "./payment/payment-request.module";
+import { PaymentGatewayModule } from "./payment-gateway/payment-gateway.module";
 import { ProcessModule } from "./process/process.module";
 import { ServiceRequestModule } from "./service-request/service-request.module";
 import { ServiceResponseFormatModule } from "./service-response-format/service-response-format.module";
@@ -66,6 +67,7 @@ import { SentryModule } from "@sentry/nestjs/setup";
     ServiceResponseFormatModule,
     CommentsModule,
     PaymentRequestModule,
+    PaymentGatewayModule,
     InvoiceModule,
     ProcessModule,
     RedisModule,

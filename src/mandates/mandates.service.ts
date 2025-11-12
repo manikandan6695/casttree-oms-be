@@ -61,7 +61,7 @@ export class MandatesService {
   }
   async fetchMandates(token: UserToken) {
     try {
-      let filter = { userId: token.id, status: "Active" };
+      let filter = { userId: token.id, status: "Active" ,mandateStatus :EMandateStatus.active};
       let mandatesData = await this.mandateModel.find(filter).sort({ _id: -1 });
       return mandatesData;
     } catch (error) {

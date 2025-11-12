@@ -34,6 +34,8 @@ export enum EEventType {
   subscriptionCancelled = "SUBSCRIPTION_CANCELLED",
   didChangeRenewalStatus = "DID_CHANGE_RENEWAL_STATUS",
   autoRenewDisabled = "AUTO_RENEW_DISABLED",
+  subscriptionRedemptionCompleted = "subscription.redemption.order.completed",
+  subscriptionRedemptionFailed = "subscription.redemption.order.failed",
 }
 
 export const ESEventType = [

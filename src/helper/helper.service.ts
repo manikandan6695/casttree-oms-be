@@ -649,6 +649,95 @@ export class HelperService {
     }
   }
 
+  async notifyPhonepeSubscription(token, body) {
+    try {
+      const requestURL = `${this.configService.get("PHONEPE_BASE_URL")}/apis/pg-sandbox/subscriptions/v2/notify`;
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `O-Bearer ${token}`,
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            //console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log("notify err", err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async redeemPhonepeSubscription(token, body) {
+    try {
+      const requestURL = `${this.configService.get("PHONEPE_BASE_URL")}/apis/pg-sandbox/subscriptions/v2/redeem`;
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `O-Bearer ${token}`,
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            //console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log("redeem err", err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async phonepeCancelSubscription(merchantSubscriptionId, body = {}) {
+    try {
+      const token = await this.createPhonepeAuth();
+      const requestURL = `${this.configService.get("PHONEPE_BASE_URL")}/apis/pg-sandbox/subscriptions/v2/${merchantSubscriptionId}/cancel`;
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `O-Bearer ${token}`,
+      };
+      const request = this.http_service
+        .post(requestURL, body, { headers: headers })
+        .pipe(
+          map((res) => {
+            //console.log(res?.data);
+            return res?.data;
+          })
+        )
+        .pipe(
+          catchError((err) => {
+            console.log("cancel err", err);
+            throw new BadRequestException("API not available");
+          })
+        );
+
+      const response = await lastValueFrom(request);
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async getUserAdditionalDetails(body) {
     try {
       // console.log("getUserAdditionalDetails body is", body);
@@ -1539,7 +1628,7 @@ export class HelperService {
         let defaultBannerId = await this.getSystemConfigByKeyCached(
           EMetabaseUrlLimit.default_banner
         );
-        console.log("defaultBannerId", defaultBannerId?.value);
+        // console.log("defaultBannerId", defaultBannerId?.value);
         let defaultBanner;
         // Find matching banner based on skillId and skillType
         if (defaultBannerId?.value && Array.isArray(defaultBannerId.value)) {
@@ -1548,7 +1637,7 @@ export class HelperService {
               banner.sourceId.toString() === skillId.toString() &&
               banner.sourceType === skillType
           );
-          console.log("matchingBanner", matchingBanner);
+          // console.log("matchingBanner", matchingBanner);
           if (matchingBanner) {
             defaultBanner = matchingBanner.bannerId;
           }
