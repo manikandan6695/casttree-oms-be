@@ -130,6 +130,7 @@ export interface itemAdditionalDetailModel {
   premiumPage: any;
   ratingSummary: string;
   isEnableExpertQueries: boolean;
+  isViewAllEpisode: boolean;
   coinValue: number;
   bottomSheet: any;
   // ⭐ Add missing fields
@@ -176,6 +177,7 @@ export const itemAdditionalDetailSchema = new mongoose.Schema<any>({
   premiumPage: { type: mongoose.Schema.Types.Mixed },
   ratingSummary: { type: String },
   isEnableExpertQueries: { type: Boolean },
+  isViewAllEpisode: { type: Boolean },
   coinValue: { type: Number },
   bottomSheet: { type: mongoose.Schema.Types.Mixed },
   // ⭐ Add missing schema fields

@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { ObjectId } from "mongodb";
 import { Model } from "mongoose";
@@ -52,7 +52,11 @@ export class ProcessService {
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
         _id: new ObjectId(taskId),
+        status: Estatus.Active,
       });
+      if (!currentTaskData) {
+        throw new NotFoundException("Task not found");
+      }
       let finalResponse = {};
       let totalTasks = (
         await this.tasksModel.countDocuments({ processId: processId })
@@ -72,6 +76,7 @@ export class ProcessService {
       let nextTaskData = await this.tasksModel.findOne({
         taskNumber: currentTaskData.taskNumber + 1,
         processId: processId,
+        status: Estatus.Active,
       });
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
@@ -324,9 +329,11 @@ export class ProcessService {
       }
       let taskDetail = await this.tasksModel.findOne({
         _id: new ObjectId(body.taskId),
+        status: Estatus.Active,
       });
       let totalTasks = await this.tasksModel.countDocuments({
         processId: taskDetail.processId,
+        status: Estatus.Active,
       });
       let serviceItemDetail: any =
         await this.serviceItemService.getServiceItemDetailbyProcessId(
@@ -453,6 +460,7 @@ export class ProcessService {
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
+          status: Estatus.Active,
         });
         if (subscription) {
           pendingTasks[i].currentTask.isLocked = false;
@@ -512,6 +520,7 @@ export class ProcessService {
       for (let i = 0; i < pendingTasks.length; i++) {
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
+          status: Estatus.Active,
         });
         if (subscription) {
           pendingTasks[i].currentTask.isLocked = false;
@@ -587,6 +596,7 @@ export class ProcessService {
         }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: mySeries[i].processId,
+          status: Estatus.Active,
         });
         let completedTaskNumber =
           status == EprocessStatus.Completed
@@ -605,8 +615,9 @@ export class ProcessService {
           mySeries[i].completed = 100;
           let currentTask:any = await this.tasksModel.findOne({
             processId: mySeries[i].processId,
-            taskNumber: 1,
-          }).lean();
+            // taskNumber: 1,
+            status: Estatus.Active,
+          }).sort({ taskNumber: 1 }).lean();
           currentTask.itemId = itemDetail?.data?.itemId || null;
           mySeries[i].currentTask = currentTask;
         }
@@ -653,6 +664,7 @@ export class ProcessService {
         let allTaskdata: any = await this.tasksModel
           .find({
             processId: processId,
+            status: Estatus.Active,
           })
           .sort({ taskNumber: 1 })
           .skip(skip || 0)
@@ -702,6 +714,7 @@ export class ProcessService {
         });
         let count = await this.tasksModel.countDocuments({
           processId: processId,
+          status: Estatus.Active,
         });
         return { allTaskdata, count };
       }
@@ -727,6 +740,7 @@ export class ProcessService {
         let allTaskdata: any = await this.tasksModel
           .find({
             processId: processId,
+            status: Estatus.Active,
           })
           .sort({ taskNumber: 1 })
           .skip(skip || 0)
@@ -785,7 +799,7 @@ export class ProcessService {
       });
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
-        { $match: { processId: { $in: processObjIds } } },
+        { $match: { processId: { $in: processObjIds }, status: Estatus.Active } },
         { $sort: { taskNumber: 1 } },
         {
           $group: {
@@ -969,7 +983,7 @@ export class ProcessService {
     try {
       console.log("taskId", taskId);
       let id = new ObjectId(taskId);
-      let taskData = await this.tasksModel.findOne({ _id: id }).lean();
+      let taskData = await this.tasksModel.findOne({ _id: id, status: Estatus.Active }).lean();
       return taskData;
     } catch (error) {
       throw error;
@@ -981,6 +995,7 @@ export class ProcessService {
       let data = await this.tasksModel.find({
         processId: processId,
         taskNumber: 1,
+        status: Estatus.Active,
       });
       let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
       return { data, itemId: serviceItemData?.itemId };
