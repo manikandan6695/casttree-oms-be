@@ -780,7 +780,7 @@ export class PaymentRequestService {
         user_id: new ObjectId(token.id),
         document_status: EDocumentStatus.completed,
       }).sort({ created_at: 1 });
-      
+
       payment = {
         ...paymentData,
         isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
@@ -793,7 +793,6 @@ export class PaymentRequestService {
           ECurrencyName.currencyId,
           ECurrencyName.casttreeCoin
         );
-
         let coinTransaction = await this.coinTransactionModel.findOne({
           sourceId: new ObjectId(invoiceData?._id),
           transactionType: ETransactionType.In,
@@ -803,6 +802,7 @@ export class PaymentRequestService {
           coinTransaction?.documentStatus === ECoinStatus.pending &&
           coinTransaction?.transactionType === ECoinTransactionTypes.In
         ) {
+          console.log("coinTransaction is pending",coinTransaction);  
           let updateUserAdditional =
             await this.helperService.updateUserPurchaseCoin({
               userId: coinTransaction?.userId,
@@ -835,6 +835,7 @@ export class PaymentRequestService {
           coinTransactionOut?.documentStatus === ECoinStatus.pending &&
           coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
         ) {
+          console.log("coinTransactionOut is pending",coinTransactionOut);  
           let updateUserAdditionalData =
             await this.helperService.updateAdminCoinValue({
               userId: coinTransactionOut?.userId,
