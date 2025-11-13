@@ -310,8 +310,17 @@ export class DynamicUiService {
           );
         }
         if (comp.componentKey === EConfigKeyName.learnCategorySection) {
-          if (comp.actionData?.length > 7) {
-            comp["isViewAll"] = true;
+          if (Array.isArray(comp.actionData)) {
+            comp.actionData.sort((a, b) => {
+              const orderA = typeof a?.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+              const orderB = typeof b?.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+              return orderA - orderB;
+            });
+            const totalItems = comp.actionData.length;
+            if (totalItems > viewAllCount?.value?.learnCategoryCount) {
+              comp["isViewAll"] = true;
+            }
+            comp.actionData = comp.actionData.slice(0, 7);
           }
         }
       }
@@ -3349,45 +3358,55 @@ export class DynamicUiService {
     processedFilterOptions: any,
     filteredData: any[]
   ) {
-    Sentry.addBreadcrumb({
-      message: "updateActualComponentWithFilterData",
-      level: "info",
-      data: {
-        actualComponent,
-        finalInteractionData,
-        processedFilterOptions,
-        filteredData,
-      },
-    });
-    const groupedOptionsMap = new Map();
-    Object.values(processedFilterOptions).forEach(
-      (group: { type: string; filterTypeId: string; options: any[] }) => {
-        groupedOptionsMap.set(group.type, group);
+    const hasComponentFilters = Array.isArray(actualComponent?.filters) && actualComponent.filters.length > 0;
+    if (actualComponent?.interactionData) {
+      if (!hasComponentFilters) {
+        actualComponent.interactionData = { items: [] };
+      } else {
+        const groupedOptionsMap = new Map();
+        Object.values(processedFilterOptions).forEach(
+          (group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          }
+        );
+
+        const transformedItems = finalInteractionData.map((item: any) => {
+          let filterType = item.button?.type || item.type;
+          if (filterType === "proficency") {
+            filterType = "proficiency";
+          }
+          const groupedData = groupedOptionsMap.get(filterType);
+
+          if (groupedData) {
+            const existingOptions = item.options || [];
+            const newOptions = groupedData.options || [];
+
+            const existingOptionIds = new Set(
+              existingOptions.map((opt: any) => opt.filterOptionId)
+            );
+
+            const uniqueNewOptions = newOptions.filter(
+              (opt: any) => !existingOptionIds.has(opt.filterOptionId)
+            );
+
+            const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+
+            return {
+              ...item,
+              type: filterType,
+              filterTypeId: groupedData.filterTypeId,
+              options: mergedOptions,
+            };
+          }
+
+          return item;
+        });
+
+        actualComponent.interactionData = { items: transformedItems };
       }
-    );
-
-    const transformedItems = finalInteractionData.map((item: any) => {
-      let filterType = item.button?.type || item.type;
-      if (filterType === "proficency") {
-        filterType = "proficiency";
-      }
-      const groupedData = groupedOptionsMap.get(filterType);
-
-      if (groupedData) {
-        const newOptions = groupedData.options || [];
-
-        return {
-          ...item,
-          type: filterType,
-          filterTypeId: groupedData.filterTypeId,
-          options: newOptions,
-        };
-      }
-
-      return item;
-    });
-
-    actualComponent.interactionData = { items: transformedItems };
+    } else if (!hasComponentFilters) {
+      actualComponent.interactionData = { items: [] };
+    }
 
     actualComponent.actionData = filteredData;
   }
