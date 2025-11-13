@@ -55,6 +55,7 @@ import { Award } from "./schema/awards.schema";
 import { mediaModel } from "./schema/media.schema";
 import { IBannerConfiguration } from "./schema/banner-configuration.schema";
 import { MetaBaseService } from "src/meta-base/metabase.service";
+import { UpdatePriorityOrderDto } from "./dto/update-priority-order.dto";
 
 @Injectable()
 export class DynamicUiService {
@@ -268,6 +269,7 @@ export class DynamicUiService {
         banner2 : banners[1]?.banner?.name,
         banner3 : banners[2]?.banner?.name,
         banner4 : banners[3]?.banner?.name,
+        banners : [...new Set(banners.map((banner) => banner.banner?.name))],
       };
       await this.helperService.mixPanel(mixPanelBody);
       const response = { data };
@@ -1581,6 +1583,11 @@ export class DynamicUiService {
           })
           .select("_id organizationName phoneCountryCode phoneNumber")
           .lean();
+        
+        const premiumThumbnails = data.premiumThumbnails;
+        const paywallThumbnail = data.paywallVideo[0].mediaUrl;
+        const paywallVideo = data.paywallVideo[1].mediaUrl;
+        const skipText = data.skipText;
 
         const newItem = await this.itemModel.create(
           [
@@ -1602,10 +1609,12 @@ export class DynamicUiService {
                   planUserSave: "Switch to Pro and save INR 1000+",
                   subtitle:
                     "This will only unlock the series that you are currently watching",
-                  // payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/9e214537-3877-4e86-852b-5b3a8581b079/9c94c7eb-3a45-4db2-a65f-40ab986b81ca-master.m3u8",
-                  payWallVideo: "https://storage.googleapis.com/ct-bucket-prod/streaming-playlists/hls/0e1c8878-b0c6-4070-b387-a7e781d8c525/ec35975b-a4ed-4c6d-9ef8-45169a4cd353-master.m3u8",
+                  payWallVideo: paywallVideo,
+                  payWallThumbnail: paywallThumbnail,
+                  premiumThumbnails: premiumThumbnails,
                   paywallVisibility: true,
                 },
+                skipText: skipText,
                 allowMulti: false,
               },
               itemCommissionMarkupType: "Percent",
@@ -1839,10 +1848,10 @@ export class DynamicUiService {
                 roleId: new ObjectId(item._id),
                 roleName: item.role_name,
               })),
-              skill: {
-                skillId: new ObjectId(skillIds[0]),
-                skill_name: skill[0].skill_name,
-              },
+              skill: skill.map((item) => ({
+                skillId: new ObjectId(item._id),
+                skill_name: item.skill_name,
+              })),
               type: "courses",
               additionalDetails: {
                 ctaName: "Start Learning",
@@ -2180,6 +2189,9 @@ export class DynamicUiService {
           async (mediaItem, mediaIndex) => {
             try {
               // console.log("mediaItem", mediaItem);
+              if (mediaItem.mediaUrl.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                mediaItem.mediaUrl = `${this.configService.get("PEERTUBE_BASE_URL")}/videos/embed/${mediaItem.mediaUrl}`;
+              }
 
               // Only update if the old URL starts with the specified domain
               if (
@@ -2832,8 +2844,8 @@ export class DynamicUiService {
         .limit(1)
         .lean();
 
-      if (serviceItem?.skill?.skillId) {
-        page = { metaData: { skillId: serviceItem.skill.skillId } };
+      if (serviceItem?.skill?.[0].skillId) {
+        page = { metaData: { skillId: serviceItem?.skill?.[0].skillId } };
       }
     }
 
@@ -2943,6 +2955,68 @@ export class DynamicUiService {
       return { data };
     } catch (error) {
       throw error;
+    }
+  }
+
+  async getSeriesList(pageId: string) {
+    try {
+      const contentPage = await this.contentPageModel.findById(pageId).lean();
+      const skillId = contentPage.metaData?.skillId;
+
+      const serviceItems = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            status: Estatus.Active,
+            type: EserviceItemType.courses,
+            "skill.0.skillId": skillId,
+            // $or: [
+            //   {
+            //     skill: { $type: "object" },
+            //     "skill.skillId": skillId,
+            //   },
+            //   {
+            //     skill: { $type: "array" },
+            //     "skill.0.skillId": skillId,
+            //   },
+            // ]
+          },
+        },
+        {
+          $project: {
+            thumbnail: "$additionalDetails.thumbnail",
+            processId: "$additionalDetails.processId",
+            priorityOrder: 1,
+          },
+        },
+        {
+          $sort: {
+            priorityOrder: 1,
+          },
+        },
+      ]);
+
+      return serviceItems;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
+    try {
+      // Build bulk update operations
+      const bulkOps = payload.map((item) => ({
+        updateOne: {
+          filter: { "additionalDetails.processId": item.processId },
+          update: { $set: { priorityOrder: item.priorityOrder } },
+        },
+      }));
+
+      // Execute bulk update
+      const result = await this.serviceItemModel.bulkWrite(bulkOps);
+
+      return result;
+    } catch (err) {
+      throw err;
     }
   }
 }

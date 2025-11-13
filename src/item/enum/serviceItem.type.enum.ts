@@ -27,3 +27,22 @@ export enum EServiceItemTag {
 export const ESServiceItemTag = [
   EServiceItemTag.trendingSeries
 ];
+export enum EType {
+  courses = "courses",
+  feedback = "feedback",
+  course = "course",
+  contest = "contest",
+}
+export enum ENavigation {
+  courseShotVideo = "CourseShotVideo",
+  expert = "expert",
+  internal = "internal",
+}
+export enum EButtonText {
+  watchNow = "Watch Now",
+  getFeedback = "Get Feedback",
+}
+export enum ERecommendationListType {
+  course = "course",
+  contest = "contest",
+}

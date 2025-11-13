@@ -22,6 +22,7 @@ import { ServiceItemService } from "./service-item.service";
 import { MandatesModule } from "src/mandates/mandates.module";
 import { FilterTypeSchema } from "src/dynamic-ui/schema/filter-type.schema";
 import { FilterOptionSchema } from "src/dynamic-ui/schema/filter-option.schema";
+import { MetaBaseModule } from "src/meta-base/metabase.module";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { FilterOptionSchema } from "src/dynamic-ui/schema/filter-option.schema";
     MandatesModule,
     forwardRef(() => ServiceRequestModule),
     forwardRef(() => ProcessModule),
+    MetaBaseModule,
   ],
   controllers: [ItemController, ServiceItemController],
   providers: [ItemService, ServiceItemService],

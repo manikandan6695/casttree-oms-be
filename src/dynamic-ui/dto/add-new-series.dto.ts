@@ -1,11 +1,12 @@
-import { 
-  IsArray, 
-  IsString, 
-  IsOptional, 
+import {
+  IsArray,
+  IsString,
+  IsOptional,
   IsNotEmpty,
   IsBoolean,
   ArrayMinSize,
-  IsMongoId
+  IsMongoId,
+  ArrayMaxSize,
 } from "class-validator";
 
 // Move ProItemDto before AddNewSeriesDto
@@ -20,6 +21,17 @@ export class ProItemDto {
 
   @IsNotEmpty()
   price: number;
+}
+
+export class MediaDto {
+  @IsString()
+  type: string;
+
+  @IsString()
+  mediaId: string;
+
+  @IsString()
+  mediaUrl: string;
 }
 
 export class AddNewSeriesDto {
@@ -70,6 +82,7 @@ export class AddNewSeriesDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(1)
   @IsString({ each: true })
   roles: string[];
 
@@ -84,4 +97,17 @@ export class AddNewSeriesDto {
 
   @IsNotEmpty()
   proItem: ProItemDto;
+
+  @IsArray()
+  @IsNotEmpty()
+  paywallVideo: MediaDto[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  premiumThumbnails: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  skipText: string;
 }
