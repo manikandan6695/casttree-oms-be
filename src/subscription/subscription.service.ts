@@ -63,7 +63,6 @@ import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
-import { RedisService } from "src/redis/redis.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
