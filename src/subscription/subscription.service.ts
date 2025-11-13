@@ -23,6 +23,9 @@ import {
   EPaymentSourceType,
   EPaymentStatus,
   EPaymentType,
+  ECoinStatus,
+  ECoinTransactionTypes,
+  ETransactionType,
 } from "src/payment/enum/payment.enum";
 import { PaymentRequestService } from "src/payment/payment-request.service";
 import { EStatus } from "src/shared/enum/privacy.enum";
@@ -59,6 +62,8 @@ import {
 import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
+import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
+import { RedisService } from "src/redis/redis.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -80,7 +85,10 @@ export class SubscriptionService {
     private serviceItemService: ServiceItemService,
     private readonly mandateService: MandatesService,
     private readonly mandateHistoryService: MandateHistoryService,
-    private readonly eventEmitter: EventEmitter2
+    private readonly eventEmitter: EventEmitter2,
+    @InjectModel("coinTransaction")
+    private readonly coinTransactionModel: Model<ICoinTransaction>,
+    private readonly redisService: RedisService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -280,8 +288,13 @@ export class SubscriptionService {
         // console.log("event name", event);
         if (event === EEventType.paymentCaptured) {
           const payload = req?.body?.payload;
+          let coinTransaction = await this.paymentService.getSalseDocumentFromOrderId(payload?.payment?.entity?.order_id)
+         if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
+          await this.handleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
+         }
+         else {
           await this.handleRazorpaySubscriptionPayment(payload);
-          // await this.handleRazorpaySubscription(payload);
+         }
         }
         // if (event === EEventType.tokenConfirmed) {
         //   const payload = req?.body?.payload;
@@ -1331,6 +1344,7 @@ export class SubscriptionService {
       const rzpPaymentId = payload?.payment?.entity?.order_id;
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+      if (paymentRequest) {
       let updatedStatus = await this.paymentService.completePayment({
         invoiceId: paymentRequest?.source_id,
         paymentId: paymentRequest?._id,
@@ -1430,6 +1444,7 @@ export class SubscriptionService {
           }
         }
       }
+    }
     } catch (err) {
       throw err;
     }
@@ -2779,6 +2794,157 @@ export class SubscriptionService {
       throw error;
     }
   }
+  async handleCoinPurchaseInWebHook(rzpPaymentId) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${rzpPaymentId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    // console.log(lockResult)
+    lockAcquired = lockResult.acquired;
+    lockValue = lockResult.value as string;
+    try {
+      let paymentRequest =
+        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+      if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {
+        await this.paymentService.completePayment({
+          invoiceId: paymentRequest?.source_id,
+          paymentId: paymentRequest?._id,
+        });
+        let invoice = await this.invoiceService.getInvoiceDetail(
+          paymentRequest?.source_id
+        );
+        if (
+          invoice?.source_type === ECoinTransactionTypes.coinTransaction &&
+          invoice?.document_status === EDocumentStatus.completed
+        ) {
+          try {
+            let coinTransaction = await this.coinTransactionModel.findOne({
+              sourceId: new ObjectId(invoice?._id),
+              transactionType: ETransactionType.In,
+              type: ETransactionType.purchased,
+            });
+  
+            if (
+              coinTransaction?.documentStatus === ECoinStatus.pending &&
+              coinTransaction?.transactionType === ECoinTransactionTypes.In
+            ) {
+              let userDetail = await this.helperService.getUserAdditional(
+                coinTransaction?.userId
+              );
+              if(userDetail){
+                let totalBalance =
+                Number(userDetail?.purchasedBalance || 0) +
+                Number(userDetail?.earnedBalance || 0);
+              // Update coin transaction status
+              let updatedPurchaseBalance =
+                totalBalance + coinTransaction?.coinValue;
+              await this.coinTransactionModel.updateOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.In,
+                  documentStatus: ECoinStatus.pending,
+                },
+                {
+                  $set: {
+                    documentStatus: ECoinStatus.completed,
+                    updatedAt: new Date(),
+                    currentBalance: updatedPurchaseBalance,
+                  },
+                }
+              );
+              let userCoinTransaction = await this.coinTransactionModel.findOne({
+                sourceId: new ObjectId(invoice?._id),
+                transactionType: ETransactionType.In,
+                type: ETransactionType.purchased,
+              });
+              if (userCoinTransaction?.documentStatus === ECoinStatus.completed) {
+                let updateUserAdditional =
+                  await this.helperService.updateUserPurchaseCoin({
+                    userId: coinTransaction?.userId,
+                    coinValue: coinTransaction?.coinValue,
+                  });
+              }
+              }
+            }
+  
+            let coinTransactionOut = await this.coinTransactionModel.findOne({
+              sourceId: new ObjectId(invoice?._id),
+              transactionType: ETransactionType.Out,
+              type: ETransactionType.withdrawn,
+            });
+  
+            if (
+              coinTransactionOut?.documentStatus === ECoinStatus.pending &&
+              coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
+            ) {
+              let getSuperAdminDetail =
+                await this.helperService.getUserAdditional(
+                  coinTransactionOut?.userId
+                );
+              if(getSuperAdminDetail){
+              let updatedPurchaseBalance =
+                Number(getSuperAdminDetail?.purchasedBalance || 0) -
+                Number(coinTransactionOut?.coinValue);
+              await this.coinTransactionModel.updateOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.Out,
+                  documentStatus: ECoinStatus.pending,
+                },
+                {
+                  $set: {
+                    documentStatus: ECoinStatus.completed,
+                    updatedAt: new Date(),
+                    currentBalance: updatedPurchaseBalance,
+                  },
+                }
+              );
+              let mixPanelBody: any = {};
+              mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+              mixPanelBody.distinctId = coinTransaction?.userId;
+              mixPanelBody.properties = {
+                user_id: coinTransaction?.userId,
+                amount: paymentRequest?.amount,
+                currency: invoice?.currencyCode,
+                coin_value: coinTransaction?.coinValue,
+              };
+              await this.helperService.mixPanel(mixPanelBody);
+              let AdminCoinTransactionOut =
+                await this.coinTransactionModel.findOne({
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.Out,
+                  type: ETransactionType.withdrawn,
+                  documentStatus: ECoinStatus.completed,
+                });
+              if (
+                AdminCoinTransactionOut?.documentStatus === "Completed"
+              ) {
+                  await this.helperService.updateAdminCoinValue({
+                    userId: coinTransactionOut?.userId,
+                    coinValue: coinTransactionOut?.coinValue,
+                  });
+              }
+            }
+          }
+          } catch (error) {
+            console.warn(
+              `Coin transaction update failed for user ${paymentRequest?.user_id}:`,
+              error?.message || error
+            );
+          }
+        }
+      }
+     } catch (error) {
+      throw error;
+    }
+    finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
+    }
+  }
+
   async getSubscriptionByUserId(userId: string) {
     try {
       let subscription = await this.subscriptionModel.findOne({
@@ -2844,6 +3010,7 @@ export class SubscriptionService {
       return { data: { isEnableCart: false } };
     }
     return { data: { isEnableCart: false } };
+
     } catch (error) {
       throw error;
     }
