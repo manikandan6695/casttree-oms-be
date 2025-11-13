@@ -1767,6 +1767,9 @@ export class DynamicUiService {
                 },
                 skipText: skipText,
                 allowMulti: false,
+                ...(typeof data.isViewAllEpisode === "boolean"
+                  ? { isViewAllEpisode: data.isViewAllEpisode }
+                  : {}),
               },
               itemCommissionMarkupType: "Percent",
               itemCommissionMarkup: 0,
@@ -2745,114 +2748,127 @@ export class DynamicUiService {
           filterOption,
         },
       });
-      const { skip, limit } = query;
-      const [actualComponent, page] =
-        await this.fetchBaseComponents(componentId, skillId);
-      if (!actualComponent) {
+
+      const pagination = {
+        skip: Math.max(0, Number(query?.skip ?? 0)),
+        limit: Math.max(0, Number(query?.limit ?? 0)),
+      };
+
+      const [component, pageDocument] = await this.fetchBaseComponents(
+        componentId,
+        skillId,
+      );
+
+      if (!component) {
         throw new NotFoundException("Filter component not found");
       }
-      const tagName = actualComponent?.tag?.tagName;
-      if (actualComponent?.componentKey === EConfigKeyName.learnCategorySection) {
-        const allActionData = Array.isArray(actualComponent.actionData)
-          ? actualComponent.actionData
+
+      const tagName: string | null = component?.tag?.tagName ?? null;
+
+      if (component?.componentKey === EConfigKeyName.learnCategorySection) {
+        const actionItems = Array.isArray(component.actionData)
+          ? component.actionData
           : [];
-        const totalCount = allActionData.length;
-        const start = Math.max(0, Number(skip) || 0);
-        const size = Number(limit);
-        const end = size > 0 ? start + Math.floor(size) : undefined;
+        const endIndex =
+          pagination.limit > 0
+            ? pagination.skip + pagination.limit
+            : undefined;
 
-        actualComponent.actionData = allActionData.slice(start, end);
-        actualComponent.totalCount = totalCount;
+        component.actionData = actionItems.slice(pagination.skip, endIndex);
+        component.totalCount = actionItems.length;
 
-        return { component: actualComponent };
+        return { component };
       }
-      const { serviceItemData, filteredData } = await this.fetchServiceItemData(
-        page,
-        token.id,
-        tagName,
-        skip,
-        limit,
-        filterOption
-      );
-      const componentFilterTypeIds = Array.isArray(actualComponent?.filters)
-        ? actualComponent.filters
+
+      const componentFilterTypeIds = Array.isArray(component?.filters)
+        ? component.filters
             .map((filter: any) =>
-              this.normalizeId(filter?.filterTypeId ?? filter)
+              this.normalizeId(filter?.filterTypeId ?? filter),
             )
             .filter((id: string | null): id is string => Boolean(id))
         : [];
-      const componentFilterData = await this.getComponentFilterOptions(
-        componentId,
-        token,
-        filterOption,
-        componentFilterTypeIds
-      );
-      const finalInteractionData =
-        componentFilterData?.interactionData?.items || [];
+
+      const [serviceItemResult, filterOptionResult] = await Promise.all([
+        this.fetchServiceItemData(
+          pageDocument,
+          token?.id,
+          tagName,
+          pagination.skip,
+          pagination.limit,
+          filterOption,
+        ),
+        this.getComponentFilterOptions(
+          componentId,
+          token,
+          filterOption,
+          componentFilterTypeIds,
+        ),
+      ]);
+
+      const serviceItems = serviceItemResult?.fullData ?? null;
+      const paginatedItems = serviceItemResult?.paginatedItems ?? [];
+      const interactionItems =
+        filterOptionResult?.interactionData?.items ?? [];
+
       const availableFilterOptionIds = this.getAvailableFilterOptionIds(
-        serviceItemData,
-        tagName,
-        filteredData
+        serviceItems,
+        tagName ?? "",
+        paginatedItems,
       );
+
       const processedFilterOptions = await this.processFilterOptions(
-        finalInteractionData,
+        interactionItems,
         filterOption,
-        availableFilterOptionIds
+        availableFilterOptionIds,
       );
+
       this.updateActualComponentWithFilterData(
-        actualComponent,
-        finalInteractionData,
+        component,
+        interactionItems,
         processedFilterOptions,
-        filteredData
+        paginatedItems,
       );
+
       const totalCount = await this.calculateTotalCount(
-        serviceItemData,
-        tagName,
-        token.id,
-        filterOption
+        serviceItems,
+        tagName ?? "",
+        token?.id ?? "",
+        filterOption,
       );
-      actualComponent["totalCount"] = totalCount;
 
-      if (filteredData && filteredData.length > 0) {
-        actualComponent.actionData = filteredData;
-        actualComponent["totalCount"] = totalCount;
-      } else if (serviceItemData && serviceItemData.finalData && serviceItemData.finalData[tagName]) {
-        const allTagData = serviceItemData.finalData[tagName] || [];
-        actualComponent.actionData = allTagData.slice(skip, skip + limit);
-        actualComponent["totalCount"] = allTagData.length;
-      } else {
-        const completedSeries = await this.processService.getMySeries(
-          token.id,
-          EprocessStatus.Completed
-        );
-        const completedProcessIds = new Set(
-          completedSeries.map((s: any) => String(s.processId))
-        );
+      component.totalCount = totalCount;
 
-        const allServiceItemData = await this.fetchServiceItemDetails(
-          page,
-          token.id,
-          false,
-          0,
-          0,
-          null
-        );
+      const actionDataResult = await this.resolveComponentActionData({
+        serviceItems,
+        tagName,
+        paginatedItems,
+        pageDocument,
+        userId: token?.id,
+        skip: pagination.skip,
+        limit: pagination.limit,
+      });
 
-        const allSeriesData = allServiceItemData.finalData?.allSeries || [];
+      const hasActionItems = Array.isArray(actionDataResult.items)
+        ? actionDataResult.items.length > 0
+        : false;
 
-        const nonMatchedSeries = allSeriesData.filter(
-          (series: any) => !completedProcessIds.has(String(series.processId))
-        );
+      component.actionData = hasActionItems
+        ? actionDataResult.items
+        : [];
 
-        if (nonMatchedSeries.length > 0) {
-          actualComponent.recommendedList = nonMatchedSeries;
-          actualComponent["totalCount"] = nonMatchedSeries.length;
+      if (hasActionItems) {
+        if (typeof actionDataResult.totalCountOverride === "number") {
+          component.totalCount = actionDataResult.totalCountOverride;
         }
+      } else {
+        const recommendations = actionDataResult.recommendedItems ?? [];
+        component.recommendedList = recommendations;
+        component.totalCount = recommendations.length
       }
-      
-      return { component: actualComponent };
-    } catch (err) {
-      throw err;
+
+      return { component };
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -2906,25 +2922,180 @@ export class DynamicUiService {
       },
     });
     let serviceItemData;
-    let filteredData: any[] = [];
+    let paginatedItems: any[] = [];
 
-    if (page) {
+    if (page && userId) {
       serviceItemData = await this.fetchServiceItemDetails(
         page,
         userId,
         false,
         0,
         0,
-        filterOption
+        filterOption,
       );
-
-      if (tagName && serviceItemData?.finalData?.[tagName]) {
-        const allTagData = serviceItemData.finalData[tagName];
-        filteredData = allTagData.slice(skip, skip + limit);
+      if (
+        tagName &&
+        tagName in (serviceItemData?.finalData ?? {}) &&
+        Array.isArray(serviceItemData?.finalData?.[tagName])
+      ) {
+        const tagItems = serviceItemData.finalData[tagName];
+        const endIndex = limit > 0 ? skip + limit : undefined;
+        paginatedItems = tagItems.slice(skip, endIndex);
       }
     }
 
-    return { serviceItemData, filteredData };
+    return { fullData: serviceItemData, paginatedItems };
+  }
+  private async resolveComponentActionData(params: {
+    serviceItems: any;
+    tagName: string | null;
+    paginatedItems: any[];
+    pageDocument: any;
+    userId?: string;
+    skip: number;
+    limit: number;
+  }): Promise<{
+    items: any[];
+    recommendedItems?: any[];
+    totalCountOverride?: number;
+    source?: "paginated" | "tag" | "recommendation";
+  }> {
+    const {
+      serviceItems,
+      tagName,
+      paginatedItems,
+      pageDocument,
+      userId,
+      skip,
+      limit,
+    } = params;
+  let serviceItemDetails = await this.fetchServiceItemDetails(
+      pageDocument,
+      userId,
+      false,
+      0,
+      0,
+      null,
+    );
+    const safePaginatedItems = Array.isArray(paginatedItems)
+      ? paginatedItems
+      : [];
+
+    if (safePaginatedItems.length > 0) {
+      return { items: safePaginatedItems, source: "paginated" };
+    }
+
+    if (
+      tagName &&
+      Array.isArray(serviceItems?.finalData?.[tagName]) &&
+      serviceItems.finalData[tagName].length
+    ) {
+      const tagItems = serviceItems.finalData[tagName];
+      const endIndex = limit > 0 ? skip + limit : undefined;
+      return {
+        items: tagItems.slice(skip, endIndex),
+        totalCountOverride: tagItems.length,
+        source: "tag",
+      };
+    }
+    const recommendedItems = await this.buildRecommendationList({
+      existingServiceItems: serviceItemDetails?.finalData,
+      pageDocument,
+      userId,
+    });
+
+    return {
+      items: [],
+      recommendedItems,
+      totalCountOverride: 0,
+      source: "recommendation",
+    };
+  }
+
+  private async buildRecommendationList(params: {
+    existingServiceItems: any;
+    pageDocument: any;
+    userId?: string;
+  }): Promise<any[]> {
+    const { existingServiceItems, pageDocument, userId } = params;
+
+    if (!userId) {
+      return [];
+    }
+
+    try {
+      const [completedSeries, serviceItems] = await Promise.all([
+        this.loadCompletedSeries(userId),
+        this.ensureAllSeriesData(existingServiceItems, pageDocument, userId),
+      ]);
+
+      const completedIds = new Set(
+        (completedSeries ?? []).map((series: any) =>
+          String(series?.processId ?? series?._id ?? ""),
+        ),
+      );
+
+      const allSeries =
+        serviceItems?.finalData?.allSeries && Array.isArray(serviceItems.finalData.allSeries)
+          ? serviceItems.finalData.allSeries
+          : [];
+
+      return allSeries.filter((series: any) => {
+        const processId = String(series?.processId ?? series?._id ?? "");
+        return processId && !completedIds.has(processId);
+      });
+    } catch (error) {
+      Sentry.captureException(error);
+      return [];
+    }
+  }
+
+  private async loadCompletedSeries(userId: string): Promise<any[]> {
+    if (!userId) {
+      return [];
+    }
+
+    try {
+      return await this.processService.getMySeries(
+        userId,
+        EprocessStatus.Completed,
+      );
+    } catch (error) {
+      Sentry.captureException(error);
+      return [];
+    }
+  }
+
+  private async ensureAllSeriesData(
+    existingServiceItems: any,
+    pageDocument: any,
+    userId: string,
+  ): Promise<any> {
+    if (
+      existingServiceItems?.finalData?.allSeries &&
+      Array.isArray(existingServiceItems.finalData.allSeries) &&
+      existingServiceItems.finalData.allSeries.length
+    ) {
+      return existingServiceItems;
+    }
+
+    if (!pageDocument) {
+      return existingServiceItems ?? {};
+    }
+
+    try {
+      return await this.fetchServiceItemDetails(
+        pageDocument,
+        userId,
+        false,
+        0,
+        0,
+        null,
+      );
+    } catch (error) {
+      Sentry.captureException(error);
+      return existingServiceItems ?? {};
+    }
   }
 
   private getAvailableFilterOptionIds(
