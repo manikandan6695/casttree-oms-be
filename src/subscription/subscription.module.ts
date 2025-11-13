@@ -29,7 +29,6 @@ import { CoinTransactionSchema } from "src/payment/schema/coinPurchase.schema";
     forwardRef(() => PaymentRequestModule),
     forwardRef(() => ItemModule),
     MandatesModule,
-    RedisModule,
   ],
   controllers: [SubscriptionController],
   providers: [
