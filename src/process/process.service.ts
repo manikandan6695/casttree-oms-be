@@ -21,6 +21,7 @@ import { processInstanceDetailModel } from "./schema/processInstanceDetails.sche
 import { taskModel } from "./schema/task.schema";
 import { EtransactionType } from "./enums/ratings.enum";
 import { RatingSchema } from "./schema/ratings.schema";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class ProcessService {
@@ -37,7 +38,8 @@ export class ProcessService {
     private serviceItemService: ServiceItemService,
     private subscriptionService: SubscriptionService,
     private paymentService: PaymentRequestService,
-    private helperService: HelperService
+    private helperService: HelperService,
+    private redisService: RedisService
   ) { }
   async getTaskDetail(processId, taskId, token) {
     try {
@@ -156,6 +158,13 @@ export class ProcessService {
     taskType,
     breakDuration?
   ) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${processId}:${taskId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    lockAcquired = lockResult.acquired;
+    lockValue = lockResult.value as string;
     try {
       let itemId =
         await this.serviceItemService.getServuceItemDetailsByProcessId(
@@ -283,6 +292,11 @@ export class ProcessService {
       return finalResponse;
     } catch (err) {
       throw err;
+    }
+    finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
     }
   }
 

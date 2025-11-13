@@ -110,4 +110,8 @@ export class AddNewSeriesDto {
   @IsString()
   @IsNotEmpty()
   skipText: string;
+  
+  @IsOptional()
+  @IsBoolean()
+  isViewAllEpisode: boolean
 }
