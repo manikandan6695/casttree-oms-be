@@ -3836,4 +3836,214 @@ export class DynamicUiService {
       throw error;
     }
   }
+
+  async getComponentFilter(
+    token: UserToken,
+    componentId: string,
+    skip: number,
+    limit: number,
+    filterOption?: EFilterOption,
+    skillId?: string
+  ) {
+    try {
+      Sentry.addBreadcrumb({
+        message: "getComponentFilter",
+        level: "info",
+        data: {
+          token,
+          componentId,
+          skip,
+          limit,
+          filterOption,
+        },
+      });
+      const component = await this.componentModel
+        .findOne({
+          _id: new ObjectId(componentId),
+          status: EStatus.Active,
+          showInLearnPage: true
+        })
+        .lean();
+      if (!component) {
+        throw new NotFoundException("Component not found");
+      }
+      if (component?.componentKey === EConfigKeyName.learnCategorySection) {
+
+        const actionItems = Array.isArray(component?.actionData)
+          ? component?.actionData
+          : [];
+        
+        const sortedActionItems = actionItems.sort((a, b) => {
+          const orderA = a?.order ?? 0;
+          const orderB = b?.order ?? 0;
+          return orderA - orderB;
+        });
+        
+        const endIndex = limit > 0 ? skip + limit : sortedActionItems.length;
+
+        component.actionData = sortedActionItems.slice(skip, endIndex);
+        component["totalCount"] = sortedActionItems.length;
+        return { component };
+      }
+      const tagName = component?.tag?.tagName;
+      let page = await this.contentPageModel
+          .findOne({
+            "components.componentId": new ObjectId(componentId),
+            status: EStatus.Active,
+          })
+          .lean();
+      const componentFilters = Array.isArray((component as any)?.filters)
+        ? (component as any).filters
+        : [];
+      
+      const hasFilters = componentFilters.length > 0;
+
+      let interactionDataItems: any[] = [];
+      if (hasFilters) { 
+        const sortedFilters = [...componentFilters].sort((a, b) => {
+          const orderA = a?.order ?? 0;
+          const orderB = b?.order ?? 0;
+          return orderA - orderB;
+        });
+
+        const filterTypeIds = sortedFilters
+          .map((filter) => this.normalizeId(filter?.filterTypeId ?? filter))
+          .filter((id): id is string => Boolean(id) && id.length === 24);
+        if (filterTypeIds.length > 0) {
+          const [filterTypes, filterOptions] = await Promise.all([
+            this.filterTypeModel
+              .find({
+                _id: { $in: filterTypeIds.map((id) => new ObjectId(id)) },
+                isActive: true,
+              })
+              .sort({ sortOrder: 1 })
+              .lean(),
+            this.filterOptionsModel
+              .find({
+                filterTypeId: {
+                  $in: filterTypeIds.map((id) => new ObjectId(id)),
+                },
+                status: EStatus.Active,
+              })
+              .sort({ sortOrder: 1 })
+              .lean(),
+          ]);
+          const groupedOptions = new Map<string, any[]>();
+          filterOptions.forEach((option) => {
+            const filterTypeId = option.filterTypeId?.toString();
+            if (!filterTypeId) return;
+            if (!groupedOptions.has(filterTypeId)) {
+              groupedOptions.set(filterTypeId, []);
+            }
+            groupedOptions.get(filterTypeId)!.push({
+              filterOptionId: option?._id?.toString(),
+              filterType: option?.filterType,
+              optionKey: option?.optionKey,
+              optionValue: option?.optionValue,
+              isUserSelected: false,
+            });
+          });
+          interactionDataItems = sortedFilters
+            .map((filter) => {
+              const filterTypeId = this.normalizeId(
+                filter?.filterTypeId ?? filter
+              );
+              if (!filterTypeId) return null;
+
+              const filterType = filterTypes.find(
+                (ft) => ft._id.toString() === filterTypeId
+              );
+              if (!filterType) return null;
+
+              const options = groupedOptions.get(filterTypeId) || [];
+              
+              const userValue = filterOption?.[filterType?.type];
+              const mappedOptions = options.map((option) => ({
+                ...option,
+                isUserSelected: Array.isArray(userValue)
+                  ? userValue.includes(option?.filterOptionId)
+                  : userValue === option?.filterOptionId,
+              }));
+
+              const selectionType =
+                filterType?.validationRules?.maxSelections > 1
+                  ? "multiple"
+                  : "single";
+
+              return {
+                button: {
+                  type: filterType?.type,
+                  lable: filterType?.displayName,
+                  selectionType: selectionType,
+                },
+                type: filterType?.type,
+                filterTypeId: filterTypeId,
+                options: mappedOptions,
+              };
+            })
+            .filter((item): item is any => item !== null);
+        }
+      }
+      let serviceItemData = null;
+      if (page) {
+        serviceItemData = await this.fetchServiceItemDetails(
+          page,
+          token.id,
+          false,
+          0,
+          0,
+          filterOption
+        );
+      }
+      let actionData: any[] = [];
+      let totalCount = 0;
+      let recommendedList: any[] = [];
+      if (serviceItemData?.finalData) {
+        if (tagName && serviceItemData?.finalData[tagName]) {
+          actionData = serviceItemData?.finalData[tagName];
+          totalCount = actionData.length;
+        } else {
+          actionData = Object.values(serviceItemData?.finalData).flat() as any[];
+          totalCount = actionData.length;
+        }
+      }
+      if (filterOption && actionData.length === 0) {
+        if (serviceItemData?.finalData?.allSeries) {
+          recommendedList = serviceItemData?.finalData?.allSeries;
+        } else if (page && token?.id) {
+          const allSeriesData = await this.fetchServiceItemDetails(
+            page,
+            token.id,
+            false,
+            0,
+            0,
+            null
+          );
+          if (allSeriesData?.finalData?.allSeries) {
+            recommendedList = allSeriesData?.finalData?.allSeries;
+          }
+        }
+      }
+      const paginatedActionData = actionData.slice(skip, skip + limit);
+      const finalTotalCount = actionData.length > 0 ? totalCount : recommendedList.length;
+      const response: any = {
+        component: {
+          ...component,
+          interactionData: {
+            items: hasFilters ? interactionDataItems : [],
+          },
+          actionData: paginatedActionData,
+          totalCount: finalTotalCount,
+        },
+      };
+      if (actionData.length === 0 && recommendedList.length > 0) {
+        response.component.recommendedList = recommendedList;
+      }
+
+      return response;
+    } catch (error) {
+      Sentry.captureException(error);
+      throw error;
+    }
+  }
 }
