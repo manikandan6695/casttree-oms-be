@@ -138,10 +138,11 @@ export class DynamicUiController {
     @Query("skillId") skillId?: string,
   ) {
     try {
-      let data = await this.dynamicUIService.getFilterComponent(
+      let data = await this.dynamicUIService.getComponentFilter(
         token,
         componentId,
-        query,
+        query.skip,
+        query.limit,
         filterOption,
         skillId
       );
