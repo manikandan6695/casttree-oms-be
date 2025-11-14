@@ -2025,7 +2025,7 @@ export class SubscriptionService {
         {
           $match: {
             "mandates.mandateStatus": {
-              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
+              $in: [EMandateStatus.active],
             },
           },
         },
