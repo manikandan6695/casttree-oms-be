@@ -494,7 +494,9 @@ export class PaymentRequestService {
           serviceItemType: serviceItemDetail.type,
         };
         await this.helperService.mixPanel(mixPanelBody);
-        await this.completePayment(ids);
+        if(serviceItemDetail?.type !== "coins"){
+          await this.completePayment(ids);
+        }
       }
 
       // if (status === ERazorpayPaymentStatus.failed) {
