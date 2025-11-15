@@ -3739,6 +3739,8 @@ export class DynamicUiService {
       ]);
       let systemConfiguration = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicSearch});
       let chipData = await this.systemConfigurationModel.findOne({key:EConfigKeyName.suggestionsTag});
+      const userData = await this.helperService.getUserById(userId);
+      const countryCode = userData?.data?.country_code;
       const isNewSubscriber = subscriptionData ? true : false;
       let placeholder;
       if (systemConfiguration) {
@@ -3782,7 +3784,13 @@ export class DynamicUiService {
               }];              
               
               if (navConfig.navigation ) {
-                badgeItem.navigation = navConfig.navigation;
+                badgeItem.navigation = { ...navConfig.navigation };
+                
+                if (countryCode !== "IN" && isNewSubscriber === false ) {
+                  badgeItem.navigation.page = navConfig?.navigation?.iapPage;
+                  badgeItem.navigation.isEnableBottomSheet = false;
+                }
+                
                 if (!isNewSubscriber) {
                 let itemData = await this.serviceItemModel.findOne({
                   status: EStatus.Active,
