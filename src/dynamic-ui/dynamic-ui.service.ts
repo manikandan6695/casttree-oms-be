@@ -3339,6 +3339,8 @@ export class DynamicUiService {
         if (component.interactionData && component.interactionData.items) {
           let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
           const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
+          const userData = await this.helperService.getUserById(userId);
+          const countryCode = userData?.data?.country_code;
           if (searchItem && searchItem.metaData) {
             searchItem.metaData.placeholder = placeholder;
 
@@ -3364,7 +3366,11 @@ export class DynamicUiService {
               }];              
               
               if (navConfig.navigation ) {
-                badgeItem.navigation = navConfig.navigation;
+                badgeItem.navigation = { ...navConfig.navigation };
+                if (countryCode !== "IN" && isNewSubscriber === false ) {
+                  badgeItem.navigation.page = navConfig?.navigation?.iapPage;
+                  badgeItem.navigation.isEnableBottomSheet = false;
+                }
                 if (!isNewSubscriber) {
                 let itemData = await this.serviceItemModel.findOne({
                   status: EStatus.Active,
