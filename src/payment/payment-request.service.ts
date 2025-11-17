@@ -47,6 +47,7 @@ import { RedisService } from "src/redis/redis.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { PaymentRequestFactory } from "./payment-request.factory";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -525,7 +526,9 @@ export class PaymentRequestService {
           serviceItemType: serviceItemDetail.type,
         };
         await this.helperService.mixPanel(mixPanelBody);
-        await this.completePayment(ids);
+        if(serviceItemDetail?.type !== EserviceItemType.coins){
+          await this.completePayment(ids);
+        }
       }
 
       // if (status === ERazorpayPaymentStatus.failed) {

@@ -3677,10 +3677,7 @@ export class SubscriptionService {
               await this.helperService.mixPanel(mixPanelBody);
             }
           } catch (error) {
-            console.warn(
-              `Coin transaction update failed for user ${paymentRequest?.user_id}:`,
-              error?.message || error
-            );
+            throw error
           }
         }
       }
