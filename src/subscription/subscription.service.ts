@@ -6,13 +6,14 @@ import {
   Injectable,
   Req,
 } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Cron } from "@nestjs/schedule";
-import { Model } from "mongoose";
+import { Connection, Model } from "mongoose";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EDocumentStatus } from "src/invoice/enum/document-status.enum";
+import { EDocumentTypeName } from "src/invoice/enum/document-type-name.enum";
 import { InvoiceService } from "src/invoice/invoice.service";
 import { Estatus } from "src/item/enum/status.enum";
 import { ItemService } from "src/item/item.service";
@@ -54,6 +55,9 @@ import { EsubscriptionStatus } from "./enums/subscriptionStatus.enum";
 import { EvalidityType } from "./enums/validityType.enum";
 import { ISubscriptionModel } from "./schema/subscription.schema";
 import { SubscriptionFactory } from "./subscription.factory";
+import { IChargeModel } from "./schema/charge.schema";
+import { MailService } from "src/shared/mail.service";
+import { ItemDocumentService } from "src/item-document/item-document.service";
 import { ServiceItemService } from "src/item/service-item.service";
 import { PaymentGatewayService } from "src/payment-gateway/payment-gateway.service";
 import {
@@ -75,6 +79,8 @@ export class SubscriptionService {
   constructor(
     @InjectModel("subscription")
     private readonly subscriptionModel: Model<ISubscriptionModel>,
+    @InjectModel("charge")
+    private readonly chargeModel: Model<IChargeModel>,
     private readonly subscriptionFactory: SubscriptionFactory,
     private invoiceService: InvoiceService,
     @Inject(forwardRef(() => PaymentRequestService))
@@ -92,7 +98,11 @@ export class SubscriptionService {
     private readonly coinTransactionModel: Model<ICoinTransaction>,
     private currencyService: CurrencyService,
     @Inject(forwardRef(() => PaymentGatewayService))
-    private paymentGatewayService: PaymentGatewayService
+    private paymentGatewayService: PaymentGatewayService,
+    @InjectConnection()
+    private connection: Connection,
+    private mailService: MailService,
+    private itemDocumentService: ItemDocumentService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -517,7 +527,6 @@ export class SubscriptionService {
           payload,
         },
       });
-      
     } catch (error) {
       throw error;
     }
@@ -2422,39 +2431,117 @@ export class SubscriptionService {
 
   @Cron("0 1 * * *")
   async createCharge() {
+    const batchStartTime = new Date();
+    let chargeIds: string[] = [];
+
     try {
-      Sentry.addBreadcrumb({
-        message: "createCharge",
-        level: "info",
-        data: {},
-      });
-      const planDetail = await this.itemService.getItemDetailByName("PRO");
+      // Task 1: Fetch Expiring Subscriptions
+      const expiringSubscriptions = await this.fetchExpiringSubscriptions();
+
+      console.log(
+        `[Subscription Auto-Renewal] Found ${expiringSubscriptions.length} expiring subscriptions`
+      );
+
+      // Process each subscription
+      for (const subscriptionData of expiringSubscriptions) {
+        try {
+          // Task 2: Create Charge Record (Initial)
+          const charge = await this.createInitialChargeRecord(subscriptionData);
+          chargeIds.push(charge._id.toString());
+
+          // Task 3: Update Charge Status to Processing
+          await this.updateChargeStatus(charge._id, "processing");
+
+          // Task 4: Extract ItemId from Subscription Notes
+          const itemId = await this.extractItemIdFromSubscription(
+            subscriptionData,
+            charge._id
+          );
+
+          // Task 5: Identify Payment Provider
+          const provider = subscriptionData.latestMandate?.provider;
+
+          // Update charge with itemId and provider
+          await this.chargeModel.updateOne(
+            { _id: charge._id },
+            { $set: { itemId, provider } }
+          );
+
+          // Get plan detail
+          const planDetail = await this.itemService.getItemDetail(itemId);
+
+          // Task 6-8: Process charges based on provider
+          if (provider === EProvider.cashfree) {
+            await this.processCashfreeCharge(
+              subscriptionData,
+              planDetail,
+              charge._id
+            );
+          } else if (provider === EProvider.razorpay) {
+            await this.processRazorpayCharge(
+              subscriptionData,
+              planDetail,
+              charge._id
+            );
+          } else if (provider === EProvider.phonepe) {
+            await this.processPhonepeCharge(
+              subscriptionData,
+              planDetail,
+              charge._id
+            );
+          } else {
+            throw new Error(`Unknown provider: ${provider}`);
+          }
+        } catch (error) {
+          console.error(
+            `[Subscription Auto-Renewal] Error processing subscription:`,
+            error
+          );
+          // Error handling is done in individual process methods
+          // Continue to next subscription
+        }
+      }
+
+      // Task 10: Send Batch Summary Email
+      await this.sendBatchSummaryEmail(chargeIds, batchStartTime);
+    } catch (error) {
+      console.error(
+        `[Subscription Auto-Renewal] Fatal error in createCharge:`,
+        error
+      );
+      // Still send summary email even on fatal error
+      if (chargeIds.length > 0) {
+        await this.sendBatchSummaryEmail(chargeIds, batchStartTime);
+      }
+      throw error;
+    }
+  }
+
+  // ==================== Helper Methods for Refactored createCharge ====================
+
+  /**
+   * Task 1: Fetch Expiring Subscriptions
+   */
+  private async fetchExpiringSubscriptions() {
       const today = new Date();
       const tomorrow = new Date();
       tomorrow.setDate(today.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
 
-      let expiringSubscriptionsList = await this.subscriptionModel.aggregate([
-        { $sort: { _id: -1 } },
-        { $group: { _id: "$userId", latestDocument: { $first: "$$ROOT" } } },
+    const expiringSubscriptions = await this.subscriptionModel.aggregate([
+        { $match: { status: EStatus.Active } },
+        { $match: { subscriptionStatus: { $ne: EsubscriptionStatus.failed } } },
         {
-          $match: {
-            "latestDocument.subscriptionStatus": {
-              $ne: EsubscriptionStatus.initiated,
-            },
+          $group: {
+            _id: "$userId",
+            latestDocument: { $last: "$$ROOT" }, 
           },
         },
         {
           $match: {
             $or: [
               {
-                "latestDocument.subscriptionStatus": {
-                  $in: [
-                    EsubscriptionStatus.failed,
-                    EsubscriptionStatus.expired,
-                  ],
-                },
-                "latestDocument.status": EStatus.Active,
+              "latestDocument.subscriptionStatus": EsubscriptionStatus.expired,
               },
               {
                 $and: [
@@ -2477,14 +2564,17 @@ export class SubscriptionService {
           },
         },
         { $unwind: { path: "$mandates", preserveNullAndEmptyArrays: true } },
-        { $sort: { "mandates._id": -1 } },
         {
           $match: {
             "mandates.mandateStatus": {
-              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
+              $in: [
+                EMandateStatus.active,
+                EMandateStatus.bankPendingApproval,
+              ],
             },
           },
         },
+        { $sort: { "mandates.amount": -1 } },
         {
           $group: {
             _id: "$_id",
@@ -2494,30 +2584,798 @@ export class SubscriptionService {
         },
       ]);
 
-      console.log(
-        "expiring list ==>",
-        expiringSubscriptionsList.length
-        // expiringSubscriptionsList
+    return expiringSubscriptions.map((item) => ({
+      userId: item.latestDocument.userId,
+      amount: item.latestMandate?.amount || item.latestDocument.amount,
+      subscriptionId: item.latestDocument._id,
+      endAt: item.latestDocument.endAt,
+      subscriptionStatus: item.latestDocument.subscriptionStatus,
+      mandateStatus: item.latestMandate?.mandateStatus,
+      mandateId: item.latestMandate?._id,
+      mandateAmount: item.latestMandate?.amount,
+      docStatus: item.latestDocument.status,
+      remarks: "",
+      latestDocument: item.latestDocument,
+      latestMandate: item.latestMandate,
+    }));
+  }
+
+  /**
+   * Task 2: Create Charge Record (Initial)
+   */
+  private async createInitialChargeRecord(subscriptionData: any) {
+    const chargeData = {
+      userId: subscriptionData.userId,
+      subscriptionId: subscriptionData.subscriptionId,
+      mandateId: subscriptionData.mandateId,
+      amount: subscriptionData.amount,
+      provider: subscriptionData.latestMandate?.provider || "",
+      itemId: null, // Will be set later
+      processingStatus: "scheduled",
+      chargeInitiatedDate: new Date(),
+      remarks: "",
+    };
+
+    const charge = await this.chargeModel.create(chargeData);
+    return charge;
+  }
+
+  /**
+   * Task 3: Update Charge Status
+   */
+  private async updateChargeStatus(
+    chargeId: any,
+    status: "scheduled" | "processing" | "failed" | "completed",
+    remarks?: string
+  ) {
+    const updateData: any = {
+      processingStatus: status,
+      updatedAt: new Date(),
+    };
+
+    if (status === "completed") {
+      updateData.completedAt = new Date();
+    }
+
+    if (remarks) {
+      updateData.remarks = remarks;
+    }
+
+    await this.chargeModel.updateOne({ _id: chargeId }, { $set: updateData });
+  }
+
+  /**
+   * Task 4: Extract ItemId from Subscription Notes
+   */
+  private async extractItemIdFromSubscription(
+    subscriptionData: any,
+    chargeId: any
+  ): Promise<any> {
+    const itemId = subscriptionData.latestDocument?.notes?.itemId;
+
+    if (!itemId) {
+      const errorMessage = "Missing itemId in subscription notes";
+      await this.updateChargeStatus(chargeId, "failed", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    return new ObjectId(itemId);
+  }
+
+  /**
+   * Task 9: Frame New Subscription Record - Calculate startAt and endAt
+   */
+  private calculateSubscriptionDates(
+    latestSubscription: any,
+    incrementPeriod: "monthly" | "yearly"
+  ): { startAt: Date; endAt: Date } {
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+
+    let startAt: Date;
+
+    // StartAt Logic
+    if (latestSubscription.endAt && latestSubscription.endAt > now) {
+      // If endAt is in FUTURE: startAt = endAt + 1 millisecond
+      startAt = new Date(latestSubscription.endAt.getTime() + 1);
+    } else {
+      // If endAt is in PAST: startAt = tomorrow at 00:00:00.000 UTC
+      startAt = new Date(tomorrow);
+    }
+
+    // EndAt Logic
+    let endAt = new Date(startAt);
+    if (incrementPeriod === "monthly") {
+      endAt.setMonth(endAt.getMonth() + 1);
+    } else if (incrementPeriod === "yearly") {
+      endAt.setFullYear(endAt.getFullYear() + 1);
+    }
+
+    // Set end time to 18:29:59.999
+    endAt.setUTCHours(18, 29, 59, 999);
+
+    return { startAt, endAt };
+  }
+
+  /**
+   * Task 6: Process Cashfree Charges
+   */
+  private async processCashfreeCharge(
+    subscriptionData: any,
+    planDetail: any,
+    chargeId: any
+  ) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const amount =
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount;
+
+      // Get increment period from plan or mandate
+      const incrementPeriod =
+        subscriptionData.latestMandate?.frequency === "monthly"
+          ? "monthly"
+          : "yearly";
+
+      // Task 9: Calculate subscription dates
+      const { startAt, endAt } = this.calculateSubscriptionDates(
+        subscriptionData.latestDocument,
+        incrementPeriod
       );
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        let mandate = expiringSubscriptionsList[i]?.latestMandate;
-        if (mandate?.providerId == EProviderId.cashfree) {
-          await this.createChargeData(expiringSubscriptionsList[i], planDetail);
-        }
-        if (mandate?.providerId == EProviderId.razorpay) {
-          await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
-        }
-        if (mandate?.providerId == EProviderId.phonepe) {
-          await this.createPhonepeCharge(
-            expiringSubscriptionsList[i],
-            planDetail
-          );
-        }
+
+      // Create payment number
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "cashfree-payment",
+        "CSH-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      const paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+      const now = new Date();
+      const paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+
+      // Prepare auth body for Cashfree API
+      const authBody = {
+        subscription_id:
+          subscriptionData.latestMandate?.metaData?.subscription_id,
+        payment_id: paymentNumber,
+        payment_amount: amount,
+        payment_type: "CHARGE",
+        payment_schedule_date: paymentSchedule.toISOString(),
+      };
+
+      // Call Cashfree API
+      const chargeResponse = await this.helperService.createAuth(authBody);
+
+      if (!chargeResponse) {
+        throw new Error("Cashfree API returned no response");
       }
+
+      // Create records in transaction
+      // 1. Subscription entry
+      const subscriptionData_new = {
+        userId: subscriptionData.latestDocument.userId,
+        planId: subscriptionData.latestDocument.planId,
+        startAt: startAt,
+        amount: amount,
+        providerId: EProviderId.cashfree,
+        endAt: endAt,
+        metaData: {
+          subscription_id:
+            subscriptionData.latestMandate?.metaData?.subscription_id,
+          cf_subscription_id:
+            subscriptionData.latestDocument?.metaData?.cf_subscription_id,
+          customer_details:
+            subscriptionData.latestDocument?.metaData?.customer_details,
+        },
+        notes: {
+          itemId: subscriptionData.latestDocument.notes.itemId,
+          amount: amount,
+          paymentScheduledAt: paymentSchedule,
+          paymentId: paymentNumber,
+        },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        status: EStatus.Active,
+        createdBy: subscriptionData.latestDocument.userId,
+        updatedBy: subscriptionData.latestDocument.userId,
+      };
+
+      const subscription = await this.subscriptionModel.create(
+        [subscriptionData_new],
+        { session }
+      );
+
+      // 2. SalesDocument entry (Invoice)
+      const invoiceData = {
+        itemId: subscriptionData.latestDocument.notes.itemId,
+        source_id: subscription[0]._id,
+        source_type: "subscription",
+        sub_total: amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: amount,
+        user_id: subscriptionData.latestDocument.userId,
+        created_by: subscriptionData.latestDocument.userId,
+        updated_by: subscriptionData.latestDocument.userId,
+      };
+
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
+
+      // 3. Payment entry
+      const paymentData = {
+        amount: amount,
+        currencyCode: "INR",
+        source_id: invoice._id,
+        source_type: EPaymentSourceType.invoice,
+        userId: subscriptionData.latestDocument.userId,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: EProviderId.cashfree,
+        providerName: EProvider.cashfree,
+        transactionDate: paymentSchedule,
+      };
+
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: chargeResponse?.cf_payment_id }
+      );
+
+      // 4. ItemDocument entry
+      const itemDocument = [
+        {
+          source_id: invoice._id,
+          source_type: EDocumentTypeName.invoice,
+          item_id: subscriptionData.latestDocument.notes.itemId,
+          amount: amount,
+          quantity: 1,
+          user_id: subscriptionData.latestDocument.userId,
+          created_by: subscriptionData.latestDocument.userId,
+          updated_by: subscriptionData.latestDocument.userId,
+        },
+      ];
+
+      await this.itemDocumentService.createItemDocuments(itemDocument);
+
+      // Commit transaction
+      await session.commitTransaction();
+
+      // Update charge status to completed
+      await this.updateChargeStatus(chargeId, "completed");
     } catch (error) {
+      // Rollback transaction
+      await session.abortTransaction();
+      const errorMessage =
+        error?.message || "Cashfree charge processing failed";
+      await this.updateChargeStatus(chargeId, "failed", errorMessage);
+      console.error(
+        `[Cashfree Charge] Error processing charge ${chargeId}:`,
+        error
+      );
       throw error;
+    } finally {
+      session.endSession();
     }
   }
+
+  /**
+   * Task 7: Process Razorpay Charges
+   */
+  private async processRazorpayCharge(
+    subscriptionData: any,
+    planDetail: any,
+    chargeId: any
+  ) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const amount =
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount;
+
+      // Get increment period
+      const incrementPeriod =
+        subscriptionData.latestMandate?.frequency === "monthly"
+          ? "monthly"
+          : "yearly";
+
+      // Task 9: Calculate subscription dates
+      const { startAt, endAt } = this.calculateSubscriptionDates(
+        subscriptionData.latestDocument,
+        incrementPeriod
+      );
+
+      // Create payment number
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "razorpay-payment",
+        "RZP-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      const paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+      const now = new Date();
+      const paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      const subscriptionAmount = amount * 100;
+      const paymentScheduleInSeconds = Math.floor(
+        paymentSchedule.getTime() / 1000
+      );
+
+      // Get user data
+      const userAdditionalData = await this.helperService.getUserAdditionalDetails(
+        {
+          userId: subscriptionData.latestDocument.userId,
+        }
+      );
+      const userData = await this.helperService.getUserById(
+        subscriptionData.latestDocument.userId
+      );
+      const customerId =
+        userAdditionalData?.userAdditional?.referenceId ||
+        subscriptionData.latestMandate?.metaData?.customerId;
+
+      // Prepare auth body for Razorpay API
+      const authBody = {
+        amount: subscriptionAmount,
+        currency: "INR",
+        customer_id: customerId,
+        payment_capture: true,
+        token: {
+          max_amount: subscriptionAmount,
+          expire_at: paymentScheduleInSeconds,
+        },
+        notification: {
+          token_id: subscriptionData.latestMandate?.referenceId,
+          payment_after: paymentScheduleInSeconds,
+        },
+        notes: {
+          mandateId: subscriptionData.latestMandate?.referenceId,
+          userId: subscriptionData.latestDocument.userId,
+          subscriptionId: subscriptionData.latestDocument.subscriptionId,
+        },
+      };
+
+      // Call Razorpay API - Create order
+      const chargeResponse = await this.helperService.addSubscription(authBody);
+
+      if (!chargeResponse) {
+        throw new Error("Razorpay API returned no response");
+      }
+
+      // Build safe email/contact
+      const fallbackPhone =
+        userAdditionalData?.userAdditional?.userId?.phoneNumber ??
+        userData?.data?.phoneNumber;
+      const safeContact = fallbackPhone ? String(fallbackPhone) : "9999999999";
+      const safeEmail =
+        userAdditionalData?.userAdditional?.userId?.emailId ||
+        (safeContact ? `${safeContact}@casttree.com` : "creedom-user@casttree.com");
+
+      // Create recurring payment
+      const recurring = {
+        email: safeEmail,
+        contact: safeContact,
+        amount: subscriptionAmount,
+        currency: "INR",
+        order_id: chargeResponse?.id,
+        customer_id: customerId,
+        token: subscriptionData.latestMandate?.referenceId,
+        recurring: "1",
+        notes: {
+          userId: subscriptionData.latestDocument.userId,
+          userReferenceId: customerId,
+          razorpayOrderId: chargeResponse?.id,
+        },
+      };
+
+      const recurringResponse =
+        await this.helperService.createRecurringPayment(recurring);
+
+      if (!recurringResponse) {
+        throw new Error("Razorpay recurring payment failed");
+      }
+
+      // Create records in transaction
+      // 1. Subscription entry
+      const razorpaySubscriptionSequence =
+        await this.sharedService.getNextNumber(
+          "razorpay-subscription",
+          "RZP-SUB",
+          5,
+          null
+        );
+      const razorpaySubscriptionNumber = razorpaySubscriptionSequence
+        .toString()
+        .padStart(5, "0");
+
+      const subscriptionData_new = {
+        userId: subscriptionData.latestDocument.userId,
+        subscriptionId: razorpaySubscriptionNumber,
+        startAt: startAt,
+        amount: amount,
+        providerId: EProviderId.razorpay,
+        provider: EProvider.razorpay,
+        endAt: endAt,
+        metaData: {
+          subscription_id:
+            subscriptionData.latestDocument.metaData?.subscriptionId,
+          ...chargeResponse,
+        },
+        currencyCode: "INR",
+        notes: {
+          itemId: subscriptionData.latestDocument.notes?.itemId,
+          amount: subscriptionAmount,
+          paymentScheduledAt: paymentSchedule,
+          paymentId: paymentNumber,
+        },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        status: EStatus.Active,
+        createdBy: subscriptionData.latestDocument.userId,
+        updatedBy: subscriptionData.latestDocument.userId,
+      };
+
+      const subscription = await this.subscriptionModel.create(
+        [subscriptionData_new],
+        { session }
+      );
+
+      // 2. SalesDocument entry (Invoice)
+      const invoiceData = {
+        itemId: subscriptionData.latestDocument.notes.itemId,
+        source_id: subscription[0]._id,
+        source_type: "subscription",
+        sub_total: amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: amount,
+        user_id: subscriptionData.latestDocument.userId,
+        created_by: subscriptionData.latestDocument.userId,
+        updated_by: subscriptionData.latestDocument.userId,
+      };
+
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
+
+      // 3. Payment entry
+      const paymentData = {
+        amount: amount,
+        currencyCode: "INR",
+        source_id: invoice._id,
+        source_type: EPaymentSourceType.invoice,
+        userId: subscriptionData.latestDocument.userId,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: EProviderId.razorpay,
+        providerName: EProvider.razorpay,
+        transactionDate: paymentSchedule,
+        metaData: { response: { chargeResponse, recurringResponse } },
+      };
+
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: chargeResponse?.id }
+      );
+
+      // 4. ItemDocument entry
+      const itemDocument = [
+        {
+          source_id: invoice._id,
+          source_type: EDocumentTypeName.invoice,
+          item_id: subscriptionData.latestDocument.notes.itemId,
+          amount: amount,
+          quantity: 1,
+          user_id: subscriptionData.latestDocument.userId,
+          created_by: subscriptionData.latestDocument.userId,
+          updated_by: subscriptionData.latestDocument.userId,
+        },
+      ];
+
+      await this.itemDocumentService.createItemDocuments(itemDocument);
+
+      // Commit transaction
+      await session.commitTransaction();
+
+      // Update charge status to completed
+      await this.updateChargeStatus(chargeId, "completed");
+        } catch (error) {
+      // Rollback transaction
+      await session.abortTransaction();
+      const errorMessage =
+        error?.message || "Razorpay charge processing failed";
+      await this.updateChargeStatus(chargeId, "failed", errorMessage);
+      console.error(
+        `[Razorpay Charge] Error processing charge ${chargeId}:`,
+        error
+      );
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Task 8: Process PhonePe Charges
+   */
+  private async processPhonepeCharge(
+    subscriptionData: any,
+    planDetail: any,
+    chargeId: any
+  ) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const amount =
+        planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
+          ?.amount;
+
+      // Get increment period
+      const incrementPeriod =
+        subscriptionData.latestMandate?.frequency === "monthly"
+          ? "monthly"
+          : "yearly";
+
+      // Task 9: Calculate subscription dates
+      const { startAt, endAt } = this.calculateSubscriptionDates(
+        subscriptionData.latestDocument,
+        incrementPeriod
+      );
+
+      // Create payment number
+      const paymentSequence = await this.sharedService.getNextNumber(
+        "phonepe-payment",
+        "PHNPE-PMT",
+        5,
+        null
+      );
+      const paymentNewNumber = paymentSequence.toString().padStart(5, "0");
+      const paymentNumber = `${paymentNewNumber}-${Date.now()}`;
+
+      const now = new Date();
+      const paymentSchedule = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+      const subscriptionAmount = amount * 100;
+      const paymentScheduleInSeconds = Math.floor(
+        paymentSchedule.getTime() / 1000
+      );
+
+      // Prepare subscription notify body
+      const subscriptionNotifyBody = {
+        merchantOrderId: paymentNumber,
+        amount: subscriptionAmount,
+        expireAt: paymentScheduleInSeconds,
+        paymentFlow: {
+          type: "SUBSCRIPTION_REDEMPTION",
+          merchantSubscriptionId:
+            subscriptionData.latestDocument?.metaData?.subscription_id,
+          redemptionRetryStrategy: "STANDARD",
+          autoDebit: true,
+        },
+      };
+
+      // Call PhonePe API - Notify
+      const chargeResponse = await this.helperService.notifyPhonepeSubscription(
+        "",
+        subscriptionNotifyBody
+      );
+
+      if (!chargeResponse) {
+        throw new Error("PhonePe notify API returned no response");
+      }
+
+      // Redeem subscription
+      const recurring = {
+        merchantOrderId: paymentNumber,
+      };
+
+      const recurringResponse =
+        await this.helperService.redeemPhonepeSubscription("", recurring);
+
+      if (!recurringResponse) {
+        throw new Error("PhonePe redeem API failed");
+      }
+
+      // Create records in transaction
+      // 1. Subscription entry
+      const phonepeSubscriptionSequence =
+        await this.sharedService.getNextNumber(
+          "phonepe-subscription",
+          "PHNPE-SUB",
+          5,
+          null
+        );
+      const phonepeSubscriptionNumber = phonepeSubscriptionSequence
+        .toString()
+        .padStart(5, "0");
+
+      const subscriptionData_new = {
+        userId: subscriptionData.latestDocument.userId,
+        subscriptionId: phonepeSubscriptionNumber,
+        startAt: startAt,
+        amount: amount,
+        providerId: EProviderId.phonepe,
+        provider: EProvider.phonepe,
+        endAt: endAt,
+        metaData: {
+          recurringResponse,
+          ...chargeResponse,
+        },
+        currencyCode: "INR",
+        notes: {
+          itemId: subscriptionData.latestDocument.notes?.itemId,
+          amount: subscriptionAmount,
+          paymentScheduledAt: paymentSchedule,
+          paymentId: paymentNumber,
+        },
+        subscriptionStatus: EsubscriptionStatus.initiated,
+        status: EStatus.Active,
+        createdBy: subscriptionData.latestDocument.userId,
+        updatedBy: subscriptionData.latestDocument.userId,
+      };
+
+      const subscription = await this.subscriptionModel.create(
+        [subscriptionData_new],
+        { session }
+      );
+
+      // 2. SalesDocument entry (Invoice)
+      const invoiceData = {
+        itemId: subscriptionData.latestDocument.notes.itemId,
+        source_id: subscription[0]._id,
+        source_type: "subscription",
+        sub_total: amount,
+        currencyCode: "INR",
+        document_status: EDocumentStatus.pending,
+        grand_total: amount,
+        user_id: subscriptionData.latestDocument.userId,
+        created_by: subscriptionData.latestDocument.userId,
+        updated_by: subscriptionData.latestDocument.userId,
+      };
+
+      const invoice = await this.invoiceService.createInvoice(
+        invoiceData,
+        subscriptionData.latestDocument.userId
+      );
+
+      // 3. Payment entry
+      const paymentData = {
+        amount: amount,
+        currencyCode: "INR",
+        source_id: invoice._id,
+        source_type: EPaymentSourceType.invoice,
+        userId: subscriptionData.latestDocument.userId,
+        document_status: EDocumentStatus.pending,
+        paymentType: EPaymentType.charge,
+        providerId: EProviderId.phonepe,
+        providerName: EProvider.phonepe,
+        transactionDate: paymentSchedule,
+        metaData: { response: { chargeResponse, recurringResponse } },
+      };
+
+      await this.paymentService.createPaymentRecord(
+        paymentData,
+        null,
+        invoice,
+        "INR",
+        { order_id: recurringResponse?.orderId }
+      );
+
+      // 4. ItemDocument entry
+      const itemDocument = [
+        {
+          source_id: invoice._id,
+          source_type: EDocumentTypeName.invoice,
+          item_id: subscriptionData.latestDocument.notes.itemId,
+          amount: amount,
+          quantity: 1,
+          user_id: subscriptionData.latestDocument.userId,
+          created_by: subscriptionData.latestDocument.userId,
+          updated_by: subscriptionData.latestDocument.userId,
+        },
+      ];
+
+      await this.itemDocumentService.createItemDocuments(itemDocument);
+
+      // Commit transaction
+      await session.commitTransaction();
+
+      // Update charge status to completed
+      await this.updateChargeStatus(chargeId, "completed");
+    } catch (error) {
+      // Rollback transaction
+      await session.abortTransaction();
+      const errorMessage =
+        error?.message || "PhonePe charge processing failed";
+      await this.updateChargeStatus(chargeId, "failed", errorMessage);
+      console.error(
+        `[PhonePe Charge] Error processing charge ${chargeId}:`,
+        error
+      );
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Task 10: Send Batch Summary Email
+   */
+  private async sendBatchSummaryEmail(chargeIds: string[], batchStartTime: Date) {
+    try {
+      // Query all charges for this batch
+      const charges = await this.chargeModel.find({
+        _id: { $in: chargeIds.map((id) => new ObjectId(id)) },
+      });
+
+      const completed = charges.filter(
+        (c) => c.processingStatus === "completed"
+      ).length;
+      const failed = charges.filter(
+        (c) => c.processingStatus === "failed"
+      ).length;
+
+      const failedCharges = charges.filter(
+        (c) => c.processingStatus === "failed"
+      );
+
+      // Prepare email content
+      const templateVariables = {
+        subject: "Subscription Renewal Batch Processing Complete",
+        total_completed: completed,
+        total_failed: failed,
+        total_processed: charges.length,
+        batch_start_time: batchStartTime.toISOString(),
+        batch_end_time: new Date().toISOString(),
+        failed_charges: failedCharges.map((charge) => ({
+          chargeId: charge._id.toString(),
+          userId: charge.userId.toString(),
+          subscriptionId: charge.subscriptionId.toString(),
+          mandateId: charge.mandateId.toString(),
+          provider: charge.provider,
+          amount: charge.amount,
+          remarks: charge.remarks,
+          chargeInitiatedDate: charge.chargeInitiatedDate.toISOString(),
+        })),
+        sender_name: "Casttree Subscription Service",
+        sender_email: "alerts@casttree.in",
+      };
+
+      // Send email using MailService
+      await this.mailService.sendErrorLog(
+        "Subscription Renewal Batch Processing Complete",
+        templateVariables
+      );
+
+      console.log(
+        `[Subscription Auto-Renewal] Batch summary email sent. Completed: ${completed}, Failed: ${failed}`
+      );
+    } catch (error) {
+      console.error(
+        `[Subscription Auto-Renewal] Error sending batch summary email:`,
+        error
+      );
+      // Don't throw - email failure shouldn't break the process
+    }
+  }
+
+  // ==================== End Helper Methods ====================
 
   async createPhonepeCharge(subscriptionData, planDetail) {
     try {
@@ -2711,14 +3569,6 @@ export class SubscriptionService {
   }
 
   async createChargeData(subscriptionData, planDetail) {
-    Sentry.addBreadcrumb({
-      message: "createChargeData",
-      level: "info",
-      data: {
-        subscriptionData,
-        planDetail,
-      },
-    });
     // console.log(
     //   "subscription data is ==>",
     //   subscriptionData?.latestDocument?.metaData?.subscription_id
@@ -2738,7 +3588,7 @@ export class SubscriptionService {
 
     let authBody = {
       subscription_id:
-        subscriptionData?.latestDocument?.metaData?.subscription_id,
+        subscriptionData?.latestMandate?.metaData?.subscription_id,
       payment_id: paymentNumber,
       payment_amount:
         planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
@@ -2751,7 +3601,7 @@ export class SubscriptionService {
     const today = new Date();
     const startAt = new Date();
     startAt.setDate(today.getDate() + 1);
-    startAt.setHours(18, 30, 0, 0);
+    startAt.setHours(0, 0, 0, 0);
     // console.log("startAt", startAt);
 
     let endAt = new Date();
@@ -2799,7 +3649,7 @@ export class SubscriptionService {
         endAt: endAt,
         metaData: {
           subscription_id:
-            subscriptionData?.latestDocument?.metaData?.subscription_id,
+            subscriptionData?.latestMandate?.metaData?.subscription_id,
           cf_subscription_id:
             subscriptionData?.latestDocument?.metaData?.cf_subscription_id,
           customer_details:
@@ -2894,14 +3744,6 @@ export class SubscriptionService {
 
   async raiseCharge(subscriptionData, planDetail) {
     try {
-      Sentry.addBreadcrumb({
-        message: "raiseCharge",
-        level: "info",
-        data: {
-          subscriptionData,
-          planDetail,
-        },
-      });
       // console.log("inside raise charge");
 
       // console.log("subscription data is ==>", subscriptionData);
@@ -2922,8 +3764,12 @@ export class SubscriptionService {
           userId: subscriptionData?.latestDocument?.userId,
         });
       // console.log("userAdditionalData is", userAdditionalData);
-
-      let customerId = userAdditionalData?.userAdditional?.referenceId;
+      let userData = await this.helperService.getUserById(
+        subscriptionData?.latestDocument?.userId
+      );
+      let customerId = userAdditionalData?.userAdditional?.referenceId
+        ? userAdditionalData?.userAdditional?.referenceId
+        : subscriptionData?.latestMandate?.metaData?.customerId;
       let subscriptionAmount =
         planDetail?.additionalDetail?.promotionDetails?.subscriptionDetail
           ?.amount * 100;
@@ -2953,7 +3799,7 @@ export class SubscriptionService {
       const today = new Date();
       const startAt = new Date();
       startAt.setDate(today.getDate() + 1);
-      startAt.setHours(18, 30, 0, 0);
+      startAt.setHours(0, 0, 0, 0);
       // console.log("startAt", startAt);
 
       let endAt = new Date();
@@ -2983,12 +3829,20 @@ export class SubscriptionService {
       let chargeResponse = await this.helperService.addSubscription(authBody);
       // console.log("charge response is", chargeResponse);
 
+      // Build safe email/contact with fallbacks
+      const fallbackPhone =
+        userAdditionalData?.userAdditional?.userId?.phoneNumber ??
+        userData?.data?.phoneNumber;
+      const safeContact = fallbackPhone ? String(fallbackPhone) : "9999999999";
+      const safeEmail =
+        userAdditionalData?.userAdditional?.userId?.emailId ||
+        (safeContact
+          ? `${safeContact}@casttree.com`
+          : "creedom-user@casttree.com");
+
       let recurring = {
-        email:
-          userAdditionalData?.userAdditional?.userId?.emailId ||
-          userAdditionalData?.userAdditional?.userId?.phoneNumber.toString() +
-            "@casttree.com",
-        contact: userAdditionalData?.userAdditional?.userId?.phoneNumber,
+        email: safeEmail,
+        contact: safeContact,
         amount: subscriptionAmount,
         currency: "INR",
         order_id: chargeResponse?.id,
@@ -3677,7 +4531,7 @@ export class SubscriptionService {
               await this.helperService.mixPanel(mixPanelBody);
             }
           } catch (error) {
-            throw error
+            throw error;
           }
         }
       }

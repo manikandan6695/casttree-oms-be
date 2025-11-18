@@ -15,12 +15,14 @@ import { SubscriptionService } from "./subscription.service";
 
 import { SubscriptionFactory } from "./subscription.factory";
 import { CoinTransactionSchema } from "src/payment/schema/coinPurchase.schema";
+import { chargeSchema } from "./schema/charge.schema";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: "subscription", schema: subscriptionSchema },
       { name: "coinTransaction", schema: CoinTransactionSchema },
+      { name: "charge", schema: chargeSchema },
     ]),
     SharedModule,
     AuthModule,
