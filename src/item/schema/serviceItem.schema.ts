@@ -102,6 +102,11 @@ export const tagSchema = new mongoose.Schema<any>({
     type: Number,
   },
 });
+export interface serviceItemRoleModel {
+  roleId: string;
+  roleName: string;
+}
+
 
 export interface serviceitems {
   itemId: string;
@@ -119,6 +124,7 @@ export interface serviceitems {
   category: categoryModel[]; // Add category field
   proficiency: proficiencyModel[]; // Add proficiency field
   planItemId: planItemIdModel[];
+  role: serviceItemRoleModel[];
 }
 
 export const serviceitemsSchema = new mongoose.Schema<any>(

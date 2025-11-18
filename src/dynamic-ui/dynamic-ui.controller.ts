@@ -50,7 +50,25 @@ export class DynamicUiController {
       throw err;
     }
   }
-
+  @Get("/:pageId")
+  async getCourseSeriesCardDetails(
+    @Param("pageId") pageId: string,
+    @Query("skip") skip?: string,
+    @Query("limit") limit?: string
+  ){
+    try {
+     const parsedSkip = Number.isFinite(Number(skip)) ? parseInt(skip as any, 10) : 0;
+     const parsedLimit = Number.isFinite(Number(limit)) ? parseInt(limit as any, 10) : 0;
+     let data = await this.dynamicUIService.getCourseSeriesCardDetails(
+      pageId,
+      isNaN(parsedSkip) ? 0 : parsedSkip,
+      isNaN(parsedLimit) ? 0 : parsedLimit
+     );
+     return data;
+    } catch (err) {
+      throw err;
+    }
+  }
   @UseGuards(JwtAuthGuard)
   @Get("page/:pageId")
   async getPageDetails(
