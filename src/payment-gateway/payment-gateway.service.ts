@@ -12,6 +12,7 @@ import {
   InstrumentsResponseDto,
   InstrumentDto,
 } from "./dto/payment-gateway.dto";
+import { EStatus } from "src/process/enums/process.enum";
 
 @Injectable()
 export class PaymentGatewayService {
@@ -37,7 +38,7 @@ export class PaymentGatewayService {
     const instruments = await this.paymentConfigModel.distinct("instrument", {
       paymentType,
       device,
-      status: "active",
+     status: EStatus.Active,
     });
 
     // Check health for each
@@ -50,7 +51,7 @@ export class PaymentGatewayService {
           paymentType,
           device,
           instrument: instrumentId,
-          status: "active",
+          status: EStatus.Active,
         })
         .lean()
         .exec();

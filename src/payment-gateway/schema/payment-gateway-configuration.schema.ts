@@ -1,4 +1,5 @@
 import * as mongoose from "mongoose";
+import { EStatus } from "src/shared/enum/privacy.enum";
 
 export interface IPaymentGatewayConfigurationModel extends mongoose.Document {
   paymentType: string;
@@ -58,8 +59,8 @@ export const PaymentGatewayConfigurationSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["active", "inactive"],
-      default: "active",
+      enum: [EStatus.Active,EStatus.Inactive],
+      default: EStatus.Active,
     },
 
     // Health Status
