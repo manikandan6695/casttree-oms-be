@@ -318,6 +318,7 @@ export class HelperService {
 
       return data.data;
     } catch (err) {
+      console.log("addSubscription error is", err);
       throw err;
     }
   }
@@ -359,6 +360,7 @@ export class HelperService {
 
       return data.data;
     } catch (err) {
+      console.log("createRecurringPayment error is", err);
       throw err;
     }
   }
@@ -454,7 +456,7 @@ export class HelperService {
         )
         .pipe(
           catchError((err) => {
-            //console.log(err);
+            console.log("createAuth error is", err);
             throw new BadRequestException("API not available");
           })
         );

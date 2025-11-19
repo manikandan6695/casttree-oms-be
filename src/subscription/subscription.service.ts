@@ -63,7 +63,6 @@ import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
-import { RedisService } from "src/redis/redis.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -88,7 +87,6 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private readonly redisService: RedisService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -288,13 +286,7 @@ export class SubscriptionService {
         // console.log("event name", event);
         if (event === EEventType.paymentCaptured) {
           const payload = req?.body?.payload;
-          let coinTransaction = await this.paymentService.getSalseDocumentFromOrderId(payload?.payment?.entity?.order_id)
-         if ( coinTransaction?.source_type === ECoinTransactionTypes.coinTransaction ) {
-          await this.handleCoinPurchaseInWebHook(payload?.payment?.entity?.order_id);
-         }
-         else {
           await this.handleRazorpaySubscriptionPayment(payload);
-         }
         }
         // if (event === EEventType.tokenConfirmed) {
         //   const payload = req?.body?.payload;
@@ -2033,7 +2025,7 @@ export class SubscriptionService {
         {
           $match: {
             "mandates.mandateStatus": {
-              $in: [EMandateStatus.active, EMandateStatus.bankPendingApproval],
+              $in: [EMandateStatus.active],
             },
           },
         },

@@ -177,6 +177,7 @@ export class DynamicUiService {
         .find({
           _id: { $in: componentIds },
           status: EStatus.Active,
+          showInLearnPage: true,
         })
         .populate("interactionData.items.banner")
         .lean();
@@ -248,6 +249,20 @@ export class DynamicUiService {
       for (const comp of componentDocs) {
         if (comp.componentKey === EComponentKey.headerActionBar) {
           await this.updateHeaderActionBarComponent(comp, skillType, skillId, token.id);
+        }
+        if (comp.componentKey === EConfigKeyName.learnCategorySection) {
+          if (Array.isArray(comp.actionData)) {
+            comp.actionData.sort((a, b) => {
+              const orderA = typeof a?.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+              const orderB = typeof b?.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+              return orderA - orderB;
+            });
+            const totalItems = comp.actionData.length;
+            if (totalItems > viewAllCount?.value?.learnCategoryCount) {
+              comp["isViewAll"] = true;
+            }
+            comp.actionData = comp.actionData.slice(0, 7);
+          }
         }
       }
       componentDocs.sort((a, b) => a.order - b.order);
@@ -1616,6 +1631,9 @@ export class DynamicUiService {
                 },
                 skipText: skipText,
                 allowMulti: false,
+                ...(typeof data.isViewAllEpisode === "boolean"
+                  ? { isViewAllEpisode: data.isViewAllEpisode }
+                  : {}),
               },
               itemCommissionMarkupType: "Percent",
               itemCommissionMarkup: 0,
@@ -2481,88 +2499,126 @@ export class DynamicUiService {
     skillId?: string,
   ) {
     try {
-      const { skip, limit } = query;
-      const [actualComponent, page] =
-        await this.fetchBaseComponents(componentId, skillId);
-      if (!actualComponent) {
+      const pagination = {
+        skip: Math.max(0, Number(query?.skip ?? 0)),
+        limit: Math.max(0, Number(query?.limit ?? 0)),
+      };
+
+      const [component, pageDocument] = await this.fetchBaseComponents(
+        componentId,
+        skillId,
+      );
+
+      if (!component) {
         throw new NotFoundException("Filter component not found");
       }
-      const tagName = actualComponent?.tag?.tagName;
 
-      const { serviceItemData, filteredData } = await this.fetchServiceItemData(
-        page,
-        token.id,
-        tagName,
-        skip,
-        limit,
-        filterOption
-      );
-      const componentFilterData = await this.getComponentFilterOptions(
-        componentId,
-        token,
-        filterOption
-      );
-      const finalInteractionData =
-        componentFilterData?.interactionData?.items || [];
-      const processedFilterOptions = await this.processFilterOptions(
-        finalInteractionData,
-        filterOption
-      );
-      this.updateActualComponentWithFilterData(
-        actualComponent,
-        finalInteractionData,
-        processedFilterOptions,
-        filteredData
-      );
-      const totalCount = await this.calculateTotalCount(
-        serviceItemData,
-        tagName,
-        token.id,
-        filterOption
-      );
-      actualComponent["totalCount"] = totalCount;
+      const tagName: string | null = component?.tag?.tagName ?? null;
 
-      if (filteredData && filteredData.length > 0) {
-        actualComponent.actionData = filteredData;
-        actualComponent["totalCount"] = totalCount;
-      } else if (serviceItemData && serviceItemData.finalData && serviceItemData.finalData[tagName]) {
-        const allTagData = serviceItemData.finalData[tagName] || [];
-        actualComponent.actionData = allTagData.slice(skip, skip + limit);
-        actualComponent["totalCount"] = allTagData.length;
-      } else {
-        const completedSeries = await this.processService.getMySeries(
-          token.id,
-          EprocessStatus.Completed
-        );
-        const completedProcessIds = new Set(
-          completedSeries.map((s: any) => String(s.processId))
-        );
+      if (component?.componentKey === EConfigKeyName.learnCategorySection) {
+        const actionItems = Array.isArray(component.actionData)
+          ? component.actionData
+          : [];
+        const endIndex =
+          pagination.limit > 0
+            ? pagination.skip + pagination.limit
+            : undefined;
 
-        const allServiceItemData = await this.fetchServiceItemDetails(
-          page,
-          token.id,
-          false,
-          0,
-          0,
-          null
-        );
+        component.actionData = actionItems.slice(pagination.skip, endIndex);
+        component.totalCount = actionItems.length;
 
-        const allSeriesData = allServiceItemData.finalData?.allSeries || [];
-
-        const nonMatchedSeries = allSeriesData.filter(
-          (series: any) =>
-            !completedProcessIds.has(String(series.processId))
-        );
-
-        if (nonMatchedSeries.length > 0) {
-          actualComponent.recommendedList = nonMatchedSeries;
-          actualComponent["totalCount"] = nonMatchedSeries.length;
-        }
+        return { component };
       }
-      
-      return { component: actualComponent };
-    } catch (err) {
-      throw err;
+
+      const componentFilterTypeIds = Array.isArray(component?.filters)
+        ? component.filters
+            .map((filter: any) =>
+              this.normalizeId(filter?.filterTypeId ?? filter),
+            )
+            .filter((id: string | null): id is string => Boolean(id))
+        : [];
+
+      const [serviceItemResult, filterOptionResult] = await Promise.all([
+        this.fetchServiceItemData(
+          pageDocument,
+          token?.id,
+          tagName,
+          pagination.skip,
+          pagination.limit,
+          filterOption,
+        ),
+        this.getComponentFilterOptions(
+          componentId,
+          token,
+          filterOption,
+          componentFilterTypeIds,
+        ),
+      ]);
+
+      const serviceItems = serviceItemResult?.fullData ?? null;
+      const paginatedItems = serviceItemResult?.paginatedItems ?? [];
+      const interactionItems =
+        filterOptionResult?.interactionData?.items ?? [];
+
+      const availableFilterOptionIds = this.getAvailableFilterOptionIds(
+        serviceItems,
+        tagName ?? "",
+        paginatedItems,
+      );
+
+      const processedFilterOptions = await this.processFilterOptions(
+        interactionItems,
+        filterOption,
+        availableFilterOptionIds,
+      );
+
+      this.updateActualComponentWithFilterData(
+        component,
+        interactionItems,
+        processedFilterOptions,
+        paginatedItems,
+      );
+
+      const totalCount = await this.calculateTotalCount(
+        serviceItems,
+        tagName ?? "",
+        token?.id ?? "",
+        filterOption,
+      );
+
+      component.totalCount = totalCount;
+
+      const actionDataResult = await this.resolveComponentActionData({
+        serviceItems,
+        tagName,
+        paginatedItems,
+        pageDocument,
+        userId: token?.id,
+        skip: pagination.skip,
+        limit: pagination.limit,
+      });
+
+      const hasActionItems = Array.isArray(actionDataResult.items)
+        ? actionDataResult.items.length > 0
+        : false;
+
+      component.actionData = hasActionItems
+        ? actionDataResult.items
+        : [];
+
+      if (hasActionItems) {
+        if (typeof actionDataResult.totalCountOverride === "number") {
+          component.totalCount = actionDataResult.totalCountOverride;
+        }
+      } else {
+        const recommendations = actionDataResult.recommendedItems ?? [];
+        component.recommendedList = recommendations;
+        component.totalCount = recommendations.length
+      }
+
+      return { component };
+    } catch (error) {
+      throw error;
     }
   }
   private async fetchBaseComponents(componentId: string, skillId?: string) {
@@ -2595,41 +2651,331 @@ export class DynamicUiService {
     filterOption: EFilterOption
   ) {
     let serviceItemData;
-    let filteredData: any[] = [];
+    let paginatedItems: any[] = [];
 
-    if (page) {
+    if (page && userId) {
       serviceItemData = await this.fetchServiceItemDetails(
         page,
         userId,
         false,
         0,
         0,
-        filterOption
+        filterOption,
       );
-
-      if (tagName && serviceItemData?.finalData?.[tagName]) {
-        const allTagData = serviceItemData.finalData[tagName];
-        filteredData = allTagData.slice(skip, skip + limit);
+      if (
+        tagName &&
+        tagName in (serviceItemData?.finalData ?? {}) &&
+        Array.isArray(serviceItemData?.finalData?.[tagName])
+      ) {
+        const tagItems = serviceItemData.finalData[tagName];
+        const endIndex = limit > 0 ? skip + limit : undefined;
+        paginatedItems = tagItems.slice(skip, endIndex);
       }
     }
 
-    return { serviceItemData, filteredData };
+    return { fullData: serviceItemData, paginatedItems };
+  }
+  private async resolveComponentActionData(params: {
+    serviceItems: any;
+    tagName: string | null;
+    paginatedItems: any[];
+    pageDocument: any;
+    userId?: string;
+    skip: number;
+    limit: number;
+  }): Promise<{
+    items: any[];
+    recommendedItems?: any[];
+    totalCountOverride?: number;
+    source?: "paginated" | "tag" | "recommendation";
+  }> {
+    const {
+      serviceItems,
+      tagName,
+      paginatedItems,
+      pageDocument,
+      userId,
+      skip,
+      limit,
+    } = params;
+  let serviceItemDetails = await this.fetchServiceItemDetails(
+      pageDocument,
+      userId,
+      false,
+      0,
+      0,
+      null,
+    );
+    const safePaginatedItems = Array.isArray(paginatedItems)
+      ? paginatedItems
+      : [];
+
+    if (safePaginatedItems.length > 0) {
+      return { items: safePaginatedItems, source: "paginated" };
+    }
+
+    if (
+      tagName &&
+      Array.isArray(serviceItems?.finalData?.[tagName]) &&
+      serviceItems.finalData[tagName].length
+    ) {
+      const tagItems = serviceItems.finalData[tagName];
+      const endIndex = limit > 0 ? skip + limit : undefined;
+      return {
+        items: tagItems.slice(skip, endIndex),
+        totalCountOverride: tagItems.length,
+        source: "tag",
+      };
+    }
+    const recommendedItems = await this.buildRecommendationList({
+      existingServiceItems: serviceItemDetails?.finalData,
+      pageDocument,
+      userId,
+    });
+
+    return {
+      items: [],
+      recommendedItems,
+      totalCountOverride: 0,
+      source: "recommendation",
+    };
+  }
+
+  private async buildRecommendationList(params: {
+    existingServiceItems: any;
+    pageDocument: any;
+    userId?: string;
+  }): Promise<any[]> {
+    const { existingServiceItems, pageDocument, userId } = params;
+
+    if (!userId) {
+      return [];
+    }
+
+    try {
+      const [completedSeries, serviceItems] = await Promise.all([
+        this.loadCompletedSeries(userId),
+        this.ensureAllSeriesData(existingServiceItems, pageDocument, userId),
+      ]);
+
+      const completedIds = new Set(
+        (completedSeries ?? []).map((series: any) =>
+          String(series?.processId ?? series?._id ?? ""),
+        ),
+      );
+
+      const allSeries =
+        serviceItems?.finalData?.allSeries && Array.isArray(serviceItems.finalData.allSeries)
+          ? serviceItems.finalData.allSeries
+          : [];
+
+      return allSeries.filter((series: any) => {
+        const processId = String(series?.processId ?? series?._id ?? "");
+        return processId && !completedIds.has(processId);
+      });
+    } catch (error) {
+      return [];
+    }
+  }
+  private async loadCompletedSeries(userId: string): Promise<any[]> {
+    if (!userId) {
+      return [];
+    }
+
+    try {
+      return await this.processService.getMySeries(
+        userId,
+        EprocessStatus.Completed,
+      );
+    } catch (error) {
+      return [];
+    }
+  }
+
+  private async ensureAllSeriesData(
+    existingServiceItems: any,
+    pageDocument: any,
+    userId: string,
+  ): Promise<any> {
+    if (
+      existingServiceItems?.finalData?.allSeries &&
+      Array.isArray(existingServiceItems.finalData.allSeries) &&
+      existingServiceItems.finalData.allSeries.length
+    ) {
+      return existingServiceItems;
+    }
+
+    if (!pageDocument) {
+      return existingServiceItems ?? {};
+    }
+
+    try {
+      return await this.fetchServiceItemDetails(
+        pageDocument,
+        userId,
+        false,
+        0,
+        0,
+        null,
+      );
+    } catch (error) {
+      return existingServiceItems ?? {};
+    }
+  }
+  private getAvailableFilterOptionIds(
+    serviceItemData: any,
+    tagName: string,
+    filteredData: any[]
+  ): Set<string> {
+    const availableIds = new Set<string>();
+
+    const collectFromItem = (item: any) => {
+      if (!item || typeof item !== "object") return;
+
+      this.addFilterOptionIdsFromCollection(
+        item.filterOptionsIds,
+        availableIds
+      );
+    };
+
+    if (serviceItemData?.finalData) {
+      if (tagName && serviceItemData.finalData[tagName]) {
+        serviceItemData.finalData[tagName].forEach(collectFromItem);
+      } else {
+        Object.values(serviceItemData.finalData).forEach((items: any) => {
+          if (Array.isArray(items)) {
+            items.forEach(collectFromItem);
+          }
+        });
+      }
+    }
+
+    if (Array.isArray(filteredData)) {
+      filteredData.forEach(collectFromItem);
+    }
+
+    return availableIds;
+  }
+
+  private addFilterOptionIdsFromCollection(
+    collection: any,
+    store: Set<string>
+  ) {
+    if (!collection) return;
+    const items = Array.isArray(collection) ? collection : [collection];
+    items.forEach((entry) => {
+      const id =
+        this.normalizeId(entry?.filterOptionId ?? entry?._id ?? entry) ?? null;
+      if (id && id.length === 24) {
+        store.add(id);
+      }
+    });
+  }
+
+  private normalizeId(id: any): string | null {
+    if (!id) return null;
+    if (typeof id === "string") return id;
+    if (id instanceof ObjectId) return id.toString();
+    if (id?.$oid && typeof id.$oid === "string") return id.$oid;
+    if (id?._id) return this.normalizeId(id._id);
+    if (typeof id === "object" && typeof id.toString === "function") {
+      const str = id.toString();
+      if (str && str !== "[object Object]") {
+        return str;
+      }
+    }
+    return null;
+  }
+
+  private normalizeFilterValues(value: any): string[] {
+    if (value === undefined || value === null) return [];
+
+    let items: any[] = [];
+
+    if (Array.isArray(value)) {
+      items = value;
+    } else if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          items = parsed;
+        } else {
+          items = [trimmed];
+        }
+      } catch {
+        items = trimmed
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+        if (!items.length) {
+          items = [trimmed];
+        }
+      }
+    } else {
+      items = [value];
+    }
+
+    return items
+      .map((entry) => {
+        const normalized = this.normalizeId(
+          typeof entry === "string" ? entry.trim() : entry
+        );
+        return normalized && ObjectId.isValid(normalized) && normalized.length === 24
+          ? normalized
+          : null;
+      })
+      .filter((id): id is string => Boolean(id));
+  }
+
+  private extractFilterOptionIds(
+    filterOption?: EFilterOption
+  ): { filterOptionMap: Record<string, string[]>; allOptionIds: string[] } {
+    const filterOptionMap: Record<string, string[]> = {};
+    const allIds = new Set<string>();
+
+    if (!filterOption) {
+      return { filterOptionMap, allOptionIds: [] };
+    }
+
+    Object.entries(filterOption as Record<string, any>).forEach(
+      ([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (["skip", "limit", "skillId"].includes(key)) return;
+
+        const ids = this.normalizeFilterValues(value);
+        if (!ids.length) return;
+
+        filterOptionMap[key] = ids;
+        ids.forEach((id) => allIds.add(id));
+      }
+    );
+
+    return {
+      filterOptionMap,
+      allOptionIds: Array.from(allIds),
+    };
   }
 
   private async processFilterOptions(
     finalInteractionData: any[],
-    filterOption: EFilterOption
+    filterOption: EFilterOption,
+    availableFilterOptionIds: Set<string>
   ) {
     const grouped = {};
-    finalInteractionData.forEach((item: any) => {
-      const filterType = item.button?.type || item.type;
-      if (filterType && item.options && item.options.length > 0) {
-        grouped[filterType] = {
-          type: filterType,
-          filterTypeId: item.filterTypeId,
-          options: item.options.map((opt: any) => ({
-            filterOptionId: opt.filterOptionId,
-            filterType: opt.filterType,
+    const shouldFilter =
+      availableFilterOptionIds && availableFilterOptionIds.size > 0;
+    let hasAnyFilteredOption = false;
+
+    const registerGroup = (filterType: string, item: any, options: any[]) => {
+      grouped[filterType] = {
+        type: filterType,
+        filterTypeId: item.filterTypeId,
+        options: options.map((opt: any) => {
+          return {
+            filterOptionId: opt?.filterOptionId,
+            filterType: opt.filterType || filterType,
             optionKey: opt.optionKey,
             optionValue: opt.optionValue,
             description: opt.description,
@@ -2637,10 +2983,38 @@ export class DynamicUiService {
             color: opt.color,
             metaData: opt.metaData,
             isUserSelected: opt.isUserSelected || false,
-          })),
-        };
+          };
+        }),
+      };
+    };
+
+    finalInteractionData.forEach((item: any) => {
+      const filterType = item.button?.type || item.type;
+      if (!filterType) return;
+
+      const itemOptions = Array.isArray(item.options) ? item.options : [];
+      const filteredOptions = itemOptions.filter((opt: any) => {
+        const optionId = this.normalizeId(opt?.filterOptionId);
+        if (!optionId) {
+          return !shouldFilter;
+        }
+        return !shouldFilter || availableFilterOptionIds.has(optionId);
+      });
+      if (filteredOptions.length > 0) {
+        hasAnyFilteredOption = true;
       }
+      registerGroup(filterType, item, filteredOptions);
     });
+
+    if (shouldFilter && !hasAnyFilteredOption) {
+      Object.keys(grouped).forEach((key) => delete grouped[key]);
+      finalInteractionData.forEach((item: any) => {
+        const filterType = item.button?.type || item.type;
+        if (!filterType) return;
+        const itemOptions = Array.isArray(item.options) ? item.options : [];
+        registerGroup(filterType, item, itemOptions);
+      });
+    }
 
     this.applyUserSelections(grouped, filterOption);
 
@@ -2650,21 +3024,26 @@ export class DynamicUiService {
   private applyUserSelections(grouped: any, filterOption: EFilterOption) {
     if (!filterOption) return;
 
-    Object.keys(filterOption).forEach((filterKey) => {
-      const filterValue = filterOption[filterKey];
-      const groupedData = grouped[filterKey];
+    const { allOptionIds, filterOptionMap } =
+      this.extractFilterOptionIds(filterOption);
+    const globalSelection = new Set(allOptionIds);
 
-      if (groupedData && filterValue) {
-        if (Array.isArray(filterValue)) {
-          groupedData.options.forEach((opt: any) => {
-            opt.isUserSelected = filterValue.includes(opt.filterOptionId);
-          });
-        } else {
-          groupedData.options.forEach((opt: any) => {
-            opt.isUserSelected = opt.filterOptionId === filterValue;
-          });
-        }
-      }
+    Object.values(grouped).forEach((group: any) => {
+      group.options.forEach((opt: any) => {
+        const optionId = this.normalizeId(opt.filterOptionId);
+        opt.isUserSelected = optionId ? globalSelection.has(optionId) : false;
+      });
+    });
+
+    Object.entries(filterOptionMap).forEach(([filterKey, ids]) => {
+      const groupedData = grouped[filterKey];
+      if (!groupedData) return;
+
+      const selectedSet = new Set(ids);
+      groupedData.options.forEach((opt: any) => {
+        const optionId = this.normalizeId(opt.filterOptionId);
+        opt.isUserSelected = optionId ? selectedSet.has(optionId) : false;
+      });
     });
   }
 
@@ -2674,47 +3053,54 @@ export class DynamicUiService {
     processedFilterOptions: any,
     filteredData: any[]
   ) {
+    const hasComponentFilters = Array.isArray(actualComponent?.filters) && actualComponent.filters.length > 0;
     if (actualComponent?.interactionData) {
-      const groupedOptionsMap = new Map();
-      Object.values(processedFilterOptions).forEach(
-        (group: { type: string; filterTypeId: string; options: any[] }) => {
-          groupedOptionsMap.set(group.type, group);
-        }
-      );
+      if (!hasComponentFilters) {
+        actualComponent.interactionData = { items: [] };
+      } else {
+        const groupedOptionsMap = new Map();
+        Object.values(processedFilterOptions).forEach(
+          (group: { type: string; filterTypeId: string; options: any[] }) => {
+            groupedOptionsMap.set(group.type, group);
+          }
+        );
 
-      const transformedItems = finalInteractionData.map((item: any) => {
-        let filterType = item.button?.type || item.type;
-        if (filterType === "proficency") {
-          filterType = "proficiency";
-        }
-        const groupedData = groupedOptionsMap.get(filterType);
+        const transformedItems = finalInteractionData.map((item: any) => {
+          let filterType = item.button?.type || item.type;
+          if (filterType === "proficency") {
+            filterType = "proficiency";
+          }
+          const groupedData = groupedOptionsMap.get(filterType);
 
-        if (groupedData) {
-          const existingOptions = item.options || [];
-          const newOptions = groupedData.options || [];
+          if (groupedData) {
+            const existingOptions = item.options || [];
+            const newOptions = groupedData.options || [];
 
-          const existingOptionIds = new Set(
-            existingOptions.map((opt: any) => opt.filterOptionId)
-          );
+            const existingOptionIds = new Set(
+              existingOptions.map((opt: any) => opt.filterOptionId)
+            );
 
-          const uniqueNewOptions = newOptions.filter(
-            (opt: any) => !existingOptionIds.has(opt.filterOptionId)
-          );
+            const uniqueNewOptions = newOptions.filter(
+              (opt: any) => !existingOptionIds.has(opt.filterOptionId)
+            );
 
-          const mergedOptions = [...existingOptions, ...uniqueNewOptions];
+            const mergedOptions = [...existingOptions, ...uniqueNewOptions];
 
-          return {
-            ...item,
-            type: filterType,
-            filterTypeId: groupedData.filterTypeId,
-            options: mergedOptions,
-          };
-        }
+            return {
+              ...item,
+              type: filterType,
+              filterTypeId: groupedData.filterTypeId,
+              options: mergedOptions,
+            };
+          }
 
-        return item;
-      });
+          return item;
+        });
 
-      actualComponent.interactionData = { items: transformedItems };
+        actualComponent.interactionData = { items: transformedItems };
+      }
+    } else if (!hasComponentFilters) {
+      actualComponent.interactionData = { items: [] };
     }
 
     actualComponent.actionData = filteredData;
@@ -2739,23 +3125,82 @@ export class DynamicUiService {
   async getComponentFilterOptions(
     componentId: string,
     token?: UserToken,
-    filterOption?: EFilterOption
+    filterOption?: EFilterOption,
+    filterTypeIdsFromComponent: string[] = []
   ): Promise<any> {
     try {
       const componentObjectId = new ObjectId(componentId);
 
+      const normalizedFilterTypeIds = filterTypeIdsFromComponent
+        .map((id) => this.normalizeId(id))
+        .filter(
+          (id): id is string => typeof id === "string" && id.length === 24
+        );
+
+      const filterTypeQuery: any = {
+        isActive: true,
+      };
+
+      if (normalizedFilterTypeIds.length > 0) {
+        filterTypeQuery._id = {
+          $in: normalizedFilterTypeIds.map((id) => new ObjectId(id)),
+        };
+      } else {
+        filterTypeQuery["source.sourceId"] = componentObjectId;
+      }
+
       // Step 1: Fetch filterTypes and filterOptions in parallel
-      const [filterTypes, filterOptions] = await Promise.all([
+      let [filterTypes, filterOptions] = await Promise.all([
         this.filterTypeModel
-          .find({ "source.sourceId": componentObjectId, isActive: true })
+          .find(filterTypeQuery)
           .sort({ sortOrder: 1 })
           .lean(),
 
         this.filterOptionsModel
-          .find({ status: EStatus.Active })
+          .find({
+            status: EStatus.Active,
+            ...(normalizedFilterTypeIds.length > 0
+              ? {
+                  filterTypeId: {
+                    $in: normalizedFilterTypeIds.map((id) => new ObjectId(id)),
+                  },
+                }
+              : {}),
+          })
           .sort({ sortOrder: 1 })
           .lean(),
       ]);
+
+      if ((!filterTypes || filterTypes.length === 0) && filterOptions.length > 0) {
+        const fallbackMap = new Map<
+          string,
+          {
+            _id: string;
+            type: string;
+            displayName: string;
+            sortOrder: number;
+          }
+        >();
+
+        filterOptions.forEach((option) => {
+          const filterTypeId = this.normalizeId(option.filterTypeId);
+          if (!filterTypeId) return;
+          if (!fallbackMap.has(filterTypeId)) {
+            fallbackMap.set(filterTypeId, {
+              _id: filterTypeId,
+              type: option.filterType || "filterOptionsIds",
+              displayName: option.filterType || option.optionKey || "Filter",
+              sortOrder: option.sortOrder ?? 0,
+            });
+          }
+        });
+
+        if (fallbackMap.size > 0) {
+          filterTypes = Array.from(fallbackMap.values()).sort(
+            (a, b) => a.sortOrder - b.sortOrder
+          ) as any[];
+        }
+      }
 
       if (!filterTypes?.length) {
         return {
@@ -2813,7 +3258,6 @@ export class DynamicUiService {
           options: mappedOptions,
         };
       });
-
       return {
         componentId,
         interactionData: { items: interactionItems },
@@ -2895,6 +3339,8 @@ export class DynamicUiService {
         if (component.interactionData && component.interactionData.items) {
           let navigation = await this.systemConfigurationModel.findOne({key:EConfigKeyName.dynamicHeaderNavigation});
           const searchItem = component.interactionData.items.find(item => item.type === EComponentItemType.search);
+          const userData = await this.helperService.getUserById(userId);
+          const countryCode = userData?.data?.country_code;
           if (searchItem && searchItem.metaData) {
             searchItem.metaData.placeholder = placeholder;
 
@@ -2920,7 +3366,11 @@ export class DynamicUiService {
               }];              
               
               if (navConfig.navigation ) {
-                badgeItem.navigation = navConfig.navigation;
+                badgeItem.navigation = { ...navConfig.navigation };
+                if (countryCode !== "IN" && isNewSubscriber === false ) {
+                  badgeItem.navigation.page = navConfig?.navigation?.iapPage;
+                  badgeItem.navigation.isEnableBottomSheet = false;
+                }
                 if (!isNewSubscriber) {
                 let itemData = await this.serviceItemModel.findOne({
                   status: EStatus.Active,
@@ -3001,7 +3451,7 @@ export class DynamicUiService {
     }
   }
 
-  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]) {
+  async updatePriorityOrder(payload: UpdatePriorityOrderDto[]): Promise<any> {
     try {
       // Build bulk update operations
       const bulkOps = payload.map((item) => ({
