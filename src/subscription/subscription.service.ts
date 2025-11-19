@@ -388,6 +388,7 @@ export class SubscriptionService {
             coinTransaction?.source_type ===
             ECoinTransactionTypes.coinTransaction
           ) {
+            console.log(" inside razorpay webhook coin transaction", payload?.payment?.entity?.order_id);
             await this.HandleCoinPurchaseInWebHook(
               payload?.payment?.entity?.order_id
             );
@@ -3565,6 +3566,7 @@ export class SubscriptionService {
           invoice?.source_type === ECoinTransactionTypes.coinTransaction &&
           invoice?.document_status === EDocumentStatus.completed
         ) {
+          console.log(" inside update coin transaction");
           try {
             let coinTransaction = await this.coinTransactionModel.findOne({
               sourceId: new ObjectId(invoice?._id),
