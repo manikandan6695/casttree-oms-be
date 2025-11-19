@@ -2928,10 +2928,7 @@ export class SubscriptionService {
             }
           }
           } catch (error) {
-            console.warn(
-              `Coin transaction update failed for user ${paymentRequest?.user_id}:`,
-              error?.message || error
-            );
+           throw error;
           }
         }
       }
