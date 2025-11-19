@@ -3,6 +3,7 @@ export enum EProvider {
   cashfree = "cashfree",
   apple = "apple",
   google = "google",
+  phonepe = "phonepe",
 }
 
 export const ESProvider = [
@@ -10,6 +11,7 @@ export const ESProvider = [
   EProvider.cashfree,
   EProvider.apple,
   EProvider.google,
+  EProvider.phonepe,
 ];
 
 export enum EProviderId {
@@ -17,12 +19,14 @@ export enum EProviderId {
   cashfree = 2,
   apple = 3,
   google = 4,
+  phonepe = 5,
 }
 export const ESProviderId = [
   EProviderId.razorpay,
   EProviderId.cashfree,
   EProviderId.apple,
   EProviderId.google,
+  EProviderId.phonepe,
 ];
 export enum EProviderName {
   apple = "Apple IAP",

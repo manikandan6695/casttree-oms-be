@@ -35,6 +35,7 @@ import {
   CashfreeFailedPaymentPayload,
   CashfreeNewPaymentPayload,
   CreateSubscriptionDTO,
+  InitiateSubscriptionDTO,
   PaymentRecordData,
   SubscriptionData,
   UpdatePaymentBody,
@@ -63,6 +64,7 @@ import { IWebhookModel } from "./schema/webhook.schema";
 import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
+import { PaymentGatewayService } from "src/payment-gateway/payment-gateway.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -87,6 +89,8 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
+    @Inject(forwardRef(() => PaymentGatewayService))
+    private paymentGatewayService: PaymentGatewayService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
@@ -2855,6 +2859,188 @@ export class SubscriptionService {
 
     } catch (error) {
       throw error;
+    }
+  }
+  async initiateSubscription(body: InitiateSubscriptionDTO, token: UserToken) {
+    try {
+
+      // Map deviceOS to device format (ANDROID -> android, IOS -> ios, etc.)
+      const deviceMap: Record<string, string> = {
+        ANDROID: "android",
+        IOS: "ios",
+        WEB: "web",
+        android: "android",
+        ios: "ios",
+        web: "web",
+      };
+      const device =
+        deviceMap[body.deviceOS.toUpperCase()] || body.deviceOS.toLowerCase();
+
+      // Map targetApp to instrument (e.g., com.phonepe.app -> phonepe, com.google.android.apps.nfc.payment -> gpay)
+      const instrumentMap: Record<string, string> = {
+        "com.phonepe.app": "phonepe",
+        "com.google.app": "gpay",
+        "net.one97.paytm": "paytm",
+        "in.amazon.app": "amazonpay",
+        "com.bhim.upi": "bhim",
+        "com.bhim.upi.android": "bhim",
+        phonepe: "phonepe",
+        gpay: "gpay",
+        paytm: "paytm",
+        amazonpay: "amazonpay",
+        bhim: "upi",
+        upi: "upi",
+      };
+
+      // Reverse map: instrument to package name (for Android)
+      const instrumentToPackageMap: Record<string, string> = {
+        phonepe: "com.phonepe.app",
+        gpay: "com.google.app",
+        paytm: "net.one97.paytm",
+        amazonpay: "in.amazon.app",
+        bhim: "com.bhim.upi",
+        upi: "com.bhim.upi",
+      };
+
+      // Map instrument to static values (for iOS)
+      const instrumentToIOSMap: Record<string, string> = {
+        phonepe: "PHONEPE",
+        gpay: "GPAY",
+        paytm: "PAYTM",
+        amazonpay: "AMAZONPAY",
+        bhim: "BHIM",
+        upi: "UPI",
+      };
+
+      const targetAppLower = body.targetApp.toLowerCase();
+      let instrument = instrumentMap[targetAppLower];
+
+      // If not found in map, try to extract from package name
+      if (!instrument) {
+        // Extract last meaningful part before .app or similar
+        const parts = targetAppLower.split(".");
+        if (parts.length > 1) {
+          // Try to find phonepe, paytm, etc. in the package name
+          for (const part of parts) {
+            if (instrumentMap[part]) {
+              instrument = instrumentMap[part];
+              break;
+            }
+          }
+        }
+        // Fallback: use the last part of package name
+        if (!instrument) {
+          instrument = parts[parts.length - 1].replace(/app$/, "");
+        }
+      }
+      console.log("instrument is", instrument);
+
+      // Get best gateway for the instrument
+      const gatewayResult =
+        await this.paymentGatewayService.getBestGatewayForInstrument(
+          "subscription",
+          device,
+          instrument
+        );
+      console.log("gatewayResult is", gatewayResult);
+      // Map gateway to EProvider enum
+      const providerMap: Record<string, EProvider> = {
+        phonepe: EProvider.phonepe,
+        razorpay: EProvider.razorpay,
+        cashfree: EProvider.cashfree,
+      };
+      const provider =
+        providerMap[gatewayResult.gateway.toLowerCase()] || EProvider.phonepe;
+      console.log("provider is", provider);
+      // Log warning if unhealthy gateway is selected
+      if (gatewayResult.warning) {
+        console.warn(
+          `Gateway selection warning: ${gatewayResult.reason} - Using ${gatewayResult.gateway}`
+        );
+      }
+
+      // Determine targetApp for createSubscriptionBody
+      let targetAppForSubscription = body.targetApp;
+
+      if (device === "ios" && instrument && instrumentToIOSMap[instrument]) {
+        // For iOS, use static uppercase values (PHONEPE, GPAY, PAYTM)
+        targetAppForSubscription = instrumentToIOSMap[instrument];
+      } else if (
+        device === "android" &&
+        instrument &&
+        instrumentToPackageMap[instrument]
+      ) {
+        // For Android, use package name from instrument mapping
+        targetAppForSubscription = instrumentToPackageMap[instrument];
+      }
+
+      // Convert InitiateSubscriptionDTO to CreateSubscriptionDTO format
+      const createSubscriptionBody: CreateSubscriptionDTO = {
+        itemId: body.itemId,
+        provider: provider,
+        targetApp: targetAppForSubscription,
+        deviceOS: body.deviceOS,
+      } as CreateSubscriptionDTO;
+      console.log("body is", body);
+
+      // Use the same createSubscription flow
+      const subscriptionResponse = await this.createSubscription(
+        createSubscriptionBody,
+        token
+      );
+
+      // Extract intentUrl from Cashfree response based on deviceOS and targetApp
+      if (
+        provider === EProvider.cashfree &&
+        subscriptionResponse?.data?.authorizationDetails
+      ) {
+        const authDetails = subscriptionResponse.data.authorizationDetails;
+        const upiIntentData = authDetails?.data?.payload?.upiIntentData;
+
+        if (upiIntentData) {
+          let intentUrl: string | null = null;
+
+          // Map instrument to uppercase key for matching with response keys
+          const instrumentToKeyMap: Record<string, string> = {
+            phonepe: "PHONEPE",
+            gpay: "GPAY",
+            paytm: "PAYTM",
+            amazonpay: "AMAZONPAY",
+            bhim: "BHIM",
+            upi: "BHIM", // UPI maps to BHIM in Cashfree response
+          };
+
+          // Use instrument to get the correct key, or use targetApp if it's already uppercase (iOS)
+          const responseKey =
+            instrument && instrumentToKeyMap[instrument]
+              ? instrumentToKeyMap[instrument]
+              : targetAppForSubscription.toUpperCase();
+
+          if (device === "android" && upiIntentData.androidAuthAppLinks) {
+            // For Android, get URL from androidAuthAppLinks
+            intentUrl =
+              upiIntentData.androidAuthAppLinks[responseKey] ||
+              upiIntentData.androidAuthAppLinks["DEFAULT"];
+          } else if (device === "ios" && upiIntentData.iosAuthAppLinks) {
+            // For iOS, get URL from iosAuthAppLinks
+            intentUrl =
+              upiIntentData.iosAuthAppLinks[responseKey] ||
+              upiIntentData.iosAuthAppLinks["DEFAULT"];
+          }
+
+          // Add intentUrl to response if found
+          if (intentUrl) {
+            return {
+              ...subscriptionResponse,
+              intentUrl: intentUrl,
+            };
+          }
+        }
+      }
+
+      return subscriptionResponse;
+    } catch (err) {
+      throw err;
     }
   }
 }

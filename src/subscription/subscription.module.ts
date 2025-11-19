@@ -15,6 +15,7 @@ import { SubscriptionService } from "./subscription.service";
 import { SubscriptionFactory } from "./subscription.factory";
 import { webhookSchema } from "./schema/webhook.schema";
 import { CoinTransactionSchema } from "src/payment/schema/coinPurchase.schema";
+import { PaymentGatewayModule } from "src/payment-gateway/payment-gateway.module";
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -30,6 +31,7 @@ import { CoinTransactionSchema } from "src/payment/schema/coinPurchase.schema";
     forwardRef(() => ItemModule),
     MandatesModule,
     RedisModule,
+    PaymentGatewayModule
   ],
   controllers: [SubscriptionController],
   providers: [
