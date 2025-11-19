@@ -512,6 +512,7 @@ export class PaymentRequestService {
   async updatePaymentStatus(status, ids) {
     try {
       if (status === ERazorpayPaymentStatus.captured) {
+        console.log(" inside update payment status");
         let serviceItemDetail: any =
           await this.serviceItemService.getServiceItemDetailbyItemId(
             ids.itemId
@@ -527,6 +528,7 @@ export class PaymentRequestService {
         };
         await this.helperService.mixPanel(mixPanelBody);
         if(serviceItemDetail?.type !== EserviceItemType.coins){
+          console.log("inside complete payment in update payment status");
           await this.completePayment(ids);
         }
       }
