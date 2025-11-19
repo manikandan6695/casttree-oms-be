@@ -53,18 +53,18 @@ export class DynamicUiController {
   @Get("/:pageId")
   async getCourseSeriesCardDetails(
     @Param("pageId") pageId: string,
-    @Query("skip") skip?: string,
-    @Query("limit") limit?: string
-  ){
+    @Query("skip", new ParseIntPipe({ optional: true })) skip?: number,
+    @Query("limit", new ParseIntPipe({ optional: true })) limit?: number
+  ) {
     try {
-     const parsedSkip = Number.isFinite(Number(skip)) ? parseInt(skip as any, 10) : 0;
-     const parsedLimit = Number.isFinite(Number(limit)) ? parseInt(limit as any, 10) : 0;
-     let data = await this.dynamicUIService.getCourseSeriesCardDetails(
-      pageId,
-      isNaN(parsedSkip) ? 0 : parsedSkip,
-      isNaN(parsedLimit) ? 0 : parsedLimit
-     );
-     return data;
+      const parsedSkip = skip ?? 0;
+      const parsedLimit = limit ?? 0;
+      const data = await this.dynamicUIService.getCourseSeriesCardDetails(
+        pageId,
+        parsedSkip,
+        parsedLimit
+      );
+      return data;
     } catch (err) {
       throw err;
     }
