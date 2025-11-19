@@ -4054,602 +4054,329 @@ export class DynamicUiService {
       throw error;
     }
   }
-  async getCourseSeriesCardDetails(pageId: string, skip = 0, limit = 0) {
+  async getCourseSeriesCardDetails(
+    pageId: string,
+    skip: number,
+    limit: number
+  ): Promise<{ data: any[]; count: number }> {
     try {
-      const paginationSkip = Number.isFinite(skip) ? Math.max(0, skip) : 0;
-      const paginationLimit = Number.isFinite(limit) ? Math.max(0, limit) : 0;
-
+      const paginationSkip = Math.max(0, Number(skip) || 0);
+      const paginationLimit = Math.max(0, Number(limit) || 0);
+  
       Sentry.addBreadcrumb({
         message: "getCourseSeriesCardDetails",
         level: "info",
         data: { pageId, skip: paginationSkip, limit: paginationLimit },
       });
-
-      const page = await this.fetchPageById(pageId);
-      if (!page) {
-        throw new NotFoundException("Page not found");
-      }
-
-      const skillId = page.metaData?.skillId;
-      if (!skillId) {
-        return { data: [], count: 0 };
-      }
-
-      const components = await this.fetchCourseSeriesComponents(page);
-      if (!components.length) {
-        return { data: [], count: 0 };
-      }
-
-      const { actionDataMap, componentProcessMap, serviceItemMap } =
-        await this.buildActionDataForComponents(components, skillId, page.metaData);
-
-      const uniqueActionData = this.deduplicateActionItems(
-        Array.from(actionDataMap.values())
-      );
-
-      const enrichedActionData = await this.enrichActionDataWithDetails(
-        uniqueActionData,
-        serviceItemMap
-      );
-
-      const responseComponents = this.buildComponentResponse(
-        components,
-        enrichedActionData,
-        componentProcessMap
-      );
-
-      const filteredComponents = responseComponents.filter(
-        (comp) => comp.actionData.length > 0
-      );
-
-      const paginatedComponents =
-        paginationLimit > 0
-          ? filteredComponents.slice(
-              paginationSkip,
-              paginationSkip + paginationLimit
-            )
-          : filteredComponents.slice(paginationSkip);
-
-      return {
-        data: paginatedComponents,
-        count: filteredComponents.length,
-      };
-    } catch (error) {
-      Sentry.captureException(error);
-      throw error;
-    }
-  }
-
-  private async fetchPageById(pageId: string) {
-    const normalizedPageId = this.normalizeId(pageId);
-    const pageFilter: any = { status: EStatus.Active };
-    pageFilter._id =
-      normalizedPageId && ObjectId.isValid(normalizedPageId)
-        ? new ObjectId(normalizedPageId)
-        : pageId;
-
-    return await this.contentPageModel.findOne(pageFilter).lean();
-  }
-
-  private async fetchCourseSeriesComponents(page: any) {
-    const componentIds = (page.components || [])
-      .map((comp: any) => this.normalizeId(comp?.componentId))
-      .filter((id: string | null): id is string => Boolean(id));
-
-    if (!componentIds.length) {
-      return [];
-    }
-
-    const componentObjectIds = componentIds
-      .filter((id) => ObjectId.isValid(id))
-      .map((id) => new ObjectId(id));
-
-    const components = await this.componentModel
-      .find({
-        _id: { $in: componentObjectIds },
-        status: EStatus.Active,
-        componentKey: "course-series-card",
-        title: { $ne: "All Series" },
-      })
-      .select(
-        "_id componentKey title type order media navigation tag metaData status updated_at"
-      )
-      .sort({ order: 1 })
-      .lean();
-
-    return components;
-  }
-
-  private async buildActionDataForComponents(
-    components: any[],
-    skillId: string,
-    pageMetaData: any
-  ) {
-    const actionDataMap = new Map<string, any>();
-    const componentProcessMap = new Map<string, string[]>();
-    const serviceItemMap = new Map<string, any>();
-    const metaTagMap = this.buildComponentMetaTagMap(pageMetaData);
-
-    for (const component of components) {
-      const componentId = this.normalizeId(component?._id) ?? "";
-      const metaTags = (componentId && metaTagMap.get(componentId)) ?? [];
-      const fallbackTags = this.deriveTagNamesFromComponent(component);
-      const resolvedTags = metaTags.length > 0 ? metaTags : fallbackTags;
-
-      if (!resolvedTags.length) {
-        continue;
-      }
-
-      for (const tagName of resolvedTags) {
-        if (!tagName) continue;
-
-        const serviceItems = await this.serviceItemModel
-          .find({
-            type: EserviceItemType.courses,
-            "skill.skillId": new ObjectId(skillId),
-            "tag.name": tagName,
-            status: Estatus.Active,
-          })
-          .select(
-            "_id itemId userId skill tag role additionalDetails filterOptionsIds"
-          )
-          .lean();
-
-        if (!serviceItems.length) {
-          continue;
-        }
-
-        const processIds = serviceItems
-          .map((item) => item.additionalDetails?.processId)
-          .filter((id) => id)
-          .map((id) => new ObjectId(id));
-
-        if (!processIds.length) {
-          continue;
-        }
-
-        const firstTasks = await this.getFirstTasksForProcesses(processIds);
-        const taskMap = new Map(
-          firstTasks.map((task) => [task.processId.toString(), task])
-        );
-
-        for (const serviceItem of serviceItems) {
-          const processId =
-            serviceItem.additionalDetails?.processId?.toString();
-          if (!processId) continue;
-
-          serviceItemMap.set(processId, serviceItem);
-
-          const taskDetail = taskMap.get(processId) || null;
-          const taskMedia = this.extractTaskMedia(taskDetail);
-          const taskShareText = taskDetail?.taskMetaData?.shareText || "";
-
-          const actionItem = {
-            thumbnail: serviceItem.additionalDetails?.thumbnail || null,
-            itemName: null,
-            processId: processId,
-            taskId: taskDetail?._id?.toString() || null,
-            taskDetail: taskDetail
-              ? {
-                  media: taskMedia,
-                  shareText: taskShareText,
-                }
-              : null,
-            title: taskDetail?.title || null,
-            isLocked: taskDetail?.isLocked ?? false,
-            itemDesc: null,
-            tag: Array.isArray(serviceItem.tag) ? serviceItem.tag : [],
-            skill: serviceItem.skill || [],
-            role: serviceItem.role || [],
-            userId: serviceItem.userId?.toString() || null,
-            expertProfile: null,
-            filterOptionsIds: (serviceItem as any).filterOptionsIds || [],
-          };
-
-          actionDataMap.set(processId, actionItem);
-
-          if (componentId) {
-            const existingProcessIds =
-              componentProcessMap.get(componentId) ?? [];
-            if (!existingProcessIds.includes(processId)) {
-              existingProcessIds.push(processId);
-              componentProcessMap.set(componentId, existingProcessIds);
-            }
-          }
+  
+      const normalizedPageId = this.normalizeId(pageId);
+      const page = await this.contentPageModel
+        .findOne({
+          _id: normalizedPageId && ObjectId.isValid(normalizedPageId)
+            ? new ObjectId(normalizedPageId)
+            : pageId,
+          status: EStatus.Active,
+        })
+        .lean();
+  
+      if (!page?.metaData?.skillId) return { data: [], count: 0 };
+  
+      const componentIds = page?.components
+        ?.map((c) => this.normalizeId(c?.componentId))
+        .filter((id) => id && ObjectId.isValid(id))
+        .map((id) => new ObjectId(id)) ?? [];
+  
+      if (!componentIds.length) return { data: [], count: 0 };
+  
+      const components = await this.componentModel
+        .find({
+          _id: { $in: componentIds },
+          status: EStatus.Active,
+          componentKey: "course-series-card",
+          title: { $ne: "All Series" },
+        })
+        .sort({ order: 1 })
+        .lean();
+  
+      if (!components.length) return { data: [], count: 0 };
+  
+      const skillId = new ObjectId(page?.metaData?.skillId);
+  
+      const allTags = new Set<string>();
+      const componentTagMap = new Map<string, string[]>();
+  
+      for (const component of components) {
+        const compId = this.normalizeId(component?._id);
+        const tags = this.getComponentTags(component, page?.metaData, compId);
+  
+        if (tags.length) {
+          componentTagMap.set(compId, tags);
+          tags.forEach((tagName) => allTags.add(tagName));
         }
       }
-    }
-
-    return { actionDataMap, componentProcessMap, serviceItemMap };
-  }
-
-  private async getFirstTasksForProcesses(processIds: any[]) {
-    return await this.taskModel.aggregate([
-      {
-        $match: {
-          processId: { $in: processIds },
-          status: Estatus.Active,
-        },
-      },
-      { $sort: { taskNumber: 1 } },
-      {
-        $group: {
-          _id: "$processId",
-          firstTask: { $first: "$$ROOT" },
-        },
-      },
-      { $replaceRoot: { newRoot: "$firstTask" } },
-    ]);
-  }
-
-  private extractTaskMedia(taskDetail: any): any[] {
-    if (!taskDetail?.taskMetaData?.media) {
-      return [];
-    }
-    return Array.isArray(taskDetail.taskMetaData.media)
-      ? taskDetail.taskMetaData.media
-      : [taskDetail.taskMetaData.media];
-  }
-
-  private async enrichActionDataWithDetails(
-    actionData: any[],
-    serviceItemMap: Map<string, any>
-  ) {
-    const [itemMap, expertProfileMap, filterOptionMap] = await Promise.all([
-      this.buildItemMap(actionData, serviceItemMap),
-      this.buildExpertProfileMap(actionData),
-      this.buildFilterOptionMap(actionData),
-    ]);
-
-    return actionData.map((item) => {
-      const processId = item.processId;
-      const serviceItem = serviceItemMap.get(processId);
-      const itemId = serviceItem?.itemId?.toString() || "";
-      const itemData = itemMap.get(itemId);
-      const expertProfile = item.userId
-        ? expertProfileMap.get(item.userId) || null
-        : null;
-      const filterOptions = this.populateFilterOptions(
-        (item as any).filterOptionsIds || [],
-        filterOptionMap
-      );
-
-      return {
-        ...item,
-        itemName: itemData?.itemName || "",
-        itemDesc: itemData?.itemDescription || "",
-        expertProfile: expertProfile,
-        filterOptionsIds: filterOptions,
-      };
-    });
-  }
-
-  private async buildItemMap(
-    actionData: any[],
-    serviceItemMap: Map<string, any>
-  ) {
-    const itemIds = Array.from(
-      new Set(
-        actionData
-          .map((item) => {
-            const serviceItem = serviceItemMap.get(item.processId);
-            return serviceItem?.itemId?.toString();
-          })
-          .filter((id) => id)
-      )
-    ).map((id) => new ObjectId(id));
-
-    if (!itemIds.length) {
-      return new Map();
-    }
-
-    const items = await this.itemModel
-      .find({ _id: { $in: itemIds } })
-      .select("_id itemName itemDescription")
-      .lean();
-
-    return new Map(items.map((item) => [item._id.toString(), item]));
-  }
-
-  private async buildExpertProfileMap(actionData: any[]) {
-    const userIds = Array.from(
-      new Set(actionData.map((item) => item.userId).filter((id) => id))
-    ).map((id) => new ObjectId(id));
-
-    if (!userIds.length) {
-      return new Map();
-    }
-
-    const expertProfiles = await this.profileModel
-      .find({
-        userId: { $in: userIds },
-        type: EprofileType.Expert,
-      })
-      .select("userId displayName media about about2")
-      .lean();
-
-    const mediaIds = new Set<string>();
-    expertProfiles.forEach((profile) => {
-      if (Array.isArray(profile.media)) {
-        profile.media.forEach((m: any) => {
-          if (m.media_id) {
-            mediaIds.add(m.media_id.toString());
-          }
-        });
-      }
-    });
-
-    const mediaDocs = await this.mediaModel
-      .find({
-        _id: {
-          $in: Array.from(mediaIds)
-            .filter((id) => ObjectId.isValid(id))
-            .map((id) => new ObjectId(id)),
-        },
-      })
-      .select("_id location media_type")
-      .lean();
-
-    const mediaMap = new Map(
-      mediaDocs.map((media) => [
-        media._id.toString(),
+  
+      if (!allTags.size) return { data: [], count: 0 };
+  
+      const serviceItems = await this.serviceItemModel.aggregate([
         {
-          mediaId: media._id.toString(),
-          mediaUrl: media.location || "",
-          mediaType: (media as any).media_type || null,
-        },
-      ])
-    );
-
-    return new Map(
-      expertProfiles.map((profile) => {
-        const populatedMedia = Array.isArray(profile.media)
-          ? profile.media
-              .map((m: any) => {
-                if (m.media_id) {
-                  return mediaMap.get(m.media_id.toString()) || null;
-                }
-                return null;
-              })
-              .filter((m: any) => m !== null)
-          : [];
-
-        return [
-          profile.userId.toString(),
-          {
-            displayName: profile.displayName || null,
-            media: populatedMedia,
-            about: profile.about || null,
-            about2: (profile as any).about2 || null,
+          $match: {
+            type: EserviceItemType.courses,
+            "skill.skillId": skillId,
+            "tag.name": { $in: [...allTags] },
+            status: Estatus.Active,
           },
-        ];
-      })
-    );
-  }
-
-  private async buildFilterOptionMap(actionData: any[]) {
-    const filterOptionIdSet = new Set<string>();
-
-    actionData.forEach((item) => {
-      const filterOptionsIds = (item as any).filterOptionsIds || [];
-      if (Array.isArray(filterOptionsIds)) {
-        filterOptionsIds.forEach((fo: any) => {
-          const filterOptionId =
-            fo.filterOptionId?._id || fo.filterOptionId || fo;
-          if (filterOptionId) {
-            const idStr =
-              typeof filterOptionId === "string"
-                ? filterOptionId
-                : filterOptionId.toString();
-            if (ObjectId.isValid(idStr)) {
-              filterOptionIdSet.add(idStr);
-            }
-          }
-        });
-      }
-    });
-
-    if (!filterOptionIdSet.size) {
-      return new Map();
-    }
-
-    const filterOptions = await this.filterOptionsModel
-      .find({
-        _id: {
-          $in: Array.from(filterOptionIdSet).map((id) => new ObjectId(id)),
         },
-      })
-      .select("_id optionValue")
-      .lean();
-
-    return new Map(
-      filterOptions.map((fo) => [fo._id.toString(), fo.optionValue || ""])
-    );
-  }
-
-  private populateFilterOptions(
-    filterOptionsIds: any[],
-    filterOptionMap: Map<string, string>
-  ): any[] {
-    if (!Array.isArray(filterOptionsIds)) {
-      return [];
-    }
-
-    return filterOptionsIds
-      .map((fo: any) => {
-        const filterOptionId =
-          fo.filterOptionId?._id || fo.filterOptionId || fo;
-        if (!filterOptionId) {
-          return null;
-        }
-
-        const idStr =
-          typeof filterOptionId === "string"
-            ? filterOptionId
-            : filterOptionId.toString();
-        const optionValue = filterOptionMap.get(idStr);
-
-        if (optionValue) {
-          return {
-            filterOptionId: idStr,
-            optionValue: optionValue,
-          };
-        }
-        return null;
-      })
-      .filter((fo: any) => fo !== null);
-  }
-
-  private buildComponentResponse(
-    components: any[],
-    enrichedActionData: any[],
-    componentProcessMap: Map<string, string[]>
-  ) {
-    const actionDataByProcessId = new Map(
-      enrichedActionData.map((item) => [item.processId, item])
-    );
-
-    return components.map((component) => {
-      const componentId = this.normalizeId(component?._id) ?? "";
-      const processIds = componentProcessMap.get(componentId) ?? [];
-      const uniqueProcessIds = Array.from(new Set(processIds));
-      const actionData = uniqueProcessIds
-        .map((processId) => actionDataByProcessId.get(processId))
-        .filter((item): item is any => Boolean(item));
-
-      return {
-        componentKey: component.componentKey,
-        type: component.type,
-        title: component.title,
-        order: component.order,
-        orientation:
-          component.metaData?.orientation ??
-          component.metaData?.layout?.orientation ??
-          null,
-        actionData: actionData,
-        media: component.media ?? null,
-        navigation: component.navigation ?? null,
-        tag: component.tag ?? null,
-        status: component.status,
-        updated_at: component.updated_at,
-      };
-    });
-  }
-
-  private deriveTagNamesFromComponent(component: any): string[] {
-    if (!component) return [];
-    const tagStore = new Set<string>();
-    this.extractTagNamesFromValue(component?.tag, tagStore);
-    this.extractTagNamesFromValue(component?.metaData?.tag, tagStore);
-    this.extractTagNamesFromValue(component?.metaData?.tags, tagStore);
-    if (typeof component?.tagName === "string") {
-      tagStore.add(component.tagName);
-    }
-    return Array.from(tagStore).filter(Boolean);
-  }
-
-  private extractTagNamesFromValue(value: any, store: Set<string>) {
-    if (!value) return;
-    if (typeof value === "string") {
-      store.add(value);
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach((entry) => this.extractTagNamesFromValue(entry, store));
-      return;
-    }
-    if (typeof value === "object") {
-      if (typeof value.tagName === "string") {
-        store.add(value.tagName);
-      }
-      if (typeof value.name === "string") {
-        store.add(value.name);
-      }
-      if (typeof value.key === "string" && !value.tagName && !value.name) {
-        store.add(value.key);
-      }
-      if (typeof value.value === "string" && !value.tagName && !value.name) {
-        store.add(value.value);
-      }
-      if (value.tag) {
-        this.extractTagNamesFromValue(value.tag, store);
-      }
-      if (value.tags) {
-        this.extractTagNamesFromValue(value.tags, store);
-      }
-      if (value.tagNames) {
-        this.extractTagNamesFromValue(value.tagNames, store);
-      }
-    }
-  }
-
-  private buildComponentMetaTagMap(metaData: any): Map<string, string[]> {
-    const map = new Map<string, string[]>();
-    if (!metaData || typeof metaData !== "object") {
-      return map;
-    }
-
-    const addMapping = (componentId: any, tags: string[]) => {
-      const normalizedId = this.normalizeId(componentId);
-      if (!normalizedId || !tags.length) return;
-      const existing = map.get(normalizedId) ?? [];
-      const tagSet = new Set([...existing, ...tags.filter(Boolean)]);
-      map.set(normalizedId, Array.from(tagSet));
-    };
-
-    const traverse = (node: any) => {
-      if (!node) return;
-      if (Array.isArray(node)) {
-        node.forEach(traverse);
-        return;
-      }
-
-      if (typeof node === "object") {
-        const componentId =
-          node.componentId ?? node.component_id ?? node.id ?? node._id ?? null;
-        const tagSet = new Set<string>();
-        this.extractTagNamesFromValue(node?.tag, tagSet);
-        this.extractTagNamesFromValue(node?.tags, tagSet);
-        this.extractTagNamesFromValue(node?.tagName, tagSet);
-        this.extractTagNamesFromValue(node?.tagNames, tagSet);
-        if (componentId && tagSet.size) {
-          addMapping(componentId, Array.from(tagSet));
-        }
-
-        Object.values(node).forEach((value) => {
-          if (value && typeof value === "object") {
-            traverse(value);
+        {
+          $project: {
+            _id: 1,
+            itemId: 1,
+            userId: 1,
+            skill: 1,
+            tag: 1,
+            role: 1,
+            additionalDetails: 1,
+            filterOptionsIds: 1,
+            processId: { $toString: "$additionalDetails.processId" },
+          },
+        },
+      ]);
+  
+      if (!serviceItems.length) return { data: [], count: 0 };
+  
+      const processIds = new Set<string>();
+      const itemIds = new Set<string>();
+      const userIds = new Set<string>();
+      const filterOptionIds = new Set<string>();
+  
+      serviceItems.forEach((s) => {
+        if (s.additionalDetails?.processId)
+          processIds.add(s.additionalDetails.processId.toString());
+  
+        if (s.itemId) itemIds.add(s.itemId.toString());
+        if (s.userId) userIds.add(s.userId.toString());
+  
+        (s.filterOptionsIds ?? []).forEach((fo) => {
+          const id =
+            fo?.filterOptionId?._id ||
+            fo?.filterOptionId ||
+            fo;
+  
+          if (id && ObjectId.isValid(id.toString()))
+            filterOptionIds.add(id.toString());
+        });
+      });
+  
+      const [firstTasks, items, profiles, filterOptions] = await Promise.all([
+        processIds.size
+          ? this.taskModel
+              .aggregate([
+                {
+                  $match: {
+                    processId: { $in: [...processIds].map((p) => new ObjectId(p)) },
+                    status: Estatus.Active,
+                  },
+                },
+                { $sort: { taskNumber: 1 } },
+                { $group: { _id: "$processId", data: { $first: "$$ROOT" } } },
+                { $replaceRoot: { newRoot: "$data" } },
+              ])
+          : Promise.resolve([]),
+  
+        itemIds.size
+          ? this.itemModel
+              .find({ _id: { $in: [...itemIds].map((i) => new ObjectId(i)) } })
+              .select("_id itemName itemDescription")
+              .lean()
+          : Promise.resolve([]),
+  
+        userIds.size
+          ? this.profileModel
+              .aggregate([
+                {
+                  $match: {
+                    userId: { $in: [...userIds].map((u) => new ObjectId(u)) },
+                    type: EprofileType.Expert,
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "media",
+                    localField: "media.media_id",
+                    foreignField: "_id",
+                    as: "mediaData",
+                  },
+                },
+                {
+                  $project: {
+                    userId: 1,
+                    displayName: 1,
+                    about: 1,
+                    about2: 1,
+                    media: {
+                      $map: {
+                        input: "$mediaData",
+                        as: "m",
+                        in: {
+                          mediaId: { $toString: "$$m._id" },
+                          mediaUrl: "$$m.location",
+                          mediaType: "$$m.media_type",
+                        },
+                      },
+                    },
+                  },
+                },
+              ])
+          : Promise.resolve([]),
+  
+        filterOptionIds.size
+          ? this.filterOptionsModel
+              .find({
+                _id: { $in: [...filterOptionIds].map((filterOptionId) => new ObjectId(filterOptionId)) },
+              })
+              .select("_id optionValue")
+              .lean()
+          : Promise.resolve([]),
+      ]);
+  
+      const taskMap = new Map(firstTasks.map((task) => [task?.processId?.toString(), task]));
+      const itemMap = new Map(items.map((item) => [item?._id?.toString(), item]));
+      const profileMap = new Map(
+        profiles.map((profile) => [
+          profile?.userId?.toString(),
+          {
+            displayName: profile?.displayName,
+            about: profile?.about,
+            about2: profile?.about2,
+            media: profile?.media,
+          },
+        ])
+      );
+      const filterOptionMap = new Map(
+        filterOptions.map((filterOption) => [filterOption?._id?.toString(), filterOption?.optionValue])
+      );
+  
+      const actionDataMap = new Map();
+      const tagProcessMap = new Map<string, Set<string>>();
+  
+      for (const items of serviceItems) {
+        const pid = items?.additionalDetails?.processId?.toString();
+        if (!pid) continue;
+  
+        const task = taskMap.get(pid);
+        const item = itemMap.get(items?.itemId?.toString());
+        const expert = profileMap.get(items?.userId?.toString());
+  
+        const filterList = (items?.filterOptionsIds || [])
+          .map((fo) => {
+            const id =
+              fo?.filterOptionId?._id ||
+              fo?.filterOptionId ||
+              fo;
+  
+            if (!id) return null;
+  
+            const key = id.toString();
+            if (!filterOptionMap.has(key)) return null;
+  
+            return { filterOptionId: key, optionValue: filterOptionMap.get(key) };
+          })
+          .filter(Boolean);
+  
+        actionDataMap.set(pid, {
+          thumbnail: items?.additionalDetails?.thumbnail,
+          itemName: item?.itemName || "",
+          processId: pid,
+          taskId: task?._id?.toString(),
+          taskDetail: task
+            ? {
+                media: task?.taskMetaData?.media || [],
+                shareText: task?.taskMetaData?.shareText || "",
+              }
+            : {},
+          title: task?.title || "",
+          isLocked: task?.isLocked ?? false,
+          itemDesc: item?.itemDescription || "",
+          tag: items?.tag || [],
+          skill: items?.skill || [],
+          role: items?.role || [],
+          userId: items?.userId?.toString(),
+          expertProfile: expert || {},
+          filterOptionsIds: filterList,
+        });
+  
+        (items?.tag || []).forEach((tag) => {
+          const tagName = tag?.name;
+          if (tagName) {
+            if (!tagProcessMap.has(tagName)) tagProcessMap.set(tagName, new Set());
+            tagProcessMap.get(tagName).add(pid);
           }
         });
       }
-    };
-
-    traverse(metaData);
-
-    return map;
+      
+      const finalData = components.map((comp) => {
+        const compId = this.normalizeId(comp?._id);
+        const tags = componentTagMap.get(compId) || [];
+  
+        let processIds = new Set<string>();
+        tags.forEach((tagName) => {
+          const pidSet = tagProcessMap.get(tagName);
+          if (pidSet) pidSet.forEach((processId) => processIds.add(processId));
+        });
+  
+        if (!processIds.size) return null;
+  
+        return {
+          componentKey: comp.componentKey,
+          type: comp.type,
+          title: comp?.title || "",
+          order: comp?.order,
+          actionData: [...processIds].map((id) => actionDataMap.get(id)),
+          media: comp?.media || [],
+          navigation: comp?.navigation || {},
+          tag: comp?.tag || [],
+          status: comp?.status,
+          updated_at: comp?.updated_at,
+        };
+      });
+  
+      const filtered = finalData.filter(Boolean);
+      const paginated =
+        paginationLimit > 0
+          ? filtered.slice(paginationSkip, paginationSkip + paginationLimit)
+          : filtered.slice(paginationSkip);
+  
+      return { data: paginated, count: filtered.length };
+    } catch (err) {
+      Sentry.captureException(err);
+      throw err;
+    }
   }
 
-  private deduplicateActionItems(items: any[]): any[] {
-    if (!Array.isArray(items) || !items.length) {
-      return [];
-    }
-    const seen = new Set<string>();
-    const result: any[] = [];
-    for (const item of items) {
-      const processId =
-        this.normalizeId(item?.processId) ??
-        this.normalizeId(item?.additionalDetails?.processId);
-      const identifier =
-        processId ??
-        this.normalizeId(item?._id) ??
-        `${JSON.stringify(item).length}-${result.length}`;
-      if (seen.has(identifier)) {
-        continue;
-      }
-      seen.add(identifier);
-      result.push(item);
-    }
-    return result;
+  private getComponentTags(component: any, pageMetaData: any, componentId: string): string[] {
+    const extractTags = (value: any): string[] =>
+      !value ? [] :
+      typeof value === "string" ? [value] :
+      Array.isArray(value) ? value.flatMap(extractTags) :
+      typeof value === "object"
+        ? [value?.name, value?.tagName].filter(Boolean).concat(extractTags(value?.tag), extractTags(value?.tags))
+        : [];
+  
+    const componentTags = [
+      component?.tag,
+      component?.metaData?.tag,
+      component?.metaData?.tags,
+      component?.tagName
+    ].flatMap(extractTags);
+  
+    const matchedMetaComponent = pageMetaData?.components?.find?.((meta: any) =>
+      this.normalizeId(meta?.componentId || meta?.component_id || meta?.id || meta?._id) === componentId
+    );
+  
+    const metaTags = matchedMetaComponent
+      ? [matchedMetaComponent?.tag, matchedMetaComponent?.tags, matchedMetaComponent?.tagName, matchedMetaComponent?.tagNames].flatMap(extractTags)
+      : [];
+  
+    return [...new Set([...componentTags, ...metaTags])];
   }
 
 }
