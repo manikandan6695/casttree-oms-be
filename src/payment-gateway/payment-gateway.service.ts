@@ -100,7 +100,7 @@ export class PaymentGatewayService {
         paymentType,
         device,
         instrument,
-        status: "active",
+        status: "Active",
         isHealthy: true,
       })
       .sort({ priority: 1 })
@@ -121,7 +121,7 @@ export class PaymentGatewayService {
         paymentType,
         device,
         instrument,
-        status: "active",
+        status: "Active",
       })
       .sort({ priority: 1 })
       .limit(1)
