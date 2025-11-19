@@ -53,8 +53,8 @@ export class DynamicUiController {
   @Get("/:pageId")
   async getCourseSeriesCardDetails(
     @Param("pageId") pageId: string,
-    @Query("skip", new ParseIntPipe({ optional: true })) skip?: number,
-    @Query("limit", new ParseIntPipe({ optional: true })) limit?: number
+    @Query("skip", new ParseIntPipe({ optional: false })) skip: number,
+    @Query("limit", new ParseIntPipe({ optional: false })) limit: number
   ) {
     try {
       const parsedSkip = skip ?? 0;
