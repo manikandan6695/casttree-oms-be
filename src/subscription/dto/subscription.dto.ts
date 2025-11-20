@@ -92,6 +92,14 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   currencyCode: string;
+
+  @IsOptional()
+  @IsString()
+  targetApp?: string;
+
+  @IsOptional()
+  @IsString()
+  deviceOS?: string;
 }
 
 export class AddSubscriptionDTO {
@@ -213,4 +221,17 @@ export interface CancelSubscriptionBody {
 
 export interface UpdatePaymentBody {
   document_status: string;
+}
+export class InitiateSubscriptionDTO {
+  @IsNotEmpty()
+  @IsMongoId()
+  itemId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  targetApp : string;
+
+  @IsNotEmpty()
+  @IsString()
+  deviceOS : string;
 }

@@ -13,6 +13,7 @@ import { PaymentRequestService } from "src/payment/payment-request.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import {
   EprocessStatus,
+  EStatus,
   EsubscriptionStatus,
   EtaskType,
 } from "./enums/process.enum";
@@ -50,10 +51,17 @@ export class ProcessService {
       let currentTaskData: any = await this.tasksModel.findOne({
         processId: processId,
         _id: taskId,
+        status: EStatus.Active
       });
+      if (!currentTaskData) {
+        currentTaskData = await this.tasksModel.findOne({
+          processId: processId,
+          _id: new ObjectId(taskId),
+        });
+      }
       let finalResponse = {};
       let totalTasks = (
-        await this.tasksModel.countDocuments({ processId: processId })
+        await this.tasksModel.countDocuments({ processId: processId, status: EStatus.Active })
       ).toString();
       finalResponse["taskId"] = currentTaskData._id;
       finalResponse["parentProcessId"] = currentTaskData.parentProcessId;
@@ -67,8 +75,9 @@ export class ProcessService {
       finalResponse["expertId"] = serviceItemDetail?.userId;
       finalResponse["itemId"] = serviceItemDetail?.itemId?._id;
       let nextTaskData = await this.tasksModel.findOne({
-        taskNumber: currentTaskData.taskNumber + 1,
+        taskNumber: {$gt: currentTaskData.taskNumber},
         processId: processId,
+        status: Estatus.Active,
       });
       let mixPanelBody: any = {};
       mixPanelBody.eventName = EMixedPanelEvents.initiate_episode;
@@ -233,6 +242,7 @@ export class ProcessService {
             createdBy: userId,
             processId: processId,
             taskId: taskId,
+            status: Estatus.Active,
           });
         if (checkTaskInstanceDetailHistory) {
           if (taskType == EtaskType.Break) {
@@ -248,7 +258,7 @@ export class ProcessService {
         } else {
           let updateProcessInstanceTask =
             await this.processInstancesModel.updateOne(
-              { _id: checkInstanceHistory._id },
+              { _id: checkInstanceHistory._id, status: Estatus.Active },
               { $set: { currentTask: taskId, updated_at: currentTimeIso } }
             );
           let processInstanceDetailBody = {
@@ -350,6 +360,7 @@ export class ProcessService {
           {
             taskId: new ObjectId(body.taskId),
             createdBy: new ObjectId(token.id),
+            status: Estatus.Active,
           },
           updatedBody
         );
@@ -367,7 +378,8 @@ export class ProcessService {
         await this.helperService.mixPanel(mixPanelBody);
         let completedTasksCount = await this.processInstanceDetailsModel.countDocuments({
           processId: taskDetail.processId,
-          createdBy: token.id
+          createdBy: token.id,
+          status: Estatus.Active,
         });
         if (serviceItemDetail?.itemId?.additionalDetail?.isViewAllEpisode === true){
           if (completedTasksCount === totalTasks) {
@@ -376,6 +388,7 @@ export class ProcessService {
               {
                 processId: taskDetail.processId,
                 userId: new ObjectId(token.id),
+                status: Estatus.Active,
               },
               { $set: processInstanceBody }
             );
@@ -397,6 +410,7 @@ export class ProcessService {
               {
                 processId: taskDetail.processId,
                 userId: new ObjectId(token.id),
+                status: Estatus.Active,
               },
               { $set: processInstanceBody }
             );
@@ -446,14 +460,18 @@ export class ProcessService {
       }
 
       const pendingTasks: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: EprocessStatus.Started })
-        .populate("currentTask")
+        .find({ userId: userId, processStatus: EprocessStatus.Started, status: Estatus.Active })
+        .populate({ path: "currentTask", match: { status: Estatus.Active } })
         .sort({ updated_at: -1 })
         .lean();
       let userProcessInstances = [];
       for (let i = 0; i < pendingTasks.length; i++) {
+        if (!pendingTasks[i].currentTask) {
+          continue;
+        }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
+          status: Estatus.Active,
         });
         if (subscription) {
           pendingTasks[i].currentTask.isLocked = false;
@@ -470,7 +488,7 @@ export class ProcessService {
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
-      return pendingTasks;
+      return pendingTasks.filter(task => task.currentTask !== null);
     } catch (err) {
       throw err;
     }
@@ -504,15 +522,20 @@ export class ProcessService {
           userId: userId,
           processId: { $in: processIds },
           processStatus: EprocessStatus.Started,
+          status: Estatus.Active,
         })
-        .populate("currentTask")
+        .populate({ path: "currentTask", match: { status: Estatus.Active } })
         .sort({ updated_at: -1 })
         .limit(5)
         .lean();
       let userProcessInstances = [];
       for (let i = 0; i < pendingTasks.length; i++) {
+        if (!pendingTasks[i].currentTask) {
+          continue;
+        }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: pendingTasks[i].processId,
+          status: Estatus.Active,
         });
         if (subscription) {
           pendingTasks[i].currentTask.isLocked = false;
@@ -533,7 +556,7 @@ export class ProcessService {
         userProcessInstances.push(pendingTasks[i]._id);
       }
 
-      return pendingTasks;
+      return pendingTasks.filter(task => task.currentTask !== null);
     } catch (err) {
       throw err;
     }
@@ -561,10 +584,13 @@ export class ProcessService {
         });
       }
       const mySeries: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: status })
-        .populate("currentTask")
+        .find({ userId: userId, processStatus: status, status: Estatus.Active })
+        .populate({ path: "currentTask", match: { status: Estatus.Active } })
         .lean();
       for (let i = 0; i < mySeries.length; i++) {
+        if (!mySeries[i].currentTask) {
+          continue;
+        }
         if (subscription) {
           mySeries[i].currentTask.isLocked = false;
         }
@@ -575,6 +601,7 @@ export class ProcessService {
         }
         let totalTasks = await this.tasksModel.countDocuments({
           processId: mySeries[i].processId,
+          status: Estatus.Active,
         });
         let completedTaskNumber =
           status == EprocessStatus.Completed
@@ -592,8 +619,9 @@ export class ProcessService {
           mySeries[i].completed = 100;
           let currentTask:any = await this.tasksModel.findOne({
             processId: mySeries[i].processId,
-            taskNumber: 1,
-          }).lean();
+            // taskNumber: 1,
+            status: Estatus.Active,
+          }).sort({ taskNumber: 1 }).lean();
           currentTask.itemId = itemDetail?.data?.itemId || null;
           mySeries[i].currentTask = currentTask;
         }
@@ -610,7 +638,7 @@ export class ProcessService {
         mySeries[i]["seriesName"] = mentorDetails[i].seriesName;
         mySeries[i]["seriesThumbNail"] = mentorDetails[i].seriesThumbNail;
       }
-      return mySeries;
+      return mySeries.filter(series => series.currentTask !== null);
     } catch (err) {
       throw err;
     }
@@ -620,7 +648,7 @@ export class ProcessService {
     try {
       if (apiVersion === "2") {
         let userProcessInstanceData: any = await this.processInstanceDetailsModel
-          .find({ processId: processId, createdBy: token.id })
+          .find({ processId: processId, createdBy: token.id, status: Estatus.Active })
           .lean();
         let payment;
         let subscription = await this.subscriptionService.validateSubscription(
@@ -640,6 +668,7 @@ export class ProcessService {
         let allTaskdata: any = await this.tasksModel
           .find({
             processId: processId,
+            status: Estatus.Active,
           })
           .sort({ taskNumber: 1 })
           .skip(skip || 0)
@@ -653,7 +682,7 @@ export class ProcessService {
           processId
         );
         let userProcessInstance = await this.processInstanceDetailsModel
-          .find({ processId: processId, createdBy: token.id, taskStatus: EprocessStatus.Completed })
+          .find({ processId: processId, createdBy: token.id, taskStatus: EprocessStatus.Completed, status: Estatus.Active })
           .lean();
         allTaskdata.forEach((task) => {
           if (subscription || payment.paymentData.length > 0) {
@@ -689,12 +718,13 @@ export class ProcessService {
         });
         let count = await this.tasksModel.countDocuments({
           processId: processId,
+          status: Estatus.Active,
         });
         return { allTaskdata, count };
       }
       else {
         let userProcessInstanceData: any = await this.processInstanceDetailsModel
-          .find({ processId: processId, createdBy: token.id })
+          .find({ processId: processId, createdBy: token.id, status: Estatus.Active })
           .lean();
         let payment;
         let subscription = await this.subscriptionService.validateSubscription(
@@ -714,6 +744,7 @@ export class ProcessService {
         let allTaskdata: any = await this.tasksModel
           .find({
             processId: processId,
+            status: Estatus.Active,
           })
           .sort({ taskNumber: 1 })
           .skip(skip || 0)
@@ -765,6 +796,7 @@ export class ProcessService {
       }
       let userProcessInstances = await this.processInstancesModel.find({
         userId: userId,
+        status: Estatus.Active,
       });
       let sourceIds = [];
       userProcessInstances.map((data) => {
@@ -772,7 +804,7 @@ export class ProcessService {
       });
       let processObjIds = processIds.map((e) => new ObjectId(e));
       let data: any = await this.tasksModel.aggregate([
-        { $match: { processId: { $in: processObjIds } } },
+        { $match: { processId: { $in: processObjIds },status: Estatus.Active } },
         { $sort: { taskNumber: 1 } },
         {
           $group: {
@@ -783,9 +815,10 @@ export class ProcessService {
         { $replaceRoot: { newRoot: "$firstTask" } },
       ]);
       let processInstanceData: any = await this.processInstancesModel
-        .find({ userId: userId, processStatus: EprocessStatus.Started })
-        .populate("currentTask")
+        .find({ userId: userId, processStatus: EprocessStatus.Started, status: Estatus.Active })
+        .populate({ path: "currentTask", match: { status: Estatus.Active } })
         .lean();
+      processInstanceData = processInstanceData.filter((instance) => instance.currentTask !== null);
       let activeProcessIds = [];
       if (processInstanceData != undefined && processInstanceData.length > 0) {
         processInstanceData.map((a) => {
@@ -793,6 +826,9 @@ export class ProcessService {
         });
       }
       const currentTaskObject = processInstanceData.reduce((a, c) => {
+        if (!c.currentTask) {
+          return a;
+        }
         if (subscription) {
           c.currentTask.isLocked = false;
         }
@@ -955,7 +991,7 @@ export class ProcessService {
     try {
       // console.log("taskId", taskId);
       let id = new ObjectId(taskId);
-      let taskData = await this.tasksModel.findOne({ _id: id }).lean();
+      let taskData = await this.tasksModel.findOne({ _id: id, status: Estatus.Active }).lean();
       return taskData;
     } catch (error) {
       throw error;
@@ -965,8 +1001,8 @@ export class ProcessService {
     try {
       let data = await this.tasksModel.find({
         processId: processId,
-        taskNumber: 1,
-      });
+        status: Estatus.Active,
+      }).sort({ taskNumber: 1 }).limit(1);
       let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
       return { data, itemId: serviceItemData?.itemId };
     } catch (error) {
@@ -1016,7 +1052,12 @@ export class ProcessService {
         taskStatus: EprocessStatus.Completed,
         status: Estatus.Active,
       }).lean()
-      return processInstanceDetailData
+      let taskData = await this.tasksModel.find({
+        processId: new ObjectId(processId),
+        status: Estatus.Active,
+      }).lean()
+      let completedTaskNumber = taskData.filter(task => processInstanceDetailData.some(instance => instance.taskId.toString() === task._id.toString()))
+      return completedTaskNumber  
     } catch (error) {
       throw error
     }
