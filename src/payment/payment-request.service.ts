@@ -410,6 +410,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
+      console.log("req.body is", JSON.stringify(req));
       const {
         invoiceId,
         status,
@@ -1085,12 +1086,12 @@ export class PaymentRequestService {
     let lockAcquired = false;
     lockKey = `process:create:${paymentId}`;
     const lockResult = await this.redisService.acquireLock(lockKey);
-    // console.log(lockResult)
+    console.log(lockResult)
     lockAcquired = lockResult.acquired;
     lockValue = lockResult.value as string;
     try {
       let paymentRequest =
-        await this.fetchPaymentByOrderId(paymentId);
+        await this.getPaymentDetailById(paymentId);
       if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {
         await this.completePayment({
           invoiceId: paymentRequest?.source_id,
@@ -1103,13 +1104,14 @@ export class PaymentRequestService {
           invoice?.source_type === ECoinTransactionTypes.coinTransaction &&
           invoice?.document_status === EDocumentStatus.completed
         ) {
+          console.log(" inside update coin transaction");
           try {
             let coinTransaction = await this.coinTransactionModel.findOne({
               sourceId: new ObjectId(invoice?._id),
               transactionType: ETransactionType.In,
               type: ETransactionType.purchased,
             });
-  
+
             if (
               coinTransaction?.documentStatus === ECoinStatus.pending &&
               coinTransaction?.transactionType === ECoinTransactionTypes.In
@@ -1117,8 +1119,7 @@ export class PaymentRequestService {
               let userDetail = await this.helperService.getUserAdditional(
                 coinTransaction?.userId
               );
-              if(userDetail){
-                let totalBalance =
+              let totalBalance =
                 Number(userDetail?.purchasedBalance || 0) +
                 Number(userDetail?.earnedBalance || 0);
               // Update coin transaction status
@@ -1138,27 +1139,30 @@ export class PaymentRequestService {
                   },
                 }
               );
-              let userCoinTransaction = await this.coinTransactionModel.findOne({
-                sourceId: new ObjectId(invoice?._id),
-                transactionType: ETransactionType.In,
-                type: ETransactionType.purchased,
-              });
-              if (userCoinTransaction?.documentStatus === ECoinStatus.completed) {
+              let userCoinTransaction = await this.coinTransactionModel.findOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.In,
+                  type: ETransactionType.purchased,
+                }
+              );
+              if (
+                userCoinTransaction?.documentStatus === ECoinStatus.completed
+              ) {
                 let updateUserAdditional =
                   await this.helperService.updateUserPurchaseCoin({
                     userId: coinTransaction?.userId,
                     coinValue: coinTransaction?.coinValue,
                   });
               }
-              }
             }
-  
+
             let coinTransactionOut = await this.coinTransactionModel.findOne({
               sourceId: new ObjectId(invoice?._id),
               transactionType: ETransactionType.Out,
               type: ETransactionType.withdrawn,
             });
-  
+
             if (
               coinTransactionOut?.documentStatus === ECoinStatus.pending &&
               coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
@@ -1167,7 +1171,7 @@ export class PaymentRequestService {
                 await this.helperService.getUserAdditional(
                   coinTransactionOut?.userId
                 );
-              if(getSuperAdminDetail){
+
               let updatedPurchaseBalance =
                 Number(getSuperAdminDetail?.purchasedBalance || 0) -
                 Number(coinTransactionOut?.coinValue);
@@ -1185,6 +1189,22 @@ export class PaymentRequestService {
                   },
                 }
               );
+              let AdminCoinTransactionOut =
+                await this.coinTransactionModel.findOne({
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.Out,
+                  type: ETransactionType.withdrawn,
+                });
+              if (
+                AdminCoinTransactionOut?.documentStatus ===
+                ECoinStatus.completed
+              ) {
+                let updateUserAdditionalData =
+                  await this.helperService.updateAdminCoinValue({
+                    userId: coinTransactionOut?.userId,
+                    coinValue: coinTransactionOut?.coinValue,
+                  });
+              }
               let mixPanelBody: any = {};
               mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
               mixPanelBody.distinctId = coinTransaction?.userId;
@@ -1195,29 +1215,13 @@ export class PaymentRequestService {
                 coin_value: coinTransaction?.coinValue,
               };
               await this.helperService.mixPanel(mixPanelBody);
-              let AdminCoinTransactionOut =
-                await this.coinTransactionModel.findOne({
-                  sourceId: new ObjectId(invoice?._id),
-                  transactionType: ETransactionType.Out,
-                  type: ETransactionType.withdrawn,
-                  documentStatus: ECoinStatus.completed,
-                });
-              if (
-                AdminCoinTransactionOut?.documentStatus === "Completed"
-              ) {
-                  await this.helperService.updateAdminCoinValue({
-                    userId: coinTransactionOut?.userId,
-                    coinValue: coinTransactionOut?.coinValue,
-                  });
-              }
             }
-          }
           } catch (error) {
-           throw error;
+            throw error
           }
         }
       }
-     } catch (error) {
+    } catch (error) {
       throw error;
     }
     finally {

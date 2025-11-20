@@ -288,7 +288,7 @@ export class SubscriptionService {
         // console.log("event name", event);
         if (event === EEventType.paymentCaptured) {
           const payload = req?.body?.payload;
-          console.log("payload", payload);
+          console.log("payload",JSON.stringify(payload));
           let coinTransaction =
             await this.paymentService.getSalseDocumentFromOrderId(
               payload?.payment?.entity?.order_id
@@ -297,6 +297,7 @@ export class SubscriptionService {
             coinTransaction?.source_type !==
             ECoinTransactionTypes.coinTransaction
           ) {
+            console.log("inside subscription webhook");
             await this.handleRazorpaySubscriptionPayment(payload);
           }
         }
