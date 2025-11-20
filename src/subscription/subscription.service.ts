@@ -1412,8 +1412,8 @@ export class SubscriptionService {
               item_name: item?.itemName,
               subscription_expired: subscription?.endAt,
               subscription_count: subscriptionCount,
-              subscription_mode: ESubscriptionMode.Auth,
-              subscription_amount: invoice.grand_total,
+              subscription_mode: paymentRequest?.paymentType,
+              subscription_amount: invoice?.grand_total,
             };
             await this.helperService.mixPanel(mixPanelBody);
             let firstSubscription = await this.userFirstSubscription(
@@ -1639,7 +1639,7 @@ export class SubscriptionService {
             item_name: item?.itemName,
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
-            subscription_mode: ESubscriptionMode.Auth,
+            subscription_mode: paymentRequest?.paymentType,
             subscription_amount: invoice.grand_total,
           };
           await this.helperService.mixPanel(mixPanelBody);
@@ -2248,28 +2248,6 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
-      let item = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-      let subscriptionCount = await this.countUserSubscriptions(
-        subscriptionData?.userId
-      );
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = subscriptionData?.userId;
-      mixPanelBody.properties = {
-        user_id: subscriptionData?.userId,
-        provider: subscriptionData?.provider,
-        subscription_id: subscription?._id,
-        subscription_status: EsubscriptionStatus.active,
-        subscription_date: subscription?.startAt,
-        item_name: item?.itemName,
-        subscription_expired: subscription?.endAt,
-        subscription_count: subscriptionCount,
-        subscription_mode: ESubscriptionMode.Charge,
-        subscription_amount: invoice.grand_total,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
     }
   }
 
@@ -2482,28 +2460,6 @@ export class SubscriptionService {
           "INR",
           { order_id: chargeResponse?.id }
         );
-        let item = await this.itemService.getItemDetail(
-          subscriptionData?.notes?.itemId
-        );
-        let subscriptionCount = await this.countUserSubscriptions(
-          subscriptionData?.userId
-        );
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscriptionData?.userId;
-        mixPanelBody.properties = {
-          user_id: subscriptionData?.userId,
-          provider: subscriptionData?.provider,
-          subscription_id: subscription?._id,
-          subscription_status: EsubscriptionStatus.active,
-          subscription_date: subscription?.startAt,
-          item_name: item?.itemName,
-          subscription_expired: subscription?.endAt,
-          subscription_count: subscriptionCount,
-          subscription_mode: ESubscriptionMode.Charge,
-          subscription_amount: invoice.grand_total,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
       }
     } catch (err) {
       throw err;
