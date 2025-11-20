@@ -28,6 +28,8 @@ export enum EEventType {
   paymentRefunded = "refund.processed",
   subscriptionSetupCompleted = "subscription.setup.order.completed",
   subscriptionSetupFailed = "subscription.setup.order.failed",
+  subscriptionRedemptionCompleted = "subscription.redemption.order.completed",
+  subscriptionRedemptionFailed = "subscription.redemption.order.failed",
   didChangeRenewalStatus= "DID_CHANGE_RENEWAL_STATUS",
   autoRenewDisabled="AUTO_RENEW_DISABLED"
 }

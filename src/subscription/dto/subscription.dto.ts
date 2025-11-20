@@ -94,6 +94,14 @@ export class CreateSubscriptionDTO {
   @IsOptional()
   @IsString()
   currencyCode: string;
+
+  @IsOptional()
+  @IsString()
+  targetApp?: string;
+
+  @IsOptional()
+  @IsString()
+  deviceOS?: string;
 }
 
 export class InitiateSubscriptionDTO {

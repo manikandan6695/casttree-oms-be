@@ -50,6 +50,7 @@ export class DynamicUiController {
       throw err;
     }
   }
+
   @UseGuards(JwtAuthGuard)
   @Get("suggestions-tag")
   async getSuggestionsTag(
@@ -60,6 +61,26 @@ export class DynamicUiController {
     try {
       const res = await this.dynamicUIService.getSuggestionsTag(token, skillId, skillName);
       return res;
+ } catch (err) {
+      throw err;
+    }
+  }
+
+  @Get("/:pageId")
+  async getCourseSeriesCardDetails(
+    @Param("pageId") pageId: string,
+    @Query("skip", new ParseIntPipe({ optional: false })) skip: number,
+    @Query("limit", new ParseIntPipe({ optional: false })) limit: number
+  ) {
+    try {
+      const parsedSkip = skip ?? 0;
+      const parsedLimit = limit ?? 0;
+      const data = await this.dynamicUIService.getCourseSeriesCardDetails(
+        pageId,
+        parsedSkip,
+        parsedLimit
+      );
+      return data;
     } catch (err) {
       throw err;
     }
