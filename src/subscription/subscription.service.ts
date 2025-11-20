@@ -65,6 +65,7 @@ import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
+import { PaymentGatewayService } from "src/payment-gateway/payment-gateway.service";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -89,7 +90,8 @@ export class SubscriptionService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel("coinTransaction")
     private readonly coinTransactionModel: Model<ICoinTransaction>,
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
+    private readonly paymentGatewayService: PaymentGatewayService
   ) {}
 
   async createSubscription(body: CreateSubscriptionDTO, token) {
