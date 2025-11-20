@@ -161,7 +161,16 @@ export class SubscriptionService {
           break;
 
         case "cashfree":
-          let planData = await this.helperService.getPlanDetails(body.planId);
+          const itemDetail = item?.additionalDetail as any;
+          const cashfreePlanConfig = itemDetail?.planConfig?.find(
+            (config: any) =>
+              config?.providerName?.toLowerCase() === "cashfree" ||
+              config?.providerId === 2
+          );
+          const cashfreePlanId = cashfreePlanConfig?.planId || body.planId;
+
+          let planData =
+            await this.helperService.getPlanDetails(cashfreePlanId);
           const subscriptionSequence = await this.sharedService.getNextNumber(
             "cashfree-subscription",
             "CSH-SUB",
@@ -2933,7 +2942,6 @@ export class SubscriptionService {
           instrument = parts[parts.length - 1].replace(/app$/, "");
         }
       }
-      console.log("instrument is", instrument);
 
       // Get best gateway for the instrument
       const gatewayResult =
@@ -2942,7 +2950,6 @@ export class SubscriptionService {
           device,
           instrument
         );
-      console.log("gatewayResult is", gatewayResult);
       // Map gateway to EProvider enum
       const providerMap: Record<string, EProvider> = {
         phonepe: EProvider.phonepe,
@@ -2951,7 +2958,6 @@ export class SubscriptionService {
       };
       const provider =
         providerMap[gatewayResult.gateway.toLowerCase()] || EProvider.phonepe;
-      console.log("provider is", provider);
       // Log warning if unhealthy gateway is selected
       if (gatewayResult.warning) {
         console.warn(
@@ -2981,7 +2987,6 @@ export class SubscriptionService {
         targetApp: targetAppForSubscription,
         deviceOS: body.deviceOS,
       } as CreateSubscriptionDTO;
-      console.log("body is", body);
 
       // Use the same createSubscription flow
       const subscriptionResponse = await this.createSubscription(
