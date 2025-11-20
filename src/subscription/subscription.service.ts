@@ -385,14 +385,10 @@ export class SubscriptionService {
               payload?.payment?.entity?.order_id
             );
           if (
-            coinTransaction?.source_type ===
+            coinTransaction?.source_type !==
             ECoinTransactionTypes.coinTransaction
           ) {
-            console.log(" inside razorpay webhook coin transaction", payload?.payment?.entity?.order_id);
-            await this.HandleCoinPurchaseInWebHook(
-              payload?.payment?.entity?.order_id
-            );
-          } else {
+            console.log("inside razorpay subscription payment");
             await this.handleRazorpaySubscriptionPayment(payload);
           }
         }
@@ -1835,7 +1831,7 @@ export class SubscriptionService {
             item_name: item?.itemName,
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
-            subscription_mode: ESubscriptionMode.Auth,
+            subscription_mode: paymentRequest?.paymentType,
             subscription_amount: invoice.grand_total,
           };
           await this.helperService.mixPanel(mixPanelBody);
@@ -2868,28 +2864,6 @@ export class SubscriptionService {
         "INR",
         { order_id: chargeResponse?.cf_payment_id }
       );
-      let item = await this.itemService.getItemDetail(
-        subscriptionData?.notes?.itemId
-      );
-      let subscriptionCount = await this.countUserSubscriptions(
-        subscriptionData?.userId
-      );
-      let mixPanelBody: any = {};
-      mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-      mixPanelBody.distinctId = subscriptionData?.userId;
-      mixPanelBody.properties = {
-        user_id: subscriptionData?.userId,
-        provider: subscriptionData?.provider,
-        subscription_id: subscription?._id,
-        subscription_status: EsubscriptionStatus.active,
-        subscription_date: subscription?.startAt,
-        item_name: item?.itemName,
-        subscription_expired: subscription?.endAt,
-        subscription_count: subscriptionCount,
-        subscription_mode: ESubscriptionMode.Charge,
-        subscription_amount: invoice.grand_total,
-      };
-      await this.helperService.mixPanel(mixPanelBody);
     }
   }
 
@@ -3098,28 +3072,6 @@ export class SubscriptionService {
           "INR",
           { order_id: chargeResponse?.id }
         );
-        let item = await this.itemService.getItemDetail(
-          subscriptionData?.notes?.itemId
-        );
-        let subscriptionCount = await this.countUserSubscriptions(
-          subscriptionData?.userId
-        );
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-        mixPanelBody.distinctId = subscriptionData?.userId;
-        mixPanelBody.properties = {
-          user_id: subscriptionData?.userId,
-          provider: subscriptionData?.provider,
-          subscription_id: subscription?._id,
-          subscription_status: EsubscriptionStatus.active,
-          subscription_date: subscription?.startAt,
-          item_name: item?.itemName,
-          subscription_expired: subscription?.endAt,
-          subscription_count: subscriptionCount,
-          subscription_mode: ESubscriptionMode.Charge,
-          subscription_amount: invoice.grand_total,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
       }
     } catch (err) {
       throw err;
@@ -3543,150 +3495,7 @@ export class SubscriptionService {
       throw error;
     }
   }
-  async HandleCoinPurchaseInWebHook(rzpPaymentId) {
-    try {
-      Sentry.addBreadcrumb({
-        message: "HandleCoinPurchaseInWebHook",
-        level: "info",
-        data: {
-          rzpPaymentId,
-        },
-      });
-      let paymentRequest =
-        await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-      if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {
-        await this.paymentService.completePayment({
-          invoiceId: paymentRequest?.source_id,
-          paymentId: paymentRequest?._id,
-        });
-        let invoice = await this.invoiceService.getInvoiceDetail(
-          paymentRequest?.source_id
-        );
-        if (
-          invoice?.source_type === ECoinTransactionTypes.coinTransaction &&
-          invoice?.document_status === EDocumentStatus.completed
-        ) {
-          console.log(" inside update coin transaction");
-          try {
-            let coinTransaction = await this.coinTransactionModel.findOne({
-              sourceId: new ObjectId(invoice?._id),
-              transactionType: ETransactionType.In,
-              type: ETransactionType.purchased,
-            });
 
-            if (
-              coinTransaction?.documentStatus === ECoinStatus.pending &&
-              coinTransaction?.transactionType === ETransactionType.In
-            ) {
-              let userDetail = await this.helperService.getUserAdditional(
-                coinTransaction?.userId
-              );
-              let totalBalance =
-                Number(userDetail?.purchasedBalance || 0) +
-                Number(userDetail?.earnedBalance || 0);
-              // Update coin transaction status
-              let updatedPurchaseBalance =
-                totalBalance + coinTransaction?.coinValue;
-              await this.coinTransactionModel.updateOne(
-                {
-                  sourceId: new ObjectId(invoice?._id),
-                  transactionType: ETransactionType.In,
-                  documentStatus: ECoinStatus.pending,
-                },
-                {
-                  $set: {
-                    documentStatus: ECoinStatus.completed,
-                    updatedAt: new Date(),
-                    currentBalance: updatedPurchaseBalance,
-                  },
-                }
-              );
-              let userCoinTransaction = await this.coinTransactionModel.findOne(
-                {
-                  sourceId: new ObjectId(invoice?._id),
-                  transactionType: ETransactionType.In,
-                  type: ETransactionType.purchased,
-                }
-              );
-              if (
-                userCoinTransaction?.documentStatus === ECoinStatus.completed
-              ) {
-                let updateUserAdditional =
-                  await this.helperService.updateUserPurchaseCoin({
-                    userId: coinTransaction?.userId,
-                    coinValue: coinTransaction?.coinValue,
-                  });
-              }
-            }
-
-            let coinTransactionOut = await this.coinTransactionModel.findOne({
-              sourceId: new ObjectId(invoice?._id),
-              transactionType: ETransactionType.Out,
-              type: ETransactionType.withdrawn,
-            });
-
-            if (
-              coinTransactionOut?.documentStatus === ECoinStatus.pending &&
-              coinTransactionOut?.transactionType === ETransactionType.Out
-            ) {
-              let getSuperAdminDetail =
-                await this.helperService.getUserAdditional(
-                  coinTransactionOut?.userId
-                );
-
-              let updatedPurchaseBalance =
-                Number(getSuperAdminDetail?.purchasedBalance || 0) -
-                Number(coinTransactionOut?.coinValue);
-              await this.coinTransactionModel.updateOne(
-                {
-                  sourceId: new ObjectId(invoice?._id),
-                  transactionType: ETransactionType.Out,
-                  documentStatus: ECoinStatus.pending,
-                },
-                {
-                  $set: {
-                    documentStatus: ECoinStatus.completed,
-                    updatedAt: new Date(),
-                    currentBalance: updatedPurchaseBalance,
-                  },
-                }
-              );
-              let AdminCoinTransactionOut =
-                await this.coinTransactionModel.findOne({
-                  sourceId: new ObjectId(invoice?._id),
-                  transactionType: ETransactionType.Out,
-                  type: ETransactionType.withdrawn,
-                });
-              if (
-                AdminCoinTransactionOut?.documentStatus ===
-                ECoinStatus.completed
-              ) {
-                let updateUserAdditionalData =
-                  await this.helperService.updateAdminCoinValue({
-                    userId: coinTransactionOut?.userId,
-                    coinValue: coinTransactionOut?.coinValue,
-                  });
-              }
-              let mixPanelBody: any = {};
-              mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
-              mixPanelBody.distinctId = coinTransaction?.userId;
-              mixPanelBody.properties = {
-                user_id: coinTransaction?.userId,
-                amount: paymentRequest?.amount,
-                currency: invoice?.currencyCode,
-                coin_value: coinTransaction?.coinValue,
-              };
-              await this.helperService.mixPanel(mixPanelBody);
-            }
-          } catch (error) {
-            throw error
-          }
-        }
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
   async getSubscriptionByUserId(userId: string) {
     try {
       let subscription = await this.subscriptionModel
