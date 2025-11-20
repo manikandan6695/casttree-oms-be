@@ -410,7 +410,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
-      console.log("req.body is", JSON.stringify(req));
+      console.log("req.body is", JSON.stringify(req.body));
       const {
         invoiceId,
         status,
@@ -431,7 +431,8 @@ export class PaymentRequestService {
         amount,
         userId,
       };
-
+      console.log("ids is", JSON.stringify(ids));
+      console.log("status is", status);
       await this.updatePaymentStatus(status, ids);
 
       return { message: "Updated Successfully" };
@@ -482,6 +483,7 @@ export class PaymentRequestService {
   async updatePaymentStatus(status, ids) {
     try {
       if (status === ERazorpayPaymentStatus.captured) {
+        console.log("inside updatePaymentStatus");
         let serviceItemDetail: any =
           await this.serviceItemService.getServiceItemDetailbyItemId(
             ids.itemId
@@ -497,6 +499,7 @@ export class PaymentRequestService {
         };
         await this.helperService.mixPanel(mixPanelBody);
         if(serviceItemDetail?.type === EserviceItemType.coins){
+          console.log("inside updatePaymentStatus");
           await this.handleCoinPurchaseInWebHook(ids?.paymentId);
         }
         else {

@@ -237,8 +237,10 @@ export class SubscriptionFactory {
 
       return {
         subscriptionDetails: {
-        ...subscription,
-        paymentId: payment?.id,
+          ...subscription,
+          paymentId: payment?.id,
+          providerId: 2,
+          provider: EProvider.cashfree,
         },
         authorizationDetails: auth,
       };
@@ -1342,6 +1344,8 @@ export class SubscriptionFactory {
         subscriptionDetails: {
           customerId: customerId,
           ...subscription,
+          providerId: 1,
+          providerName: EProvider.razorpay,
           paymentId: payment?.id,
         },
       };
