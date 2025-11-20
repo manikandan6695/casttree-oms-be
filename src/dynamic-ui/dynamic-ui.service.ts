@@ -4054,4 +4054,506 @@ export class DynamicUiService {
       throw error;
     }
   }
+  async getCourseSeriesCardDetails(
+    pageId: string,
+    skip: number,
+    limit: number
+  ): Promise<{ data: any[]; count: number }> {
+    try {
+      const paginationSkip = Math.max(0, Number(skip) || 0);
+      const paginationLimit = Math.max(0, Number(limit) || 0);
+  
+      Sentry.addBreadcrumb({
+        message: "getCourseSeriesCardDetails",
+        level: "info",
+        data: { pageId, skip: paginationSkip, limit: paginationLimit },
+      });
+  
+      const page = await this.contentPageModel
+        .findOne({
+          _id: new ObjectId(pageId),
+          status: EStatus.Active,
+        })
+        .lean();
+  
+      if (!page?.metaData?.skillId) return { data: [], count: 0 };
+  
+      const componentIds = page?.components
+        ?.map((c) => this.normalizeId(c?.componentId))
+        .filter((id) => id && ObjectId.isValid(id))
+        .map((id) => new ObjectId(id)) ?? [];
+  
+      if (!componentIds.length) return { data: [], count: 0 };
+  
+      const skillId = new ObjectId(page?.metaData?.skillId);
+  
+      // Use aggregation pipeline to get components and extract tags
+      const componentsWithTags = await this.componentModel.aggregate([
+        {
+          $match: {
+            _id: { $in: componentIds },
+            status: EStatus.Active,
+            componentKey: "course-series-card",
+            title: { $ne: "All Series" },
+          },
+        },
+        { $sort: { order: 1 } },
+        {
+          $project: {
+            _id: 1,
+            componentKey: 1,
+            type: 1,
+            title: 1,
+            order: 1,
+            media: 1,
+            navigation: 1,
+            tag: 1,
+            status: 1,
+            updated_at: 1,
+            metaData: 1,
+            tagName: 1,
+          },
+        },
+      ]);
+  
+      if (!componentsWithTags.length) return { data: [], count: 0 };
+  
+      // Extract tags from components (keeping the complex JS logic)
+      const allTags = new Set<string>();
+      const componentTagMap = new Map<string, string[]>();
+  
+      for (const component of componentsWithTags) {
+        const compId = this.normalizeId(component?._id);
+        const tags = this.getComponentTags(component, page?.metaData, compId);
+  
+        if (tags.length) {
+          componentTagMap.set(compId, tags);
+          tags.forEach((tagName) => allTags.add(tagName));
+        }
+      }
+  
+      if (!allTags.size) return { data: [], count: 0 };
+  
+      const enrichedServiceItems = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            type: EserviceItemType.courses,
+            "skill.skillId": skillId,
+            "tag.name": { $in: [...allTags] },
+            status: Estatus.Active,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            itemId: 1,
+            userId: 1,
+            skill: 1,
+            tag: 1,
+            role: 1,
+            additionalDetails: 1,
+            filterOptionsIds: 1,
+            processId: { $toString: "$additionalDetails.processId" },
+            processIdObj: "$additionalDetails.processId",
+          },
+        },
+        // Lookup first task for each process
+        {
+          $lookup: {
+            from: "task",
+            let: { procId: "$processIdObj" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$processId", "$$procId"] },
+                      { $eq: ["$status", Estatus.Active] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { taskNumber: 1 } },
+              { $limit: 1 },
+              {
+                $project: {
+                  _id: 1,
+                  title: 1,
+                  isLocked: 1,
+                  taskMetaData: 1,
+                  processId: 1,
+                },
+              },
+            ],
+            as: "firstTask",
+          },
+        },
+        {
+          $unwind: {
+            path: "$firstTask",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        // Lookup item details
+        {
+          $lookup: {
+            from: "item",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "itemData",
+            pipeline: [
+              {
+                $project: {
+                  _id: 1,
+                  itemName: 1,
+                  itemDescription: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
+          $unwind: {
+            path: "$itemData",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        // Lookup expert profile
+        {
+          $lookup: {
+            from: "profile",
+            let: { userId: "$userId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$userId", "$$userId"] },
+                      { $eq: ["$type", EprofileType.Expert] },
+                    ],
+                  },
+                },
+              },
+              {
+                $lookup: {
+                  from: "media",
+                  localField: "media.media_id",
+                  foreignField: "_id",
+                  as: "mediaData",
+                },
+              },
+              {
+                $project: {
+                  userId: 1,
+                  displayName: 1,
+                  about: 1,
+                  about2: 1,
+                  media: {
+                    $map: {
+                      input: "$mediaData",
+                      as: "m",
+                      in: {
+                        mediaId: { $toString: "$$m._id" },
+                        mediaUrl: "$$m.location",
+                        mediaType: "$$m.media_type",
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+            as: "expertProfile",
+          },
+        },
+        {
+          $unwind: {
+            path: "$expertProfile",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        // Lookup filter options
+        {
+          $lookup: {
+            from: "filterOptions",
+            let: {
+              filterOptionIds: {
+                $map: {
+                  input: { $ifNull: ["$filterOptionsIds", []] },
+                  as: "fo",
+                  in: {
+                    $cond: {
+                      if: { $eq: [{ $type: "$$fo.filterOptionId" }, "objectId"] },
+                      then: "$$fo.filterOptionId",
+                      else: {
+                        $cond: {
+                          if: { $ne: ["$$fo.filterOptionId._id", null] },
+                          then: "$$fo.filterOptionId._id",
+                          else: {
+                            $cond: {
+                              if: { $ne: ["$$fo.filterOptionId", null] },
+                              then: "$$fo.filterOptionId",
+                              else: "$$fo",
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", "$$filterOptionIds"],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  optionValue: 1,
+                },
+              },
+            ],
+            as: "filterOptionsData",
+          },
+        },
+        // Build actionData structure
+        {
+          $project: {
+            processId: 1,
+            tag: 1,
+            actionData: {
+              thumbnail: "$additionalDetails.thumbnail",
+              itemName: { $ifNull: ["$itemData.itemName", ""] },
+              processId: "$processId",
+              taskId: {
+                $cond: {
+                  if: { $ne: ["$firstTask._id", null] },
+                  then: { $toString: "$firstTask._id" },
+                  else: null,
+                },
+              },
+              taskDetail: {
+                $cond: {
+                  if: { $ne: ["$firstTask._id", null] },
+                  then: {
+                    media: { $ifNull: ["$firstTask.taskMetaData.media", []] },
+                    shareText: { $ifNull: ["$firstTask.taskMetaData.shareText", ""] },
+                  },
+                  else: {},
+                },
+              },
+              title: { $ifNull: ["$firstTask.title", ""] },
+              isLocked: { $ifNull: ["$firstTask.isLocked", false] },
+              itemDesc: { $ifNull: ["$itemData.itemDescription", ""] },
+              tag: { $ifNull: ["$tag", []] },
+              skill: { $ifNull: ["$skill", []] },
+              role: { $ifNull: ["$role", []] },
+              userId: {
+                $cond: {
+                  if: { $ne: ["$userId", null] },
+                  then: { $toString: "$userId" },
+                  else: null,
+                },
+              },
+              expertProfile: {
+                $cond: {
+                  if: { $ne: ["$expertProfile", null] },
+                  then: {
+                    displayName: "$expertProfile.displayName",
+                    about: "$expertProfile.about",
+                    about2: "$expertProfile.about2",
+                    media: { $ifNull: ["$expertProfile.media", []] },
+                  },
+                  else: {},
+                },
+              },
+              filterOptionsIds: {
+                $map: {
+                  input: { $ifNull: ["$filterOptionsIds", []] },
+                  as: "fo",
+                  in: {
+                    $let: {
+                      vars: {
+                        filterOptionId: {
+                          $cond: {
+                            if: { $eq: [{ $type: "$$fo.filterOptionId" }, "objectId"] },
+                            then: { $toString: "$$fo.filterOptionId" },
+                            else: {
+                              $cond: {
+                                if: { $ne: ["$$fo.filterOptionId._id", null] },
+                                then: { $toString: "$$fo.filterOptionId._id" },
+                                else: {
+                                  $cond: {
+                                    if: { $ne: ["$$fo.filterOptionId", null] },
+                                    then: {
+                                      $cond: {
+                                        if: { $eq: [{ $type: "$$fo.filterOptionId" }, "objectId"] },
+                                        then: { $toString: "$$fo.filterOptionId" },
+                                        else: "$$fo.filterOptionId",
+                                      },
+                                    },
+                                    else: { $toString: "$$fo" },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                      in: {
+                        $let: {
+                          vars: {
+                            matchedFilter: {
+                              $arrayElemAt: [
+                                {
+                                  $filter: {
+                                    input: "$filterOptionsData",
+                                    as: "fod",
+                                    cond: {
+                                      $eq: [
+                                        { $toString: "$$fod._id" },
+                                        "$$filterOptionId",
+                                      ],
+                                    },
+                                  },
+                                },
+                                0,
+                              ],
+                            },
+                          },
+                          in: {
+                            $cond: {
+                              if: { $ne: ["$$matchedFilter", null] },
+                              then: {
+                                filterOptionId: "$$filterOptionId",
+                                optionValue: "$$matchedFilter.optionValue",
+                              },
+                              else: null,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            processId: 1,
+            tag: 1,
+            actionData: {
+              $mergeObjects: [
+                "$actionData",
+                {
+                  filterOptionsIds: {
+                    $filter: {
+                      input: "$actionData.filterOptionsIds",
+                      as: "fo",
+                      cond: { $ne: ["$$fo", null] },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ]);
+  
+      if (!enrichedServiceItems.length) return { data: [], count: 0 };
+  
+      // Build tag to processId mapping
+      const tagProcessMap = new Map<string, Set<string>>();
+      const actionDataMap = new Map<string, any>();
+  
+      for (const item of enrichedServiceItems) {
+        const pid = item.processId;
+        if (!pid) continue;
+  
+        actionDataMap.set(pid, item.actionData);
+  
+        (item.tag || []).forEach((tag: any) => {
+          const tagName = tag?.name;
+          if (tagName) {
+            if (!tagProcessMap.has(tagName)) tagProcessMap.set(tagName, new Set());
+            tagProcessMap.get(tagName)?.add(pid);
+          }
+        });
+      }
+  
+      // Build final component data
+      const finalData = componentsWithTags
+        .map((comp) => {
+          const compId = this.normalizeId(comp?._id);
+          const tags = componentTagMap.get(compId) || [];
+  
+          const processIds = new Set<string>();
+          tags.forEach((tagName) => {
+            const pidSet = tagProcessMap.get(tagName);
+            if (pidSet) pidSet.forEach((processId) => processIds.add(processId));
+          });
+  
+          if (!processIds.size) return null;
+  
+          return {
+            componentKey: comp.componentKey,
+            type: comp.type,
+            title: comp?.title || "",
+            order: comp?.order,
+            actionData: [...processIds].map((id) => actionDataMap.get(id)).filter(Boolean),
+            media: comp?.media || [],
+            navigation: comp?.navigation || {},
+            tag: comp?.tag || [],
+            status: comp?.status,
+            updated_at: comp?.updated_at,
+          };
+        })
+        .filter(Boolean);
+  
+      const filtered = finalData.filter((item) => item && item.actionData.length > 0);
+      const paginated =
+        paginationLimit > 0
+          ? filtered.slice(paginationSkip, paginationSkip + paginationLimit)
+          : filtered.slice(paginationSkip);
+  
+      return { data: paginated, count: filtered.length };
+    } catch (err) {
+      Sentry.captureException(err);
+      throw err;
+    }
+  }
+
+  private getComponentTags(component: any, pageMetaData: any, componentId: string): string[] {
+    const extractTags = (value: any): string[] =>
+      !value ? [] :
+      typeof value === "string" ? [value] :
+      Array.isArray(value) ? value.flatMap(extractTags) :
+      typeof value === "object"
+        ? [value?.name, value?.tagName].filter(Boolean).concat(extractTags(value?.tag), extractTags(value?.tags))
+        : [];
+  
+    const componentTags = [
+      component?.tag,
+      component?.metaData?.tag,
+      component?.metaData?.tags,
+      component?.tagName
+    ].flatMap(extractTags);
+  
+    const matchedMetaComponent = pageMetaData?.components?.find?.((meta: any) =>
+      this.normalizeId(meta?.componentId || meta?.component_id || meta?.id || meta?._id) === componentId
+    );
+  
+    const metaTags = matchedMetaComponent
+      ? [matchedMetaComponent?.tag, matchedMetaComponent?.tags, matchedMetaComponent?.tagName, matchedMetaComponent?.tagNames].flatMap(extractTags)
+      : [];
+  
+    return [...new Set([...componentTags, ...metaTags])];
+  }
+
 }
