@@ -1004,7 +1004,7 @@ export class ProcessService {
         status: Estatus.Active,
       }).sort({ taskNumber: 1 }).limit(1);
       let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
-      return { data, itemId: serviceItemData?.itemId };
+      return { data, itemId: serviceItemData?.itemId, role: serviceItemData?.role };
     } catch (error) {
       throw error;
     }
