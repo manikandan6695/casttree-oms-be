@@ -43,6 +43,7 @@ import { RedisService } from "src/redis/redis.service";
 import { SubscriptionService } from "src/subscription/subscription.service";
 import { ISystemConfigurationModel } from "src/shared/schema/system-configuration.schema";
 import { PaymentRequestFactory } from "./payment-request.factory";
+import { EserviceItemType } from "src/item/enum/serviceItem.type.enum";
 const jwt = require("jsonwebtoken");
 const { ObjectId } = require("mongodb");
 const SimpleHMACAuth = require("simple-hmac-auth");
@@ -409,6 +410,7 @@ export class PaymentRequestService {
 
   async paymentWebhook(@Req() req) {
     try {
+      console.log("req.body is", JSON.stringify(req));
       const {
         invoiceId,
         status,
@@ -494,7 +496,12 @@ export class PaymentRequestService {
           serviceItemType: serviceItemDetail.type,
         };
         await this.helperService.mixPanel(mixPanelBody);
-        await this.completePayment(ids);
+        if(serviceItemDetail?.type === EserviceItemType.coins){
+          await this.handleCoinPurchaseInWebHook(ids?.paymentId);
+        }
+        else {
+          await this.completePayment(ids);
+        }
       }
 
       // if (status === ERazorpayPaymentStatus.failed) {
@@ -766,25 +773,30 @@ export class PaymentRequestService {
       throw err;
     }
   }
-  async updateCoinValue(paymentId: string,token: UserToken) {
+  async updateCoinValue(paymentId: string, token: UserToken) {
     try {
       let payment;
-      let paymentData = await this.paymentModel.findOne({
-        _id: new ObjectId(paymentId),
-      }).lean();
-      let totalBalance;
+      let paymentData = await this.paymentModel
+        .findOne({
+          _id: new ObjectId(paymentId),
+        })
+        .lean();
+
       let invoiceData = await this.invoiceService.getInvoiceDetail(
         paymentData?.source_id
       );
-      const firstPayment = await this.paymentModel.findOne({
-        user_id: new ObjectId(token.id),
-        document_status: EDocumentStatus.completed,
-      }).sort({ created_at: 1 });
-
+      const firstPayment = await this.paymentModel
+        .findOne({
+          user_id: new ObjectId(token.id),
+          document_status: EDocumentStatus.completed,
+        })
+        .sort({ created_at: 1 });
       payment = {
         ...paymentData,
-        isFirstPayment: firstPayment && firstPayment._id.toString() === paymentId.toString(),
-      }
+        isFirstPayment:
+          firstPayment && firstPayment._id.toString() === paymentId.toString(),
+      };
+
       if (
         payment?.document_status === EDocumentStatus.completed &&
         invoiceData?.document_status === EDocumentStatus.completed
@@ -798,80 +810,19 @@ export class PaymentRequestService {
           transactionType: ETransactionType.In,
           type: ETransactionType.purchased,
         });
-        if (
-          coinTransaction?.documentStatus === ECoinStatus.pending &&
-          coinTransaction?.transactionType === ECoinTransactionTypes.In
-        ) {
-          console.log("coinTransaction is pending",coinTransaction);  
-          let updateUserAdditional =
-            await this.helperService.updateUserPurchaseCoin({
-              userId: coinTransaction?.userId,
-              coinValue: coinTransaction?.coinValue,
-            });
-          totalBalance =
-            (updateUserAdditional?.purchasedBalance || 0) +
-            (updateUserAdditional?.earnedBalance || 0);
-          await this.coinTransactionModel.updateOne(
-            {
-              sourceId: new ObjectId(invoiceData?._id),
-              transactionType: ETransactionType.In,
-              documentStatus: ECoinStatus.pending,
-            },
-            {
-              $set: {
-                documentStatus: ECoinStatus.completed,
-                updatedAt: new Date(),
-                currentBalance: totalBalance,
-              },
-            }
-          );
-        }
-        let coinTransactionOut = await this.coinTransactionModel.findOne({
-          sourceId: new ObjectId(invoiceData?._id),
-          transactionType: ETransactionType.Out,
-          type: ETransactionType.withdrawn,
+        let userAdditional = await this.helperService.getUserAdditionalDetails({
+          userId: coinTransaction?.userId,
         });
-        if (
-          coinTransactionOut?.documentStatus === ECoinStatus.pending &&
-          coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
-        ) {
-          console.log("coinTransactionOut is pending",coinTransactionOut);  
-          let updateUserAdditionalData =
-            await this.helperService.updateAdminCoinValue({
-              userId: coinTransactionOut?.userId,
-              coinValue: coinTransactionOut?.coinValue,
-            });
-          await this.coinTransactionModel.updateOne(
-            {
-              sourceId: new ObjectId(invoiceData?._id),
-              transactionType: ETransactionType.Out,
-              documentStatus: ECoinStatus.pending,
-            },
-            {
-              $set: {
-                documentStatus: ECoinStatus.completed,
-                updatedAt: new Date(),
-                currentBalance: updateUserAdditionalData?.purchasedBalance,
-              },
-            }
-          );
-        }
+        let totalCoinValue =
+          (userAdditional?.userAdditional?.purchasedBalance || 0) +
+          (userAdditional?.userAdditional?.earnedBalance || 0);
+
         let finalResponse = {
           coinValue: coinTransaction?.coinValue,
-          totalBalance: totalBalance,
+          totalBalance: totalCoinValue,
           coinMedia: coinData?.media,
           paymentData: payment,
         };
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
-        mixPanelBody.distinctId = coinTransaction?.userId;
-        mixPanelBody.properties = {
-          user_id: coinTransaction?.userId,
-          amount: payment?.amount,
-          currency: invoiceData?.currencyCode,
-          coin_value: coinTransaction?.coinValue,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
         return finalResponse;
       } else {
         return {
@@ -1117,6 +1068,166 @@ export class PaymentRequestService {
       return payment
     } catch (error) {
       throw error;
+    }
+  }
+  async getPaymentDetailById(paymentId: string) {
+    try {
+      let payment = await this.paymentModel.findOne({
+        _id: new ObjectId(paymentId),
+      });
+      return payment;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async handleCoinPurchaseInWebHook(paymentId: string) {
+    let lockKey: string;
+    let lockValue: string;
+    let lockAcquired = false;
+    lockKey = `process:create:${paymentId}`;
+    const lockResult = await this.redisService.acquireLock(lockKey);
+    console.log(lockResult)
+    lockAcquired = lockResult.acquired;
+    lockValue = lockResult.value as string;
+    try {
+      let paymentRequest =
+        await this.getPaymentDetailById(paymentId);
+      if (paymentRequest?.document_status === EsubscriptionStatus.initiated) {
+        await this.completePayment({
+          invoiceId: paymentRequest?.source_id,
+          paymentId: paymentRequest?._id,
+        });
+        let invoice = await this.invoiceService.getInvoiceDetail(
+          paymentRequest?.source_id
+        );
+        if (
+          invoice?.source_type === ECoinTransactionTypes.coinTransaction &&
+          invoice?.document_status === EDocumentStatus.completed
+        ) {
+          console.log(" inside update coin transaction");
+          try {
+            let coinTransaction = await this.coinTransactionModel.findOne({
+              sourceId: new ObjectId(invoice?._id),
+              transactionType: ETransactionType.In,
+              type: ETransactionType.purchased,
+            });
+
+            if (
+              coinTransaction?.documentStatus === ECoinStatus.pending &&
+              coinTransaction?.transactionType === ECoinTransactionTypes.In
+            ) {
+              let userDetail = await this.helperService.getUserAdditional(
+                coinTransaction?.userId
+              );
+              let totalBalance =
+                Number(userDetail?.purchasedBalance || 0) +
+                Number(userDetail?.earnedBalance || 0);
+              // Update coin transaction status
+              let updatedPurchaseBalance =
+                totalBalance + coinTransaction?.coinValue;
+              await this.coinTransactionModel.updateOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.In,
+                  documentStatus: ECoinStatus.pending,
+                },
+                {
+                  $set: {
+                    documentStatus: ECoinStatus.completed,
+                    updatedAt: new Date(),
+                    currentBalance: updatedPurchaseBalance,
+                  },
+                }
+              );
+              let userCoinTransaction = await this.coinTransactionModel.findOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.In,
+                  type: ETransactionType.purchased,
+                }
+              );
+              if (
+                userCoinTransaction?.documentStatus === ECoinStatus.completed
+              ) {
+                let updateUserAdditional =
+                  await this.helperService.updateUserPurchaseCoin({
+                    userId: coinTransaction?.userId,
+                    coinValue: coinTransaction?.coinValue,
+                  });
+              }
+            }
+
+            let coinTransactionOut = await this.coinTransactionModel.findOne({
+              sourceId: new ObjectId(invoice?._id),
+              transactionType: ETransactionType.Out,
+              type: ETransactionType.withdrawn,
+            });
+
+            if (
+              coinTransactionOut?.documentStatus === ECoinStatus.pending &&
+              coinTransactionOut?.transactionType === ECoinTransactionTypes.Out
+            ) {
+              let getSuperAdminDetail =
+                await this.helperService.getUserAdditional(
+                  coinTransactionOut?.userId
+                );
+
+              let updatedPurchaseBalance =
+                Number(getSuperAdminDetail?.purchasedBalance || 0) -
+                Number(coinTransactionOut?.coinValue);
+              await this.coinTransactionModel.updateOne(
+                {
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.Out,
+                  documentStatus: ECoinStatus.pending,
+                },
+                {
+                  $set: {
+                    documentStatus: ECoinStatus.completed,
+                    updatedAt: new Date(),
+                    currentBalance: updatedPurchaseBalance,
+                  },
+                }
+              );
+              let AdminCoinTransactionOut =
+                await this.coinTransactionModel.findOne({
+                  sourceId: new ObjectId(invoice?._id),
+                  transactionType: ETransactionType.Out,
+                  type: ETransactionType.withdrawn,
+                });
+              if (
+                AdminCoinTransactionOut?.documentStatus ===
+                ECoinStatus.completed
+              ) {
+                let updateUserAdditionalData =
+                  await this.helperService.updateAdminCoinValue({
+                    userId: coinTransactionOut?.userId,
+                    coinValue: coinTransactionOut?.coinValue,
+                  });
+              }
+              let mixPanelBody: any = {};
+              mixPanelBody.eventName = EMixedPanelEvents.coin_purchase_success;
+              mixPanelBody.distinctId = coinTransaction?.userId;
+              mixPanelBody.properties = {
+                user_id: coinTransaction?.userId,
+                amount: paymentRequest?.amount,
+                currency: invoice?.currencyCode,
+                coin_value: coinTransaction?.coinValue,
+              };
+              await this.helperService.mixPanel(mixPanelBody);
+            }
+          } catch (error) {
+            throw error
+          }
+        }
+      }
+    } catch (error) {
+      throw error;
+    }
+    finally {
+      if (lockAcquired) {
+        await this.redisService.releaseLock(lockKey, lockValue);
+      }
     }
   }
   // Uncomment and implement if handling other statuses like failed
