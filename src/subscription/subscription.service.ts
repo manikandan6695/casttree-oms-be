@@ -66,6 +66,8 @@ import { ECommandProcessingStatus } from "src/shared/enum/command-source.enum";
 import { ICoinTransaction } from "src/payment/schema/coinPurchase.schema";
 import { RedisService } from "src/redis/redis.service";
 import { PaymentGatewayService } from "src/payment-gateway/payment-gateway.service";
+import { writeFile } from "fs/promises";
+import * as path from "path";
 // var ObjectId = require("mongodb").ObjectID;
 const { ObjectId } = require("mongodb");
 
@@ -300,7 +302,7 @@ export class SubscriptionService {
         // console.log("event name", event);
         if (event === EEventType.paymentCaptured) {
           const payload = req?.body?.payload;
-          console.log("payload",JSON.stringify(payload));
+          console.log("payload", JSON.stringify(payload));
           let coinTransaction =
             await this.paymentService.getSalseDocumentFromOrderId(
               payload?.payment?.entity?.order_id
@@ -404,8 +406,8 @@ export class SubscriptionService {
         }
       } else if (provider == EProvider.google) {
         const eventType = await this.subscriptionFactory.googleRtdn(req?.body);
-        if(!eventType){
-          return { "message": "no event type found" }
+        if (!eventType) {
+          return { message: "no event type found" };
         }
         console.log("eventType", eventType);
         console.log("body", req?.body);
@@ -1063,7 +1065,7 @@ export class SubscriptionService {
       const paymentRecord =
         await this.paymentService.fetchPaymentByOrderId(paymentId);
 
-      if ( paymentRecord.document_status === EPaymentStatus.pending ) {
+      if (paymentRecord.document_status === EPaymentStatus.pending) {
         const paymentUpdateBody = {
           document_status: EPaymentStatus.failed,
           reason: { failureReason: refundReason },
@@ -1154,40 +1156,40 @@ export class SubscriptionService {
 
       let tokenId = payload?.token?.entity?.id;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if(mandate){
-      if (mandate.mandateStatus === EDocumentStatus.active) {
-        let data = await this.mandateService.updateMandateDetail(
-          { _id: mandate?._id },
-          { mandateStatus: EMandateStatus.cancel_initiated }
-        );
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandate?._id.toString(),
-          mandateStatus: EMandateStatus.cancel_initiated,
-          "metaData.additionalDetail": payload?.token?.entity,
-          status: EStatus.Active,
-          createdBy: payload?.token?.entity?.notes?.userId,
-          updatedBy: payload?.token?.entity?.notes?.userId,
-        });
-        let subscriptionData = await this.subscriptionModel.findOne({
-          _id: new ObjectId(mandate?.sourceId),
-        });
-        let itemName = await this.itemService.getItemDetail(
-          subscriptionData?.notes?.itemId
-        );
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-        mixPanelBody.distinctId = mandate?.userId;
-        mixPanelBody.properties = {
-          mandate_id: mandate?._id,
-          user_id: mandate?.userId,
-          mandate_status: EMandateStatus.cancelled,
-          date: new Date().toISOString(),
-          item_name: itemName?.itemName,
-          provider: mandate?.provider,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+      if (mandate) {
+        if (mandate.mandateStatus === EDocumentStatus.active) {
+          let data = await this.mandateService.updateMandateDetail(
+            { _id: mandate?._id },
+            { mandateStatus: EMandateStatus.cancel_initiated }
+          );
+          await this.mandateHistoryService.createMandateHistory({
+            mandateId: mandate?._id.toString(),
+            mandateStatus: EMandateStatus.cancel_initiated,
+            "metaData.additionalDetail": payload?.token?.entity,
+            status: EStatus.Active,
+            createdBy: payload?.token?.entity?.notes?.userId,
+            updatedBy: payload?.token?.entity?.notes?.userId,
+          });
+          let subscriptionData = await this.subscriptionModel.findOne({
+            _id: new ObjectId(mandate?.sourceId),
+          });
+          let itemName = await this.itemService.getItemDetail(
+            subscriptionData?.notes?.itemId
+          );
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+          mixPanelBody.distinctId = mandate?.userId;
+          mixPanelBody.properties = {
+            mandate_id: mandate?._id,
+            user_id: mandate?.userId,
+            mandate_status: EMandateStatus.cancelled,
+            date: new Date().toISOString(),
+            item_name: itemName?.itemName,
+            provider: mandate?.provider,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+        }
       }
-    }
     } catch (err) {
       throw err;
     }
@@ -1200,42 +1202,42 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-      if(mandate){
-      if (mandate.mandateStatus === EDocumentStatus.active) {
-        let data = await this.mandateService.updateMandateDetail(
-          { _id: mandate?._id },
-          { mandateStatus: EMandateStatus.cancelled }
-        );
-        await this.mandateHistoryService.createMandateHistory({
-          mandateId: mandate?._id.toString(),
-          mandateStatus: EMandateStatus.cancelled,
-          "metaData.additionalDetail": payload?.token?.entity,
-          status: EStatus.Active,
-          createdBy: payload?.token?.entity?.notes?.userId,
-          updatedBy: payload?.token?.entity?.notes?.userId,
-        });
+      if (mandate) {
+        if (mandate.mandateStatus === EDocumentStatus.active) {
+          let data = await this.mandateService.updateMandateDetail(
+            { _id: mandate?._id },
+            { mandateStatus: EMandateStatus.cancelled }
+          );
+          await this.mandateHistoryService.createMandateHistory({
+            mandateId: mandate?._id.toString(),
+            mandateStatus: EMandateStatus.cancelled,
+            "metaData.additionalDetail": payload?.token?.entity,
+            status: EStatus.Active,
+            createdBy: payload?.token?.entity?.notes?.userId,
+            updatedBy: payload?.token?.entity?.notes?.userId,
+          });
 
-        let subscriptionData = await this.subscriptionModel.findOne({
-          _id: new ObjectId(mandate?.sourceId),
-        });
-        let itemName = await this.itemService.getItemDetail(
-          subscriptionData?.notes?.itemId
-        );
+          let subscriptionData = await this.subscriptionModel.findOne({
+            _id: new ObjectId(mandate?.sourceId),
+          });
+          let itemName = await this.itemService.getItemDetail(
+            subscriptionData?.notes?.itemId
+          );
 
-        let mixPanelBody: any = {};
-        mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
-        mixPanelBody.distinctId = mandate?.userId;
-        mixPanelBody.properties = {
-          mandate_id: mandate?._id,
-          user_id: mandate?.userId,
-          mandate_status: EMandateStatus.cancelled,
-          date: new Date().toISOString(),
-          item_name: itemName?.itemName,
-          provider: mandate?.provider,
-        };
-        await this.helperService.mixPanel(mixPanelBody);
+          let mixPanelBody: any = {};
+          mixPanelBody.eventName = EMixedPanelEvents.mandate_cancelled;
+          mixPanelBody.distinctId = mandate?.userId;
+          mixPanelBody.properties = {
+            mandate_id: mandate?._id,
+            user_id: mandate?.userId,
+            mandate_status: EMandateStatus.cancelled,
+            date: new Date().toISOString(),
+            item_name: itemName?.itemName,
+            provider: mandate?.provider,
+          };
+          await this.helperService.mixPanel(mixPanelBody);
+        }
       }
-    }
     } catch (err) {
       throw err;
     }
@@ -1248,20 +1250,20 @@ export class SubscriptionService {
       let tokenId = payload?.token?.entity?.id;
       let status = payload?.token?.entity?.recurring_details?.status;
       let mandate = await this.mandateService.getMandateById(tokenId);
-     if (mandate) {
-      let data = await this.mandateService.updateMandateDetail(
-        { _id: mandate?._id },
-        { mandateStatus: EMandateStatus.rejected }
-      );
-      await this.mandateHistoryService.createMandateHistory({
-        mandateId: mandate?._id.toString(),
-        mandateStatus: EMandateStatus.rejected,
-        "metaData.additionalDetail": payload?.token?.entity,
-        status: EStatus.Active,
-        createdBy: payload?.token?.entity?.notes?.userId,
-        updatedBy: payload?.token?.entity?.notes?.userId,
-      });
-     }
+      if (mandate) {
+        let data = await this.mandateService.updateMandateDetail(
+          { _id: mandate?._id },
+          { mandateStatus: EMandateStatus.rejected }
+        );
+        await this.mandateHistoryService.createMandateHistory({
+          mandateId: mandate?._id.toString(),
+          mandateStatus: EMandateStatus.rejected,
+          "metaData.additionalDetail": payload?.token?.entity,
+          status: EStatus.Active,
+          createdBy: payload?.token?.entity?.notes?.userId,
+          updatedBy: payload?.token?.entity?.notes?.userId,
+        });
+      }
     } catch (err) {
       throw err;
     }
@@ -1362,123 +1364,133 @@ export class SubscriptionService {
       let paymentRequest =
         await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
       if (paymentRequest) {
-      let updatedStatus = await this.paymentService.completePayment({
-        invoiceId: paymentRequest?.source_id,
-        paymentId: paymentRequest?._id,
-      });
-      let invoice = await this.invoiceService.getInvoiceDetail(
-        paymentRequest?.source_id
-      );
-      let subscription = await this.subscriptionModel
-        .findOne({ _id: invoice?.source_id })
-        .sort({ _id: -1 });
-      if (subscription) {
-        if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
-          subscription.subscriptionStatus = EsubscriptionStatus.active;
-          await subscription.save();
+        let updatedStatus = await this.paymentService.completePayment({
+          invoiceId: paymentRequest?.source_id,
+          paymentId: paymentRequest?._id,
+        });
+        let invoice = await this.invoiceService.getInvoiceDetail(
+          paymentRequest?.source_id
+        );
+        let subscription = await this.subscriptionModel
+          .findOne({ _id: invoice?.source_id })
+          .sort({ _id: -1 });
+        if (subscription) {
+          if (subscription.subscriptionStatus !== EsubscriptionStatus.active) {
+            subscription.subscriptionStatus = EsubscriptionStatus.active;
+            await subscription.save();
 
-          let tokenId = payload?.payment?.entity?.token_id;
-          let updatedMandate = await this.mandateService.updateMandateDetail(
-            { "metaData.subscriptionId": subscription?.subscriptionId },
-            { referenceId: tokenId }
-          );
-          let mandate = await this.mandateService.getMandateById(tokenId);
-          if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
+            let tokenId = payload?.payment?.entity?.token_id;
             let updatedMandate = await this.mandateService.updateMandateDetail(
-              { _id: mandate._id },
-              { mandateStatus: EMandateStatus.active }
+              { "metaData.subscriptionId": subscription?.subscriptionId },
+              { referenceId: tokenId }
             );
-            await this.mandateHistoryService.createMandateHistory({
-              mandateId: mandate?._id,
-              mandateStatus: EMandateStatus.active,
-              "metaData.additionalDetail": payload?.token?.entity,
-              status: EStatus.Active,
-              createdBy: mandate?.createdBy,
-              updatedBy: mandate?.updatedBy,
-            });
-          }
+            let mandate = await this.mandateService.getMandateById(tokenId);
+            if (mandate && mandate.mandateStatus == EMandateStatus.initiated) {
+              let updatedMandate =
+                await this.mandateService.updateMandateDetail(
+                  { _id: mandate._id },
+                  { mandateStatus: EMandateStatus.active }
+                );
+              await this.mandateHistoryService.createMandateHistory({
+                mandateId: mandate?._id,
+                mandateStatus: EMandateStatus.active,
+                "metaData.additionalDetail": payload?.token?.entity,
+                status: EStatus.Active,
+                createdBy: mandate?.createdBy,
+                updatedBy: mandate?.updatedBy,
+              });
+            }
 
-          let item = await this.itemService.getItemDetail(
-            subscription?.notes?.itemId
-          );
-          let userBody = {
-            userId: subscription?.userId,
-            membership: item?.itemName,
-            badge: item?.additionalDetail?.badge,
-          };
-          await this.helperService.updateUser(userBody);
-          if (subscription.subscriptionStatus === EDocumentStatus.active) {
-            let subscriptionCount = await this.countUserSubscriptions(
-              subscription?.userId
+            let item = await this.itemService.getItemDetail(
+              subscription?.notes?.itemId
             );
-            let paymentRequest =
-              await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
-            let mixPanelBody: any = {};
-            mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
-            mixPanelBody.distinctId = subscription?.userId;
-            mixPanelBody.properties = {
-              user_id: subscription?.userId,
-              provider: EProvider.razorpay,
-              subscription_id: subscription._id,
-              subscription_status: EsubscriptionStatus.active,
-              subscription_date: subscription?.startAt,
-              item_name: item?.itemName,
-              subscription_expired: subscription?.endAt,
-              subscription_count: subscriptionCount,
-              subscription_mode: paymentRequest?.paymentType,
-              subscription_amount: invoice?.grand_total,
+            let userBody = {
+              userId: subscription?.userId,
+              membership: item?.itemName,
+              badge: item?.additionalDetail?.badge,
             };
-            await this.helperService.mixPanel(mixPanelBody);
-            let firstSubscription = await this.userFirstSubscription(
-              subscription?.userId
-            );
-            let propertie = {
-              first_subscription_date: firstSubscription?.startAt,
-            };
-            await this.helperService.setUserProfile({
-              distinctId: subscription?.userId,
-              properties: propertie,
-            });
-          }
+            await this.helperService.updateUser(userBody);
+            if (subscription.subscriptionStatus === EDocumentStatus.active) {
+              let subscriptionCount = await this.countUserSubscriptions(
+                subscription?.userId
+              );
+              let paymentRequest =
+                await this.paymentService.fetchPaymentByOrderId(rzpPaymentId);
+              let mixPanelBody: any = {};
+              mixPanelBody.eventName = EMixedPanelEvents.subscription_add;
+              mixPanelBody.distinctId = subscription?.userId;
+              mixPanelBody.properties = {
+                user_id: subscription?.userId,
+                provider: EProvider.razorpay,
+                subscription_id: subscription._id,
+                subscription_status: EsubscriptionStatus.active,
+                subscription_date: subscription?.startAt,
+                item_name: item?.itemName,
+                subscription_expired: subscription?.endAt,
+                subscription_count: subscriptionCount,
+                subscription_mode: paymentRequest?.paymentType,
+                subscription_amount: invoice?.grand_total,
+              };
+              await this.helperService.mixPanel(mixPanelBody);
+              let firstSubscription = await this.userFirstSubscription(
+                subscription?.userId
+              );
+              let propertie = {
+                first_subscription_date: firstSubscription?.startAt,
+              };
+              await this.helperService.setUserProfile({
+                distinctId: subscription?.userId,
+                properties: propertie,
+              });
+            }
 
-          // let userData = await this.helperService.getUserById(
-          //   subscription?.userId
-          // );
-          // await this.helperService.facebookEvents(
-          //   userData.data.phoneNumber,
-          //   invoice.currencyCode,
-          //   invoice.grand_total
-          // );
-          if (
-            item?.additionalDetail?.promotionDetails?.subscriptionDetail
-              ?.amount === subscription?.amount
-          ) {
-            try {
-              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
-            } catch (error) {
-              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+            // let userData = await this.helperService.getUserById(
+            //   subscription?.userId
+            // );
+            // await this.helperService.facebookEvents(
+            //   userData.data.phoneNumber,
+            //   invoice.currencyCode,
+            //   invoice.grand_total
+            // );
+            if (
+              item?.additionalDetail?.promotionDetails?.subscriptionDetail
+                ?.amount === subscription?.amount
+            ) {
+              try {
+                await this.handleReferralStatus(
+                  subscription?.userId.toString(),
+                  subscription?._id.toString()
+                );
+              } catch (error) {
+                console.warn(
+                  `Referral data fetch failed for user ${subscription?.userId}:`,
+                  error?.message || error
+                );
+              }
             }
           }
         }
       }
-    }
     } catch (err) {
       throw err;
     }
   }
-  async handleReferralStatus(userid: string, id: string){
+  async handleReferralStatus(userid: string, id: string) {
     try {
-      let subscriptionId = new ObjectId(id)
-      let userId = new ObjectId(userid)
-      let userAdditional = await this.helperService.getUserAdditional(userId)
+      let subscriptionId = new ObjectId(id);
+      let userId = new ObjectId(userid);
+      let userAdditional = await this.helperService.getUserAdditional(userId);
       if (userAdditional?.referredBy) {
         try {
-          let referelData = await this.helperService.getReferralData(userId, userAdditional?.referredBy)
+          let referelData = await this.helperService.getReferralData(
+            userId,
+            userAdditional?.referredBy
+          );
           if (referelData?.referralStatus === EReferralStatus.Onboarded) {
             let eventBody = {
               subscriptionId: subscriptionId,
               userId: userId,
-            }
+            };
             await this.sharedService.trackAndEmitEvent(
               EVENT_UPDATE_REFERRAL_STATUS,
               eventBody,
@@ -1487,11 +1499,17 @@ export class SubscriptionService {
             );
           }
         } catch (referralError) {
-          console.warn(`Referral data fetch failed for user ${userId}:`, referralError?.message || referralError)
+          console.warn(
+            `Referral data fetch failed for user ${userId}:`,
+            referralError?.message || referralError
+          );
         }
       }
     } catch (userAdditionalError) {
-      console.warn(`User additional data fetch failed for user ${userid}:`, userAdditionalError?.message || userAdditionalError)
+      console.warn(
+        `User additional data fetch failed for user ${userid}:`,
+        userAdditionalError?.message || userAdditionalError
+      );
     }
   }
   // Handles Razorpay subscription logic
@@ -1686,9 +1704,15 @@ export class SubscriptionService {
               ?.amount === subscription?.amount
           ) {
             try {
-              await this.handleReferralStatus(subscription?.userId.toString(), subscription?._id.toString())
+              await this.handleReferralStatus(
+                subscription?.userId.toString(),
+                subscription?._id.toString()
+              );
             } catch (error) {
-              console.warn(`Referral data fetch failed for user ${subscription?.userId}:`, error?.message || error)
+              console.warn(
+                `Referral data fetch failed for user ${subscription?.userId}:`,
+                error?.message || error
+              );
             }
           }
         }
@@ -1853,14 +1877,14 @@ export class SubscriptionService {
             status: EStatus.Active,
             subscriptionStatus: EsubscriptionStatus.active,
           });
-                    
+
           if (!userActiveSubscription) {
             let updateBody = {
               userId: [userId],
               membership: "",
               badge: "",
             };
-        // console.log(updateBody);
+            // console.log(updateBody);
             await this.helperService.updateUsers(updateBody);
           }
         }
@@ -2009,6 +2033,15 @@ export class SubscriptionService {
         { $sort: { _id: -1 } },
         { $match: { status: EStatus.Active } },
         { $match: { subscriptionStatus: { $ne: EsubscriptionStatus.failed } } },
+        {
+          $match: {
+            userId: {
+              $in: [
+                new ObjectId("68ab24055a8c29c8a9d2910a")
+              ],
+            },
+          },
+        },
         { $group: { _id: "$userId", latestDocument: { $first: "$$ROOT" } } },
         {
           $match: {
@@ -2068,45 +2101,62 @@ export class SubscriptionService {
         expiringSubscriptionsList.length
         // expiringSubscriptionsList
       );
-      for (let i = 0; i < expiringSubscriptionsList.length; i++) {
-        let mandate = expiringSubscriptionsList[i]?.latestMandate;
-        let planDetail = null;
-        try {
-          const itemId = new ObjectId(
-            expiringSubscriptionsList[i]?.latestDocument?.notes?.itemId
-          );
 
-          if (itemId) {
-            // Try to fetch by ID first
-            planDetail = await this.itemService.getItemDetail(itemId);
-
-            // If item doesn't exist by ID, fall back to getItemDetailByName
-            if (!planDetail) {
-              // console.log(
-              //   `Item with ID ${itemId} not found, falling back to getItemDetailByName`
-              // );
-              planDetail = await this.itemService.getItemDetailByName("PRO");
-            }
-          } else {
-            // If no itemId, use default fallback
-            // console.log(`No itemId found for subscription, using default plan`);
-            planDetail = await this.itemService.getItemDetailByName("PRO");
-          }
-        } catch (error) {
-          // console.error(
-          //   `Error fetching plan detail for subscription ${i}:`,
-          //   error
-          // );
-          // Fallback to default plan on error
-          planDetail = await this.itemService.getItemDetailByName("PRO");
-        }
-        if (mandate?.providerId == EProviderId.cashfree) {
-          await this.createChargeData(expiringSubscriptionsList[i], planDetail);
-        }
-        if (mandate?.providerId == EProviderId.razorpay) {
-          await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
-        }
+      try {
+        const fileName = `expiring-subscriptions-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+        const filePath = path.join(process.cwd(), fileName);
+        await writeFile(
+          filePath,
+          JSON.stringify(expiringSubscriptionsList, null, 2),
+          "utf-8"
+        );
+        console.log(`expiringSubscriptionsList written to file: ${filePath}`);
+      } catch (error) {
+        console.error(
+          "Error writing expiringSubscriptionsList to file:",
+          error
+        );
       }
+
+      // for (let i = 0; i < expiringSubscriptionsList.length; i++) {
+      //   let mandate = expiringSubscriptionsList[i]?.latestMandate;
+      //   let planDetail = null;
+      //   try {
+      //     const itemId = new ObjectId(
+      //       expiringSubscriptionsList[i]?.latestDocument?.notes?.itemId
+      //     );
+
+      //     if (itemId) {
+      //       // Try to fetch by ID first
+      //       planDetail = await this.itemService.getItemDetail(itemId);
+
+      //       // If item doesn't exist by ID, fall back to getItemDetailByName
+      //       if (!planDetail) {
+      //         // console.log(
+      //         //   `Item with ID ${itemId} not found, falling back to getItemDetailByName`
+      //         // );
+      //         planDetail = await this.itemService.getItemDetailByName("PRO");
+      //       }
+      //     } else {
+      //       // If no itemId, use default fallback
+      //       // console.log(`No itemId found for subscription, using default plan`);
+      //       planDetail = await this.itemService.getItemDetailByName("PRO");
+      //     }
+      //   } catch (error) {
+      //     // console.error(
+      //     //   `Error fetching plan detail for subscription ${i}:`,
+      //     //   error
+      //     // );
+      //     // Fallback to default plan on error
+      //     planDetail = await this.itemService.getItemDetailByName("PRO");
+      //   }
+      //   if (mandate?.providerId == EProviderId.cashfree) {
+      //     await this.createChargeData(expiringSubscriptionsList[i], planDetail);
+      //   }
+      //   if (mandate?.providerId == EProviderId.razorpay) {
+      //     await this.raiseCharge(expiringSubscriptionsList[i], planDetail);
+      //   }
+      // }
     } catch (error) {
       throw error;
     }
@@ -2171,7 +2221,8 @@ export class SubscriptionService {
                 ?.validity
           );
     let chargeResponse = await this.helperService.createAuth(authBody);
-
+    console.log("chargeResponse",chargeResponse);
+    
     if (chargeResponse) {
       endAt.setDate(endAt.getDate());
       endAt.setHours(18, 29, 59, 999);
@@ -2381,7 +2432,7 @@ export class SubscriptionService {
 
       let recurringResponse =
         await this.helperService.createRecurringPayment(recurring);
-      // console.log("recurring response is", recurringResponse);
+      console.log("recurring response is", recurringResponse);
       // return true;
       if (recurringResponse) {
         endAt.setDate(endAt.getDate());
@@ -2770,77 +2821,79 @@ export class SubscriptionService {
 
   async getSubscriptionByUserId(userId: string) {
     try {
-      let subscription = await this.subscriptionModel.findOne({
-        userId: new ObjectId(userId),
-        status: EStatus.Active,
-        $or: [
-          { subscriptionStatus: EsubscriptionStatus.active },
-          { subscriptionStatus: EsubscriptionStatus.expired }
-        ]
-      }).sort({ _id: -1 });
+      let subscription = await this.subscriptionModel
+        .findOne({
+          userId: new ObjectId(userId),
+          status: EStatus.Active,
+          $or: [
+            { subscriptionStatus: EsubscriptionStatus.active },
+            { subscriptionStatus: EsubscriptionStatus.expired },
+          ],
+        })
+        .sort({ _id: -1 });
       return subscription;
     } catch (error) {
       throw error;
     }
   }
 
-  async getAnnualSubscriptionDetails(token: UserToken,rawToken) {
+  async getAnnualSubscriptionDetails(token: UserToken, rawToken) {
     try {
-      let userData = await this.helperService.getUserByUserId(rawToken)
+      let userData = await this.helperService.getUserByUserId(rawToken);
       if (userData?.country_code === "IN") {
-      let existingSubscription = await this.getSubscriptionByUserId(token.id);
-      if (existingSubscription) {
-        const [userRatingInfo, userNominationsInfo] = await Promise.all([
-          this.helperService.getUserRatings(rawToken),
-          this.helperService.getUserNominations(rawToken),
-        ]);
+        let existingSubscription = await this.getSubscriptionByUserId(token.id);
+        if (existingSubscription) {
+          const [userRatingInfo, userNominationsInfo] = await Promise.all([
+            this.helperService.getUserRatings(rawToken),
+            this.helperService.getUserNominations(rawToken),
+          ]);
 
-        let userSubscription = await this.subscriptionModel.find({
-          userId: new ObjectId(token.id),
-          status: EStatus.Active,
-          amount: { $gt: 20 },
-          subscriptionStatus: { $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed] }
-        })
+          let userSubscription = await this.subscriptionModel.find({
+            userId: new ObjectId(token.id),
+            status: EStatus.Active,
+            amount: { $gt: 20 },
+            subscriptionStatus: {
+              $nin: [EsubscriptionStatus.initiated, EsubscriptionStatus.failed],
+            },
+          });
 
-        const isEligible = userRatingInfo.length > 3 || userNominationsInfo.length > 2 || userSubscription.length > 2;
-        if(isEligible){
-        let itemId = existingSubscription?.notes?.itemId;
-        let itemData = await this.itemService.getGroupedItemDetail(
-          itemId
-        );
-        let subscriptionData = await this.subscriptionModel.findOne({
-          status: EStatus.Active,
-          subscriptionStatus: EsubscriptionStatus.active,
-          userId: new ObjectId(token.id),
-          notes: { itemId: itemData?.itemId.toString() },
-         });
+          const isEligible =
+            userRatingInfo.length > 3 ||
+            userNominationsInfo.length > 2 ||
+            userSubscription.length > 2;
+          if (isEligible) {
+            let itemId = existingSubscription?.notes?.itemId;
+            let itemData = await this.itemService.getGroupedItemDetail(itemId);
+            let subscriptionData = await this.subscriptionModel.findOne({
+              status: EStatus.Active,
+              subscriptionStatus: EsubscriptionStatus.active,
+              userId: new ObjectId(token.id),
+              notes: { itemId: itemData?.itemId.toString() },
+            });
 
-        let isEnableCart = subscriptionData ? false : true;
-        let data = {
-          itemId: itemData?.itemId,
-          title: itemData?.learnBottomSheet?.title,
-          type: itemData?.learnBottomSheet?.type,
-          subTitle: itemData?.learnBottomSheet?.subTitle,
-          description:
-            itemData?.learnBottomSheet?.description,
-          button: itemData?.learnBottomSheet?.button,
-          isEnableCart,
-        };
-        return { data };
+            let isEnableCart = subscriptionData ? false : true;
+            let data = {
+              itemId: itemData?.itemId,
+              title: itemData?.learnBottomSheet?.title,
+              type: itemData?.learnBottomSheet?.type,
+              subTitle: itemData?.learnBottomSheet?.subTitle,
+              description: itemData?.learnBottomSheet?.description,
+              button: itemData?.learnBottomSheet?.button,
+              isEnableCart,
+            };
+            return { data };
+          }
+          return { data: { isEnableCart: false } };
         }
         return { data: { isEnableCart: false } };
       }
       return { data: { isEnableCart: false } };
-    }
-    return { data: { isEnableCart: false } };
-
     } catch (error) {
       throw error;
     }
   }
   async initiateSubscription(body: InitiateSubscriptionDTO, token: UserToken) {
     try {
-
       // Map deviceOS to device format (ANDROID -> android, IOS -> ios, etc.)
       const deviceMap: Record<string, string> = {
         ANDROID: "android",

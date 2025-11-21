@@ -341,7 +341,7 @@ export class HelperService {
         },
       };
 
-      // console.log("recurring payment body is", fv);
+      console.log("recurring payment body is", fv);
       let razor_pay_key = this.configService.get("RAZORPAY_API_KEY");
       let razor_pay_secret = this.configService.get("RAZORPAY_SECRET_KEY");
       let data = await this.http_service
@@ -437,7 +437,7 @@ export class HelperService {
 
   async createAuth(body) {
     try {
-      //console.log("auth body is", body);
+      console.log("auth body is", body);
 
       const requestURL = `${this.configService.get("CASHFREE_BASE_URL")}/pg/subscriptions/pay`;
       const headers = {
