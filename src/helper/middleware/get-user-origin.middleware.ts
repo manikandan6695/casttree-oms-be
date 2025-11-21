@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from "@nestjs/common";
+import { Injectable, NestMiddleware } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import { HelperService } from "../helper.service";
 import { ConfigService } from "@nestjs/config";
@@ -23,17 +23,12 @@ export class GetUserOriginMiddleware implements NestMiddleware {
     if (!userId) {
       // console.log("inside not of user id");
 
-      let authorization = headers?.authorization;
-      if (!authorization) {
-        throw new UnauthorizedException("Access token is required");
-      }
-      if (!authorization.startsWith("Bearer ")) {
-        throw new UnauthorizedException("Invalid token format");
-      }
-      const token = authorization.split(" ")[1];
-      if (!token) {
-        throw new UnauthorizedException("Invalid token format");
-      }
+      let authorization = headers?.authorization.split(" ")[1];
+      const decoded = jwt.verify(
+        authorization,
+        this.configService.get("JWT_SECRET")
+      ) as any;
+      userId = decoded?.id;
     }
     // console.log("userId", userId);
     let userData;
@@ -42,6 +37,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
       // console.log("inside user id is");
       userData = await this.helperService.getUserById(userId);
       countryCode = userData?.data?.country_code;
+      // console.log("countryCode", countryCode);
       if (headers["x-real-ip"] && countryCode == undefined) {
         const ipData = await this.helperService.getCountryCodeByIpAddress(
           headers["x-real-ip"].toString()
