@@ -335,7 +335,7 @@ export class HelperService {
           `https://api.ipgeolocation.io/ipgeo?apiKey=${process.env.IP_API_KEY}&ip=${ipAddress}`
         )
         .toPromise();
-      return response.data["country_code2"];
+      return response.data;
     } catch (error) {
       return error;
     }
