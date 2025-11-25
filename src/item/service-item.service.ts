@@ -1596,31 +1596,30 @@ export class ServiceItemService {
   }
   async getPromotionDetailsV2(processId: string) {
     try {
-      let serviceItem = await this.serviceItemModel
+      let serviceItem: any = await this.serviceItemModel
         .findOne({
           status: Estatus.Active,
           "additionalDetails.processId": new ObjectId(processId),
         })
         .populate("itemId");
-      let itemData = await this.itemService.getItemByItemName(EItemName.pro);
       let provider = await this.systemConfigurationModel.findOne({
         key: ESystemConfigurationKeyName.subscription_payment_provider,
       });
       let finalResponse = {
         payWallVideo: (serviceItem?.itemId as any)?.additionalDetail
           ?.promotionDetails?.payWallVideo,
-        authInfo: itemData?.additionalDetail?.promotionDetails?.authDetail,
+        authInfo: serviceItem?.itemId?.additionalDetail?.promotionDetails?.authDetail,
         subscriptionInfo:
-          itemData?.additionalDetail?.promotionDetails?.subscriptionDetail,
+          serviceItem?.itemId?.additionalDetail?.promotionDetails?.subscriptionDetail,
         premiumThumbnails:
-          itemData?.additionalDetail?.promotionDetails?.premiumThumbnails,
+          serviceItem?.itemId?.additionalDetail?.promotionDetails?.premiumThumbnails,
         provider: provider?.value?.provider,
         provideId: provider?.value?.providerId,
-        itemId: itemData?._id,
-        itemName: itemData?.itemName,
-        price: itemData?.price,
-        currency_code: itemData?.currency?.currency_code,
-        comparePrice: itemData?.comparePrice,
+        itemId: serviceItem?.planItemId?.[0]?.itemId,
+        itemName: serviceItem?.itemId?.itemName,
+        price: serviceItem?.itemId?.price,
+        currency_code: serviceItem?.itemId?.currency?.currency_code,
+        comparePrice: serviceItem?.itemId?.comparePrice,
       };
       return { data: finalResponse };
     } catch (error) {

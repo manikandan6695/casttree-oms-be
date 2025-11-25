@@ -35,17 +35,21 @@ export class GetUserOriginMiddleware implements NestMiddleware {
         throw new UnauthorizedException("Invalid token format");
       }
       const token = authorization.split(" ")[1];
-      if (!token) {
+      if (!token || token === "null" || token === "undefined") {
         throw new UnauthorizedException("Invalid token format");
       } else {
         console.log("inside verify authorization");
         
         let authorization = headers?.authorization.split(" ")[1];
+       try {
         const decoded = jwt.verify(
           authorization,
           this.configService.get("JWT_SECRET")
         ) as any;
         userId = decoded?.id;
+       } catch (error) {
+        throw new UnauthorizedException("Invalid token format");
+       }
       }
     }
     // console.log("userId", userId);
@@ -77,6 +81,7 @@ export class GetUserOriginMiddleware implements NestMiddleware {
           headers["x-real-ip"].toString()
         );
         countryCode = ipData?.country_code2;
+        await this.helperService.updateUserIpById(countryCode, userId);
         let updatedData = {
           metaData: {
             ...ipData,
