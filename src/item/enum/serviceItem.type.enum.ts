@@ -43,3 +43,11 @@ export enum ERecommendationListType {
   course = "course",
   contest = "contest",
 }
+export enum EPayWallType {
+  courses = "courses",
+  subscription = "subscription",
+  contest = "contest",
+}
+export enum EPageTypeKey {
+  paywallPageType = "paywall-page-type"
+}
