@@ -1966,6 +1966,7 @@ export class ServiceItemService {
           skillName,
           isNewSubscription,
           itemPromoDetails,
+          itemDescription: processPricingData?.itemId?.itemDescription || "",
         };
 
         const finalResponseWithOrder = planItems.reduce(
@@ -2014,10 +2015,12 @@ export class ServiceItemService {
         );
 
         return {
-          ...typeSpecificPayload,
+          payWall: {
+            ...typeSpecificPayload,
           type: {
             page: promotionPage,
           },
+          }
         };
       }
 
@@ -2262,6 +2265,7 @@ export class ServiceItemService {
       skillName: string;
       isNewSubscription: boolean;
       itemPromoDetails: any;
+      itemDescription: string;
     }
   ) {
     try{
@@ -2275,6 +2279,7 @@ export class ServiceItemService {
       skillName,
       isNewSubscription,
       itemPromoDetails,
+      itemDescription,
     } = context;
 
     const additionalDetailPlain = planItem?.additionalDetail
@@ -2310,6 +2315,7 @@ export class ServiceItemService {
         "",
       price: planItem?.price || 0,
       itemName: planItem?.itemName || "",
+      itemDescription: itemDescription || "",
       mentorName: mentorName || "",
       thumbnail:
         itemPromoDetails?.payWallThumbnail ||
@@ -2361,6 +2367,7 @@ export class ServiceItemService {
           planConfig: plan?.planConfig || [],
           itemId: plan?.itemId || "",
           itemName: plan?.itemName || "",
+          itemDescription: plan?.itemDescription || "",
           tags: plan?.tags || [],
         })),
       };
@@ -2376,6 +2383,7 @@ export class ServiceItemService {
           authDetail: plan?.authDetail || {},
           subscriptionDetail: plan?.subscriptionDetail || {},
           premiumAdditional: plan?.premiumAdditional || [],
+          itemDescription: plan?.itemDescription || "",
           tags: plan?.tags || [],
         })),
       };
