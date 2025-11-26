@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
   ValidationPipe,
+  Version,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
@@ -16,7 +17,7 @@ import { GetToken } from "src/shared/decorator/getuser.decorator";
 import { FilterItemRequestDTO } from "./dto/filter-item.dto";
 import { processIdListDTO } from "./dto/filter-platformItem.dto";
 import { ServiceItemService } from "./service-item.service";
-import { ERecommendationListType } from "./enum/serviceItem.type.enum";
+import { EPayWallType, ERecommendationListType } from "./enum/serviceItem.type.enum";
 
 @Controller("service-item")
 export class ServiceItemController {
@@ -89,7 +90,34 @@ export class ServiceItemController {
         itemId,
         token,
         req.headers["x-country-code"] ?? "",
-        req.headers["x-userid"]
+        req.headers["x-userid"],
+        req.headers["x-api-version"],
+        null
+      );
+      return data;
+    } catch (err) {
+      console.error("Controller: getPromotionDetailByItemId failed for itemId:", itemId, "Error:", err);
+      throw err;
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("getPromotionDetail/item/:itemId")
+  @Version("2")
+  async getPromotionDetailByItemIdV2(
+    @Req() req,
+    @Param("itemId") itemId: string,
+    @Query("type") type: EPayWallType,
+    @GetToken() token: UserToken,
+  ) {
+    try {
+      let data = await this.serviceItemService.getPromotionDetailByItemId(
+        itemId,
+        token,
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"],
+        req.headers["x-api-version"],
+        type
       );
       return data;
     } catch (err) {
