@@ -91,8 +91,7 @@ export class ServiceItemController {
         token,
         req.headers["x-country-code"] ?? "",
         req.headers["x-userid"],
-        req.headers["x-api-version"],
-        null
+        req.headers["x-api-version"]
       );
       return data;
     } catch (err) {
@@ -107,7 +106,6 @@ export class ServiceItemController {
   async getPromotionDetailByItemIdV2(
     @Req() req,
     @Param("itemId") itemId: string,
-    @Query("type") type: EPayWallType,
     @GetToken() token: UserToken,
   ) {
     try {
@@ -116,8 +114,7 @@ export class ServiceItemController {
         token,
         req.headers["x-country-code"] ?? "",
         req.headers["x-userid"],
-        req.headers["x-api-version"],
-        type
+        req.headers["x-api-version"]
       );
       return data;
     } catch (err) {

@@ -1870,8 +1870,7 @@ export class ServiceItemService {
     token: UserToken,
     country_code: string = "",
     userId?: string,
-    apiVersion?: string,
-    type?: EPayWallType
+    apiVersion?: string
   ) {
     try {
       if (apiVersion === "2") {
@@ -1890,9 +1889,6 @@ export class ServiceItemService {
           status: Estatus.Active,
         };
 
-        if (type) {
-          serviceItemFilter.type = type;
-        }
 
         const processPricingData: any = await this.serviceItemModel
           .findOne(serviceItemFilter)
@@ -2011,14 +2007,14 @@ export class ServiceItemService {
           )
           .map(({ __planOrder, ...rest }) => rest);
 
-        const normalizedType = type || EPayWallType.courses;
-        const typeSpecificData = this.formatPromotionDetailsByType(
+        const normalizedType = processPricingData?.type || EPayWallType.courses;
+        const typeSpecificPayload = this.formatPromotionDetailsByType(
           finalResponse,
           normalizedType
         );
 
         return {
-          data: typeSpecificData,
+          ...typeSpecificPayload,
           type: {
             page: promotionPage,
           },
@@ -2268,6 +2264,7 @@ export class ServiceItemService {
       itemPromoDetails: any;
     }
   ) {
+    try{
     if (!planItem) {
       return null;
     }
@@ -2338,47 +2335,94 @@ export class ServiceItemService {
       yearlyPlanDetails:
         promoDetails?.yearlyPlanDetails || itemPromoDetails?.yearlyPlanDetails || {},
     };
+  } catch(err){
+    throw err
+  }
   }
 
   private formatPromotionDetailsByType(
     plans: any[],
     type: EPayWallType
-  ): any[] {
+  ): any {
+    try{
     if (!Array.isArray(plans) || plans.length === 0) {
-      return [];
+      return { data: [] };
     }
     if (type === EPayWallType.subscription) {
-      return plans.map((plan) => ({
-        planId: plan?.planId || "",
-        planDetails:
-          (plan?.subscriptionType).toLowerCase() === "yearly"
-            ? plan?.yearlyPlanDetails : plan?.planDetails,
-        authDetail: plan?.authDetail || {},
-        subscriptionDetail: plan?.subscriptionDetail || {},
-        planConfig: plan?.planConfig || [],
-        itemId: plan?.itemId || "",
-        itemName: plan?.itemName || "",
-        tags: plan?.tags || [],
-      }));
+      return {
+        data: plans.map((plan) => ({
+          planId: plan?.planId || "",
+          planDetails:
+            (plan?.subscriptionType || "").toLowerCase() === "yearly"
+              ? plan?.yearlyPlanDetails || plan?.planDetails || {}
+              : plan?.planDetails || {},
+          authDetail: plan?.authDetail || {},
+          subscriptionDetail: plan?.subscriptionDetail || {},
+          planConfig: plan?.planConfig || [],
+          itemId: plan?.itemId || "",
+          itemName: plan?.itemName || "",
+          tags: plan?.tags || [],
+        })),
+      };
     }
 
     if (type === EPayWallType.contest) {
-      return plans.map((plan) => ({
-        itemId: plan?.itemId || "",
-        itemName: plan?.itemName || "",
-        planDetails: plan?.planDetails || {},
-        planConfig: plan?.planConfig || [],
-        authDetail: plan?.authDetail || {},
-        subscriptionDetail: plan?.subscriptionDetail || {},
-        premiumAdditional: plan?.premiumAdditional || [],
-        tags: plan?.tags || [],
-      }));
+      return {
+        data: plans.map((plan) => ({
+          itemId: plan?.itemId || "",
+          itemName: plan?.itemName || "",
+          planDetails: plan?.planDetails || {},
+          planConfig: plan?.planConfig || [],
+          authDetail: plan?.authDetail || {},
+          subscriptionDetail: plan?.subscriptionDetail || {},
+          premiumAdditional: plan?.premiumAdditional || [],
+          tags: plan?.tags || [],
+        })),
+      };
     }
 
-    return plans;
+    const [
+      firstPlan,
+      ...remainingPlans
+    ] = plans;
+
+    const {
+      planDetails: primaryPlanDetails = {},
+      authDetail: primaryAuthDetail = {},
+      subscriptionDetail: primarySubscriptionDetail = {},
+      planConfig: primaryPlanConfig = [],
+      tags: primaryTags = [],
+      ...courseMeta
+    } = firstPlan || {};
+
+    const coursePlanSummaries = [
+      {
+        planDetails: primaryPlanDetails,
+        authDetail: primaryAuthDetail,
+        subscriptionDetail: primarySubscriptionDetail,
+        planConfig: primaryPlanConfig,
+        tags: primaryTags,
+      },
+      ...remainingPlans.map((plan) => ({
+        planDetails: plan?.planDetails || {},
+        authDetail: plan?.authDetail || {},
+        subscriptionDetail: plan?.subscriptionDetail || {},
+        planConfig: plan?.planConfig || [],
+        tags: plan?.tags || [],
+      })),
+    ];
+
+    return {
+      ...courseMeta,
+      data: coursePlanSummaries,
+    };
+  }catch(err){
+    throw err
+  }
   }
 
   private async getPromotionPage(phoneNumber?: string): Promise<string> {
+   try{
     let type = await this.systemConfigurationModel.findOne({
       key: EPageTypeKey.paywallPageType
     })
@@ -2392,7 +2436,10 @@ export class ServiceItemService {
 
     if (lastDigit < 4) return type?.value?.type1;   
     if (lastDigit < 7) return type?.value?.type2;  
-    return type?.value?.type3;                    
+    return type?.value?.type3;   
+   }catch(err){
+    throw err
+   }           
   }
 
   async getServiceItemDetailByProcessId(processId: string) {
