@@ -3699,8 +3699,7 @@ export class SubscriptionService {
         itemId: body.itemId,
         provider: provider,
         targetApp: targetAppForSubscription,
-        deviceOS: body.deviceOS,
-        refId: body.refId,
+        deviceOS: body.deviceOS
       } as any;
       // console.log("body is", body);
       if (body?.refId) {
