@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
   ValidationPipe,
+  Version,
 } from "@nestjs/common";
 import { UserToken } from "src/auth/dto/usertoken.dto";
 import { JwtAuthGuard } from "src/auth/guard/jwt-auth.guard";
@@ -287,7 +288,30 @@ export class ServiceItemController {
         itemId,
         token,
         req.headers["x-country-code"] ?? "",
-        req.headers["x-userid"]
+        req.headers["x-userid"],
+        req.headers["x-api-version"]
+      );
+      return data;
+    } catch (err) {
+      // console.error("Controller: getPromotionDetailByItemId failed for itemId:", itemId, "Error:", err);
+      throw err;
+    }
+  }
+  @UseGuards(JwtAuthGuard)
+  @Get("getPromotionDetail/item/:itemId")
+  @Version("2")
+  async getPromotionDetailByItemIdV2(
+    @Req() req,
+    @Param("itemId") itemId: string,
+    @GetToken() token: UserToken,
+  ) {
+    try {
+      let data = await this.serviceItemService.getPromotionDetailByItemId(
+        itemId,
+        token,
+        req.headers["x-country-code"] ?? "",
+        req.headers["x-userid"],
+        req.headers["x-api-version"]
       );
       return data;
     } catch (err) {

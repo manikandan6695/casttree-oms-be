@@ -7,6 +7,7 @@ export interface IPaymentGatewayConfigurationModel extends mongoose.Document {
   instrument: string;
   gateway: string;
   priority: number;
+  sortOrder: number;
   status: string;
   isHealthy: boolean;
   lastHealthUpdate: Date;
@@ -55,6 +56,9 @@ export const PaymentGatewayConfigurationSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
+    },
+    sortOrder: {
+      type: Number,
     },
     status: {
       type: String,

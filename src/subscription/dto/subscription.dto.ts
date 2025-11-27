@@ -234,4 +234,8 @@ export class InitiateSubscriptionDTO {
   @IsNotEmpty()
   @IsString()
   deviceOS : string;
+
+  @IsOptional()
+  @IsString()
+  refId: string;
 }
