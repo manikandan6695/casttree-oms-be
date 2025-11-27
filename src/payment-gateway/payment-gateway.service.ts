@@ -39,7 +39,7 @@ export class PaymentGatewayService {
         device,
         status: EStatus.Active,
       })
-      .sort({ priority: 1 })
+      .sort({ sortOrder: 1 })
       .lean();
 
     const groupedByInstrument = {};
