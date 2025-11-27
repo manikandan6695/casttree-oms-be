@@ -2442,20 +2442,24 @@ export class ServiceItemService {
 
   private async getPromotionPage(phoneNumber?: string): Promise<string> {
    try{
-    let type = await this.systemConfigurationModel.findOne({
+    let config = await this.systemConfigurationModel.findOne({
       key: EPageTypeKey.paywallPageType
     })
+
     if (!phoneNumber || phoneNumber.length === 0 || phoneNumber.length < 10) {
-      return type?.value?.type1?.type;
+      return config.value[0]?.type;
     }
+    
     const lastDigit = parseInt(phoneNumber.trim()[9], 10);
     if (isNaN(lastDigit)) {
-      return type?.value?.type1?.type;
+      return config.value[0]?.type;
     }
 
-    if (lastDigit < Number(type?.value?.type1?.totalLength)) return type?.value?.type1?.type;   
-    if (lastDigit < Number(type?.value?.type2?.totalLength)) return type?.value?.type2?.type;  
-    return type?.value?.type3?.type;   
+    const matchedType = config.value.find((item: any) => 
+      item.numbers && Array.isArray(item.numbers) && item.numbers.includes(lastDigit)
+    );
+
+    return matchedType?.type || config.value[0]?.type;   
    }catch(err){
     throw err
    }           
