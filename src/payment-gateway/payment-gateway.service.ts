@@ -69,7 +69,7 @@ export class PaymentGatewayService {
         displayName: metadata.displayName,
         imageUrl: metadata.imageUrl,
         available: true,
-        status: isAnyHealthy ? "healthy" : "Currently facing issues",
+        status: isAnyHealthy ? "healthy" : "Currently facing issue",
       });
     }
 
