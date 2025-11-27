@@ -624,6 +624,7 @@ export class SubscriptionService {
         subscription_status: subscription?.subscriptionStatus,
         subscription_date: subscription?.startAt,
         item_name: item?.itemName,
+        item_description: item?.itemDescription,
         subscription_expired: subscription?.endAt,
         subscription_count: subscriptionCount,
         subscription_mode: ESubscriptionMode.Charge,
@@ -690,6 +691,7 @@ export class SubscriptionService {
         mandate_status: EMandateStatus.cancelled,
         date: new Date().toISOString(),
         item_name: itemName?.itemName,
+        item_description: itemName?.itemDescription,
         provider: EProvider.apple,
       };
       await this.helperService.mixPanel(mixPanelBody);
@@ -946,6 +948,7 @@ export class SubscriptionService {
             subscription_status: subscription?.subscriptionStatus,
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
+            item_description: item?.itemDescription,
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
             subscription_mode: ESubscriptionMode.Charge,
@@ -1423,6 +1426,7 @@ export class SubscriptionService {
               subscription_status: EsubscriptionStatus.active,
               subscription_date: subscription?.startAt,
               item_name: item?.itemName,
+              item_description: item?.itemDescription,
               subscription_expired: subscription?.endAt,
               subscription_count: subscriptionCount,
               subscription_mode: paymentRequest?.paymentType,
@@ -1650,6 +1654,7 @@ export class SubscriptionService {
             subscription_status: EsubscriptionStatus.active,
             subscription_date: subscription?.startAt,
             item_name: item?.itemName,
+            item_description: item?.itemDescription,
             subscription_expired: subscription?.endAt,
             subscription_count: subscriptionCount,
             subscription_mode: paymentRequest?.paymentType,
@@ -2949,13 +2954,15 @@ export class SubscriptionService {
       }
 
       // Convert InitiateSubscriptionDTO to CreateSubscriptionDTO format
-      const createSubscriptionBody: CreateSubscriptionDTO = {
+      const createSubscriptionBody: any = {
         itemId: body.itemId,
         provider: provider,
         targetApp: targetAppForSubscription,
         deviceOS: body.deviceOS,
-      } as CreateSubscriptionDTO;
-
+      } as any;
+      if (body?.refId) {
+        createSubscriptionBody["refId"] = body?.refId;
+      }
       // Use the same createSubscription flow
       const subscriptionResponse = await this.createSubscription(
         createSubscriptionBody,

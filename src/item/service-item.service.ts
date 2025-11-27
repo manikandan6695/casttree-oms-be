@@ -17,6 +17,8 @@ import { Eitem } from "./enum/rating_sourcetype_enum";
 import {
   EButtonText,
   ENavigation,
+  EPageTypeKey,
+  EPayWallType,
   ERecommendationListType,
   EServiceItemTag,
   EserviceItemType,
@@ -1747,13 +1749,358 @@ export class ServiceItemService {
 
     return { matchingSkills, nonMatchingSkills };
   }
+  private async getPromotionPage(phoneNumber?: string): Promise<string> {
+    try {
+      let config = await this.systemConfigurationModel.findOne({
+        key: EPageTypeKey.paywallPageType,
+      });
+
+      if (!phoneNumber || phoneNumber.length === 0 || phoneNumber.length < 10) {
+        return config.value[0]?.type;
+      }
+
+      const lastDigit = parseInt(phoneNumber.trim()[9], 10);
+      if (isNaN(lastDigit)) {
+        return config.value[0]?.type;
+      }
+
+      const matchedType = config.value.find(
+        (item: any) =>
+          item.numbers &&
+          Array.isArray(item.numbers) &&
+          item.numbers.includes(lastDigit)
+      );
+
+      return matchedType?.type || config.value[0]?.type;
+    } catch (err) {
+      throw err;
+    }
+  }
+  private buildPlanPromotionDetail(
+    planItem: any,
+    context: {
+      mentorName: string;
+      skipText: string;
+      skillName: string;
+      isNewSubscription: boolean;
+      itemPromoDetails: any;
+      itemDescription: string;
+    }
+  ) {
+    try {
+      if (!planItem) {
+        return null;
+      }
+
+      const {
+        mentorName,
+        skipText,
+        skillName,
+        isNewSubscription,
+        itemPromoDetails,
+        itemDescription,
+      } = context;
+
+      const additionalDetailPlain = planItem?.additionalDetail
+        ? JSON.parse(JSON.stringify(planItem?.additionalDetail))
+        : {};
+      const promoDetails = additionalDetailPlain?.promotionDetails || {};
+
+      const premiumThumbnails = itemPromoDetails?.premiumThumbnails || [];
+
+      const payWallVideo = itemPromoDetails?.payWallVideo;
+
+      const planConfig = Array.isArray(additionalDetailPlain?.planConfig)
+        ? additionalDetailPlain?.planConfig
+        : [];
+      return {
+        title: itemPromoDetails?.title || promoDetails?.title,
+        planId:
+          additionalDetailPlain?.planId ||
+          planItem?.additionalDetail?.planId ||
+          "",
+        ctaName: promoDetails?.ctaName || planItem?.itemName,
+        planUserSave: promoDetails?.planUserSave,
+        subtitle: promoDetails?.subtitle,
+        premiumThumbnails,
+        payWallVideo,
+        paywallVisibility:
+          promoDetails?.paywallVisibility !== undefined
+            ? promoDetails?.paywallVisibility
+            : true,
+        payWallThumbnail: itemPromoDetails?.payWallThumbnail,
+        price: planItem?.price,
+        itemName: planItem?.itemName,
+        itemDescription: itemDescription,
+        mentorName: mentorName,
+        thumbnail: itemPromoDetails?.payWallThumbnail,
+        itemId: planItem?._id,
+        comparePrice: planItem?.comparePrice,
+        currency_code: planItem?.currency?.currency_code,
+        skipText: skipText,
+        specialOffer: promoDetails?.specialOffer,
+        premiumAdditional: promoDetails?.premiumAdditional,
+        planDetails:
+          promoDetails?.planDetails || itemPromoDetails?.planDetails || {},
+        authDetail: promoDetails?.authDetail,
+        subscriptionDetail: promoDetails?.subscriptionDetail,
+        isNewSubscriber: isNewSubscription,
+        planConfig,
+        skillName: skillName,
+        tags: promoDetails?.tags || [],
+        subscriptionType: additionalDetailPlain?.subscriptiontype,
+        yearlyPlanDetails:
+          promoDetails?.yearlyPlanDetails ||
+          itemPromoDetails?.yearlyPlanDetails,
+        planItemDescription: planItem?.itemDescription,
+      };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  private formatPromotionDetailsByType(plans: any[], type: EPayWallType): any {
+    try {
+      if (!Array.isArray(plans) || plans.length === 0) {
+        return { data: [] };
+      }
+      if (type === EPayWallType.subscription) {
+        return {
+          data: plans.map((plan) => ({
+            planId: plan?.planId,
+            planDetails:
+              (plan?.subscriptionType || "").toLowerCase() === "yearly"
+                ? plan?.yearlyPlanDetails || plan?.planDetails || {}
+                : plan?.planDetails || {},
+            authDetail: plan?.authDetail || {},
+            subscriptionDetail: plan?.subscriptionDetail || {},
+            planConfig: plan?.planConfig || [],
+            itemId: plan?.itemId,
+            itemName: plan?.itemName,
+            itemDescription: plan?.planItemDescription,
+            tags: plan?.tags || [],
+          })),
+        };
+      }
+
+      if (type === EPayWallType.contest) {
+        return {
+          data: plans.map((plan) => ({
+            itemId: plan?.itemId,
+            itemName: plan?.itemName,
+            planDetails: plan?.planDetails || {},
+            planConfig: plan?.planConfig || [],
+            authDetail: plan?.authDetail || {},
+            subscriptionDetail: plan?.subscriptionDetail || {},
+            premiumAdditional: plan?.premiumAdditional || [],
+            itemDescription: plan?.planItemDescription,
+            tags: plan?.tags || [],
+          })),
+        };
+      }
+
+      const [firstPlan, ...remainingPlans] = plans;
+
+      const {
+        planDetails: primaryPlanDetails,
+        authDetail: primaryAuthDetail,
+        subscriptionDetail: primarySubscriptionDetail,
+        planConfig: primaryPlanConfig,
+        tags: primaryTags,
+        itemName: primaryItemName,
+        itemId: primaryItemId,
+        itemDescription: primaryItemDescription,
+        planItemDescription: primaryPlanItemDescription,
+        ...courseMeta
+      } = firstPlan || {};
+
+      const coursePlanSummaries = [
+        {
+          planDetails: primaryPlanDetails,
+          authDetail: primaryAuthDetail,
+          subscriptionDetail: primarySubscriptionDetail,
+          planConfig: primaryPlanConfig,
+          tags: primaryTags,
+          itemName: primaryItemName,
+          itemId: primaryItemId,
+          itemDescription: primaryPlanItemDescription,
+        },
+        ...remainingPlans.map((plan) => ({
+          planDetails: plan?.planDetails || {},
+          authDetail: plan?.authDetail || {},
+          subscriptionDetail: plan?.subscriptionDetail || {},
+          planConfig: plan?.planConfig || [],
+          tags: plan?.tags || [],
+          itemName: plan?.itemName,
+          itemId: plan?.itemId,
+          itemDescription: plan?.planItemDescription,
+        })),
+      ];
+
+      return {
+        ...courseMeta,
+        data: coursePlanSummaries,
+      };
+    } catch (err) {
+      throw err;
+    }
+  }
   async getPromotionDetailByItemId(
     itemId: string,
     token: UserToken,
     country_code: string = "",
-    userId?: string
+    userId?: string,
+    apiVersion?: string
   ) {
     try {
+      if (apiVersion === "2") {
+        const [promotionPage, subscriptionData] = await Promise.all([
+          this.getPromotionPage(token?.phoneNumber),
+          this.subscriptionService.validateSubscription(token?.id||userId, [
+            EsubscriptionStatus.initiated,
+            EsubscriptionStatus.failed,
+          ])
+        ]);
+        const serviceItemFilter: any = {
+          itemId: new ObjectId(itemId),
+          status: Estatus.Active,
+        };
+
+
+        const processPricingData: any = await this.serviceItemModel
+          .findOne(serviceItemFilter)
+          .populate("itemId")
+          .populate({
+            path: "planItemId",
+            populate: {
+              path: "itemId",
+              model: "item",
+            },
+          })
+          .lean();
+  
+        if (!processPricingData) {
+          return null;
+        }
+
+        const planItems = Array.isArray(processPricingData?.planItemId)
+          ? processPricingData?.planItemId
+          : [];
+
+        if (planItems.length === 0) {
+          return [];
+        }
+
+        const planItemIds =
+          planItems
+            .map((plan) => plan?.itemId?._id)
+            .filter(Boolean)
+            .map((id) => new ObjectId(id)) ?? [];
+
+        if (planItemIds.length === 0) {
+          return [];
+        }
+
+        const [profileInfo, updatedPriceMap] = await Promise.all([
+          processPricingData?.userId
+            ? this.helperService.getProfileByIdTl(
+                [processPricingData?.userId],
+                EprofileType.Expert
+              )
+            : Promise.resolve([]),
+          country_code
+            ? this.getUpdatePrice(
+                country_code,
+                planItemIds.map((id) => id.toString())
+              )
+            : Promise.resolve({}),
+        ]);
+
+        const profileInfoObj = Array.isArray(profileInfo)
+          ? profileInfo.reduce((acc, current) => {
+              acc[current.userId] = current;
+              return acc;
+            }, {})
+          : {};
+
+        processPricingData["profileData"] =
+          profileInfoObj[processPricingData?.userId?.toString()];
+
+        const isNewSubscription = !subscriptionData;
+        const itemPromoDetails =
+          processPricingData?.itemId?.additionalDetail?.promotionDetails || {};
+        const skillName =
+          processPricingData?.skill?.[0]?.skill_name ||
+          processPricingData?.skill?.skill_name ||
+          "";
+        const mentorName = processPricingData?.profileData?.displayName || "";
+        const skipText =
+          processPricingData?.itemId?.additionalDetail?.skipText || "";
+
+        const baseContext = {
+          mentorName,
+          skipText,
+          skillName,
+          isNewSubscription,
+          itemPromoDetails,
+          itemDescription: processPricingData?.itemId?.itemDescription || "",
+        };
+
+        const finalResponseWithOrder = planItems.reduce(
+          (acc: any[], plan: any, index: number) => {
+            const planItem = plan?.itemId;
+            if (!planItem?._id) {
+              return acc;
+            }
+
+            const updatedPrice =
+              updatedPriceMap?.[planItem?._id?.toString()] || null;
+
+            if (updatedPrice) {
+              planItem.price = updatedPrice?.price;
+              planItem.comparePrice = updatedPrice?.comparePrice;
+              planItem.currency = updatedPrice?.currency;
+            }
+
+            const combinedPromoDetail = this.buildPlanPromotionDetail(
+              planItem,
+              baseContext
+            );
+
+            if (combinedPromoDetail) {
+              acc.push({
+                ...combinedPromoDetail,
+                planOrder: typeof plan?.order === "number" ? plan?.order : index,
+              });
+            }
+            return acc;
+          },
+          []
+        );
+
+        const finalResponse = finalResponseWithOrder
+          .sort(
+            (data, value) =>
+              (data?.planOrder ?? 0) - (value?.planOrder ?? 0)
+          )
+          .map(({ planOrder, ...rest }) => rest);
+
+        const normalizedType = processPricingData?.type || EPayWallType.courses;
+        const typeSpecificPayload = this.formatPromotionDetailsByType(
+          finalResponse,
+          normalizedType
+        );
+
+        return {
+          payWall: {
+            ...typeSpecificPayload,
+          type: {
+            page: promotionPage,
+          },
+          }
+        };
+      }
+      if (apiVersion !== "2") {
       let subscriptionData;
       let mandateData;
 
@@ -1974,6 +2321,7 @@ export class ServiceItemService {
       finalResponse.push(...nonMatchedItems);
 
       return finalResponse;
+    }
     } catch (err) {
       console.error(
         "getPromotionDetailByItemId failed for itemId:",

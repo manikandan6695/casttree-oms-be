@@ -807,7 +807,17 @@ export class DynamicUiService {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { tagOrder: "$tagOrder", tagName: "$tagName" },
+                  { 
+                    tagOrder: "$tagOrder", 
+                    tagName: "$tagName",
+                    itemId: {
+                      $cond: {
+                        if: { $ne: ["$itemId", null] },
+                        then: { $toString: "$itemId" },
+                        else: null,
+                      },
+                    },
+                  },
                 ],
               },
             },
@@ -983,10 +993,12 @@ export class DynamicUiService {
 
       serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
-          const matchingTask = taskMap.get(detail.processId.toString());
+          const matchingTask:any = taskMap.get(detail.processId.toString());
           return {
             ...detail,
-            taskDetail: matchingTask || null,
+            taskDetail: matchingTask
+              ? { ...matchingTask, itemId: detail?.itemId }
+              : null,
           };
         });
       });
@@ -3751,6 +3763,13 @@ export class DynamicUiService {
                   then: {
                     media: { $ifNull: ["$firstTask.taskMetaData.media", []] },
                     shareText: { $ifNull: ["$firstTask.taskMetaData.shareText", ""] },
+                    itemId: {
+                      $cond: {
+                        if: { $ne: ["$itemId", null] },
+                        then: { $toString: "$itemId" },
+                        else: null,
+                      },
+                    },
                   },
                   else: {},
                 },

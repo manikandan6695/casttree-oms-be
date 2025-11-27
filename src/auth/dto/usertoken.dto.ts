@@ -7,6 +7,7 @@ export class UserToken {
   system_user_id?: string;
   userOrgId?: string;
   profileId?: string;
+  phoneNumber?: string;
 }
 
 export class RawTokenModel {
