@@ -514,7 +514,6 @@ export class SubscriptionService {
           payload,
         },
       });
-      
     } catch (error) {
       throw error;
     }
@@ -3701,10 +3700,12 @@ export class SubscriptionService {
         provider: provider,
         targetApp: targetAppForSubscription,
         deviceOS: body.deviceOS,
-        refId : body.refId
+        refId: body.refId,
       } as any;
-      console.log("body is", body);
-
+      // console.log("body is", body);
+      if (body?.refId) {
+        createSubscriptionBody["refId"] = body?.refId;
+      }
       // Use the same createSubscription flow
       const subscriptionResponse = await this.createSubscription(
         createSubscriptionBody,
