@@ -896,6 +896,7 @@ export class DynamicUiService {
                     tagName: "$tagName",
                     itemName: "$itemName",
                     priorityOrder: "$priorityOrder",
+                    itemId: "$itemId",
                   },
                 ],
               },
