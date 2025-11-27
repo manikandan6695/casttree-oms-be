@@ -2357,4 +2357,255 @@ export class ServiceItemService {
      throw error;
     }
   }
+  async getServiceItemDetailsByProcessId(processId: string) {
+    try {
+      if (!ObjectId.isValid(processId)) {
+        return null;
+      }
+
+      const [serviceItem] = await this.serviceItemModel.aggregate([
+        {
+          $match: {
+            "additionalDetails.processId": new ObjectId(processId),
+            status: Estatus.Active,
+          },
+        },
+        {
+          $lookup: {
+            from: "item",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "item",
+          },
+        },
+        { $unwind: { path: "$item", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "profile",
+            let: { userId: "$userId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$userId", "$$userId"] },
+                      { $eq: ["$type", EprofileType.Expert] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  displayName: 1,
+                  about: 1,
+                  media: 1,
+                },
+              },
+            ],
+            as: "profile",
+          },
+        },
+        { $unwind: { path: "$profile", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            profileMediaIds: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$profile.media",
+                    as: "media",
+                    cond: { $ne: ["$$media.media_id", null] },
+                  },
+                },
+                as: "media",
+                in: "$$media.media_id",
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "media",
+            let: { mediaIds: "$profileMediaIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      {
+                        $in: [
+                          "$_id",
+                          { $ifNull: ["$$mediaIds", []] },
+                        ],
+                      },
+                      { $eq: ["$status", Estatus.Active] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  media_url: 1,
+                  media_type: 1,
+                },
+              },
+            ],
+            as: "profileMediaDocs",
+          },
+        },
+      ]);
+
+      if (!serviceItem) {
+        return null;
+      }
+
+      const mediaMap = new Map<string, any>();
+      (serviceItem.profileMediaDocs || []).forEach((doc) => {
+        if (doc?._id) {
+          mediaMap.set(doc._id.toString(), doc);
+        }
+      });
+
+      const formatObjectId = (value) =>
+        value && typeof value === "object" && value.toString
+          ? value.toString()
+          : value ?? null;
+
+      const formattedProfile = serviceItem.profile
+        ? {
+            profileId: formatObjectId(serviceItem.profile._id),
+            displayName: serviceItem.profile.displayName,
+            about: serviceItem.profile.about,
+            media: (serviceItem.profile.media || [])
+              .map((mediaRef) => {
+                if (!mediaRef?.media_id) return null;
+                const mediaId = formatObjectId(mediaRef.media_id);
+                const matched = mediaMap.get(mediaId);
+                return {
+                  mediaId,
+                  mediaUrl: matched?.media_url ?? "",
+                  type: mediaRef.type ?? matched?.media_type,
+                };
+              })
+              .filter(Boolean),
+          }
+        : null;
+
+      const itemDetail = serviceItem.item
+        ? {
+            itemId: formatObjectId(serviceItem.item._id),
+            itemName: serviceItem.item.itemName,
+            itemDescription: serviceItem.item.itemDescription,
+          }
+        : {
+            itemId: formatObjectId(serviceItem.itemId),
+            itemName: null,
+            itemDescription: null,
+          };
+
+      const skillObjectIds: ObjectId[] = [];
+      const uniqueSkillIds = new Set<string>();
+      const skillData = (serviceItem.skill || []).map((skillEntry) => {
+        const skillId = formatObjectId(skillEntry?.skillId);
+        if (skillId && ObjectId.isValid(skillId) && !uniqueSkillIds.has(skillId)) {
+          uniqueSkillIds.add(skillId);
+          skillObjectIds.push(new ObjectId(skillId));
+        }
+        return {
+          ...skillEntry,
+          skillId,
+        };
+      });
+
+      const roleData = (serviceItem.role || []).map((roleEntry) => ({
+        ...roleEntry,
+        roleId: formatObjectId(roleEntry?.roleId),
+      }));
+
+      const tagData = (serviceItem.tag || []).map((tagEntry) => ({
+        ...tagEntry,
+        category_id: formatObjectId(tagEntry?.category_id),
+      }));
+
+      const recommendationList = await this.buildRecommendationList(
+        skillObjectIds,
+        serviceItem._id
+      );
+
+      return {
+        itemId: itemDetail.itemId,
+        role: roleData,
+        tag: tagData,
+        skill: skillData,
+        thumbnail: serviceItem.additionalDetails?.thumbnail ?? null,
+        itemDetail,
+        profile: formattedProfile,
+        recommendationList,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async buildRecommendationList(
+    skillIds: ObjectId[],
+    excludeServiceItemId?: ObjectId
+  ) {
+    if (!skillIds?.length) {
+      return [];
+    }
+
+    const match: any = {
+      status: Estatus.Active,
+      type: EserviceItemType.courses,
+      "skill.skillId": { $in: skillIds },
+    };
+
+    if (excludeServiceItemId) {
+      match._id = { $ne: excludeServiceItemId };
+    }
+
+    const recommendationDocs = await this.serviceItemModel
+      .aggregate([
+        { $match: match },
+        { $sort: { priorityOrder: 1, _id: 1 } },
+        {
+          $lookup: {
+            from: "item",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "item",
+          },
+        },
+        { $unwind: { path: "$item", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 0,
+            itemId: "$item._id",
+            itemName: "$item.itemName",
+            itemDescription: "$item.itemDescription",
+            processId: "$additionalDetails.processId",
+            thumbNail: "$additionalDetails.thumbnail",
+          },
+        },
+        { $limit: 10 },
+      ])
+      .exec();
+
+    return recommendationDocs
+      .map((doc) => ({
+        itemId:
+          doc.itemId && doc.itemId.toString ? doc.itemId.toString() : doc.itemId,
+        itemName: doc.itemName,
+        itemDescription: doc.itemDescription,
+        thumbNail: doc.thumbNail ?? null,
+        processId:
+          doc.processId && doc.processId.toString
+            ? doc.processId.toString()
+            : doc.processId,
+      }))
+      .filter((doc) => doc.itemId && doc.processId);
+  }
 }

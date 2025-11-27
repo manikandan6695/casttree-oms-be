@@ -6,6 +6,7 @@ import { UserToken } from "src/auth/dto/usertoken.dto";
 import { EMixedPanelEvents } from "src/helper/enums/mixedPanel.enums";
 import { HelperService } from "src/helper/helper.service";
 import { EcomponentType, Eheader } from "src/item/enum/courses.enum";
+import { EprofileType } from "src/item/enum/profileType.enum";
 import { Estatus } from "src/item/enum/status.enum";
 import { ServiceItemService } from "src/item/service-item.service";
 import { EPaymentSourceType } from "src/payment/enum/payment.enum";
@@ -1016,13 +1017,27 @@ export class ProcessService {
 
   async getFirstTaskByProcess(processId: string) {
     try {
-      let data = await this.tasksModel.find({
-        processId: processId,
-        // taskNumber: 1,
-        status: Estatus.Active,
-      }).sort({ taskNumber: 1 }).limit(1);
-      let serviceItemData = await this.serviceItemService.getServiceItemDetailByProcessId(processId);
-      return { data, itemId: serviceItemData?.itemId, role: serviceItemData?.role };
+      const data = await this.tasksModel
+        .find({
+          processId: processId,
+          status: Estatus.Active,
+        })
+        .sort({ taskNumber: 1 })
+        .limit(1)
+        .lean();
+      
+      const serviceItemData: any =
+        await this.serviceItemService.getServiceItemDetailsByProcessId(
+          processId
+        );
+      if (!serviceItemData) {
+        return { data };
+      }
+
+      return {
+        ...serviceItemData,
+        data,
+      };
     } catch (error) {
       throw error;
     }
