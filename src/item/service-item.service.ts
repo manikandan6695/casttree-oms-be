@@ -2400,6 +2400,8 @@ export class ServiceItemService {
       subscriptionDetail: primarySubscriptionDetail = {},
       planConfig: primaryPlanConfig = [],
       tags: primaryTags = [],
+      itemName: primaryItemName = "",
+      itemId: primaryItemId = "",
       ...courseMeta
     } = firstPlan || {};
 
@@ -2410,6 +2412,8 @@ export class ServiceItemService {
         subscriptionDetail: primarySubscriptionDetail,
         planConfig: primaryPlanConfig,
         tags: primaryTags,
+        itemName: primaryItemName,
+        itemId: primaryItemId,
       },
       ...remainingPlans.map((plan) => ({
         planDetails: plan?.planDetails || {},
@@ -2417,6 +2421,8 @@ export class ServiceItemService {
         subscriptionDetail: plan?.subscriptionDetail || {},
         planConfig: plan?.planConfig || [],
         tags: plan?.tags || [],
+        itemName: plan?.itemName || "",
+        itemId: plan?.itemId || "",
       })),
     ];
 
