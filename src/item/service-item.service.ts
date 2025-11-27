@@ -2340,6 +2340,7 @@ export class ServiceItemService {
       subscriptionType: additionalDetailPlain?.subscriptiontype || "",
       yearlyPlanDetails:
         promoDetails?.yearlyPlanDetails || itemPromoDetails?.yearlyPlanDetails || {},
+      planItemDescription: planItem?.itemDescription || "",
     };
   } catch(err){
     throw err
@@ -2367,7 +2368,7 @@ export class ServiceItemService {
           planConfig: plan?.planConfig || [],
           itemId: plan?.itemId || "",
           itemName: plan?.itemName || "",
-          itemDescription: plan?.itemDescription || "",
+          itemDescription: plan?.planItemDescription || "",
           tags: plan?.tags || [],
         })),
       };
@@ -2383,7 +2384,7 @@ export class ServiceItemService {
           authDetail: plan?.authDetail || {},
           subscriptionDetail: plan?.subscriptionDetail || {},
           premiumAdditional: plan?.premiumAdditional || [],
-          itemDescription: plan?.itemDescription || "",
+          itemDescription: plan?.planItemDescription || "",
           tags: plan?.tags || [],
         })),
       };
@@ -2400,6 +2401,10 @@ export class ServiceItemService {
       subscriptionDetail: primarySubscriptionDetail = {},
       planConfig: primaryPlanConfig = [],
       tags: primaryTags = [],
+      itemName: primaryItemName = "",
+      itemId: primaryItemId = "",
+      itemDescription: primaryItemDescription = "",
+      planItemDescription: primaryPlanItemDescription = "",
       ...courseMeta
     } = firstPlan || {};
 
@@ -2410,6 +2415,9 @@ export class ServiceItemService {
         subscriptionDetail: primarySubscriptionDetail,
         planConfig: primaryPlanConfig,
         tags: primaryTags,
+        itemName: primaryItemName,
+        itemId: primaryItemId,
+        itemDescription: primaryPlanItemDescription,
       },
       ...remainingPlans.map((plan) => ({
         planDetails: plan?.planDetails || {},
@@ -2417,6 +2425,9 @@ export class ServiceItemService {
         subscriptionDetail: plan?.subscriptionDetail || {},
         planConfig: plan?.planConfig || [],
         tags: plan?.tags || [],
+        itemName: plan?.itemName || "",
+        itemId: plan?.itemId || "",
+        itemDescription: plan?.planItemDescription || "",
       })),
     ];
 
