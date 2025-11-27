@@ -111,11 +111,15 @@ export class InitiateSubscriptionDTO {
 
   @IsNotEmpty()
   @IsString()
-  targetApp : string;
+  targetApp: string;
 
   @IsNotEmpty()
   @IsString()
-  deviceOS : string;
+  deviceOS: string;
+
+  @IsOptional()
+  @IsString()
+  refId: string;
 }
 
 export class AddSubscriptionDTO {

@@ -133,7 +133,7 @@ export class SubscriptionService {
       let chargeDate = await this.getFutureDate(detail);
       switch (body.provider) {
         case "razorpay":
-          // console.log("auth amount is", authAmount);
+          console.log("auth amount is", authAmount);
 
           let expiry = Math.floor(
             new Date(this.sharedService.getFutureYearISO(10)).getTime() / 1000
@@ -3696,12 +3696,13 @@ export class SubscriptionService {
       }
 
       // Convert InitiateSubscriptionDTO to CreateSubscriptionDTO format
-      const createSubscriptionBody: CreateSubscriptionDTO = {
+      const createSubscriptionBody: any = {
         itemId: body.itemId,
         provider: provider,
         targetApp: targetAppForSubscription,
         deviceOS: body.deviceOS,
-      } as CreateSubscriptionDTO;
+        refId : body.refId
+      } as any;
       console.log("body is", body);
 
       // Use the same createSubscription flow
