@@ -5,9 +5,7 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import {
-  IPaymentGatewayConfigurationModel,
-} from "./schema/payment-gateway-configuration.schema";
+import { IPaymentGatewayConfigurationModel } from "./schema/payment-gateway-configuration.schema";
 import {
   InstrumentsResponseDto,
   InstrumentDto,
@@ -35,33 +33,32 @@ export class PaymentGatewayService {
     }
 
     // Get distinct instruments
-    const instruments = await this.paymentConfigModel.distinct("instrument", {
-      paymentType,
-      device,
-     status: EStatus.Active,
-    });
+    const configs = await this.paymentConfigModel
+      .find({
+        paymentType,
+        device,
+        status: EStatus.Active,
+      })
+      .sort({ priority: 1 })
+      .lean();
 
-    // Check health for each
+    const groupedByInstrument = {};
+
+    // Group records by instrument
+    for (const config of configs) {
+      if (!groupedByInstrument[config.instrument]) {
+        groupedByInstrument[config.instrument] = [];
+      }
+      groupedByInstrument[config.instrument].push(config);
+    }
+
     const result: InstrumentDto[] = [];
 
-    for (const instrumentId of instruments) {
-      // Get all gateways for this instrument
-      const gateways = await this.paymentConfigModel
-        .find({
-          paymentType,
-          device,
-          instrument: instrumentId,
-          status: EStatus.Active,
-        })
-        .lean()
-        .exec();
+    for (const instrumentId in groupedByInstrument) {
+      const gateways = groupedByInstrument[instrumentId];
 
-      if (gateways.length === 0) continue;
-
-      // Check if any gateway is healthy
       const isAnyHealthy = gateways.some((g) => g.isHealthy);
 
-      // Get metadata from first record
       const metadata = gateways[0];
 
       result.push({
