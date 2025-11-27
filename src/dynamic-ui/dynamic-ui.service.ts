@@ -949,10 +949,19 @@ export class DynamicUiService {
       );
 
       serviceItemData.forEach((item) => {
-        item.details = item.details.map((detail) => ({
-          ...detail,
-          taskDetail: taskMap.get(detail.processId.toString()) || null,
-        }));
+        item.details = item.details.map((detail) => {
+          const taskDetail = taskMap.get(detail.processId.toString());
+          if (taskDetail && typeof taskDetail === 'object') {
+            return {
+              ...detail,
+              taskDetail: { ...(taskDetail as any), itemId: detail.itemId },
+            };
+          }
+          return {
+            ...detail,
+            taskDetail: null,
+          };
+        });
       });
 
       const finalData = serviceItemData.reduce((acc, item) => {
