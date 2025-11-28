@@ -797,7 +797,7 @@ export class DynamicUiService {
             tagOrder: { $arrayElemAt: ["$tagPairs", 1] },
           },
         },
-        {
+       {
           $group: {
             _id: {
               tagName: "$tagName",
@@ -807,17 +807,7 @@ export class DynamicUiService {
               $first: {
                 $mergeObjects: [
                   "$additionalDetails",
-                  { 
-                    tagOrder: "$tagOrder", 
-                    tagName: "$tagName",
-                    itemId: {
-                      $cond: {
-                        if: { $ne: ["$itemId", null] },
-                        then: { $toString: "$itemId" },
-                        else: null,
-                      },
-                    },
-                  },
+                  { tagOrder: "$tagOrder", tagName: "$tagName" },
                 ],
               },
             },
@@ -991,14 +981,12 @@ export class DynamicUiService {
       );
       //   console.log("taskMap", taskMap);
 
-      serviceItemData.forEach((item) => {
+     serviceItemData.forEach((item) => {
         item.details = item.details.map((detail) => {
-          const matchingTask:any = taskMap.get(detail.processId.toString());
+          const matchingTask = taskMap.get(detail.processId.toString());
           return {
             ...detail,
-            taskDetail: matchingTask
-              ? { ...matchingTask, itemId: detail?.itemId }
-              : null,
+            taskDetail: matchingTask || null,
           };
         });
       });
@@ -3763,13 +3751,6 @@ export class DynamicUiService {
                   then: {
                     media: { $ifNull: ["$firstTask.taskMetaData.media", []] },
                     shareText: { $ifNull: ["$firstTask.taskMetaData.shareText", ""] },
-                    itemId: {
-                      $cond: {
-                        if: { $ne: ["$itemId", null] },
-                        then: { $toString: "$itemId" },
-                        else: null,
-                      },
-                    },
                   },
                   else: {},
                 },
